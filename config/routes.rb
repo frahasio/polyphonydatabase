@@ -1,3 +1,9 @@
 Rails.application.routes.draw do
-  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+  resources :sources do
+    collection do
+      post "/switch-to", to: "sources#switch_to"      
+    end
+  end
+
+  root to: "home#index"
 end

@@ -1,0 +1,59 @@
+<%= form_tag("/sources/switch-to") do %>
+  <%= select_tag "id", options_from_collection_for_select(@sources, "id", "code") %>
+
+  <button>Edit</button>
+<% end %>
+
+<%= form_for(@source) do |f| %>
+  <%= f.text_field :title %>
+  <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
+  <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
+  <%= f.text_field :date_range %>
+  <%= f.select :format, Source::PUBLISHERS.map { |pub| [pub, pub] } %>
+  <%= f.text_field :town %>
+  <%= f.text_field :sigla %>
+  <%= f.text_field :shelfmark %>
+  <%= f.text_field :url, label: "URL" %>
+
+  <button>Save</button>
+
+  <table>
+    <tr>
+      <th>Order</th>
+      <th>Composer</th>
+      <th>Title</th>
+      <th>Functions</th>
+      <th>Clefs</th>
+      <th>Notes</th>
+    </tr>
+
+    <%= f.fields_for(:inclusions) do |i| %>
+      <tr>
+        <td><%= i.text_field :order %></td>
+        <td>
+          <div>
+            <%= i.fields_for(:attributions) do |attrib| %>
+              <% if attrib.object.new_record? %>
+                <h3>New attribution</h3>
+              <% end %>
+
+              <%= attrib.fields_for(:anonym) do |anonym| %>
+                <%= anonym.text_field :name %>
+              <% end %>
+
+              <%= attrib.check_box :incorrectly_attributed %>
+
+              Gimme a composer
+            <% end %>
+          </div>
+        </td>
+        <%= i.fields_for(:piece) do |piece| %>
+          <td>
+            <%= piece.text_field :title %>
+          </td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+  <button>Save</button>
+<% end %>
