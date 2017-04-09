@@ -1,10 +1,13 @@
+<h1>Cataloguing</h1>
+
 <%= form_tag("/sources/switch-to") do %>
-  <%= select_tag "id", options_from_collection_for_select(@sources, "id", "code") %>
+  <%= select_tag "id", grouped_options_for_select(@grouped_sources) %>
 
   <button>Edit</button>
 <% end %>
 
 <%= form_for(@source) do |f| %>
+  <%= f.check_box :catalogued %>
   <%= f.text_field :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
@@ -31,21 +34,7 @@
       <tr>
         <td><%= i.text_field :order %></td>
         <td>
-          <div>
-            <%= i.fields_for(:attributions) do |attrib| %>
-              <% if attrib.object.new_record? %>
-                <h3>New attribution</h3>
-              <% end %>
-
-              <%= attrib.fields_for(:anonym) do |anonym| %>
-                <%= anonym.text_field :name %>
-              <% end %>
-
-              <%= attrib.check_box :incorrectly_attributed %>
-
-              Gimme a composer
-            <% end %>
-          </div>
+          <%= i.text_field :attributed_to %>
         </td>
         <%= i.fields_for(:piece) do |piece| %>
           <td>

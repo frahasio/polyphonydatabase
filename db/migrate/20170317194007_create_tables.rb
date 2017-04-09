@@ -6,7 +6,7 @@ class CreateTables < ActiveRecord::Migration[5.0]
     end
 
     create_table :sources do |t|
-      t.string :code
+      t.string :code, null: false
       t.string :title
       t.string :type
       t.string :format
@@ -16,6 +16,7 @@ class CreateTables < ActiveRecord::Migration[5.0]
       t.string :sigla
       t.string :shelfmark
       t.string :url
+      t.boolean :catalogued, null: false, default: false
       t.timestamps
     end
 

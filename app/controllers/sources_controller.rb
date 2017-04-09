@@ -1,7 +1,14 @@
 class SourcesController < ApplicationController
+  def index
+  end
+
   def edit
     @source = Source.find(params[:id])
     @sources = Source.all
+
+    @grouped_sources = @sources.each_with_object(Hash.new {|h, k| h[k] = []}) { |s, h|
+      h[s.catalogued ? "Catalogued" : "Uncatalogued"] << [s.code, s.id]
+    }
 
     last_inclusion = @source.inclusions.order(:order).last
     last_order = last_inclusion&.order || -1
@@ -15,7 +22,7 @@ class SourcesController < ApplicationController
   def create
     source = Source.create!(source_params)
 
-    redirect_to edit_source_path(source)
+    redirect_to sources_path
   end
 
   def update
@@ -42,18 +49,12 @@ private
       :sigla,
       :shelfmark,
       :url,
+      :catalogued,
       inclusions_attributes: [
         :id,
         :note,
         :order,
-        attributions_attributes: [
-          :id,
-          :incorrectly_attributed,
-          anonym_attributes: [
-            :id,
-            :name,
-          ]
-        ],
+        :attributed_to,
         piece_attributes: [
           :id,
           :title,

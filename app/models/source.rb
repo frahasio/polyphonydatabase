@@ -1,9 +1,13 @@
 class Source < ActiveRecord::Base
   self.inheritance_column = :_type_disabled
 
+  validates :code, presence: true, uniqueness: true
+
   has_many :inclusions, inverse_of: :source
   # has_many :pieces, through: :inclusions
   accepts_nested_attributes_for :inclusions, reject_if: :unfilled?
+
+  scope :uncatalogued, -> { where(catalogued: false) }
 
   TYPES = %w[
     MS

@@ -10,4 +10,17 @@ class Inclusion < ActiveRecord::Base
   # def composers
   #   forced_composers.union(cited_composers).union(inferred_composers)
   # end
+
+  def attributed_to
+    attributions.map(&:name).join(" | ")
+  end
+
+  def attributed_to=(text)
+    names = text
+      .split("|")
+      .map(&:strip)
+      .reject(&:blank?)
+
+    Attribution.set_by_names(self, names)
+  end
 end
