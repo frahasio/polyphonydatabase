@@ -3,11 +3,19 @@
 <h2>Add source</h2>
 <%= form_for(Source.new) do |f| %>
   <%= f.text_field :code %>
+  <button type="button" name="button">Add</button>
 <% end %>
 
 <h2>Uncatalogued</h2>
 <ul>
   <% Source.uncatalogued.each do |src| %>
+    <li><%= link_to src.code, edit_source_path(src) %></li>
+  <% end %>
+</ul>
+
+<h2>Catalogued</h2>
+<ul>
+  <% Source.catalogued.each do |src| %>
     <li><%= link_to src.code, edit_source_path(src) %></li>
   <% end %>
 </ul>

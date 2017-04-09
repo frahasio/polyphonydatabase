@@ -1,0 +1,40 @@
+<h1>Attributions</h1>
+
+<%= form_tag assign_attributions_path do %>
+  <% Attribution.all.group_by(&:name).each do |name, attribs| %>
+    <h2><%= name %></h2>
+
+    <table>
+      <tr>
+        <th></th>
+        <th>Status</th>
+        <th>Piece</th>
+        <th>Source</th>
+        <th>Assigned to</th>
+        <th>Marked as incorrectly attributed?</th>
+      </tr>
+
+      <% attribs.each do |attrib| %>
+        <tr>
+          <td><label><%= check_box_tag "attribution_ids[]", attrib.id %> Update</label></td>
+          <td><%= attrib.status %></td>
+          <td><%= attrib.inclusion.piece.title %></td>
+          <td><%= attrib.inclusion.source.code %></td>
+          <td><%= attrib.name %></td>
+          <td><%= attrib.incorrectly_attributed? %></td>
+        </tr>
+      <% end %>
+    </table>
+
+    <label>
+      <%= check_box_tag "incorrectly_attributed" %>
+      Incorrectly attributed?
+    </label>
+
+    <%= select_tag "composer_id", options_from_collection_for_select(Composer.all.order(:name), "id", "name") %>
+
+    <button>Resolve</button>
+
+    <%= link_to "Create new composer", new_composer_path, target: "_blank" %>
+  <% end %>
+<% end %>

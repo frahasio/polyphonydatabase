@@ -8,6 +8,7 @@ class Source < ActiveRecord::Base
   accepts_nested_attributes_for :inclusions, reject_if: :unfilled?
 
   scope :uncatalogued, -> { where(catalogued: false) }
+  scope :catalogued, -> { where(catalogued: true) }
 
   TYPES = %w[
     MS

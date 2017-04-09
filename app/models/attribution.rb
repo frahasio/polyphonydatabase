@@ -5,6 +5,9 @@ class Attribution < ActiveRecord::Base
   belongs_to :anonym, inverse_of: :attributions, optional: true
   accepts_nested_attributes_for :anonym
 
+  validate :has_some_attribution
+  validate :incorrect_attribution
+
   def name
     composer&.name || anonym&.name || self.alias&.composer&.name
   end
@@ -22,5 +25,21 @@ class Attribution < ActiveRecord::Base
         attrib.destroy
       end
     end
+  end
+
+  def status
+    anonym ? "Unresolved" : "Resolved"
+  end
+
+private
+
+  def has_some_attribution
+    if composer.nil? && self.alias.nil? && anonym.nil?
+      errors[:base] = "Must have a composer, alias, or anonym assigned"
+    end
+  end
+
+  def incorrect_attribution
+    errors[:base] = "Must be marked as incorrectly attributed if assigned directly to a composer" if composer unless incorrectly_attributed?
   end
 end
