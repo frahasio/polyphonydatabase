@@ -7,6 +7,7 @@ class Attribution < ActiveRecord::Base
 
   validate :has_some_attribution
   validate :incorrect_attribution
+  validates :inclusion_id, uniqueness: true
 
   def name
     composer&.name || anonym&.name || self.alias&.composer&.name

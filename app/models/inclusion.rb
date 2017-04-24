@@ -11,6 +11,8 @@ class Inclusion < ActiveRecord::Base
   #   forced_composers.union(cited_composers).union(inferred_composers)
   # end
 
+  validates :source_id, uniqueness: { scope: :piece_id }
+
   def attributed_to
     attributions.map(&:name).join(" | ")
   end
