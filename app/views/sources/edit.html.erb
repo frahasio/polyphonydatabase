@@ -30,7 +30,7 @@
       <th>Notes</th>
     </tr>
 
-    <%= f.fields_for(:inclusions) do |i| %>
+    <%= f.fields_for(:inclusions, @inclusions) do |i| %>
       <tr>
         <td><%= i.text_field :order %></td>
         <td>

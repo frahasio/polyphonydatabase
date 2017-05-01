@@ -10,16 +10,20 @@ class SourcesController < ApplicationController
       h[s.catalogued ? "Catalogued" : "Uncatalogued"] << [s.code, s.id]
     }
 
-    last_inclusion = @source.inclusions.order(:order).last
+    @inclusions = @source.inclusions.order(:order).to_a
+
+    last_inclusion = @inclusions.last
     last_order = last_inclusion&.order || -1
 
-    num_blank_rows = [5, (20 - @source.inclusions.count)].max
+    num_blank_rows = [5, (20 - @inclusions.count)].max
 
     num_blank_rows.times do |n|
       inclusion = @source.inclusions.build(order: last_order + n + 1)
       inclusion.piece = Piece.new
       attributions = inclusion.attributions.build
       attributions.anonym = Anonym.new
+
+      @inclusions << inclusion
     end
   end
 
