@@ -4,3 +4,9 @@
   <%= f.text_field :name %>
   <button type="button" name="button">Create</button>
 <% end %>
+
+<ul>
+  <% Composer.order(:name).each do |composer| %>
+    <li><%= link_to composer.name, edit_composer_path(composer) %></li>
+  <% end %>
+</ul>
