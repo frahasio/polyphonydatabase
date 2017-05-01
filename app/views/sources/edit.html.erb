@@ -12,10 +12,9 @@
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
   <%= f.text_field :date_range %>
-  <%= f.select :format, Source::PUBLISHERS.map { |pub| [pub, pub] } %>
+  <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] } %>
   <%= f.text_field :town %>
-  <%= f.text_field :sigla %>
-  <%= f.text_field :shelfmark %>
+  <%= f.text_field :rism_link, label: "RISM URL" %>
   <%= f.text_field :url, label: "URL" %>
 
   <button>Save</button>

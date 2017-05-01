@@ -113,19 +113,18 @@ ActiveRecord::Schema.define(version: 20170317194007) do
   end
 
   create_table "sources", force: :cascade do |t|
-    t.string   "code",                       null: false
+    t.string   "code",                                null: false
     t.string   "title"
     t.string   "type"
     t.string   "format"
     t.string   "date_range"
-    t.string   "publisher"
+    t.string   "publisher_or_scribe"
     t.string   "town"
-    t.string   "sigla"
-    t.string   "shelfmark"
+    t.string   "rism_link"
     t.string   "url"
-    t.boolean  "catalogued", default: false, null: false
-    t.datetime "created_at",                 null: false
-    t.datetime "updated_at",                 null: false
+    t.boolean  "catalogued",          default: false, null: false
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
   end
 
 end

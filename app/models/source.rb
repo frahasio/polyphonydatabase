@@ -21,7 +21,7 @@ class Source < ActiveRecord::Base
     Score
   ].freeze
 
-  PUBLISHERS = [
+  PUBLISHERS_AND_SCRIBES = [
     "Attaigngnant",
     "Gardano, Angelo",
   ].freeze

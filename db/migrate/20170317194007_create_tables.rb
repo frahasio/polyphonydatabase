@@ -11,10 +11,9 @@ class CreateTables < ActiveRecord::Migration[5.0]
       t.string :type
       t.string :format
       t.string :date_range
-      t.string :publisher
+      t.string :publisher_or_scribe
       t.string :town
-      t.string :sigla
-      t.string :shelfmark
+      t.string :rism_link
       t.string :url
       t.boolean :catalogued, null: false, default: false
       t.timestamps
