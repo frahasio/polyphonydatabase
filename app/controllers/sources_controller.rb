@@ -13,10 +13,14 @@ class SourcesController < ApplicationController
     last_inclusion = @source.inclusions.order(:order).last
     last_order = last_inclusion&.order || -1
 
-    inclusion = @source.inclusions.build(order: last_order + 1)
-    inclusion.piece = Piece.new
-    attributions = inclusion.attributions.build
-    attributions.anonym = Anonym.new
+    num_blank_rows = [5, (20 - @source.inclusions.count)].max
+
+    num_blank_rows.times do |n|
+      inclusion = @source.inclusions.build(order: last_order + n + 1)
+      inclusion.piece = Piece.new
+      attributions = inclusion.attributions.build
+      attributions.anonym = Anonym.new
+    end
   end
 
   def create
