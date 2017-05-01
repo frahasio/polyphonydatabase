@@ -13,6 +13,10 @@ class Attribution < ActiveRecord::Base
     composer&.name || anonym&.name || self.alias&.composer&.name
   end
 
+  def anonym_name
+    anonym&.name || self.alias&.anonym&.name
+  end
+
   def self.set_by_names(inclusion, names)
     names.each do |name|
       if !inclusion.attributions.any? { |a| a.anonym&.name == name }

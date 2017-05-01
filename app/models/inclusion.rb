@@ -14,7 +14,7 @@ class Inclusion < ActiveRecord::Base
   validates :source_id, uniqueness: { scope: :piece_id }
 
   def attributed_to
-    attributions.map(&:name).join(" | ")
+    attributions.map(&:anonym_name).join(" | ")
   end
 
   def attributed_to=(text)
