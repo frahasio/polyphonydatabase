@@ -7,7 +7,6 @@
     <table>
       <tr>
         <th></th>
-        <th>Status</th>
         <th>Piece</th>
         <th>Source</th>
         <th>Assigned to</th>
@@ -17,7 +16,6 @@
       <% attribs.each do |attrib| %>
         <tr>
           <td><label><%= check_box_tag "attribution_ids[]", attrib.id %> Update</label></td>
-          <td><%= attrib.status %></td>
           <td><%= attrib.inclusion.piece.title %></td>
           <td><%= attrib.inclusion.source.code %></td>
           <td><%= attrib.name %></td>
