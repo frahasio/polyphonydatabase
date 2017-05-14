@@ -12,7 +12,6 @@ class AttributionsController < ApplicationController
 
       if params[:incorrectly_attributed]
         success = attrib.update_attributes(
-          anonym: nil,
           alias: nil,
           composer: composer,
           incorrectly_attributed: true,
