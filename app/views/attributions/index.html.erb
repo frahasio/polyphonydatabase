@@ -1,7 +1,7 @@
 <h1>Attributions</h1>
 
 <%= form_tag assign_attributions_path do %>
-  <% Attribution.all.group_by(&:name).each do |name, attribs| %>
+  <% Attribution.unattributed.group_by(&:name).each do |name, attribs| %>
     <h2><%= name %></h2>
 
     <table>

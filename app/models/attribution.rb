@@ -9,6 +9,10 @@ class Attribution < ActiveRecord::Base
   validate :incorrect_attribution
   validates :inclusion_id, uniqueness: true
 
+  def self.unattributed
+    where("composer_id is null").where("alias_id is null")
+  end
+
   def name
     composer&.name || anonym&.name || self.alias&.composer&.name
   end

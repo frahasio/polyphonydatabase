@@ -22,7 +22,8 @@
   <table>
     <tr>
       <th>Order</th>
-      <th>Composer</th>
+      <th>Attributed to</th>
+      <th>Actual composer</th>
       <th>Title</th>
       <th>Functions</th>
       <th>Clefs</th>
@@ -34,6 +35,17 @@
         <td><%= i.text_field :order %></td>
         <td>
           <%= i.text_field :attributed_to %>
+        </td>
+        <td>
+          <ul>
+            <% i.object.attributions.each do |a| %>
+              <% if a.alias&.composer %>
+                <li><%= link_to (a.alias.composer&.name || "(Unnamed composer)"), edit_composer_path(a.alias.composer), target: "_blank" %></li>
+              <% elsif a.anonym_name.present? %>
+                <li><%= link_to "Unattributed", attributions_path, target: "_blank" %></li>
+              <% end %>
+            <% end %>
+          </ul>
         </td>
         <%= i.fields_for(:piece) do |piece| %>
           <td>
