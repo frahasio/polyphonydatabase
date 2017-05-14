@@ -8,8 +8,10 @@ class AttributionsController < ApplicationController
       composer = Composer.find(params[:composer_id])
       attrib = Attribution.find(attrib_id)
 
+      success = true
+
       if params[:incorrectly_attributed]
-        attrib.update_attributes(
+        success = attrib.update_attributes(
           anonym: nil,
           alias: nil,
           composer: composer,
@@ -21,12 +23,18 @@ class AttributionsController < ApplicationController
           anonym: attrib.anonym,
         )
 
-        attrib.update_attributes(
+        success = composer_alias.persisted?
+
+        success = attrib.update_attributes(
           anonym: nil,
           alias: composer_alias,
           composer: nil,
           incorrectly_attributed: false,
         )
+      end
+
+      unless success
+        flash[:error] = (attrib.errors.full_messages + composer_alias.errors.full_messages).to_sentence
       end
     end
 

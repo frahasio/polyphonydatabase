@@ -9,6 +9,10 @@
   </head>
 
   <body>
+    <% if flash[:error] %>
+      <p><%= flash[:error] %></p>
+    <% end %>
+
     <%= link_to "Home", root_path %>
 
     <%= yield %>

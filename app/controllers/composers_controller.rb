@@ -3,9 +3,13 @@ class ComposersController < ApplicationController
   end
 
   def create
-    composer = Composer.create!(composer_params)
+    composer = Composer.create(composer_params)
 
-    redirect_to edit_composer_path(composer)
+    unless composer.persisted?
+      flash[:error] = composer.errors.full_messages.to_sentence
+    end
+
+    redirect_to new_composer_path
   end
 
   def edit
@@ -14,7 +18,10 @@ class ComposersController < ApplicationController
 
   def update
     composer = Composer.find(params[:id])
-    composer.update_attributes(composer_params)
+
+    unless composer.update(composer_params)
+      flash[:error] = composer.errors.full_messages.to_sentence
+    end
 
     redirect_to new_composer_path
   end

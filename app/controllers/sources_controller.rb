@@ -30,12 +30,20 @@ class SourcesController < ApplicationController
   def create
     source = Source.create!(source_params)
 
+    unless source.persisted?
+      flash[:error] = source.errors.full_messages.to_sentence
+    end
+
     redirect_to sources_path
   end
 
   def update
     source = Source.find(params[:id])
-    source.update!(source_params)
+
+    unless source.update(source_params)
+      flash[:error] = source.errors.full_messages.to_sentence
+    end
+
 
     redirect_to edit_source_path(source)
   end
