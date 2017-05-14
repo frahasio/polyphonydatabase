@@ -19,14 +19,14 @@ class Attribution < ActiveRecord::Base
 
   def self.set_by_names(inclusion, names)
     names.each do |name|
-      if !inclusion.attributions.any? { |a| a.anonym&.name == name }
+      if !inclusion.attributions.any? { |a| a.anonym_name == name }
         attrib = inclusion.attributions.build
         attrib.anonym = Anonym.new(name: name)
       end
     end
 
     inclusion.attributions.each do |attrib|
-      if !names.include?(attrib.name)
+      if !names.include?(attrib.anonym_name)
         attrib.destroy
       end
     end
