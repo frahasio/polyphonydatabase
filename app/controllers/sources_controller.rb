@@ -48,21 +48,21 @@ private
 
   def source_params
     params.require(:source).permit(
-      :code,
-      :title,
-      :type,
-      :format,
-      :date_range,
-      :town,
-      :sigla,
-      :shelfmark,
-      :url,
       :catalogued,
+      :code,
+      :date_range,
+      :format,
+      :publisher_or_scribe,
+      :rism_link,
+      :title,
+      :town,
+      :type,
+      :url,
       inclusions_attributes: [
+        :attributed_to,
         :id,
         :note,
         :order,
-        :attributed_to,
         piece_attributes: [
           :id,
           :title,
