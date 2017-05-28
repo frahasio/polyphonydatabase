@@ -9,7 +9,7 @@
         <th>Select</th>
         <th>Piece</th>
         <th>Source</th>
-        <th>Attrib. in source</th>
+        <th>Notes</th>
       </tr>
 
       <% attribs.each do |attrib| %>
@@ -17,7 +17,7 @@
           <td><%= check_box_tag "attribution_ids[]", attrib.id %></td>
           <td><%= attrib.inclusion.piece.title %></td>
           <td><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
-          <td><%= attrib.name %></td>
+          <td><%= attrib.inclusion.notes %></td>
         </tr>
       <% end %>
     </table>
