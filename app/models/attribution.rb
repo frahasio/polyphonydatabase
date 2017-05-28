@@ -7,7 +7,6 @@ class Attribution < ActiveRecord::Base
 
   validate :has_some_attribution
   validate :incorrect_attribution
-  validates :inclusion_id, uniqueness: true
 
   def self.unattributed
     where("composer_id is null").where("alias_id is null")
@@ -23,9 +22,9 @@ class Attribution < ActiveRecord::Base
 
   def self.set_by_names(inclusion, names)
     names.each do |name|
-      if !inclusion.attributions.any? { |a| a.anonym_name == name }
+      if inclusion.attributions.none? { |a| a.anonym_name == name }
         attrib = inclusion.attributions.build
-        attrib.anonym = Anonym.new(name: name)
+        attrib.anonym = Anonym.find_or_initialize_by(name: name)
       end
     end
 
