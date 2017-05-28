@@ -22,7 +22,7 @@ class CreateTables < ActiveRecord::Migration[5.0]
     create_table :inclusions do |t|
       t.references :source
       t.references :piece
-      t.string :note
+      t.string :notes
       t.integer :order, null: false
       t.timestamps
     end

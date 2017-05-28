@@ -91,7 +91,7 @@ ActiveRecord::Schema.define(version: 20170317194007) do
   create_table "inclusions", force: :cascade do |t|
     t.integer  "source_id"
     t.integer  "piece_id"
-    t.string   "note"
+    t.string   "notes"
     t.integer  "order",      null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

@@ -82,7 +82,7 @@ private
       inclusions_attributes: [
         :attributed_to,
         :id,
-        :note,
+        :notes,
         :order,
         clefs_inclusions_attributes: [
           :annotated_note,
