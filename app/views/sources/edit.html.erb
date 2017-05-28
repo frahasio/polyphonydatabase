@@ -1,7 +1,7 @@
 <h1>Cataloguing</h1>
 
 <%= form_tag("/sources/switch-to") do %>
-  <%= select_tag "id", grouped_options_for_select(@grouped_sources) %>
+  <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
 
   <button>Edit</button>
 <% end %>
@@ -15,7 +15,7 @@
   <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
   <%= f.text_field :town %>
   <%= f.text_field :rism_link, label: "RISM URL" %>
-  <%= f.text_field :url, label: "URL" %>
+  <%= f.text_field :url, label: "Image URL" %>
 
   <button>Save</button>
 
@@ -41,13 +41,10 @@
             <% i.object.attributions.each do |a| %>
               <% if composer = (a.alias&.composer || (a.incorrectly_attributed? && a.composer)) %>
                 <li>
-                  <%= link_to (composer.name || "(Unnamed composer)"), edit_composer_path(composer), target: "_blank" %>
-                  <% if a.incorrectly_attributed? %>
-                    (source is incorrect)
-                  <% end %>
+                  <%= link_to (composer.name || "(Unnamed composer)"), edit_composer_path(composer), target: "_blank", class: ("incorrectly-attributed" if a.incorrectly_attributed?) %>
                 </li>
               <% elsif a.anonym_name.present? %>
-                <li><%= link_to "Unattributed", attributions_path, target: "_blank" %></li>
+                <li><%= link_to "Unresolved", attributions_path, target: "_blank" %></li>
               <% end %>
             <% end %>
           </ul>
