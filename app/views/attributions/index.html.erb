@@ -6,20 +6,18 @@
 
     <table>
       <tr>
-        <th></th>
+        <th>Select</th>
         <th>Piece</th>
         <th>Source</th>
-        <th>Assigned to</th>
-        <th>Marked as incorrectly attributed?</th>
+        <th>Attrib. in source</th>
       </tr>
 
       <% attribs.each do |attrib| %>
         <tr>
-          <td><label><%= check_box_tag "attribution_ids[]", attrib.id %> Update</label></td>
+          <td><%= check_box_tag "attribution_ids[]", attrib.id %></td>
           <td><%= attrib.inclusion.piece.title %></td>
-          <td><%= attrib.inclusion.source.code %></td>
+          <td><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
           <td><%= attrib.name %></td>
-          <td><%= attrib.incorrectly_attributed? %></td>
         </tr>
       <% end %>
     </table>
