@@ -25,7 +25,6 @@
       <th>Attributed to</th>
       <th>Actual composer</th>
       <th>Title</th>
-      <th>Functions</th>
       <th>Clefs</th>
       <th>Notes</th>
     </tr>
@@ -54,6 +53,11 @@
             <%= piece.text_field :title %>
           </td>
         <% end %>
+        <td>
+          <%= i.fields_for(:clefs_inclusions, builder: ActionView::Helpers::FormBuilder) do |clef_inclusion| %>
+            <%= clef_inclusion.text_field :annotated_note, size: 3 %>
+          <% end %>
+        </td>
       </tr>
     <% end %>
   </table>

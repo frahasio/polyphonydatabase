@@ -2,7 +2,10 @@ class Inclusion < ActiveRecord::Base
   belongs_to :source, inverse_of: :inclusions
   belongs_to :piece, inverse_of: :inclusions
   has_many :attributions, inverse_of: :inclusion
+  has_many :clefs_inclusions, inverse_of: :inclusion
+  has_many :clefs, through: :clefs_inclusions
   accepts_nested_attributes_for :attributions, :piece
+  accepts_nested_attributes_for :clefs_inclusions, reject_if: :blank_clef?
   # has_many :forced_composers, class_name: "Composer"
   # has_many :cited_composers, through: :attributions, source: :composer
   # has_many :inferred_composers, through: :attributions, source: :composers
@@ -24,5 +27,9 @@ class Inclusion < ActiveRecord::Base
       .reject(&:blank?)
 
     Attribution.set_by_names(self, names)
+  end
+
+  def blank_clef?(attrs)
+    attrs[:annotated_note].blank?
   end
 end

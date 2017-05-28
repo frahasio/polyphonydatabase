@@ -15,13 +15,26 @@ class SourcesController < ApplicationController
     last_inclusion = @inclusions.last
     last_order = last_inclusion&.order || -1
 
+    @inclusions.each do |i|
+      extra_clefs_needed = 8 - (i.clefs_inclusions.count % 8)
+
+      extra_clefs_needed.times do
+        i.clefs_inclusions.build
+      end
+    end
+
     num_blank_rows = [5, (20 - @inclusions.count)].max
 
     num_blank_rows.times do |n|
       inclusion = @source.inclusions.build(order: last_order + n + 1)
       inclusion.piece = Piece.new
+
       attributions = inclusion.attributions.build
       attributions.anonym = Anonym.new
+
+      8.times do
+        inclusion.clefs_inclusions.build
+      end
 
       @inclusions << inclusion
     end
@@ -71,6 +84,10 @@ private
         :id,
         :note,
         :order,
+        clefs_inclusions_attributes: [
+          :annotated_note,
+          :id,
+        ],
         piece_attributes: [
           :id,
           :title,

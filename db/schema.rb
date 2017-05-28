@@ -50,15 +50,17 @@ ActiveRecord::Schema.define(version: 20170317194007) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "clefs_pieces", id: false, force: :cascade do |t|
-    t.integer  "clef_id",                      null: false
-    t.integer  "piece_id",                     null: false
+  create_table "clefs_inclusions", force: :cascade do |t|
+    t.integer  "clef_id"
+    t.integer  "inclusion_id"
     t.boolean  "missing",      default: false, null: false
     t.boolean  "partial",      default: false, null: false
     t.integer  "changes_to"
     t.integer  "changes_from"
     t.datetime "created_at",                   null: false
     t.datetime "updated_at",                   null: false
+    t.index ["clef_id"], name: "index_clefs_inclusions_on_clef_id", using: :btree
+    t.index ["inclusion_id"], name: "index_clefs_inclusions_on_inclusion_id", using: :btree
   end
 
   create_table "composers", force: :cascade do |t|

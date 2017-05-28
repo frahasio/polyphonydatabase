@@ -27,6 +27,21 @@ class CreateTables < ActiveRecord::Migration[5.0]
       t.timestamps
     end
 
+    create_table :clefs_inclusions do |t|
+      t.references :clef
+      t.references :inclusion
+      t.boolean :missing, null: false, default: false
+      t.boolean :partial, null: false, default: false
+      t.integer :changes_to
+      t.integer :changes_from
+      t.timestamps
+    end
+
+    create_table :clefs do |t|
+      t.string :note
+      t.timestamps
+    end
+
     create_table :composers do |t|
       t.string :name
       t.string :born
@@ -73,19 +88,6 @@ class CreateTables < ActiveRecord::Migration[5.0]
       t.string :performer
       t.string :file_url
       t.references :piece
-      t.timestamps
-    end
-
-    create_table :clefs do |t|
-      t.string :note
-      t.timestamps
-    end
-
-    create_join_table :clefs, :pieces do |t|
-      t.boolean :missing, null: false, default: false
-      t.boolean :partial, null: false, default: false
-      t.integer :changes_to
-      t.integer :changes_from
       t.timestamps
     end
   end
