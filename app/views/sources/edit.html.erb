@@ -54,7 +54,7 @@
           </td>
         <% end %>
         <td>
-          <%= i.fields_for(:clefs_inclusions, builder: ActionView::Helpers::FormBuilder) do |clef_inclusion| %>
+          <%= i.fields_for(:clefs_inclusions, ClefsInclusion.sort(i.object.clefs_inclusions), builder: ActionView::Helpers::FormBuilder) do |clef_inclusion| %>
             <%= clef_inclusion.text_field :annotated_note, size: 3 %>
           <% end %>
         </td>
