@@ -26,7 +26,9 @@ class ClefsInclusion < ActiveRecord::Base
   end
 
   def annotated_note=(annotated)
-    if annotated =~ /^(\()?(\[)?(\w+)/
+    if annotated.blank?
+      self.mark_for_destruction
+    elsif annotated =~ /^(\()?(\[)?(\w+)/
       self.partial = $1.present?
       self.missing = $2.present?
       self.clef = Clef.find_or_initialize_by(note: $3)
