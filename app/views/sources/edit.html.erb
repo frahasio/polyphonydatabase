@@ -30,11 +30,11 @@
       <th></th>
     </tr>
 
-    <%= f.fields_for(:inclusions, @inclusions) do |i| %>
+    <%= f.fields_for(:inclusions, @inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
       <tr>
         <td><%= i.text_field :order %></td>
         <td>
-          <%= i.text_field :attributed_to, label: "&nbsp;" %>
+          <%= i.text_field :attributed_to %>
         </td>
         <td>
           <ul>
@@ -55,7 +55,7 @@
           </td>
         <% end %>
         <td>
-          <%= i.fields_for(:clefs_inclusions, ClefsInclusion.sort(i.object.clefs_inclusions), builder: ActionView::Helpers::FormBuilder) do |clef_inclusion| %>
+          <%= i.fields_for(:clefs_inclusions, ClefsInclusion.sort(i.object.clefs_inclusions)) do |clef_inclusion| %>
             <%= clef_inclusion.text_field :annotated_note, size: 3 %>
           <% end %>
         </td>
