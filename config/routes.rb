@@ -11,6 +11,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :inclusions
+
   resources :composers
 
   root to: "home#index"

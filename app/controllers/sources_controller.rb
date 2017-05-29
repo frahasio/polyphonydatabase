@@ -57,7 +57,6 @@ class SourcesController < ApplicationController
       flash[:error] = source.errors.full_messages.to_sentence
     end
 
-
     redirect_to edit_source_path(source)
   end
 
