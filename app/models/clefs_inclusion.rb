@@ -6,11 +6,11 @@ class ClefsInclusion < ActiveRecord::Base
     sortable, blank = objects.partition(&:persisted?)
     has_clef, missing_clef = sortable.partition(&:clef)
 
-    hash_object = has_clef.each_with_object({}) do |obj, hash|
-      hash[obj.clef.note] = obj
+    hash_object = has_clef.each_with_object(Hash.new {|h, k| h[k] = []}) do |obj, hash|
+      hash[obj.clef.note] << obj
     end
 
-    sorted = CLEF_ORDER.map { |note| hash_object[note] }.compact
+    sorted = CLEF_ORDER.map { |note| hash_object[note] }.flatten.compact
 
     return sorted + missing_clef + blank
   end
