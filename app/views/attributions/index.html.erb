@@ -1,8 +1,8 @@
 <h1>Attributions</h1>
 
 <%= form_tag assign_attributions_path do %>
-  <% Attribution.unattributed.group_by(&:name).each do |name, attribs| %>
-    <h2><%= name %></h2>
+  <% (Attribution.unattributed + Attribution.for_unattributed_inclusions).group_by(&:name).each do |name, attribs| %>
+    <h2><%= name || "<not attributed>" %></h2>
 
     <table>
       <tr>
@@ -14,7 +14,10 @@
 
       <% attribs.each do |attrib| %>
         <tr>
-          <td><%= check_box_tag "attribution_ids[]", attrib.id %></td>
+          <td>
+            <%= check_box_tag "attributions[][id]", attrib.id %>
+            <%= hidden_field_tag "attributions[][inclusion_id]", attrib.inclusion_id %>
+          </td>
           <td><%= attrib.inclusion.piece.title %> (<%= ClefsInclusion.sort(attrib.inclusion.clefs_inclusions).map(&:annotated_note).join %>)</td>
           <td><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
           <td><%= attrib.inclusion.notes %></td>

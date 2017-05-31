@@ -12,6 +12,16 @@ class Attribution < ActiveRecord::Base
     where("composer_id is null").where("alias_id is null")
   end
 
+  def self.for_unattributed_inclusions
+    attributed_inclusion_ids = Attribution
+      .distinct(:inclusion_id)
+      .pluck(:inclusion_id)
+
+    Inclusion.where.not(id: attributed_inclusion_ids).map do |inclusion|
+      self.new(inclusion: inclusion)
+    end
+  end
+
   def name
     composer&.name || anonym&.name || self.alias&.composer&.name
   end

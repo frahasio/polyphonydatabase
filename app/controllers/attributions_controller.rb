@@ -4,13 +4,20 @@ class AttributionsController < ApplicationController
   end
 
   def assign
-    params[:attribution_ids].each do |attrib_id|
+    params[:attributions].each do |attribution|
       composer = Composer.find(params[:composer_id])
-      attrib = Attribution.find(attrib_id)
+
+      if attribution[:id] = "on"
+        attrib = Attribution.new(inclusion_id: attribution[:inclusion_id])
+        incorrectly_attributed = true
+      else
+        attrib = Attribution.find(attribution[:id])
+        incorrectly_attributed = params[:incorrectly_attributed]
+      end
 
       success = true
 
-      if params[:incorrectly_attributed]
+      if incorrectly_attributed
         success = attrib.update_attributes(
           alias: nil,
           composer: composer,
