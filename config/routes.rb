@@ -13,7 +13,11 @@ Rails.application.routes.draw do
 
   resources :inclusions
 
-  resources :composers
+  resources :composers do
+    collection do
+      post "/switch-to", to: "composers#switch_to"
+    end
+  end
 
   root to: "home#index"
 end

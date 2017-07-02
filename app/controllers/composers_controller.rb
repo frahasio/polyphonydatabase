@@ -23,12 +23,23 @@ class ComposersController < ApplicationController
       flash[:error] = composer.errors.full_messages.to_sentence
     end
 
-    redirect_to new_composer_path
+    redirect_to edit_composer_path(composer)
+  end
+
+  def switch_to
+    redirect_to edit_composer_path(params[:id])
   end
 
 private
 
   def composer_params
-    params.require(:composer).permit(:name)
+    params.require(:composer).permit(
+      :from_year_annotation,
+      :from_year,
+      :image_url,
+      :name,
+      :to_year_annotation,
+      :to_year,
+    )
   end
 end

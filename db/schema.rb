@@ -65,17 +65,17 @@ ActiveRecord::Schema.define(version: 20170317194007) do
 
   create_table "composers", force: :cascade do |t|
     t.string   "name"
-    t.string   "born"
-    t.string   "died"
+    t.integer  "from_year"
+    t.integer  "to_year"
+    t.string   "from_year_annotation"
+    t.string   "to_year_annotation"
     t.string   "birthplace_1"
     t.string   "birthplace_2"
     t.string   "deathplace_1"
     t.string   "deathplace_2"
-    t.string   "flourished_1"
-    t.string   "flourished_2"
     t.string   "image_url"
-    t.datetime "created_at",   null: false
-    t.datetime "updated_at",   null: false
+    t.datetime "created_at",           null: false
+    t.datetime "updated_at",           null: false
   end
 
   create_table "editions", force: :cascade do |t|

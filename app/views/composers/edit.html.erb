@@ -1,6 +1,25 @@
 <h1>Edit composer</h1>
 
-<%= form_for(@composer) do |f| %>
-  <%= f.text_field :name %>
+<%= form_tag("/composers/switch-to") do %>
+  <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
+
+  <button>Edit</button>
+<% end %>
+
+<%= form_for(@composer, builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div><%= f.text_field :name %></div>
+
+  <div><%= image_tag @composer.image_url if @composer.image_url %></div>
+  <div><%= f.text_field :image_url %></div>
+
+  <div>
+    Dates:
+    <%= f.text_field :from_year_annotation %>
+    <%= f.text_field :from_year %>
+    to
+    <%= f.text_field :to_year_annotation %>
+    <%= f.text_field :to_year %>
+  </div>
+
   <button>Save</button>
 <% end %>

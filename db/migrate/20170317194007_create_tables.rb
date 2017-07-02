@@ -44,14 +44,14 @@ class CreateTables < ActiveRecord::Migration[5.0]
 
     create_table :composers do |t|
       t.string :name
-      t.string :born
-      t.string :died
+      t.integer :from_year
+      t.integer :to_year
+      t.string :from_year_annotation
+      t.string :to_year_annotation
       t.string :birthplace_1
       t.string :birthplace_2
       t.string :deathplace_1
       t.string :deathplace_2
-      t.string :flourished_1
-      t.string :flourished_2
       t.string :image_url
       t.timestamps
     end
