@@ -11,8 +11,9 @@ class Composer < ActiveRecord::Base
       :from_year,
       :to_year,
     ].each do |field|
-      unless field.to_s =~ /^\d{4}$/
-        errors.add(field, :invalid, "must be a 4-digit year")
+      date = self[field]
+      unless date.blank? || date.to_s =~ /^\d{4}$/
+        errors.add(field, :invalid, message: "must be a 4-digit year")
       end
     end
   end
