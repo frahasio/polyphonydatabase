@@ -21,6 +21,11 @@ private
     params.require(:piece).permit(
       :title,
       feasts: [],
+      recordings_attributes: [
+        :id,
+        :file_url,
+        :performer,
+      ],
     )
   end
 end

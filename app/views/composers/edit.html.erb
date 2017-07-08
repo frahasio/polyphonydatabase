@@ -51,11 +51,20 @@
     <th></th>
   </tr>
 
-  <% @composer.pieces.each do |piece| %>
+  <% @pieces.each do |piece| %>
       <tr>
         <%= form_for(piece, builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td><%= f.text_field :title %></td>
           <td><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
+          <td></td>
+          <td>
+            <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
+              <div>
+                <%= r.text_field :performer, placeholder: "Performer" %>
+                <%= r.text_field :file_url, placeholder: "File URL" %>
+              </div>
+            <% end %>
+          </td>
           <td>
             <%= hidden_field_tag :composer_id, @composer.id %>
             <button>Save</button>

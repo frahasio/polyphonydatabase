@@ -14,6 +14,8 @@ class ComposersController < ApplicationController
 
   def edit
     @composer = Composer.find(params[:id])
+    @pieces = @composer.pieces
+    @pieces.each {|p| p.recordings.build }
   end
 
   def update
