@@ -15,7 +15,10 @@ class ComposersController < ApplicationController
   def edit
     @composer = Composer.find(params[:id])
     @pieces = @composer.pieces
-    @pieces.each {|p| p.recordings.build }
+    @pieces.each do |piece|
+      piece.editions.build
+      piece.recordings.build
+    end
   end
 
   def update
