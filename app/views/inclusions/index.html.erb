@@ -3,7 +3,7 @@
     <th>Title</th>
     <th>Function</th>
     <th>Composer</th>
-    <th>Minimum performers required</th>
+    <th class="min-performers">Minimum performers required</th>
     <th>Sources</th>
     <th>
       <div>
@@ -29,14 +29,14 @@
           </div>
         <% end %>
       </td>
-      <td><%= minimum_voice_count %></td>
+      <td class="min-performers"><%= minimum_voice_count %></td>
       <td>
         <table>
           <% inclusions.sort_by(&:from_year).each do |inclusion| %>
             <tr>
               <% source = inclusion.source %>
               <% source_name = "#{source.title} (#{source.code})" %>
-              <td>
+              <td class="source-name">
                 <div>
                   <% if source.url.present? %>
                     <%= link_to source_name, source.url, target: "_blank" %>
@@ -52,7 +52,11 @@
                 </div>
               </td>
               <td><%= inclusion.position %></td>
-              <td><%= ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:clef).map(&:note).join %></td>
+              <td>
+                <% ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:clef).map(&:note).each do |note| %>
+                  <%= image_tag "clefs/#{note}.png", alt: note, class: "clef-image" %>
+                <% end %>
+              </td>
               <td><%= inclusion.notes %></td>
             </tr>
           <% end %>

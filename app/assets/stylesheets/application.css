@@ -13,3 +13,15 @@
  *= require_tree .
  *= require_self
  */
+.clef-image {
+  max-width: 30px;
+  float: left;
+}
+
+.source-name {
+  max-width: 150px;
+}
+
+.min-performers {
+  max-width: 60px;
+}
