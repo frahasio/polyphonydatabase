@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170708111404) do
+ActiveRecord::Schema.define(version: 20170708201857) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -116,18 +116,21 @@ ActiveRecord::Schema.define(version: 20170708111404) do
   end
 
   create_table "sources", force: :cascade do |t|
-    t.string   "code",                                null: false
+    t.string   "code",                                 null: false
     t.string   "title"
     t.string   "type"
     t.string   "format"
-    t.string   "date_range"
     t.string   "publisher_or_scribe"
     t.string   "town"
     t.string   "rism_link"
     t.string   "url"
-    t.boolean  "catalogued",          default: false, null: false
-    t.datetime "created_at",                          null: false
-    t.datetime "updated_at",                          null: false
+    t.boolean  "catalogued",           default: false, null: false
+    t.datetime "created_at",                           null: false
+    t.datetime "updated_at",                           null: false
+    t.integer  "from_year"
+    t.integer  "to_year"
+    t.string   "from_year_annotation"
+    t.string   "to_year_annotation"
   end
 
 end

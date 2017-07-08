@@ -11,7 +11,14 @@
   <%= f.text_field :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
-  <%= f.text_field :date_range %>
+  <div>
+    Dates:
+    <%= f.text_field :from_year_annotation %>
+    <%= f.text_field :from_year %>
+    to
+    <%= f.text_field :to_year_annotation %>
+    <%= f.text_field :to_year %>
+  </div>
   <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
   <%= f.text_field :town %>
   <%= f.text_field :rism_link, label: "RISM URL" %>

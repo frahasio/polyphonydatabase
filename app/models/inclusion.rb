@@ -29,4 +29,14 @@ class Inclusion < ActiveRecord::Base
   def composers
     attributions.flat_map(&:resolved_composer)
   end
+
+  def from_year
+    source.from_year
+  end
+
+  def position
+    source.inclusions.order(:order).each_with_index do |inclusion, index|
+      return index + 1 if inclusion == self
+    end
+  end
 end

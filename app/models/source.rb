@@ -4,7 +4,6 @@ class Source < ActiveRecord::Base
   validates :code, presence: true, uniqueness: true
 
   has_many :inclusions, inverse_of: :source
-  # has_many :pieces, through: :inclusions
   accepts_nested_attributes_for :inclusions, reject_if: :unfilled?
 
   scope :uncatalogued, -> { where(catalogued: false) }
@@ -25,6 +24,14 @@ class Source < ActiveRecord::Base
     "Attaigngnant",
     "Gardano, Angelo",
   ].freeze
+
+  def dates
+    "#{from_year_annotation}#{from_year}-#{to_year_annotation}#{to_year}"
+  end
+
+  def location_and_pubscribe
+    [town, publisher_or_scribe].reject(&:blank?).join(": ")
+  end
 
 private
 

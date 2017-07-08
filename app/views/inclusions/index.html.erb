@@ -30,7 +30,34 @@
         <% end %>
       </td>
       <td><%= minimum_voice_count %></td>
-      <td></td>
+      <td>
+        <table>
+          <% inclusions.sort_by(&:from_year).each do |inclusion| %>
+            <tr>
+              <% source = inclusion.source %>
+              <% source_name = "#{source.title} (#{source.code})" %>
+              <td>
+                <div>
+                  <% if source.url.present? %>
+                    <%= link_to source_name, source.url, target: "_blank" %>
+                  <% else %>
+                    <%= source_name %>
+                  <% end %>
+                </div>
+
+                <div>
+                  <%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %>
+                  <%= source.type %>
+                  <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
+                </div>
+              </td>
+              <td><%= inclusion.position %></td>
+              <td><%= ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:clef).map(&:note).join %></td>
+              <td><%= inclusion.notes %></td>
+            </tr>
+          <% end %>
+        </table>
+      </td>
       <td>
         <% piece.editions.each do |edition| %>
           <div>
