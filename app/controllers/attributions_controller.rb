@@ -7,7 +7,7 @@ class AttributionsController < ApplicationController
     params[:attributions].each do |attribution|
       composer = Composer.find(params[:composer_id])
 
-      if attribution[:id] = "on"
+      if attribution[:id] == "on"
         attrib = Attribution.new(inclusion_id: attribution[:inclusion_id])
         incorrectly_attributed = true
       else
