@@ -34,6 +34,10 @@ private
 
   def composer_params
     params.require(:composer).permit(
+      :birthplace_1,
+      :birthplace_2,
+      :deathplace_1,
+      :deathplace_2,
       :from_year_annotation,
       :from_year,
       :image_url,
