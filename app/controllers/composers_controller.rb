@@ -34,6 +34,7 @@ private
 
   def composer_params
     params.require(:composer).permit(
+      :aliased_as,
       :birthplace_1,
       :birthplace_2,
       :deathplace_1,

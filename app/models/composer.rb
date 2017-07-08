@@ -6,6 +6,19 @@ class Composer < ActiveRecord::Base
 
   validate :years_are_valid
 
+  def aliased_as
+    aliases.map(&:anonym_name).join(" | ")
+  end
+
+  def aliased_as=(text)
+    names = text
+      .split("|")
+      .map(&:strip)
+      .reject(&:blank?)
+
+    Alias.set_by_names(self, names)
+  end
+
   def years_are_valid
     [
       :from_year,

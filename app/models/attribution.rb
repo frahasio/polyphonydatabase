@@ -27,7 +27,7 @@ class Attribution < ActiveRecord::Base
   end
 
   def anonym_name
-    anonym&.name || self.alias&.anonym&.name
+    anonym&.name || self.alias&.anonym_name
   end
 
   def self.set_by_names(inclusion, names)
