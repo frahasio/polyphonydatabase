@@ -6,7 +6,7 @@
   <button>Edit</button>
 <% end %>
 
-<%= form_for(@source) do |f| %>
+<%= form_for([:admin, @source]) do |f| %>
   <%= f.check_box :catalogued %>
   <%= f.text_field :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
@@ -41,10 +41,10 @@
             <% i.object.attributions.each do |a| %>
               <% if composer = (a.alias&.composer || (a.incorrectly_attributed? && a.composer)) %>
                 <li>
-                  <%= link_to (composer.name || "(Unnamed composer)"), edit_composer_path(composer), target: "_blank", class: ("incorrectly-attributed" if a.incorrectly_attributed?) %>
+                  <%= link_to (composer.name || "(Unnamed composer)"), edit_admin_composer_path(composer), target: "_blank", class: ("incorrectly-attributed" if a.incorrectly_attributed?) %>
                 </li>
               <% elsif a.anonym_name.present? %>
-                <li><%= link_to "Unresolved", attributions_path, target: "_blank" %></li>
+                <li><%= link_to "Unresolved", admin_attributions_path, target: "_blank" %></li>
               <% end %>
             <% end %>
           </ul>
@@ -62,7 +62,7 @@
         <td><%= i.text_field :notes %></td>
         <% if i.object.persisted? %>
           <td>
-            <%= link_to "Delete", inclusion_path(i.object), method: :delete %>
+            <%= link_to "Delete", admin_inclusion_path(i.object), method: :delete %>
           </td>
         <% end %>
       </tr>

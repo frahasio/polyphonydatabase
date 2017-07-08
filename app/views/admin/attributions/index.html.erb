@@ -1,6 +1,6 @@
 <h1>Attributions</h1>
 
-<%= form_tag assign_attributions_path do %>
+<%= form_tag assign_admin_attributions_path do %>
   <% (Attribution.unattributed + Attribution.for_unattributed_inclusions).group_by(&:name).each do |name, attribs| %>
     <h2><%= name || "<not attributed>" %></h2>
 
@@ -34,6 +34,6 @@
 
     <button>Resolve</button>
 
-    <%= link_to "Create new composer", new_composer_path, target: "_blank" %>
+    <%= link_to "Create new composer", new_admin_composer_path, target: "_blank" %>
   <% end %>
 <% end %>

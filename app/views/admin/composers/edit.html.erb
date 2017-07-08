@@ -6,7 +6,7 @@
   <button>Edit</button>
 <% end %>
 
-<%= form_for(@composer, builder: ActionView::Helpers::FormBuilder) do |f| %>
+<%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
   <div><%= f.text_field :name %></div>
 
   <div><%= image_tag @composer.image_url if @composer.image_url %></div>
@@ -53,7 +53,7 @@
 
   <% @pieces.each do |piece| %>
       <tr>
-        <%= form_for(piece, builder: ActionView::Helpers::FormBuilder) do |f| %>
+        <%= form_for([:admin, piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td><%= f.text_field :title %></td>
           <td><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
           <td>
