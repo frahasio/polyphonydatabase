@@ -40,3 +40,27 @@
 
   <button>Save</button>
 <% end %>
+
+<table>
+  <tr>
+    <th>Title</th>
+    <th>Function(s)</th>
+    <th>Editions</th>
+    <th>Recordings</th>
+    <th>Sources</th>
+    <th></th>
+  </tr>
+
+  <% @composer.pieces.each do |piece| %>
+      <tr>
+        <%= form_for(piece, builder: ActionView::Helpers::FormBuilder) do |f| %>
+          <td><%= f.text_field :title %></td>
+
+          <td>
+            <%= hidden_field_tag :composer_id, @composer.id %>
+            <button>Save</button>
+          </td>
+        <% end %>
+      </tr>
+  <% end %>
+</table>

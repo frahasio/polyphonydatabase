@@ -19,5 +19,7 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :pieces, only: [:update]
+
   root to: "home#index"
 end

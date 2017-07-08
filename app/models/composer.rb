@@ -6,6 +6,14 @@ class Composer < ActiveRecord::Base
 
   validate :years_are_valid
 
+  def all_attributions
+    aliases.flat_map(&:attributions) | attributions
+  end
+
+  def pieces
+    all_attributions.map(&:inclusion).map(&:piece).uniq
+  end
+
   def aliased_as
     aliases.map(&:anonym_name).join(" | ")
   end
