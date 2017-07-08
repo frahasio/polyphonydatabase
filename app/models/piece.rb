@@ -4,6 +4,8 @@ class Piece < ActiveRecord::Base
 
   validates :title, presence: true
 
+  serialize :feasts
+
   def composers
     inclusions.flat_map(&:composers)
   end

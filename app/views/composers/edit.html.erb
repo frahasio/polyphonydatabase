@@ -55,7 +55,7 @@
       <tr>
         <%= form_for(piece, builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td><%= f.text_field :title %></td>
-
+          <td><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
           <td>
             <%= hidden_field_tag :composer_id, @composer.id %>
             <button>Save</button>

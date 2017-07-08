@@ -20,6 +20,7 @@ private
   def piece_params
     params.require(:piece).permit(
       :title,
+      feasts: [],
     )
   end
 end
