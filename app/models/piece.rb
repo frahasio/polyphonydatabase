@@ -9,12 +9,16 @@ class Piece < ActiveRecord::Base
 
   validates :title, presence: true
 
-  serialize :feasts
+  serialize :feasts, Array
 
   before_save :mark_blanks_for_deletion
 
-  def composers
-    inclusions.flat_map(&:composers)
+  def feasts=(functions)
+    super(functions.reject(&:blank?))
+  end
+
+  def feast_names
+    feasts.map { |f| Feast::FEASTS[f] }
   end
 
 private

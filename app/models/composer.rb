@@ -27,6 +27,12 @@ class Composer < ActiveRecord::Base
     Alias.set_by_names(self, names)
   end
 
+  def dates
+    "#{from_year_annotation}#{from_year}-#{to_year_annotation}#{to_year}"
+  end
+
+private
+
   def years_are_valid
     [
       :from_year,

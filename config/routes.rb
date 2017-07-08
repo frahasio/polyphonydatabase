@@ -24,4 +24,8 @@ Rails.application.routes.draw do
 
     root to: "home#index"
   end
+
+  resources :inclusions, only: [:index]
+
+  root to: "inclusions#index"
 end

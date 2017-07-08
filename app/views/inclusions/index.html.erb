@@ -1,0 +1,63 @@
+<table>
+  <tr>
+    <th>Title</th>
+    <th>Function</th>
+    <th>Composer</th>
+    <th>Minimum performers required</th>
+    <th>Sources</th>
+    <th>
+      <div>
+        Performing editions
+      </div>
+      <div>
+        Editor (voicing)
+      </div>
+    </th>
+    <th>Listen</th>
+  </tr>
+
+  <% @grouped_inclusions.each do |(title, composers, minimum_voice_count), inclusions| %>
+    <% piece = inclusions.first.piece %>
+    <tr>
+      <td><%= title %></td>
+      <td><%= piece.feast_names.join(", ") %></td>
+      <td>
+        <% composers.each do |composer| %>
+          <div>
+            <div><%= composer.name %></div>
+            <div><%= composer.dates %></div>
+          </div>
+        <% end %>
+      </td>
+      <td><%= minimum_voice_count %></td>
+      <td></td>
+      <td>
+        <% piece.editions.each do |edition| %>
+          <div>
+            <% edition_text = "#{edition.editor} (#{edition.voicing})" %>
+            <% if edition.file_url.present? %>
+              <%= link_to edition.file_url, target: "_blank" do %>
+                <%= image_tag "pdf.png" %>
+                <%= edition_text %>
+              <% end %>
+            <% else %>
+              <%= edition_text %>
+            <% end %>
+          </div>
+        <% end %>
+      </td>
+      <td>
+        <% piece.recordings.each do |recording| %>
+          <% if recording.file_url.present? %>
+            <div>
+              <%= link_to recording.file_url, target: "_blank" do %>
+                <%= image_tag "listen.png" %>
+                <%= recording.performer_name %>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
+</table>

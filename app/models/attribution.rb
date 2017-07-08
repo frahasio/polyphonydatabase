@@ -22,6 +22,10 @@ class Attribution < ActiveRecord::Base
     end
   end
 
+  def resolved_composer
+    composer || self.alias&.composer
+  end
+
   def name
     composer&.name || anonym&.name || self.alias&.composer&.name
   end

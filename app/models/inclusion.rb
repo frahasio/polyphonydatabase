@@ -6,13 +6,6 @@ class Inclusion < ActiveRecord::Base
   has_many :clefs, through: :clefs_inclusions
   accepts_nested_attributes_for :attributions, :piece
   accepts_nested_attributes_for :clefs_inclusions, reject_if: :filler_clef?
-  # has_many :forced_composers, class_name: "Composer"
-  # has_many :cited_composers, through: :attributions, source: :composer
-  # has_many :inferred_composers, through: :attributions, source: :composers
-  #
-  # def composers
-  #   forced_composers.union(cited_composers).union(inferred_composers)
-  # end
 
   validates :source_id, uniqueness: { scope: :piece_id }
 
@@ -31,5 +24,9 @@ class Inclusion < ActiveRecord::Base
 
   def filler_clef?(attrs)
     attrs[:annotated_note].blank? && attrs[:id].blank?
+  end
+
+  def composers
+    attributions.flat_map(&:resolved_composer)
   end
 end
