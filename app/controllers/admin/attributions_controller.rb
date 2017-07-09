@@ -6,6 +6,8 @@ module Admin
 
     def assign
       params[:attributions].each do |attribution|
+        next if attribution[:id].blank?
+
         composer = Composer.find(params[:composer_id])
 
         if attribution[:id] == "on"
