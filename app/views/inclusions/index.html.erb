@@ -24,8 +24,11 @@
       <td>
         <% composers.each do |composer| %>
           <div>
-            <div><%= composer.name %></div>
-            <div><%= composer.dates %></div>
+            <div><%= composer&.name || "Anon." %></div>
+
+            <% if composer %>
+              <div><%= composer.dates %></div>
+            <% end %>
           </div>
         <% end %>
       </td>
