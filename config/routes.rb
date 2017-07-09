@@ -22,6 +22,10 @@ Rails.application.routes.draw do
 
     resources :pieces, only: [:update]
 
+    get "/auth", to: "authentication#index", as: "authentication"
+    post "/auth/authenticate", to: "authentication#authenticate", as: "authenticate"
+    post "/auth/logout", to: "authentication#logout", as: "logout"
+
     root to: "home#index"
   end
 
