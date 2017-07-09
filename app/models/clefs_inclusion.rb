@@ -18,9 +18,10 @@ class ClefsInclusion < ActiveRecord::Base
   def annotated_note
     return "" if clef.nil?
 
+    # Count transitional clef as one clef in min count
     annotated = [clef.note, transitions_to].reject(&:blank?).join("/")
-    annotated = "[#{annotated}]" if missing?
-    annotated = "(#{annotated})" if partial?
+    annotated = "[#{annotated}]" if missing? # Include in min count
+    annotated = "(#{annotated})" if partial? # Do not include in min count
 
     return annotated
   end
