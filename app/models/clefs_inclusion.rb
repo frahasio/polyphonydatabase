@@ -18,7 +18,7 @@ class ClefsInclusion < ActiveRecord::Base
   def annotated_note
     return "" if clef.nil?
 
-    annotated = clef.note
+    annotated = [clef.note, transitions_to].reject(&:blank?).join("/")
     annotated = "[#{annotated}]" if missing?
     annotated = "(#{annotated})" if partial?
 
@@ -28,11 +28,16 @@ class ClefsInclusion < ActiveRecord::Base
   def annotated_note=(annotated)
     if annotated.blank?
       self.mark_for_destruction
-    elsif annotated =~ /^(\()?(\[)?(\w+)/
+    elsif annotated =~ %r{^(\()?(\[)?(\w+)(?:/(\w+))?}
       self.partial = $1.present?
       self.missing = $2.present?
+      self.transitions_to = $4 unless $4.blank?
       self.clef = Clef.find_or_initialize_by(note: $3)
     end
+  end
+
+  def note_for_image
+    [clef.note, transitions_to].join
   end
 
   CLEF_ORDER = %w[

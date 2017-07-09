@@ -53,7 +53,7 @@
               </td>
               <td><%= inclusion.position %></td>
               <td>
-                <% ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:clef).map(&:note).each do |note| %>
+                <% ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:note_for_image).each do |note| %>
                   <%= image_tag "clefs/#{note}.png", alt: note, class: "clef-image" %>
                 <% end %>
               </td>

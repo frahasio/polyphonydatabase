@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170708201857) do
+ActiveRecord::Schema.define(version: 20170709115805) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -53,12 +53,11 @@ ActiveRecord::Schema.define(version: 20170708201857) do
   create_table "clefs_inclusions", force: :cascade do |t|
     t.integer  "clef_id"
     t.integer  "inclusion_id"
-    t.boolean  "missing",      default: false, null: false
-    t.boolean  "partial",      default: false, null: false
-    t.integer  "changes_to"
-    t.integer  "changes_from"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
+    t.boolean  "missing",        default: false, null: false
+    t.boolean  "partial",        default: false, null: false
+    t.datetime "created_at",                     null: false
+    t.datetime "updated_at",                     null: false
+    t.string   "transitions_to"
     t.index ["clef_id"], name: "index_clefs_inclusions_on_clef_id", using: :btree
     t.index ["inclusion_id"], name: "index_clefs_inclusions_on_inclusion_id", using: :btree
   end
