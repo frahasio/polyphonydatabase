@@ -12,13 +12,13 @@ private
     grouped_inclusions.select { |unique_piece, inclusions|
       [
         unique_piece.title,
-        inclusions.first.composers.map(&:aliased_as).join(" | "),
-        inclusions.first.composers.map(&:name).join(" | "),
-        inclusions.map(&:source).map(&:title).join(" | "),
-        inclusions.map(&:source).map(&:code).join(" | "),
-        inclusions.map(&:source).map(&:location_and_pubscribe).join(" | "),
-        inclusions.map(&:source).map(&:dates).join(" | "),
-        inclusions.map(&:source).map(&:type).join(" | "),
+        inclusions.first.composers.compact.map(&:aliased_as).join(" | "),
+        inclusions.first.composers.compact.map(&:name).join(" | "),
+        inclusions.map(&:source).compact.map(&:title).join(" | "),
+        inclusions.map(&:source).compact.map(&:code).join(" | "),
+        inclusions.map(&:source).compact.map(&:location_and_pubscribe).join(" | "),
+        inclusions.map(&:source).compact.map(&:dates).join(" | "),
+        inclusions.map(&:source).compact.map(&:type).join(" | "),
       ].any? { |string| string.include?(params[:q]) }
     }
   end
