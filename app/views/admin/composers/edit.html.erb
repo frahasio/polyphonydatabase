@@ -51,7 +51,7 @@
     <th></th>
   </tr>
 
-  <% @pieces.each do |piece| %>
+  <% @unique_pieces.each do |piece| %>
       <tr>
         <%= form_for([:admin, piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td><%= f.text_field :title %></td>
@@ -75,6 +75,8 @@
           </td>
           <td>
             <%= hidden_field_tag :composer_id, @composer.id %>
+            <%= f.hidden_field :composers %>
+            <%= f.hidden_field :minimum_voices %>
             <button>Save</button>
           </td>
         <% end %>

@@ -20,7 +20,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :pieces, only: [:update]
+    resources :unique_pieces, only: [:create, :update]
 
     get "/auth", to: "authentication#index", as: "authentication"
     post "/auth/authenticate", to: "authentication#authenticate", as: "authenticate"

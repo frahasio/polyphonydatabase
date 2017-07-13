@@ -39,4 +39,8 @@ class Inclusion < ActiveRecord::Base
       return index + 1 if inclusion == self
     end
   end
+
+  def minimum_voice_count
+    clefs_inclusions.where(partial: false).count
+  end
 end

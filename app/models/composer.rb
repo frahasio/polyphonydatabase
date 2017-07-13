@@ -10,8 +10,12 @@ class Composer < ActiveRecord::Base
     aliases.flat_map(&:attributions) | attributions
   end
 
+  def inclusions
+    all_attributions.map(&:inclusion).uniq
+  end
+
   def pieces
-    all_attributions.map(&:inclusion).map(&:piece).uniq
+    inclusions.map(&:piece).uniq
   end
 
   def aliased_as

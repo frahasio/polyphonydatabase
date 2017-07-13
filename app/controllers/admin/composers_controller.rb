@@ -15,10 +15,18 @@ module Admin
 
     def edit
       @composer = Composer.find(params[:id])
-      @pieces = @composer.pieces
-      @pieces.each do |piece|
-        piece.editions.build
-        piece.recordings.build
+
+      @unique_pieces = @composer.inclusions.map do |inclusion|
+        UniquePiece.find_or_initialize_by(
+          title: inclusion&.piece&.title,
+          composers: inclusion.composers.pluck(:id).join(","),
+          minimum_voices: inclusion.minimum_voice_count,
+        )
+      end
+
+      @unique_pieces.each do |unique_piece|
+        unique_piece.editions.build
+        unique_piece.recordings.build
       end
     end
 

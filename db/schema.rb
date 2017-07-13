@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170709123723) do
+ActiveRecord::Schema.define(version: 20170713192222) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -81,10 +81,10 @@ ActiveRecord::Schema.define(version: 20170709123723) do
     t.string   "voicing"
     t.string   "editor"
     t.string   "file_url"
-    t.integer  "piece_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["piece_id"], name: "index_editions_on_piece_id", using: :btree
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+    t.integer  "unique_piece_id"
+    t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree
   end
 
   create_table "inclusions", force: :cascade do |t|
@@ -102,16 +102,15 @@ ActiveRecord::Schema.define(version: 20170709123723) do
     t.string   "title",      null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.text     "feasts"
   end
 
   create_table "recordings", force: :cascade do |t|
     t.string   "performer"
     t.string   "file_url"
-    t.integer  "piece_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["piece_id"], name: "index_recordings_on_piece_id", using: :btree
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+    t.integer  "unique_piece_id"
+    t.index ["unique_piece_id"], name: "index_recordings_on_unique_piece_id", using: :btree
   end
 
   create_table "sources", force: :cascade do |t|
@@ -130,6 +129,15 @@ ActiveRecord::Schema.define(version: 20170709123723) do
     t.integer  "to_year"
     t.string   "from_year_annotation"
     t.string   "to_year_annotation"
+  end
+
+  create_table "unique_pieces", force: :cascade do |t|
+    t.string   "title"
+    t.string   "composers"
+    t.integer  "minimum_voices"
+    t.text     "feasts"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
   end
 
   create_table "users", force: :cascade do |t|
