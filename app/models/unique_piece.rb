@@ -21,7 +21,7 @@ class UniquePiece < ActiveRecord::Base
     inclusions.group_by do |inclusion|
       UniquePiece.find_or_initialize_by(
         title: inclusion&.piece&.title,
-        composers: inclusion.composers.compact.map(&:id).join(","),
+        composers: inclusion.composers.compact.map(&:id).sort.join(","),
         minimum_voices: inclusion.minimum_voice_count,
       )
     end
