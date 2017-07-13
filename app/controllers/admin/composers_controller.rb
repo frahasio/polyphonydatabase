@@ -16,15 +16,9 @@ module Admin
     def edit
       @composer = Composer.find(params[:id])
 
-      @unique_pieces = @composer.inclusions.map do |inclusion|
-        UniquePiece.find_or_initialize_by(
-          title: inclusion&.piece&.title,
-          composers: inclusion.composers.pluck(:id).join(","),
-          minimum_voices: inclusion.minimum_voice_count,
-        )
-      end
+      @grouped_inclusions = UniquePiece.group(@composer.inclusions)
 
-      @unique_pieces.each do |unique_piece|
+      @grouped_inclusions.each do |unique_piece, _|
         unique_piece.editions.build
         unique_piece.recordings.build
       end

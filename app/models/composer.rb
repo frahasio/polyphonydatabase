@@ -11,7 +11,7 @@ class Composer < ActiveRecord::Base
   end
 
   def inclusions
-    all_attributions.map(&:inclusion).uniq
+    all_attributions.map(&:inclusion).uniq.compact
   end
 
   def pieces
