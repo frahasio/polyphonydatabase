@@ -3,7 +3,7 @@ class InclusionsController < ApplicationController
     @grouped_inclusions = Inclusion.all.group_by do |inclusion|
       UniquePiece.find_or_initialize_by(
         title: inclusion&.piece&.title,
-        composers: inclusion.composers.map(&:id).join(","),
+        composers: inclusion.composers.compact.map(&:id).join(","),
         minimum_voices: inclusion.minimum_voice_count,
       )
     end
