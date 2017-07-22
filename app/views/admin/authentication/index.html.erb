@@ -1,7 +1,7 @@
 <h1>Log in</h1>
 
 <%= form_tag admin_authenticate_path do %>
-  <div><%= text_field_tag :username, nil, placeholder: "Username" %></div>
-  <div><%= password_field_tag :password, nil, placeholder: "Password" %></div>
+  <div class="username"><%= text_field_tag :username, nil, placeholder: "Username" %></div>
+  <div class="password"><%= password_field_tag :password, nil, placeholder: "Password" %></div>
   <button>Log in</button>
 <% end %>

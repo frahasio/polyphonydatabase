@@ -5,8 +5,8 @@
   <button type="button" name="button">Create</button>
 <% end %>
 
-<ul>
+<ul class="composers">
   <% Composer.order(:name).each do |composer| %>
-    <li><%= link_to composer.name, edit_admin_composer_path(composer) %></li>
+    <li class="composer"><%= link_to composer.name, edit_admin_composer_path(composer) %></li>
   <% end %>
 </ul>

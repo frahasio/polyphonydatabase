@@ -1,57 +1,57 @@
 <p>Filters:</p>
 <%= form_tag root_path, method: :get do %>
-  <%= text_field_tag :q, params[:q], placeholder: "Search texts..." %>
-  <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions" %>
-  <%= select_tag :composer, options_from_collection_for_select([MockComposer.new("anon", "Anon.")] + Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers" %>
-  <%= select_tag :composer_country, options_from_collection_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries" %>
-  <%= select_tag :voices, options_from_collection_for_select(UniquePiece.select(:minimum_voices).distinct.order(:minimum_voices), :minimum_voices, :minimum_voices, params[:voices]), include_blank: "All # voices" %>
-  <%= select_tag :source, options_from_collection_for_select(Source.all.order(:code), :id, :code, params[:source]), include_blank: "All sources" %>
-  <label>
+  <%= text_field_tag :q, params[:q], placeholder: "Search texts...", class: "search" %>
+  <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions", class: "functions" %>
+  <%= select_tag :composer, options_from_collection_for_select([MockComposer.new("anon", "Anon.")] + Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers", class: "composer" %>
+  <%= select_tag :composer_country, options_from_collection_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries", class: "composer-country" %>
+  <%= select_tag :voices, options_from_collection_for_select(UniquePiece.select(:minimum_voices).distinct.order(:minimum_voices), :minimum_voices, :minimum_voices, params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
+  <%= select_tag :source, options_from_collection_for_select(Source.all.order(:code), :id, :code, params[:source]), include_blank: "All sources", class: "source" %>
+  <label class="edition">
     Edition
     <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
   </label>
-  <label>
+  <label class="recording">
     Recording
     <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
   </label>
 
-  <button>Filter</button>
+  <button class="filter">Filter</button>
 <% end %>
 <table>
   <tr>
-    <th>Title</th>
-    <th>Function</th>
-    <th>Composer</th>
-    <th class="min-performers">Minimum performers required</th>
-    <th>Sources</th>
-    <th>
-      <div>
+    <th class="title">Title</th>
+    <th class="function">Function</th>
+    <th class="composers">Composer</th>
+    <th class="minimum-voices">Minimum performers required</th>
+    <th class="sources">Sources</th>
+    <th class="edition">
+      <div class="performing-editions">
         Performing editions
       </div>
-      <div>
+      <div class="editor-and-voicing">
         Editor (voicing)
       </div>
     </th>
-    <th>Listen</th>
+    <th class="recording">Listen</th>
   </tr>
 
   <% @grouped_inclusions.each do |unique_piece, inclusions| %>
     <tr>
-      <td><%= unique_piece.title %></td>
-      <td><%= unique_piece.feast_names.join(", ") %></td>
-      <td>
+      <td class="title"><%= unique_piece.title %></td>
+      <td class="functions"><%= unique_piece.feast_names.join(", ") %></td>
+      <td class="composers">
         <% inclusions.first.composers.each do |composer| %>
-          <div>
-            <div><%= composer&.name || "Anon." %></div>
+          <div class="composer">
+            <div class="name"><%= composer&.name || "Anon." %></div>
 
             <% if composer %>
-              <div><%= composer.dates %></div>
+              <div class="dates"><%= composer.dates %></div>
             <% end %>
           </div>
         <% end %>
       </td>
-      <td class="min-performers"><%= unique_piece.minimum_voices %></td>
-      <td>
+      <td class="minimum-voices"><%= unique_piece.minimum_voices %></td>
+      <td class="sources">
         <table>
           <% inclusions.sort_by(&:from_year).each do |inclusion| %>
             <tr>
@@ -66,26 +66,26 @@
                   <% end %>
                 </div>
 
-                <div>
+                <div class="source-text">
                   <%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %>
                   <%= source.type %>
                   <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
                 </div>
               </td>
-              <td><%= inclusion.position %></td>
-              <td>
+              <td class="position"><%= inclusion.position %></td>
+              <td class="clefs">
                 <% ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:note_for_image).each do |note| %>
                   <%= image_tag "clefs/#{note}.png", alt: note, class: "clef-image" %>
                 <% end %>
               </td>
-              <td><%= inclusion.public_notes %></td>
+              <td class="notes"><%= inclusion.public_notes %></td>
             </tr>
           <% end %>
         </table>
       </td>
-      <td>
+      <td class="editions">
         <% unique_piece.editions.each do |edition| %>
-          <div>
+          <div class="edition">
             <% edition_text = "#{edition.editor} (#{edition.voicing})" %>
             <% if edition.file_url.present? %>
               <%= link_to edition.file_url, target: "_blank" do %>
@@ -98,10 +98,10 @@
           </div>
         <% end %>
       </td>
-      <td>
+      <td class="recordings">
         <% unique_piece.recordings.each do |recording| %>
           <% if recording.file_url.present? %>
-            <div>
+            <div class="recording">
               <%= link_to recording.file_url, target: "_blank" do %>
                 <%= image_tag "listen.png" %>
                 <%= recording.performer_name %>

@@ -6,34 +6,34 @@
 
     <table>
       <tr>
-        <th>Select</th>
-        <th>Piece</th>
-        <th>Source</th>
-        <th>Notes</th>
+        <th class="select">Select</th>
+        <th class="piece-title">Piece</th>
+        <th class="source-title">Source</th>
+        <th class="notes">Notes</th>
       </tr>
 
       <% attribs.each do |attrib| %>
         <tr>
-          <td>
+          <td class="select">
             <%= check_box_tag "attributions[][id]", attrib.id %>
             <%= hidden_field_tag "attributions[][inclusion_id]", attrib.inclusion_id %>
           </td>
-          <td><%= attrib.inclusion.piece.title %> (<%= ClefsInclusion.sort(attrib.inclusion.clefs_inclusions).map(&:annotated_note).join %>)</td>
-          <td><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
-          <td><%= attrib.inclusion.notes %></td>
+          <td class="piece-title"><%= attrib.inclusion.piece.title %> (<%= ClefsInclusion.sort(attrib.inclusion.clefs_inclusions).map(&:annotated_note).join %>)</td>
+          <td class="source-title"><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
+          <td class="notes"><%= attrib.inclusion.notes %></td>
         </tr>
       <% end %>
     </table>
 
-    <label>
+    <label class="incorrectly-attributed">
       <%= check_box_tag "incorrectly_attributed" %>
       Incorrectly attributed?
     </label>
 
     <%= select_tag "composer_id", options_from_collection_for_select(Composer.all.order(:name), "id", "name") %>
 
-    <button>Resolve</button>
+    <button class="resolve">Resolve</button>
 
-    <%= link_to "Create new composer", new_admin_composer_path, target: "_blank" %>
+    <%= link_to "Create new composer", new_admin_composer_path, target: "_blank", class: "new-composer" %>
   <% end %>
 <% end %>

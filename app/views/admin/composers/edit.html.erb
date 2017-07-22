@@ -1,18 +1,18 @@
 <h1>Edit composer</h1>
 
-<%= form_tag("/admin/composers/switch-to") do %>
+<%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
   <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
 
   <button>Edit</button>
 <% end %>
 
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
-  <div><%= f.text_field :name %></div>
+  <div class="name"><%= f.text_field :name %></div>
 
-  <div><%= image_tag @composer.image_url if @composer.image_url %></div>
-  <div><%= f.text_field :image_url %></div>
+  <div class="image-url-image"><%= image_tag @composer.image_url if @composer.image_url %></div>
+  <div class="image-url"><%= f.text_field :image_url %></div>
 
-  <div>
+  <div class="dates">
     Dates:
     <%= f.text_field :from_year_annotation %>
     <%= f.text_field :from_year %>
@@ -21,67 +21,67 @@
     <%= f.text_field :to_year %>
   </div>
 
-  <div>
+  <div class="birthplace">
     Birthplace:
     <%= f.text_field :birthplace_1 %>
     <%= f.text_field :birthplace_2 %>
   </div>
 
-  <div>
+  <div class="deathplace">
     Deathplace:
     <%= f.text_field :deathplace_1 %>
     <%= f.text_field :deathplace_2 %>
   </div>
 
-  <div>
+  <div class="aliases">
     Aliases:
     <%= f.text_area :aliased_as %>
   </div>
 
-  <button>Save</button>
+  <button class="save">Save</button>
 <% end %>
 
-<table>
+<table class="unique-pieces">
   <tr>
-    <th>Title</th>
-    <th>Function(s)</th>
-    <th>Editions</th>
-    <th>Recordings</th>
-    <th>Sources</th>
+    <th class="title">Title</th>
+    <th class="functions">Function(s)</th>
+    <th class="editions">Editions</th>
+    <th class="recordings">Recordings</th>
+    <th class="sources">Sources</th>
     <th></th>
   </tr>
 
   <% @grouped_inclusions.each do |unique_piece, inclusions| %>
       <tr>
         <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
-          <td><%= f.text_area :title %></td>
-          <td><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
-          <td>
+          <td class="title"><%= f.text_area :title %></td>
+          <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
+          <td class="editions">
             <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |r| %>
-              <div>
+              <div class="edition">
                 <%= r.text_field :voicing, placeholder: "Voicing" %>
                 <%= r.text_field :editor, placeholder: "Editor" %>
                 <%= r.text_field :file_url, placeholder: "File URL" %>
               </div>
             <% end %>
           </td>
-          <td>
+          <td class="recordings">
             <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
-              <div>
+              <div class="recording">
                 <%= r.text_field :performer, placeholder: "Performer" %>
                 <%= r.text_field :file_url, placeholder: "File URL" %>
               </div>
             <% end %>
           </td>
           <td>
-            <table>
+            <table class="sources">
               <% inclusions.sort_by(&:from_year).each do |inclusion| %>
-                <tr>
+                <tr class="source">
                   <% source = inclusion.source %>
-                  <td><%= source.dates %></td>
+                  <td class="dates"><%= source.dates %></td>
                   <td class="source-name"><%= link_to source.code, edit_admin_source_path(source), target: "_blank" %></td>
-                  <td><%= inclusion.position %></td>
-                  <td><%= inclusion.notes %></td>
+                  <td class="position"><%= inclusion.position %></td>
+                  <td class="notes"><%= inclusion.notes %></td>
                 </tr>
               <% end %>
             </table>
@@ -90,7 +90,7 @@
             <%= hidden_field_tag :composer_id, @composer.id %>
             <%= f.hidden_field :composers %>
             <%= f.hidden_field :minimum_voices %>
-            <button>Save</button>
+            <button class="save">Save</button>
           </td>
         <% end %>
       </tr>

@@ -1,6 +1,6 @@
 <h1>Cataloguing</h1>
 
-<%= form_tag("/sources/switch-to") do %>
+<%= form_tag("/sources/switch-to", class: "composer-select") do %>
   <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
 
   <button>Edit</button>
@@ -11,7 +11,7 @@
   <%= f.text_area :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
-  <div>
+  <div class="dates">
     Dates:
     <%= f.text_field :from_year_annotation %>
     <%= f.text_field :from_year %>
@@ -24,56 +24,57 @@
   <%= f.text_field :rism_link, label: "RISM URL" %>
   <%= f.text_field :url, label: "Image URL" %>
 
-  <button>Save</button>
+  <button class="save">Save</button>
 
   <table>
     <tr>
-      <th>Order</th>
-      <th>Attributed to</th>
-      <th>Actual composer</th>
-      <th>Title</th>
-      <th>Clefs</th>
-      <th>Notes</th>
+      <th class="order">Order</th>
+      <th class="attributed-to">Attributed to</th>
+      <th class="composers">Actual composer</th>
+      <th class="title">Title</th>
+      <th class="clefs">Clefs</th>
+      <th class="notes">Notes</th>
       <th></th>
     </tr>
 
     <%= f.fields_for(:inclusions, @inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
-      <tr>
-        <td><%= i.text_field :order %></td>
-        <td>
+      <tr class="inclusion">
+        <td class="order"><%= i.text_field :order %></td>
+        <td class="attributed-to">
           <%= i.text_field :attributed_to %>
         </td>
-        <td>
-          <ul>
+        <td class="composers">
+          <ul class="composer">
             <% i.object.attributions.each do |a| %>
               <% if composer = (a.alias&.composer || (a.incorrectly_attributed? && a.composer)) %>
-                <li>
+                <li class="resolved #{'incorrectly-attributed' if a.incorrectly_attributed}">
                   <%= link_to (composer.name || "(Unnamed composer)"), edit_admin_composer_path(composer), target: "_blank", class: ("incorrectly-attributed" if a.incorrectly_attributed?) %>
                 </li>
               <% elsif a.anonym_name.present? %>
-                <li><%= link_to "Unresolved", admin_attributions_path, target: "_blank" %></li>
+                <li class="unresolved"><%= link_to "Unresolved", admin_attributions_path, target: "_blank" %></li>
               <% end %>
             <% end %>
           </ul>
         </td>
         <%= i.fields_for(:piece) do |piece| %>
-          <td>
+          <td class="title">
             <%= piece.text_area :title %>
           </td>
         <% end %>
-        <td>
+        <td class="clefs">
           <%= i.fields_for(:clefs_inclusions, i.object.clefs_inclusions) do |clef_inclusion| %>
             <%= clef_inclusion.text_field :annotated_note, size: 3 %>
           <% end %>
         </td>
-        <td><%= i.text_field :notes %></td>
+        <td class="notes"><%= i.text_field :notes %></td>
         <% if i.object.persisted? %>
-          <td>
+          <td class="delete">
             <%= link_to "Delete", admin_inclusion_path(i.object), method: :delete %>
           </td>
         <% end %>
       </tr>
     <% end %>
   </table>
-  <button>Save</button>
+
+  <button class="save">Save</button>
 <% end %>
