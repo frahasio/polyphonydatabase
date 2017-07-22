@@ -26,7 +26,10 @@ class Source < ActiveRecord::Base
   ].freeze
 
   def dates
-    "#{from_year_annotation}#{from_year}-#{to_year_annotation}#{to_year}"
+    [
+      "#{from_year_annotation}#{from_year}",
+      "#{to_year_annotation}#{to_year}",
+    ].reject(&:blank?).join("-")
   end
 
   def location_and_pubscribe

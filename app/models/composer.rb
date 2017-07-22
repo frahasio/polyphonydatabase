@@ -32,7 +32,10 @@ class Composer < ActiveRecord::Base
   end
 
   def dates
-    "#{from_year_annotation}#{from_year}-#{to_year_annotation}#{to_year}"
+    [
+      "#{from_year_annotation}#{from_year}",
+      "#{to_year_annotation}#{to_year}",
+    ].reject(&:blank?).join("-")
   end
 
 private
