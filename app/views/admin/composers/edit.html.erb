@@ -54,7 +54,7 @@
   <% @grouped_inclusions.each do |unique_piece, inclusions| %>
       <tr>
         <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
-          <td><%= f.text_field :title %></td>
+          <td><%= f.text_area :title %></td>
           <td><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {multiple: true} %></td>
           <td>
             <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |r| %>

@@ -8,7 +8,7 @@
 
 <%= form_for([:admin, @source]) do |f| %>
   <%= f.check_box :catalogued %>
-  <%= f.text_field :title %>
+  <%= f.text_area :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
   <div>
@@ -58,7 +58,7 @@
         </td>
         <%= i.fields_for(:piece) do |piece| %>
           <td>
-            <%= piece.text_field :title %>
+            <%= piece.text_area :title %>
           </td>
         <% end %>
         <td>
