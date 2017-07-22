@@ -12,24 +12,22 @@ module Admin
 
         if attribution[:id] == "on"
           attrib = Attribution.new(inclusion_id: attribution[:inclusion_id])
-          incorrectly_attributed = true
         else
           attrib = Attribution.find(attribution[:id])
-          incorrectly_attributed = params[:incorrectly_attributed]
         end
 
         success = true
-
-        if incorrectly_attributed
+        if !!params[:incorrectly_attributed]
           success = attrib.update_attributes(
             alias: nil,
             composer: composer,
             incorrectly_attributed: true,
           )
         else
+          anonym = attrib.anonym || Anonym.find_or_initialize_by(name: "Anon.")
           composer_alias = Alias.find_or_create_by!(
             composer: composer,
-            anonym: attrib.anonym,
+            anonym: anonym,
           )
 
           success = composer_alias.persisted?

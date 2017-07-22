@@ -2,7 +2,7 @@
 
 <%= form_tag assign_admin_attributions_path do %>
   <% (Attribution.unattributed + Attribution.for_unattributed_inclusions).group_by(&:name).each do |name, attribs| %>
-    <h2><%= name || "<not attributed>" %></h2>
+    <h2><%= name %></h2>
 
     <table>
       <tr>
