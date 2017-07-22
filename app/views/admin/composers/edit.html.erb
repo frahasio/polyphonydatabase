@@ -79,7 +79,7 @@
                 <tr>
                   <% source = inclusion.source %>
                   <td><%= source.dates %></td>
-                  <td class="source-name"><%= source.code %></td>
+                  <td class="source-name"><%= link_to source.code, edit_admin_source_path(source), target: "_blank" %></td>
                   <td><%= inclusion.position %></td>
                   <td><%= inclusion.notes %></td>
                 </tr>
