@@ -12,7 +12,9 @@ class ClefsInclusion < ActiveRecord::Base
 
     sorted = CLEF_ORDER.map { |note| hash_object[note] }.flatten.compact
 
-    return sorted + missing_clef + blank
+    unsortable = has_clef - sorted
+
+    return sorted + unsortable + missing_clef + blank
   end
 
   def annotated_note
