@@ -1,7 +1,7 @@
 class Inclusion < ActiveRecord::Base
   belongs_to :source, inverse_of: :inclusions
   belongs_to :piece, inverse_of: :inclusions
-  has_many :attributions, inverse_of: :inclusion
+  has_many :attributions, inverse_of: :inclusion, dependent: :destroy
   has_many :clefs_inclusions, inverse_of: :inclusion
   has_many :clefs, through: :clefs_inclusions
   accepts_nested_attributes_for :attributions, :piece
