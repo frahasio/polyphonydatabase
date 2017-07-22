@@ -43,4 +43,15 @@ class Inclusion < ActiveRecord::Base
   def minimum_voice_count
     clefs_inclusions.where(partial: false).count
   end
+
+  def public_notes
+    special_attribs = attributions.where(incorrectly_attributed: true).to_a
+    special_attribs += attributions.select {|a| a.resolved_composer.blank? }
+
+    if special_attribs.any?
+      [%[#{special_attribs.map {|a| "Attrib: #{a.name}"}.join("; ")}], notes].reject(&:blank?).join("; ")
+    else
+      notes
+    end
+  end
 end
