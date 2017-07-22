@@ -3,8 +3,8 @@
   <%= text_field_tag :q, params[:q], placeholder: "Search texts..." %>
   <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions" %>
   <%= select_tag :composer, options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers" %>
-  <%= select_tag :composer_country, options_from_collection_for_select(Composer.all.distinct(:birthplace_2).where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries" %>
-  <%= select_tag :voices, options_from_collection_for_select(UniquePiece.all.distinct(:minimum_voices).order(:minimum_voices), :minimum_voices, :minimum_voices, params[:voices]), include_blank: "All # voices" %>
+  <%= select_tag :composer_country, options_from_collection_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries" %>
+  <%= select_tag :voices, options_from_collection_for_select(UniquePiece.select(:minimum_voices).distinct.order(:minimum_voices), :minimum_voices, :minimum_voices, params[:voices]), include_blank: "All # voices" %>
   <%= select_tag :source, options_from_collection_for_select(Source.all.order(:code), :id, :code, params[:source]), include_blank: "All sources" %>
   <label>
     Edition
