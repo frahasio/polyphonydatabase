@@ -19,9 +19,12 @@ class UniquePiece < ActiveRecord::Base
 
   def self.group(inclusions)
     inclusions.group_by do |inclusion|
+      composer_ids = inclusion.composers.compact.map(&:id).map(&:to_s)
+      composer_ids += ["anon"] * (inclusion.attributions.count - composer_ids.count)
+
       UniquePiece.find_or_initialize_by(
         title: inclusion&.piece&.title,
-        composers: inclusion.composers.compact.map(&:id).sort.join(","),
+        composers: composer_ids.sort.join(","),
         minimum_voices: inclusion.minimum_voice_count,
       )
     end
