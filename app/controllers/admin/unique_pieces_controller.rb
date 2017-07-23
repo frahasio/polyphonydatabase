@@ -7,6 +7,8 @@ module Admin
         flash[:error] = unique_piece.errors.full_messages.to_sentence
       end
 
+      rename_pieces(unique_piece)
+
       if params[:composer_id]
         redirect_to edit_admin_composer_path(id: params[:composer_id])
       else
@@ -23,6 +25,8 @@ module Admin
         flash[:error] = unique_piece.errors.full_messages.to_sentence
       end
 
+      rename_pieces(unique_piece)
+
       if params[:composer_id]
         redirect_to edit_admin_composer_path(id: params[:composer_id])
       else
@@ -33,6 +37,15 @@ module Admin
     end
 
   private
+
+    def rename_pieces(unique_piece)
+      return unless unique_piece.previous_changes.has_key?("title")
+
+      inclusion_ids = params[:inclusion_ids].split(",").map(&:to_i)
+      Inclusion.where(id: inclusion_ids).map(&:piece).compact.each do |piece|
+        piece.update!(title: unique_piece.title)
+      end
+    end
 
     def unique_piece_params
       params.require(:unique_piece).permit(

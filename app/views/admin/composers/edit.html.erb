@@ -90,6 +90,7 @@
             <%= hidden_field_tag :composer_id, @composer.id %>
             <%= f.hidden_field :composers %>
             <%= f.hidden_field :minimum_voices %>
+            <%= hidden_field_tag :inclusion_ids, inclusions.map(&:id).join(",") %>
             <button class="save">Save</button>
           </td>
         <% end %>
