@@ -42,7 +42,7 @@
       <td class="composers">
         <% inclusions.first.composers.each do |composer| %>
           <div class="composer">
-            <div class="name"><%= composer&.name || "Anon." %></div>
+            <div class="name"><%= composer&.name %></div>
 
             <% if composer %>
               <div class="dates"><%= composer.dates %></div>

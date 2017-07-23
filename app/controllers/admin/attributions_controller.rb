@@ -24,7 +24,7 @@ module Admin
             incorrectly_attributed: true,
           )
         else
-          anonym = attrib.anonym || Anonym.find_or_initialize_by(name: "Anon.")
+          anonym = attrib.anonym || Anonym.find_or_initialize_by(name: "")
           composer_alias = Alias.find_or_create_by!(
             composer: composer,
             anonym: anonym,

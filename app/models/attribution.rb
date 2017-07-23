@@ -27,7 +27,7 @@ class Attribution < ActiveRecord::Base
   end
 
   def name
-    composer&.name || anonym&.name || self.alias&.composer&.name || "Anon."
+    composer&.name || anonym&.name || self.alias&.composer&.name
   end
 
   def anonym_name
