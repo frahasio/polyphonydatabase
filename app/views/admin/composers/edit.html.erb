@@ -75,7 +75,7 @@
           </td>
           <td>
             <table class="sources">
-              <% inclusions.sort_by(&:from_year).each do |inclusion| %>
+              <% inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
                 <tr class="source">
                   <% source = inclusion.source %>
                   <td class="dates"><%= source.dates %></td>
