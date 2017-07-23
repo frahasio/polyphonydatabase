@@ -19,7 +19,7 @@
             <%= hidden_field_tag "attributions[][inclusion_id]", attrib.inclusion_id %>
           </td>
           <td class="piece-title"><%= attrib.inclusion.piece.title %> (<%= ClefsInclusion.sort(attrib.inclusion.clefs_inclusions).map(&:annotated_note).join %>)</td>
-          <td class="source-title"><%= attrib.inclusion.source.code %> (<%= attrib.inclusion.source.title %>)</td>
+          <td class="source-title"><%= attrib.inclusion.source.code %> (<%= truncate(attrib.inclusion.source.title, length: 50) %>)</td>
           <td class="notes"><%= attrib.inclusion.notes %></td>
         </tr>
       <% end %>
