@@ -1,15 +1,7 @@
 module Admin
   class HomeController < AdminControllerBase
-    def index; end
-
-  private
-
-    def sources
-      @sources ||= Source.all
-    end
-
-    def composers
-      @composers ||= Composer.all
+    def index
+      redirect_to admin_sources_path
     end
   end
 end

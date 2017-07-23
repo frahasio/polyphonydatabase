@@ -1,6 +1,7 @@
 module Admin
   class AdminControllerBase < ApplicationController
     before_action :check_authentication
+    layout "admin"
 
   private
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MusicCms</title>
+    <%= csrf_meta_tags %>
+
+    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+  </head>
+
+  <body>
+    <ul class="navigation">
+      <li><%= link_to "Add and catalogue sources", admin_sources_path, target: "_blank" %></li>
+      <li><%= link_to "Resolve attributions", admin_attributions_path, target: "_blank" %></li>
+      <li><%= link_to "Create composers", new_admin_composer_path, target: "_blank" %></li>
+      <% if logged_in? %>
+        <li>Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %></li>
+      <% end %>
+    </ul>
+
+    <% if flash[:error] %>
+      <p><%= flash[:error] %></p>
+    <% end %>
+
+    <%= yield %>
+  </body>
+</html>
