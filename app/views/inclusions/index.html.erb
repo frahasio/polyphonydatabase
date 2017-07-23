@@ -53,7 +53,7 @@
       <td class="minimum-voices"><%= unique_piece.minimum_voices %></td>
       <td class="sources">
         <table>
-          <% inclusions.sort_by(&:from_year).each do |inclusion| %>
+          <% inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
             <tr>
               <% source = inclusion.source %>
               <% source_name = "#{truncate(source.title, length: 50)} (#{source.code})" %>
