@@ -13,15 +13,99 @@
  *= require_tree .
  *= require_self
  */
-.clef-image {
-  max-width: 30px;
-  float: left;
+* {
+    padding:0;
+    border:0;
+    margin:0;
 }
-
+body {
+    background: repeating-linear-gradient(45deg,
+    #3a3a3a,
+    #3a3a3a 1px,
+    #3c3c3c 3px,
+    #3a3a3a 5px);
+    font-size:14px;
+    font-family:'palatino linotype', serif;
+}
+table {
+    margin:10px;
+    border-spacing: 1px;
+    border-collapse: separate;
+}
+th {
+    background:rgb(16,78,139);
+    color:white;
+    text-transform:uppercase;
+    font-size:0.8em;
+    padding:10px;
+}
+td {
+    background:rgb(198,198,183);
+    padding:5px;
+}
+select {
+    max-width:150px;
+}
+input, select {
+    font-size:1.2em;
+    padding:5px;
+    border-radius:5px;
+    background-color:#eeeeee;
+}
+button {
+    font-size:1.2em;
+    border-radius:5px;
+    padding:5px 30px;
+    float:right;
+    color:white;
+    background-color: rgb(16,78,139);
+    border: 2px groove rgb(46,108,169);
+}
+button:hover {
+    background-color:rgb(46,108,169);
+    cursor:pointer;
+}
+div.editor-and-voicing {
+    display:none;
+}
+tr:first-child th:first-child {border-top-left-radius: 5px; }
+tr:first-child th:last-child {border-top-right-radius: 5px; }
+tr:last-child td:first-child {border-bottom-left-radius: 5px; }
+tr:last-child td:last-child {border-bottom-right-radius: 5px; }
+td img {
+    width:12px;
+    float:left;
+}
+td.clefs {
+    min-width:96px
+}
 .source-name {
-  max-width: 150px;
+    max-width:220px;
+}
+.position {
+    font-size:0.8em;
+    color:grey;
+    vertical-align:0;
+    max-width:10px;
+}
+th.minimum-voices {
+    max-width:10px;
+	text-align:center;
+	transform: rotate(90deg);
+	transform-origin: left top 0;
+}
+td.notes {
+    font-style:italic;
+}
+p:first-child {
+    display:none;
+}
+form {
+    margin:10px;
 }
 
-.min-performers {
-  max-width: 60px;
+@media screen and (max-width: 600px) {
+    th.sources,td.sources,th.function,td.functions {
+        display:none;
+    }
 }
