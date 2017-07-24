@@ -192,3 +192,20 @@ div.wrapper {
     width:100%;
     text-align:center;
 }
+div.login button {
+    font-size: 1.2em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9;
+    margin-left:10px;
+}
+
+div.login button:hover {
+    background-color: #2e6ca9;
+    cursor: pointer
+}
+.navigation a, div.login {
+    color:#ccccbb;
+}
