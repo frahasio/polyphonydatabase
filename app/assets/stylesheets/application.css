@@ -250,5 +250,7 @@ div.listofsources {
 }
 .listofsources div ul {
     margin-left:20px;
-    margin-top:10px;
+}
+.listofsources div h2 {
+    margin:10px;
 }
