@@ -215,3 +215,6 @@ div.login form input[type=sumbit]:hover {
     background-color: #2e6ca9;
     cursor: pointer
 }
+table.cataloguing td.clefs input {
+    width:30px;
+}
