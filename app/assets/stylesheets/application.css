@@ -237,16 +237,8 @@ div.addsource {
     text-align:center;
 }
 div.addsource input {
-    min-width:200px;
+    min-width:250px;
 }
 div.addsource button {
-    min-width:100px;
-}
-div.listofsources {
-    display: flex;
-    overflow: hidden;
-    align-items: center;
-}
-.listofsources ul {
-    flex:1;
+    min-width:70px;
 }
