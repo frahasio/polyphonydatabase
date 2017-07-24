@@ -73,7 +73,7 @@ tr:first-child th:last-child {border-top-right-radius: 5px; }
 tr:last-child td:first-child {border-bottom-left-radius: 5px; }
 tr:last-child td:last-child {border-bottom-right-radius: 5px; }
 td img {
-    width:12px;
+    width:20px;
     float:left;
 }
 td.clefs {
@@ -88,17 +88,8 @@ td.clefs {
     vertical-align:0;
     max-width:10px;
 }
-th.minimum-voices {
-    max-width:10px;
-	text-align:center;
-	transform: rotate(90deg);
-	transform-origin: left top 0;
-}
 td.notes {
     font-style:italic;
-}
-p:first-child {
-    display:none;
 }
 form {
     margin:10px;
