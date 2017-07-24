@@ -59,7 +59,7 @@
           <% inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
             <tr>
               <% source = inclusion.source %>
-              <% source_name = "#{truncate(source.title, length: 50)} (#{source.code})" %>
+              <% source_name = "#{truncate(source.title, length: 30)} (#{source.code})" %>
               <td class="source-name">
                 <div>
                   <% if source.url.present? %>
