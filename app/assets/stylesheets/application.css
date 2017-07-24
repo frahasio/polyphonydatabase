@@ -248,3 +248,7 @@ div.listofsources {
 .listofsources div {
     flex: 1;
 }
+.listofsources div ul {
+    margin-left:20px;
+    margin-top:10px;
+}
