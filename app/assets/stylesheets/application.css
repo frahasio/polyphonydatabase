@@ -242,4 +242,11 @@ div.addsource input {
 div.addsource button {
     min-width:100px;
 }
-    
+div.sourcelist {
+    display: flex;
+    overflow: hidden;
+    align-items: center;
+}
+.sourcelist ul {
+    flex:1;
+}
