@@ -242,3 +242,9 @@ div.addsource input {
 div.addsource button {
     min-width:70px;
 }
+div.listofsources {
+    display:flex;
+}
+.listofsources div {
+    flex: 1;
+}
