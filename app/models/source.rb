@@ -18,6 +18,7 @@ class Source < ActiveRecord::Base
     Choirbook
     Partbook
     Score
+    Unidentifiable fragment
   ].freeze
 
   PUBLISHERS_AND_SCRIBES = [
