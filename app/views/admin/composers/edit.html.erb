@@ -55,7 +55,7 @@
       <tr>
         <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td class="title"><%= f.text_area :title %></td>
-          <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {class: 'select2', multiple: true} %></td>
+          <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {id: "select2", multiple: true} %></td>
           <td class="editions">
             <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |r| %>
               <div class="edition">
