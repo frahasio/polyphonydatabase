@@ -101,7 +101,8 @@ button {
     padding: 5px 30px;
     color: white;
     background-color: #104e8b;
-    border: 2px groove #2e6ca9
+    border: 2px groove #2e6ca9;
+    margin-left:10px;
 }
 
 button:hover {
