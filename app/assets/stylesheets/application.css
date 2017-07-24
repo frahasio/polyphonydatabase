@@ -37,6 +37,12 @@ h1 {
     text-align: center;
     font-size: 190%
 }
+h2 {
+    padding: 1%;
+    color: #fff;
+    text-align: left;
+    font-size: 150%
+}
 
 form {
     margin: 10px
