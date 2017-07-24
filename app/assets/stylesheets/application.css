@@ -54,9 +54,12 @@ th {
 
 td {
     background: #c6c6b7;
-    padding: 5px
+    padding: 5px;
+    vertical-align:top;
 }
-
+td.minimum-voices {
+	text-align:center;
+}
 select {
     max-width: 150px
 }
