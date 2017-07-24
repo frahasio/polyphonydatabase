@@ -14,89 +14,139 @@
  *= require_self
  */
 * {
-    padding:0;
-    border:0;
-    margin:0;
+    padding: 0;
+    border: 0;
+    margin: 0
 }
+
 body {
-    background: repeating-linear-gradient(45deg,
-    #3a3a3a,
-    #3a3a3a 1px,
-    #3c3c3c 3px,
-    #3a3a3a 5px);
-    font-size:14px;
-    font-family:'palatino linotype', serif;
+    background: repeating-linear-gradient(45deg, #3a3a3a, #3a3a3a 1px, #3c3c3c 3px, #3a3a3a 5px);
+    font-size: 14px;
+    font-family: 'palatino linotype', serif
+}
+h1 {
+	background-color:rgb(0, 51, 153);
+	background: linear-gradient(rgb(170,0,0),rgb(108,0,0));
+	padding:1%;
+	color:#fff;
+	text-align:center;
+	font-size:150%;
+}
+form {
+    margin: 10px
+}
+form label {
+    color:#a1a1a1;
 }
 table {
-    margin:10px;
+    margin: 10px;
     border-spacing: 1px;
     border-collapse: separate;
 }
+
 th {
-    background:rgb(16,78,139);
-    color:white;
-    text-transform:uppercase;
-    font-size:0.8em;
-    padding:10px;
+    background: #104e8b;
+    color: white;
+    text-transform: uppercase;
+    font-size: 0.8em;
+    padding: 10px
 }
+
 td {
-    background:rgb(198,198,183);
-    padding:5px;
+    background: #c6c6b7;
+    padding: 5px
 }
+
 select {
-    max-width:150px;
+    max-width: 150px
 }
-input, select {
-    font-size:1.2em;
-    padding:5px;
-    border-radius:5px;
-    background-color:#eeeeee;
+
+input,select {
+    font-size: 1.2em;
+    padding: 5px;
+    border-radius: 5px;
+    background-color: #eeeeee
 }
+
 button {
-    font-size:1.2em;
-    border-radius:5px;
-    padding:5px 30px;
-    float:right;
-    color:white;
-    background-color: rgb(16,78,139);
-    border: 2px groove rgb(46,108,169);
+    font-size: 1.2em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    float: right;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9
 }
+
 button:hover {
-    background-color:rgb(46,108,169);
-    cursor:pointer;
+    background-color: #2e6ca9;
+    cursor: pointer
 }
+
 div.editor-and-voicing {
-    display:none;
+    display: none
 }
-tr:first-child th:first-child {border-top-left-radius: 5px; }
-tr:first-child th:last-child {border-top-right-radius: 5px; }
-tr:last-child td:first-child {border-bottom-left-radius: 5px; }
-tr:last-child td:last-child {border-bottom-right-radius: 5px; }
+
+tr:first-child th:first-child {
+    border-top-left-radius: 5px
+}
+
+tr:first-child th:last-child {
+    border-top-right-radius: 5px
+}
+
+tr:last-child td:first-child {
+    border-bottom-left-radius: 5px
+}
+
+tr:last-child td:last-child {
+    border-bottom-right-radius: 5px
+}
+
 td img {
-    width:20px;
-    float:left;
+    max-width: 24px;
+    float: left
 }
-td.clefs {
-    min-width:96px
-}
-.source-name {
-    max-width:220px;
-}
+
 .position {
-    font-size:0.8em;
-    color:grey;
-    vertical-align:0;
-    max-width:10px;
+    font-size: 0.8em;
+    color: grey;
+    vertical-align: 0;
+    max-width: 10px
 }
+
 td.notes {
-    font-style:italic;
-}
-form {
-    margin:10px;
+    font-style: italic;
+    font-size:0.8em;
 }
 
 @media screen and (max-width: 600px) {
     th.sources,td.sources,th.function,td.functions {
-        display:none;
+        display:none
     }
+}
+td.sources table{
+    border-collapse:collapse;
+    margin: 0px;
+    border-spacing: 0px;
+}
+td.sources tr {
+    border-bottom: 1px solid #b2b2b2;
+}
+td.sources tr:last-child {
+    border-bottom: none;
+}
+td.sources td.source-name {
+    width: 150px;
+}
+
+td.sources td.position {
+    display:none;
+}
+
+td.sources td.clefs {
+    width: 200px;
+}
+td.sources td.notes {
+    width: 120px;    
 }
