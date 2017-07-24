@@ -221,3 +221,6 @@ table.cataloguing td.clefs input {
 table.cataloguing td.order {
     max-width:30px;
 }
+table.cataloguing td.piece textarea, table.cataloguing td.notes textarea, {
+    ;
+}
