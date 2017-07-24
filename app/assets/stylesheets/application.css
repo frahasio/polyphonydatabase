@@ -89,7 +89,7 @@ select {
     max-width: 150px
 }
 
-input,select {
+input,select,textarea {
     font-size: 1.2em;
     padding: 5px;
     border-radius: 5px;
