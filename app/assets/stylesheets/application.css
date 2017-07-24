@@ -233,6 +233,13 @@ div.login form {
     margin:0;
     margin-left:10px;
 }
-button.addsource {
-    float:right;
+div.addsource {
+    text-align:center;
 }
+div.addsource input {
+    min-width:200px;
+}
+div.addsource button {
+    min-width:100px;
+}
+    
