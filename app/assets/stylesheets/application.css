@@ -92,6 +92,7 @@ select {
 input,select,textarea {
     font-size: 1.2em;
     padding: 5px;
+    margin:2px;
     border-radius: 5px;
     background-color: #eee;
     font-family:arial, sans-serif;
