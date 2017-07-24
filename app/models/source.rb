@@ -212,6 +212,7 @@ class Source < ActiveRecord::Base
     "Thomas de Sancto Juliano",
     "Thomassini, Filippo",
     "Tini, Francesco",
+    "Tini, Francesco & Simone",
     "Tini, Michele",
     "Tini, Simone",
     "Torresani, Andrea",
