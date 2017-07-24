@@ -1,11 +1,13 @@
 <h1>Sources</h1>
 
 <h2>Add source</h2>
+<div class="addsource">
 <%= form_for([:admin, Source.new]) do |f| %>
-  <%= f.text_field :code %>
+  <%= f.text_field :code, placeholder: "e.g. RISM_A123 or GB-Och_979-983" %>
   <button class="addsource">Add</button>
 <% end %>
-
+</div>
+<div class="listofsources">
 <h2>Uncatalogued</h2>
 <ul>
   <% Source.uncatalogued.each do |src| %>
@@ -19,3 +21,4 @@
     <li><%= link_to src.code, edit_admin_source_path(src) %></li>
   <% end %>
 </ul>
+</div>
