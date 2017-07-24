@@ -161,5 +161,7 @@ class Feast
     "TENE" => "Tenebrae",
     "TRIN" => "Trinity",
     "VISI" => "Visitation",
+    "FUNE" => "Funeral",
+    "WEDD" => "Wedding",
   }.freeze
 end
