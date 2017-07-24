@@ -194,12 +194,24 @@ div.wrapper {
     width:100%;
     text-align:center;
 }
-div.login button {
+div.login {
     float:right;
 }
 .navigation a, div.login {
     color:#ccccbb;
 }
-div.login form {
+div.login form input[type=sumbit] {
     float:right;
+    font-size: 1.2em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9;
+    margin-left:10px;
+}
+
+div.login form input[type=sumbit]:hover {
+    background-color: #2e6ca9;
+    cursor: pointer
 }
