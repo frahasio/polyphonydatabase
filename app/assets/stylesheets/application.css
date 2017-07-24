@@ -266,6 +266,9 @@ div.listofsources {
 .listofsources div h2 {
     margin:10px;
 }
+.listofsources div ul li {
+    font-size:1.4em;
+}
 hr {
     border: 0;
     height: 2px;
