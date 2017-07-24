@@ -219,6 +219,6 @@ div.login form input[type=sumbit]:hover {
 table.cataloguing td.clefs input {
     width:30px;
 }
-table.cataloguing td.order {
+table.cataloguing td.order input {
     max-width:30px;
 }
