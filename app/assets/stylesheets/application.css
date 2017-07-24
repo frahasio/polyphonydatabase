@@ -211,6 +211,10 @@ div.login {
 .navigation a, div.login {
     color:#ccccbb;
 }
+.navigation a:hover {
+    color:orange;
+    text-decoratio:underline;
+}
 div.login form input[type=sumbit] {
     float:right;
     font-size: 1.2em;
