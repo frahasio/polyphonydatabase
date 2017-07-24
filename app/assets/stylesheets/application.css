@@ -65,7 +65,8 @@ th {
 td {
     background: #c6c6b7;
     padding: 5px;
-    vertical-align: top
+    vertical-align: top;
+    text-align:left;
 }
 
 td.minimum-voices {
