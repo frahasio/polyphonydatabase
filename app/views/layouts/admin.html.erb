@@ -9,6 +9,7 @@
   </head>
 
   <body>
+   <div class="topbit">
     <ul class="navigation">
       <li><%= link_to "Add & catalogue sources", admin_sources_path, target: "_blank" %></li>
       <li><%= link_to "Resolve attributions", admin_attributions_path, target: "_blank" %></li>
@@ -19,6 +20,7 @@
         Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %>
       <% end %>
     </div>
+   </div>
     
     <% if flash[:error] %>
       <p><%= flash[:error] %></p>
