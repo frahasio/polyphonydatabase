@@ -16,7 +16,7 @@
     </ul>
     <div class="login">
       <% if logged_in? %>
-        <li>Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %></li>
+        Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %>
       <% end %>
     </div>
     
