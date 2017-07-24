@@ -3,8 +3,7 @@
 <h2>Add source</h2>
 <div class="addsource">
 <%= form_for([:admin, Source.new]) do |f| %>
-  <%= f.text_field :code, placeholder: "e.g. RISM_A123 or GB-Och_979-983" %>
-  <button class="addsource">Add</button>
+  <%= f.text_field :code, placeholder: "e.g. RISM_A123 or GB-Och_979-983" %><button class="addsource">Add</button>
 <% end %>
 </div>
 <div class="listofsources">
