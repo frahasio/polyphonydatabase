@@ -50,8 +50,9 @@ input[type=checkbox] {
 
 table {
     margin: 10px;
+    width:100%;
     border-spacing: 1px;
-    border-collapse: separate
+    border-collapse: separate;
 }
 
 th {
