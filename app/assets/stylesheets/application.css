@@ -233,3 +233,6 @@ div.login form {
     margin:0;
     margin-left:10px;
 }
+button.addsource {
+    float:right;
+}
