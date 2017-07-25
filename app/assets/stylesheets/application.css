@@ -231,7 +231,7 @@ td div.dates {
 /* HIDE SOME THINGS ON SMALL SCREENS */
 
 @media screen and (max-width: 600px) {
-    td.clefs,th.function,td.functions {
+    td.clefs,th.function,td.functions,td.sources td.notes {
         display:none
     }
 }
