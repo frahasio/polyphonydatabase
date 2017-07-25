@@ -163,7 +163,7 @@ button.help {
     font-size:0.9em;
     margin:5px;
 }
-#topexplanation {
+#topexplanation, #adminhelp {
     padding: 20px;
     font-size: 1.2em;
     display: none;
@@ -173,7 +173,7 @@ button.help {
     background-color:lightgrey;
     border-radius:5px;
 }
-#topexplanation ul li {
+#topexplanation ul li, #adminhelp ul li {
     list-style:disc outside;
     margin-left:15px
 }
