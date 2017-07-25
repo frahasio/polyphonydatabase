@@ -258,6 +258,10 @@ button.help {
     text-align: left;
     clear:both;
 }
+#topexplanation ul li {
+    list-style:disc outside;
+    margin-left:15px
+}
 .position {
     font-size: 0.8em;
     color: grey;
