@@ -250,6 +250,7 @@ div.wrapper {
     color: #ccccbb;
     font-size: 1.1em;
     display:none;
+    text-align:left;
 }
 .position {
     font-size: 0.8em;
