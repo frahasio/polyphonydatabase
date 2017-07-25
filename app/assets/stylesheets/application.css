@@ -289,6 +289,6 @@ td div.dates {
     margin-left:10px;
 }
 .helptext ul li {
-    list-style:disc inside;
+    list-style:disc outside;
 }
     
