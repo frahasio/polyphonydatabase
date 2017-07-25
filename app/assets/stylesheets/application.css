@@ -368,3 +368,14 @@ form.new_source {
 .new_source input {
     min-width:200px;
 }
+div.listofsources {
+    display:flex;
+    justify-content:center;
+}
+div.listofsources div {
+    margin:10px 20px;
+}
+div.listofsources div ul {
+    margin:10px;
+    font-size:1.2em;
+}
