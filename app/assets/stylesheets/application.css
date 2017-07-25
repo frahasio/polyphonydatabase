@@ -364,11 +364,11 @@ div.login {
     clear:both;
 }
 /* SOURCE LIST */
-form.new_source {
+form.new_source, form.composer-select {
     display:flex;
     justify-content:center;
 }
-.new_source input {
+.new_source input, .composer-select select {
     min-width:200px;
 }
 div.listofsources {
