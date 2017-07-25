@@ -138,95 +138,6 @@ tr:last-child td:last-child {
     border-bottom-right-radius: 5px
 }
 
-/* ADMIN PAGES */
-
-
-div.login {
-    float: right
-}
-
-.navigation a,div.login {
-    color: #ccccbb
-}
-
-.navigation a:hover {
-    color: orange;
-    text-decoratio: underline
-}
-
-div.login form input[type=sumbit] {
-    float: right;
-    font-size: 1.2em;
-    border-radius: 5px;
-    padding: 5px 30px;
-    color: white;
-    background-color: #104e8b;
-    border: 2px groove #2e6ca9;
-    margin-left: 10px
-}
-
-div.login form input[type=sumbit]:hover {
-    background-color: #2e6ca9;
-    cursor: pointer
-}
-
-table.cataloguing td.clefs input {
-    width: 30px
-}
-
-table.cataloguing td.order input {
-    max-width: 30px
-}
-
-div.topbit {
-    display: block;
-    min-height: 40px
-}
-
-div.login form {
-    float: right;
-    margin: 0;
-    margin-left: 10px
-}
-
-div.addsource {
-    text-align: center
-}
-
-div.addsource input {
-    min-width: 250px
-}
-
-div.addsource button {
-    min-width: 70px
-}
-
-div.listofsources {
-    display: flex
-}
-
-.listofsources div {
-    flex: 1
-}
-
-.listofsources div ul {
-    margin-left: 20px
-}
-
-.listofsources div h2 {
-    margin: 10px
-}
-
-.listofsources div ul li {
-    font-size: 1.4em
-}
-
-td div.dates {
-    text-style: italic;
-    font-size: 0.9em;
-    color: #737373
-}
-
 
 /* HIDE SOME THINGS ON SMALL SCREENS */
 
@@ -272,6 +183,12 @@ button.help {
 }
 div.editor-and-voicing {
     display: none
+}
+
+td div.dates {
+    text-style: italic;
+    font-size: 0.9em;
+    color: #737373
 }
 
 td.minimum-voices {
@@ -321,7 +238,6 @@ td.title {
     font-size:1.1em;
     font-weight:bold;
 }
-
 
 /* CLEF IMAGES AND ICONS*/
 
