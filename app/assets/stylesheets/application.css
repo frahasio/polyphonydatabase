@@ -176,7 +176,7 @@ td.notes {
 }
 
 @media screen and (max-width: 600px) {
-    th.sources,td.sources,th.function,td.functions {
+    td.clefs,th.function,td.functions {
         display:none
     }
 }
