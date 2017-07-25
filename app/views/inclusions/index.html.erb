@@ -77,8 +77,8 @@
               </td>
               <td class="position"><%= inclusion.position %></td>
               <td class="clefs">
-                <% ClefsInclusion.sort(inclusion.clefs_inclusions).map(&:note_for_image).each do |note| %>
-                  <%= image_tag "clefs/#{note}.png", alt: note, class: "clef-image" %>
+                <% ClefsInclusion.sort(inclusion.clefs_inclusions).each do |ci| %>
+                  <%= image_tag "clefs/#{ci.note_for_image}.png", alt: ci.note_for_image, class: "clef-image #{'missing' if ci.missing?} #{'partial' if ci.partial?} #{'transitional' if ci.transitional?}" %>
                 <% end %>
               </td>
               <td class="notes"><%= inclusion.public_notes %></td>

@@ -17,6 +17,10 @@ class ClefsInclusion < ActiveRecord::Base
     return sorted + unsortable + missing_clef + blank
   end
 
+  def transitional?
+    transitions_to.present?
+  end
+
   def annotated_note
     return "" if clef.nil?
 
