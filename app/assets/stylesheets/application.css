@@ -29,12 +29,6 @@ body {
     box-sizing: border-box
 }
 
-p {
-    padding: 10px;
-    color: #ccccbb;
-    font-size: 1.1em
-}
-
 ul {
     margin-left: 10px
 }
@@ -249,6 +243,13 @@ div.maintable {
 div.wrapper {
     width: 100%;
     text-align: center
+}
+
+#topexplanation {
+    padding: 10px;
+    color: #ccccbb;
+    font-size: 1.1em;
+    display:none;
 }
 .position {
     font-size: 0.8em;
