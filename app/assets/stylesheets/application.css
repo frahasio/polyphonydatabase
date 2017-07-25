@@ -28,7 +28,9 @@ body {
     font-family: "palatino linotype",serif;
     box-sizing: border-box
 }
-
+img {
+ -ms-interpolation-mode: bicubic;
+}
 ul {
     margin-left: 10px
 }
