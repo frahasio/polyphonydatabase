@@ -280,3 +280,15 @@ td div.dates {
     font-size:0.9em;
     color:#737373;
 }
+.helptext p {
+    margin:10px;
+    color:#ccccbb;
+    font-size:1.1em;
+}
+.helptext ul {
+    margin-left:10px;
+}
+.helptext ul li {
+    list-style:disc inside;
+}
+    
