@@ -197,7 +197,8 @@ td.sources tr:last-child {
 
 td.sources td.source-name {
     width: 150px;
-    min-width: 150px
+    min-width: 150px;
+    font-size:0.8em
 }
 
 td.sources td.position {
