@@ -11,7 +11,7 @@
   </head>
 
   <body>
-   <div class="topbit">
+   <div class="nav">
     <ul class="navigation">
       <li><%= link_to "Add & catalogue sources", admin_sources_path, target: "_blank" %></li>
       <li><%= link_to "Resolve attributions", admin_attributions_path, target: "_blank" %></li>
@@ -23,15 +23,25 @@
       <% end %>
     </div>
    </div>
-    
+   <div class="adminwrapper">
     <% if flash[:error] %>
       <p><%= flash[:error] %></p>
     <% end %>
 
     <%= yield %>
-    
+    </div>
 <script src="http://www.prestopublications.co.uk/jquery-3.2.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>
 <script type="text/javascript">$(".select2").select2();</script>
+<script>
+    function myFunction() {
+    var x = document.getElementById('adminhelp');
+    if (x.style.display === 'none') {
+        x.style.display = 'block';
+    } else {
+        x.style.display = 'none';
+    }
+}
+</script>
   </body>
 </html>
