@@ -251,12 +251,14 @@ button.help {
     margin:5px;
 }
 #topexplanation {
-    padding: 10px;
-    color: #ccccbb;
-    font-size: 1.1em;
+    padding: 20px;
+    font-size: 1.2em;
     display: none;
     text-align: left;
-    clear:both;
+    clear: both;
+    margin:2% 5%;
+    background-color:lightgrey;
+    border-radius:5px;
 }
 #topexplanation ul li {
     list-style:disc outside;
