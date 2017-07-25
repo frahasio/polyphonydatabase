@@ -1,7 +1,7 @@
 <h1>The Polyphony Database</h1>
 <div class="wrapper">
 <p class="topexplanation"></p>
-
+<div class="filters">
 <%= form_tag root_path, method: :get do %>
   <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
   <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions", class: "functions" %>
@@ -20,6 +20,7 @@
 
   <button class="filter">Filter</button>
 <% end %>
+</div>
 <table>
   <tr>
     <th class="title">Title</th>
