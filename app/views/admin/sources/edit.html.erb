@@ -11,7 +11,6 @@
   <li>Separate multiple attributions (i.e. for collaborative pieces - pretty rare) with a pipe |.</li>
   <li>If you find a publisher or scribe that's not in the list, let me know - it's very quick to add things to the list.</li>
 </ul>
-<hr>
 </div>
 <%= form_tag("/admin/sources/switch-to", class: "composer-select") do %>
   <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
