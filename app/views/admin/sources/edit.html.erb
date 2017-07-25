@@ -1,5 +1,15 @@
 <h1>Cataloguing</h1>
-
+<p class="helptext"> Some important things to remember when cataloguing:
+<ul>
+  <li>For the sake of consistency, please use the 'From year' field for print publication dates.</li>
+  <li>Use modern names for publication towns. A list of translations from latin can be found <a href="http://www.catholic-history.org.uk/latin_names.htm">here</a>.</li>
+  <li>Partial clefs (e.g. an extra voice found in one part of a mass) should be surrounded with round brackets ().</li>
+  <li>Missing voices (i.e. that need reconstruction) should be surrounded with square brackets [].</li>
+  <li>Parts that are both missing AND partial must have square brackets inside round brackets. So ([c4]) is valid but [(c4)] is not.</li>
+  <li>If you need more boxes for titles or clefs, save the page and more will magically appear.</li>
+  <li>Separate multiple attributions (i.e. for collaborative pieces - pretty rare) with a pipe |.</li>
+</ul>
+</p>
 <%= form_tag("/sources/switch-to", class: "composer-select") do %>
   <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
 
