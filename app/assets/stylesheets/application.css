@@ -18,26 +18,31 @@
     border: 0;
     margin: 0
 }
+
 .navigation li {
-    margin:10px;
-    float:left;
-    list-style:none;
+    margin: 10px;
+    float: left;
+    list-style: none
 }
+
 body {
     background: repeating-linear-gradient(45deg, #3a3a3a, #3a3a3a 1px, #3c3c3c 3px, #3a3a3a 5px);
     font-size: 14px;
     font-family: "palatino linotype",serif;
-    box-sizing: border-box;
+    box-sizing: border-box
 }
-a, a:visited, a:active {
-    text-decoration:none;
-    font-weight:bold;
-    color: #006699;
+
+a,a:visited,a:active {
+    text-decoration: none;
+    font-weight: bold;
+    color: #006699
 }
+
 a:hover {
-    color:orange;
-    cursor:pointer;
+    color: orange;
+    cursor: pointer
 }
+
 h1 {
     background-color: #039;
     background: linear-gradient(#a00, #6c0000);
@@ -46,33 +51,31 @@ h1 {
     text-align: center;
     font-size: 190%
 }
+
 h2 {
     padding: 1%;
     color: #fff;
     text-align: left;
     font-size: 150%
 }
+
 li {
-    list-style:none;
-}
-form {
-    margin: 10px
+    list-style: none
 }
 
-form label {
-    color: #a1a1a1;
-    margin-left:10px;
-    vertical-align:middle;
+form {
+    margin: 5px
 }
+
 input[type=checkbox] {
-    vertical-align:middle;
-    margin-left:2px;
+    vertical-align: middle;
+    margin-left: 2px
 }
 
 table {
-    width:100%;
     border-spacing: 1px;
     border-collapse: separate;
+    margin:5px;
 }
 
 th {
@@ -87,7 +90,7 @@ td {
     background: #c6c6b7;
     padding: 5px;
     vertical-align: top;
-    text-align:left;
+    text-align: left
 }
 
 td.minimum-voices {
@@ -98,13 +101,13 @@ select {
     max-width: 150px
 }
 
-input,select,textarea {
+input,select,textarea, label {
     font-size: 1.2em;
     padding: 5px;
-    margin:2px;
+    margin: 2px;
     border-radius: 5px;
     background-color: #eee;
-    font-family:arial, sans-serif;
+    font-family: arial, sans-serif
 }
 
 button {
@@ -114,7 +117,6 @@ button {
     color: white;
     background-color: #104e8b;
     border: 2px groove #2e6ca9;
-    margin-left:10px;
 }
 
 button:hover {
@@ -147,6 +149,11 @@ td img {
     float: left
 }
 
+.edition img, .recording img {
+    max-width: 15px;
+    float: left;
+    margin:2px;
+}
 .position {
     font-size: 0.8em;
     color: grey;
@@ -181,7 +188,7 @@ td.sources tr:last-child {
 
 td.sources td.source-name {
     width: 150px;
-    min-width: 150px;
+    min-width: 150px
 }
 
 td.sources td.position {
@@ -191,114 +198,148 @@ td.sources td.position {
 td.sources td.clefs {
     width: 220px;
     min-width: 220px;
-    background: #ccccbb;
+    background: #ccccbb
 }
 
 td.sources td.notes {
     width: 120px;
-    min-width: 120px;
+    min-width: 120px
 }
+
 td.title {
-    max-width:280px;
+    max-width: 280px;
+    font-size:1.1em;
+    font-weight:bold;
 }
+
 div.wrapper {
-    width:100%;
-    text-align:center;
+    width: 100%;
+    text-align: center
 }
+
 div.login {
-    float:right;
+    float: right
 }
-.navigation a, div.login {
-    color:#ccccbb;
+
+.navigation a,div.login {
+    color: #ccccbb
 }
+
 .navigation a:hover {
-    color:orange;
-    text-decoratio:underline;
+    color: orange;
+    text-decoratio: underline
 }
+
 div.login form input[type=sumbit] {
-    float:right;
+    float: right;
     font-size: 1.2em;
     border-radius: 5px;
     padding: 5px 30px;
     color: white;
     background-color: #104e8b;
     border: 2px groove #2e6ca9;
-    margin-left:10px;
+    margin-left: 10px
 }
 
 div.login form input[type=sumbit]:hover {
     background-color: #2e6ca9;
     cursor: pointer
 }
+
 table.cataloguing td.clefs input {
-    width:30px;
+    width: 30px
 }
+
 table.cataloguing td.order input {
-    max-width:30px;
+    max-width: 30px
 }
+
 div.topbit {
-    display:block;
-    min-height:40px;
+    display: block;
+    min-height: 40px
 }
+
 div.login form {
-    float:right;
-    margin:0;
-    margin-left:10px;
+    float: right;
+    margin: 0;
+    margin-left: 10px
 }
+
 div.addsource {
-    text-align:center;
+    text-align: center
 }
+
 div.addsource input {
-    min-width:250px;
+    min-width: 250px
 }
+
 div.addsource button {
-    min-width:70px;
+    min-width: 70px
 }
+
 div.listofsources {
-    display:flex;
+    display: flex
 }
+
 .listofsources div {
-    flex: 1;
+    flex: 1
 }
+
 .listofsources div ul {
-    margin-left:20px;
+    margin-left: 20px
 }
+
 .listofsources div h2 {
-    margin:10px;
+    margin: 10px
 }
+
 .listofsources div ul li {
-    font-size:1.4em;
+    font-size: 1.4em
 }
+
 hr {
     border: 0;
     height: 2px;
-    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
-    margin-top:10px;
+    background-image: linear-gradient(to right, transparent, rgba(0,0,0,0.75), transparent);
+    margin-top: 10px
 }
+
 td div.dates {
-    text-style:italic;
-    font-size:0.9em;
-    color:#737373;
+    text-style: italic;
+    font-size: 0.9em;
+    color: #737373
 }
+
 .helptext {
-    padding:10px;
-    color:#ccccbb;
-    font-size:1.1em;
+    padding: 10px;
+    color: #ccccbb;
+    font-size: 1.1em
 }
+
 .helptext ul {
-    margin-left:10px;
+    margin-left: 10px
 }
+
 .helptext ul li {
-    list-style:disc outside;
+    list-style: disc outside
 }
+
 .clef-image.partial {
     background-color: lightgrey;
     border: 1px solid grey;
-    margin-top:-1px;
+    margin-top: -1px
 }
 
 .clef-image.missing {
     background-color: lightgrey;
     border: 1px solid darkred;
-    margin-top:-1px;
+    margin-top: -1px
+}
+.filters form {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-between;
+}
+.filters form input, .filters form select, .filters form button, .filters form label {
+    flex-grow: 1;
 }
