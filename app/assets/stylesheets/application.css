@@ -248,6 +248,7 @@ div.wrapper {
 button.help {
     float:left;
     font-size:0.9em;
+    margin:5px;
 }
 #topexplanation {
     padding: 10px;
@@ -343,6 +344,7 @@ td img {
     display:flex;
     flex-wrap:wrap;
     justify-content:space-between;
+    clear:both;
 }
 .filters form input, .filters form select, .filters form button, .filters form label {
     flex-grow: 1;
