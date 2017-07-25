@@ -341,7 +341,7 @@ div.login {
     padding-top:10px;
     flex-grow:1;
 }
-.adminwrapper input, .adminwrapper select {
+.adminwrapper input, .adminwrapper select, .adminwrapper textarea {
     font-size: 1.2em;
     padding: 5px;
     margin: 2px;
