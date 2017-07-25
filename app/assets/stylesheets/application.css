@@ -101,12 +101,20 @@ select {
     max-width: 150px
 }
 
-input,select,textarea, label {
+input,select,textarea {
     font-size: 1.2em;
     padding: 5px;
     margin: 2px;
     border-radius: 5px;
     background-color: #eee;
+    font-family: arial, sans-serif
+}
+label {
+    font-size: 1.2em;
+    padding: 5px;
+    margin: 2px;
+    border-radius: 5px;
+    background-color: #dadada;
     font-family: arial, sans-serif
 }
 
@@ -117,6 +125,7 @@ button {
     color: white;
     background-color: #104e8b;
     border: 2px groove #2e6ca9;
+    margin: 2px;
 }
 
 button:hover {
