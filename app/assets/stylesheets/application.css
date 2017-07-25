@@ -360,6 +360,9 @@ div.login {
 .adminwrapper form button {
     margin-top:-1px;
 }
+.adminwrapper form {
+    clear:both;
+}
 /* SOURCE LIST */
 form.new_source {
     display:flex;
