@@ -245,12 +245,17 @@ div.wrapper {
     text-align: center
 }
 
+button.help {
+    float:left;
+    font-size:0.9em;
+}
 #topexplanation {
     padding: 10px;
     color: #ccccbb;
     font-size: 1.1em;
-    display:none;
-    text-align:left;
+    display: none;
+    text-align: left;
+    clear:both;
 }
 .position {
     font-size: 0.8em;
