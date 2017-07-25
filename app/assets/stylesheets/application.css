@@ -292,10 +292,13 @@ td div.dates {
     list-style:disc outside;
 }
 .clef-image.partial {
-    background-color:lightgrey;
-    border:1px solid grey;
+    background-color: lightgrey;
+    border: 1px solid grey;
+    margin-top:-1px;
 }
+
 .clef-image.missing {
-    background-color:lightgrey;
-    border:1px solid darkred;
+    background-color: lightgrey;
+    border: 1px solid darkred;
+    margin-top:-1px;
 }
