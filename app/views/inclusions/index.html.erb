@@ -3,6 +3,7 @@
 <p class="topexplanation"></p>
 <div class="filters">
 <%= form_tag root_path, method: :get do %>
+  <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
   <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions", class: "functions" %>
   <%= select_tag :composer, options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers", class: "composer" %>
   <%= select_tag :composer_country, options_from_collection_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries", class: "composer-country" %>
@@ -16,7 +17,6 @@
     Recording
     <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
   </label>
-  <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
   <button class="filter">Filter</button>
 <% end %>
 </div>
