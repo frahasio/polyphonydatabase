@@ -13,16 +13,13 @@
  *= require_tree .
  *= require_self
  */
-* {
+ 
+ 
+/* GENERAL */
+ * {
     padding: 0;
     border: 0;
     margin: 0
-}
-
-.navigation li {
-    margin: 10px;
-    float: left;
-    list-style: none
 }
 
 body {
@@ -30,6 +27,20 @@ body {
     font-size: 14px;
     font-family: "palatino linotype",serif;
     box-sizing: border-box
+}
+
+p {
+    padding: 10px;
+    color: #ccccbb;
+    font-size: 1.1em
+}
+
+ul {
+    margin-left: 10px
+}
+
+.helptext ul li {
+    list-style: disc outside
 }
 
 a,a:visited,a:active {
@@ -72,6 +83,31 @@ input[type=checkbox] {
     margin-left: 2px
 }
 
+
+button {
+    font-size: 1.2em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9;
+    margin: 2px;
+}
+
+button:hover {
+    background-color: #2e6ca9;
+    cursor: pointer
+}
+
+hr {
+    border: 0;
+    height: 2px;
+    background-image: linear-gradient(to right, transparent, rgba(80,80,80,0.75), transparent);
+    margin-top: 10px
+}
+
+/* TABLES */
+
 table {
     border-spacing: 1px;
     border-collapse: separate;
@@ -92,51 +128,6 @@ td {
     vertical-align: top;
     text-align: left
 }
-
-td.minimum-voices {
-    text-align: center
-}
-
-select {
-    max-width: 150px
-}
-
-input,select,textarea {
-    font-size: 1.2em;
-    padding: 5px;
-    margin: 2px;
-    border-radius: 5px;
-    background-color: #eee;
-    font-family: arial, sans-serif
-}
-label {
-    font-size: 1.2em;
-    padding: 5px;
-    margin: 2px;
-    border-radius: 5px;
-    background-color: #dadada;
-    font-family: arial, sans-serif
-}
-
-button {
-    font-size: 1.2em;
-    border-radius: 5px;
-    padding: 5px 30px;
-    color: white;
-    background-color: #104e8b;
-    border: 2px groove #2e6ca9;
-    margin: 2px;
-}
-
-button:hover {
-    background-color: #2e6ca9;
-    cursor: pointer
-}
-
-div.editor-and-voicing {
-    display: none
-}
-
 tr:first-child th:first-child {
     border-top-left-radius: 5px
 }
@@ -153,79 +144,8 @@ tr:last-child td:last-child {
     border-bottom-right-radius: 5px
 }
 
-td img {
-    max-width: 24px;
-    float: left
-}
+/* ADMIN PAGES */
 
-.edition img, .recording img {
-    max-width: 15px;
-    float: left;
-    margin:2px;
-}
-.position {
-    font-size: 0.8em;
-    color: grey;
-    vertical-align: 0;
-    max-width: 10px
-}
-
-td.notes {
-    font-style: italic;
-    font-size: 0.9em
-}
-
-@media screen and (max-width: 600px) {
-    td.clefs,th.function,td.functions {
-        display:none
-    }
-}
-
-td.sources table {
-    border-collapse: collapse;
-    margin: 0px;
-    border-spacing: 0px
-}
-
-td.sources tr {
-    border-bottom: 1px solid #b2b2b2
-}
-
-td.sources tr:last-child {
-    border-bottom: none
-}
-
-td.sources td.source-name {
-    width: 150px;
-    min-width: 150px;
-    font-size:0.8em
-}
-
-td.sources td.position {
-    display: none
-}
-
-td.sources td.clefs {
-    width: 220px;
-    min-width: 220px;
-    background: #ccccbb
-}
-
-td.sources td.notes {
-    width: 120px;
-    min-width: 120px
-}
-
-td.title {
-    max-width: 280px;
-    font-size:1.1em;
-    font-weight:bold;
-}
-
-div.wrapper {
-    width: 100%;
-    text-align: center
-}
 
 div.login {
     float: right
@@ -307,33 +227,100 @@ div.listofsources {
     font-size: 1.4em
 }
 
-hr {
-    border: 0;
-    height: 2px;
-    background-image: linear-gradient(to right, transparent, rgba(0,0,0,0.75), transparent);
-    margin-top: 10px
-}
-
 td div.dates {
     text-style: italic;
     font-size: 0.9em;
     color: #737373
 }
 
-.helptext {
-    padding: 10px;
-    color: #ccccbb;
-    font-size: 1.1em
+
+/* HIDE SOME THINGS ON SMALL SCREENS */
+
+@media screen and (max-width: 600px) {
+    td.clefs,th.function,td.functions {
+        display:none
+    }
+}
+div.maintable {
+    overflow-x:auto;
+}
+/* PUBLIC TABLE */
+
+div.wrapper {
+    width: 100%;
+    text-align: center
+}
+.position {
+    font-size: 0.8em;
+    color: grey;
+    vertical-align: 0;
+    max-width: 10px
+}
+div.editor-and-voicing {
+    display: none
 }
 
-.helptext ul {
-    margin-left: 10px
+td.minimum-voices {
+    text-align: center
+}
+td.notes {
+    font-style: italic;
+    font-size: 0.9em
+}
+td.sources table {
+    border-collapse: collapse;
+    margin: 0px;
+    border-spacing: 0px
 }
 
-.helptext ul li {
-    list-style: disc outside
+td.sources tr {
+    border-bottom: 1px solid #b2b2b2
 }
 
+td.sources tr:last-child {
+    border-bottom: none
+}
+
+td.sources td.source-name {
+    width: 150px;
+    min-width: 150px;
+    font-size:0.8em
+}
+
+td.sources td.position {
+    display: none
+}
+
+td.sources td.clefs {
+    width: 220px;
+    min-width: 220px;
+    background: #ccccbb
+}
+
+td.sources td.notes {
+    width: 120px;
+    min-width: 120px
+}
+
+td.title {
+    max-width: 280px;
+    font-size:1.1em;
+    font-weight:bold;
+}
+
+
+/* CLEF IMAGES AND ICONS*/
+
+td img {
+    max-width: 24px;
+    float: left
+}
+
+.edition img, .recording img {
+    max-width: 15px;
+    float: left;
+    margin:2px;
+}
 .clef-image.partial {
     filter:opacity(0.3);
 }
@@ -342,6 +329,9 @@ td div.dates {
     border: 1px solid darkred;
     margin-top: -1px
 }
+
+/* TABLE FILTER */
+
 .filters form {
     display:flex;
     flex-wrap:wrap;
@@ -350,6 +340,19 @@ td div.dates {
 .filters form input, .filters form select, .filters form button, .filters form label {
     flex-grow: 1;
 }
-div.maintable {
-    overflow-x:auto;
+.filters form input,.filters form select {
+    font-size: 1.2em;
+    padding: 5px;
+    margin: 2px;
+    border-radius: 5px;
+    background-color: #eee;
+    font-family: arial, sans-serif
+}
+.filters form label {
+    font-size: 1.2em;
+    padding: 5px;
+    margin: 2px;
+    border-radius: 5px;
+    background-color: #dadada;
+    font-family: arial, sans-serif
 }
