@@ -341,3 +341,30 @@ div.login {
     padding-top:10px;
     flex-grow:1;
 }
+.adminwrapper input, .adminwrapper select {
+    font-size: 1.2em;
+    padding: 5px;
+    margin: 2px;
+    border-radius: 5px;
+    background-color: #eee;
+    font-family: arial,sans-serif;
+    vertical-align:middle;
+}
+.adminwrapper label {
+    color:#ccc;
+    text-transform:uppercase;
+    font-weight:bold;
+    vertical-align:middle;
+    margin-right:6px;
+}
+.adminwrapper form button {
+    margin-top:-1px;
+}
+/* SOURCE LIST */
+form.new_source {
+    display:flex;
+    justify-content:center;
+}
+.new_source input {
+    min-width:200px;
+}
