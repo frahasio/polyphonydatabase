@@ -17,8 +17,9 @@
 
   <button>Edit</button>
 <% end %>
-
+<hr>
 <%= form_for([:admin, @source]) do |f| %>
+<div class="sourcebasics">
   <%= f.check_box :catalogued %>
   <%= f.text_area :title %>
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
@@ -37,7 +38,7 @@
   <%= f.text_field :url, label: "Image URL" %>
 
   <button class="save">Save</button>
-
+</div>
   <table class="cataloguing">
     <tr>
       <th class="order">Order</th>
