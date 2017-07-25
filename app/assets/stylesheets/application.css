@@ -325,7 +325,7 @@ td div.dates {
 }
 
 .clef-image.partial {
-    fliter:opacity(0.3);
+    filter:opacity(0.3);
 }
 
 .clef-image.missing {
