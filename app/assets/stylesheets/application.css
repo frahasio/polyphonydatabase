@@ -291,4 +291,11 @@ td div.dates {
 .helptext ul li {
     list-style:disc outside;
 }
-    
+.clef-image.partial {
+    background-color:lightgrey;
+    border:1px solid grey;
+}
+.clef-image.missing {
+    background-color:lightgrey;
+    border:1px solid darkred;
+}
