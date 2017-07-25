@@ -287,3 +287,55 @@ td img {
     background-color: #dadada;
     font-family: arial, sans-serif
 }
+/* ADMIN PAGES GENERAL*/
+
+div.nav, div.login {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content: space-between;
+}
+ul.navigation {
+    flex-grow:2;
+}
+ul.navigation li {
+   float:left;
+   margin:10px 0px;
+   padding:5px;
+   flex-grow:1;
+}
+ul.navigation li:first-child {
+   margin-left:-5px;
+}
+ul.navigation li a {
+    font-size: 1.1em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9;
+}
+ul.navigation li a:hover {
+    background-color: #2e6ca9;
+    cursor: pointer
+}
+div.login form input[type=submit] {
+    font-size: 1.1em;
+    border-radius: 5px;
+    padding: 5px 30px;
+    color: white;
+    background-color: #104e8b;
+    border: 2px groove #2e6ca9;
+    font-family:'palatino linotype', serif;
+    font-weight:bold;
+    margin-top:-20px;
+}
+div.login form input[type=submit]:hover {
+    background-color: #2e6ca9;
+    cursor: pointer
+}
+div.login {
+    padding: 0px 5px;
+    background-color: lightgrey;
+    padding-top:10px;
+    flex-grow:1;
+}
