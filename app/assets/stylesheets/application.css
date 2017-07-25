@@ -349,3 +349,6 @@ td div.dates {
 .filters form input, .filters form select, .filters form button, .filters form label {
     flex-grow: 1;
 }
+div.maintable {
+    overflow-x:auto;
+}
