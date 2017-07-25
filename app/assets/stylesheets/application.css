@@ -325,13 +325,10 @@ td div.dates {
 }
 
 .clef-image.partial {
-    background-color: lightgrey;
-    border: 1px solid grey;
-    margin-top: -1px
+    fliter:opacity(0.3);
 }
 
 .clef-image.missing {
-    background-color: lightgrey;
     border: 1px solid darkred;
     margin-top: -1px
 }
