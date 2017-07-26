@@ -107,7 +107,7 @@ hr {
 table {
     border-spacing: 1px;
     border-collapse: separate;
-    margin:5px;
+    width:100%;
 }
 
 th {
@@ -150,6 +150,7 @@ tr:last-child td:last-child {
 }
 div.maintable {
     overflow-x:auto;
+    padding:5px;
 }
 /* PUBLIC TABLE */
 
