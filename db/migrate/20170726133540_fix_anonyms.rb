@@ -19,7 +19,7 @@ class FixAnonyms < ActiveRecord::Migration[5.0]
 
       aliases.each do |a|
         a.anonym = anonym_prime
-        a.save!
+        a.save
       end
     end
   end
