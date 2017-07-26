@@ -19,7 +19,7 @@ class Searcher
       editions.map(&:file_url).join(" | "),
       recordings.map(&:performer).join(" | "),
       recordings.map(&:file_url).join(" | "),
-    ].any? { |string| string.include?(term) }
+    ].any? { |string| string.downcase.include?(term.downcase) }
   end
 
 private
