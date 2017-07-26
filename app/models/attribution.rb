@@ -38,7 +38,7 @@ class Attribution < ActiveRecord::Base
     names.each do |name|
       if inclusion.attributions.none? { |a| a.anonym_name == name }
         attrib = inclusion.attributions.build
-        attrib.anonym = Anonym.find_or_initialize_by(name: name)
+        attrib.anonym = Anonym.find_or_create_by(name: name)
       end
     end
 

@@ -13,7 +13,7 @@ class Alias < ActiveRecord::Base
     names.each do |name|
       if composer.aliases.none? { |a| a.anonym_name == name }
         new_alias = composer.aliases.build
-        new_alias.anonym = Anonym.find_or_initialize_by(name: name)
+        new_alias.anonym = Anonym.find_or_create_by(name: name)
       end
     end
 
