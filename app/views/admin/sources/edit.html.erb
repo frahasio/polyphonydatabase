@@ -26,12 +26,16 @@
   <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
   <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
   <div class="dates">
-    Dates:
-    <%= f.text_field :from_year_annotation %>
-    <%= f.text_field :from_year %>
-    to
-    <%= f.text_field :to_year_annotation %>
-    <%= f.text_field :to_year %>
+     <div>
+     Dates:
+     <%= f.text_field :from_year_annotation %>
+     <%= f.text_field :from_year %>
+     to
+     </div>
+     <div>
+     <%= f.text_field :to_year_annotation %>
+     <%= f.text_field :to_year %>
+     </div>
     </div>
   </div>
   <div class="right">
