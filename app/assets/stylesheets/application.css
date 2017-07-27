@@ -383,15 +383,9 @@ div.listofsources div ul {
     margin:10px;
     font-size:1.2em;
 }
-
-div.sourcebasics textarea {
-    min-height: 60px
-}
-
 div.sourcebasics {
     display: flex
 }
-
 .sourcebasics div.left,.sourcebasics div.right {
     flex: 1;
     display: flex;
@@ -430,4 +424,7 @@ div.sourcebasics {
 
 .sourcebasics .left .dates div p:first-child input {
     max-width:50px;;
+}
+.sourcebasics .left p:first-child {
+    flex:2
 }
