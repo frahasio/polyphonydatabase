@@ -262,6 +262,10 @@ td img {
     border: 1px solid darkred;
     margin-top: -1px
 }
+.clef-image.missing + .clef-image.missing {
+    border-left: none;
+    margin-top: -1px;
+}
 
 /* TABLE FILTER */
 
