@@ -18,10 +18,10 @@
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
 <div class="composerbasics">
   <div class="left">
-  <div class="name"><%= f.text_field :name %></div>
+    <label>Name:</label><div class="name"><%= f.text_field :name %></div>
 
   <div class="image-url-image"><%= image_tag @composer.image_url if @composer.image_url %></div>
-  Image URL: <div class="image-url"><%= f.text_field :image_url %></div>
+  <label>Image URL:</label><div class="image-url"><%= f.text_field :image_url %></div>
   </div>
   <div class="right">
   <div class="dates">
@@ -38,19 +38,19 @@
   </div>
 
   <div class="birthplace">
-    Birthplace:
+    <label>Birthplace:</label>
     <%= f.text_field :birthplace_1 %>
     <%= f.text_field :birthplace_2 %>
   </div>
 
   <div class="deathplace">
-    Deathplace:
+    <label>Deathplace:</label>
     <%= f.text_field :deathplace_1 %>
     <%= f.text_field :deathplace_2 %>
   </div>
 
   <div class="aliases">
-    Aliases:
+    <label>Aliases:</label>:
     <%= f.text_area :aliased_as %>
   </div>
   </div>
