@@ -21,10 +21,9 @@
 <%= form_for([:admin, @source]) do |f| %>
 <div class="sourcebasics">
   <div class="left">
-  <%= f.check_box :catalogued %>
   <%= f.text_area :title %>
-  <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
-  <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
+  <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
+  <%= f.text_field :town %>
   <div class="dates">
      <div>
      Dates:
@@ -39,14 +38,14 @@
     </div>
   </div>
   <div class="right">
-  <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
-  <%= f.text_field :town %>
+  <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
+  <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
   <%= f.text_field :rism_link, label: "RISM URL" %>
   <%= f.text_field :url, label: "Image URL" %>
-
-  <button class="save">Save</button>
+  <%= f.check_box :catalogued %>
   </div>
  </div>
+  <button class="save">Save</button>
   <table class="cataloguing">
     <tr>
       <th class="order">Order</th>
