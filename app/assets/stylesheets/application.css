@@ -410,13 +410,11 @@ div.left, div.right {
     flex: 1;
     margin: 5px
 }
-
-.left .dates, .right .dates {
+.left .dates,.right .dates {
     display: flex;
     color: #cccccc;
     text-transform: uppercase;
     font-weight: bold;
-    justify-content: center;
     padding: 5px
 }
 
@@ -440,6 +438,7 @@ div.left, div.right {
 .dates .prefix p:first-child input {
     max-width: 50px
 }
+
 .dates .prefix input:first-child {
     max-width: 50px
 }
@@ -447,12 +446,13 @@ div.left, div.right {
 .dates .prefix p:last-child input {
     max-width: 150px
 }
+
 .dates .prefix input:last-child {
     max-width: 150px
 }
 
 @media screen and (max-width: 600px) {
-    div.sourcebasics, div.composerbasics {
+    div.sourcebasics,div.composerbasics {
         flex-direction:column
     }
 }
@@ -472,4 +472,14 @@ div.left, div.right {
 .adminwrapper td.order *,.adminwrapper td.clefs * {
     max-width: 30px
 }
-
+.composerbasics .left div:last-child {
+    flex:7
+}
+.composerbasics .left div img {
+    max-height:200px;
+    max-width:200px;
+}
+.composerbasics .right > div:last-of-type {
+    background-color:red;
+    flex:6
+}
