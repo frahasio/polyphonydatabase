@@ -437,3 +437,7 @@ div.sourcebasics {
 .sourcebasics .dates .prefix p:last-child input {
     max-width:150px;
 }
+@media screen and (max-width:600px) {
+div.sourcebasics {
+    flex-direction:column;
+}
