@@ -27,13 +27,17 @@
   <div class="dates">
      <div>
      Dates:
-     <%= f.text_field :from_year_annotation %>
-     <%= f.text_field :from_year %>
+      <div class="prefix">
+       <%= f.text_field :from_year_annotation %>
+       <%= f.text_field :from_year %>
+      </div>
      </div>
      <div>
      to
-     <%= f.text_field :to_year_annotation %>
-     <%= f.text_field :to_year %>
+      <div class="prefix">
+       <%= f.text_field :to_year_annotation %>
+       <%= f.text_field :to_year %>
+      </div>
      </div>
     </div>
   </div>
