@@ -6,7 +6,7 @@
   <li>Use modern names for birth/death towns. A list of translations from Latin can be found <a href="http://www.catholic-history.org.uk/latin_names.htm">here</a>.</li>
   <li>The 'aliases' field lists all catalogued varations on the composer's name. You can add to this manually too by separating new aliases with a pipe |. Everything in this box will be scanned by the search box on the public table. Deleting existing aliases can cause all sorts of trouble, so please don't do that.</li>
   <li>If you need mre boxes for editions and recordings, save the page and more will magically reappear.</li>
-  <li>A quirk of the way the data is structured means you have to save the functions on each piece <strong>one at a time</strong>. I have put some javascript in there to make the selection a bit easier at least!</li>
+  <li>A quirk of the way the data is structured means you have to save the functions, editions, and recording <strong>one at a time</strong>. If you try to add multiples it'll only save the one whose 'save' button you clicked.</li>
 </ul>
 </div>
 <%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
