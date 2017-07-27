@@ -1,5 +1,14 @@
 <h1>Edit composer</h1>
-
+<button onclick="myFunction()" class="help">Show/hide help</button>
+<div id="adminhelp"> <u>Some important things to remember when cataloguing</u>:
+<ul>
+  <li>For the sake of consistency, please use the 'From year' field for single 'flourished' dates.</li>
+  <li>Use modern names for birth/death towns. A list of translations from Latin can be found <a href="http://www.catholic-history.org.uk/latin_names.htm">here</a>.</li>
+  <li>The 'aliases' field lists all catalogued varations on the composer's name. You can add to this manually too by separating new aliases with a pipe |. Everything in this box will be scanned by the search box on the public table. Deleting existing aliases can cause all sorts of trouble, so please don't do that.</li>
+  <li>If you need mre boxes for editions and recordings, save the page and more will magically reappear.</li>
+  <li>A quirk of the way the data is structured means you have to save the functions on each piece <strong>one at a time</strong>. I have put some javascript in there to make the selection a bit easier at least!</li>
+</ul>
+</div>
 <%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
   <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
 
@@ -7,18 +16,25 @@
 <% end %>
 
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
+<div class="composerbasics">
+  <div class="left">
   <div class="name"><%= f.text_field :name %></div>
 
   <div class="image-url-image"><%= image_tag @composer.image_url if @composer.image_url %></div>
-  <div class="image-url"><%= f.text_field :image_url %></div>
-
+  Image URL: <div class="image-url"><%= f.text_field :image_url %></div>
+  </div>
+  <div class="right">
   <div class="dates">
+    <div class="prefix">
     Dates:
     <%= f.text_field :from_year_annotation %>
     <%= f.text_field :from_year %>
+    </div>
+    <div class="prefix">
     to
     <%= f.text_field :to_year_annotation %>
     <%= f.text_field :to_year %>
+    </div>
   </div>
 
   <div class="birthplace">
@@ -37,7 +53,8 @@
     Aliases:
     <%= f.text_area :aliased_as %>
   </div>
-
+  </div>
+</div>
   <button class="save">Save</button>
 <% end %>
 
