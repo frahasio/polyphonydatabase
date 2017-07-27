@@ -365,12 +365,12 @@ div.login {
     clear:both;
 }
 /* SOURCE LIST */
-form.new_source, form.composer-select {
-    display:flex;
-    justify-content:center;
+form.new_source,form.composer-select, form.new_composer {
+    display: flex;
+    justify-content: center
 }
-.new_source input, .composer-select select {
-    min-width:200px;
+.new_source input,.composer-select select, .new_composer input {
+    min-width: 200px
 }
 div.listofsources {
     display:flex;
