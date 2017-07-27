@@ -411,7 +411,7 @@ div.left, div.right {
     margin: 5px
 }
 
-.left .dates {
+.left .dates, .right .dates {
     display: flex;
     color: #cccccc;
     text-transform: uppercase;
