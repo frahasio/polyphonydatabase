@@ -421,10 +421,6 @@ div.sourcebasics {
     margin-left: 0;
     flex-grow:1;
 }
-
-.sourcebasics .left .dates div p:first-child input {
-    max-width:50px;;
-}
 .sourcebasics .left p:first-child {
-    flex:2
+    flex:2.5
 }
