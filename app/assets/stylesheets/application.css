@@ -488,6 +488,6 @@ div.left, div.right {
 .composerbasics .right > div:last-of-type {
     flex:6
 }
-.composerbasics .left {
+.composerbasics .left, .composerbasics .right {
     min-height:290px;
 }
