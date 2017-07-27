@@ -1,12 +1,15 @@
 <h1>New composer</h1>
-
+<div clas="addcomposer">
 <%= form_for([:admin, Composer.new]) do |f| %>
   <%= f.text_field :name %>
   <button>Create</button>
 <% end %>
-
+</div>
+<hr>
+<div class="listofcomposers">
 <ul class="composers">
   <% Composer.order(:name).each do |composer| %>
     <li class="composer"><%= link_to composer.name, edit_admin_composer_path(composer) %></li>
   <% end %>
 </ul>
+</div>
