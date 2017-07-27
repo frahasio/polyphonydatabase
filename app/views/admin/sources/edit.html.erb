@@ -25,20 +25,16 @@
   <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
   <%= f.text_field :town %>
   <div class="dates">
-     <div>
-     Dates:
       <div class="prefix">
+       From date:
        <%= f.text_field :from_year_annotation %>
        <%= f.text_field :from_year %>
       </div>
-     </div>
-     <div>
-     to
       <div class="prefix">
+       to
        <%= f.text_field :to_year_annotation %>
        <%= f.text_field :to_year %>
       </div>
-     </div>
     </div>
   </div>
   <div class="right">
