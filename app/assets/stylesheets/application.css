@@ -454,6 +454,6 @@ div.sourcebasics {
     min-height:50px;
     margin-bottom: 10px;
 }
-.adminwrapper td.order * {
-    max-width:40px;
+.adminwrapper td.order *,.adminwrapper td.clefs * {
+    max-width:30px;
 }
