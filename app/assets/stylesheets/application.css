@@ -441,3 +441,11 @@ div.sourcebasics {
 div.sourcebasics {
     flex-direction:column;
 }
+}
+.sourcebasics .right p:last-child {
+    text-align:center;
+    max-width:150px;
+    background-color:grey;
+    border-radius:5px;
+    max-height:30px
+}
