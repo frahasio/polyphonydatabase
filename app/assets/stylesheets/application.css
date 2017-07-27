@@ -480,6 +480,5 @@ div.left, div.right {
     max-width:200px;
 }
 .composerbasics .right > div:last-of-type {
-    background-color:red;
     flex:6
 }
