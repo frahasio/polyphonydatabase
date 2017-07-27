@@ -372,16 +372,18 @@ form.new_source,form.composer-select, form.new_composer {
 .new_source input,.composer-select select, .new_composer input {
     min-width: 200px
 }
-div.listofsources {
-    display:flex;
-    justify-content:center;
+div.listofsources, div.listofcomposers {
+    display: flex;
+    justify-content: center
 }
+
 div.listofsources div {
-    margin:10px 20px;
+    margin: 10px 20px
 }
-div.listofsources div ul {
-    margin:10px;
-    font-size:1.2em;
+
+div.listofsources div ul, div.listofcomposers ul {
+    margin: 10px;
+    font-size: 1.2em
 }
 /* COMPOSER AND SOURCE EDITING PAGES */
 
