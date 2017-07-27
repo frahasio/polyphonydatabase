@@ -449,3 +449,11 @@ div.sourcebasics {
     border-radius:5px;
     max-height:30px
 }
+.adminwrapper button.save {
+    min-width:300px;
+    min-height:50px;
+    margin-bottom: 10px;
+}
+.adminwrapper td.order * {
+    max-width:40px;
+}
