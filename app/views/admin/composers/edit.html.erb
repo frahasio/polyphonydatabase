@@ -8,7 +8,9 @@
   <li>The 'aliases' field lists all catalogued varations on the composer's name. You can add to this manually too by separating new aliases with a pipe |. Everything in this box will be scanned by the search box on the public table. Deleting existing aliases can cause all sorts of trouble, so please don't do that.</li>
   <li>If you need mre boxes for editions and recordings, save the page and more will magically reappear.</li>
   <li>A quirk of the way the data is structured means you have to save the functions, editions, and recording <strong>one at a time</strong>. If you try to add multiples it'll only save the one whose 'save' button you clicked.</li>
-</ul>
+  <li>If two pieces with the same title, same composer, and same number of voices have been catalogued, they will be grouped here as if they were the same piece. This is normally a good thing, and you might find yourself correcting titles on this page so that they match eachother in order to get them to group (two people are bound to catalogue the same piece slightly differently).</li>
+  <li>If however you want to SEPARATE two different pieces that have been grouped, you'll need to go back to their respective sources, and add some sort of notation so the system knows they're different. A good example is the 2 five part settings of O salutaris hostia (known as (i) and (ii)) by Tallis. </li>
+ </ul>
 </div>
 <%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
   <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
