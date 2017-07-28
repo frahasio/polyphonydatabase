@@ -1,5 +1,10 @@
 <h1>Sources</h1>
-
+<button onclick="myFunction()" class="help">Show/hide help</button>
+<div id="adminhelp"> <u>Some important things to remember when cataloguing</u>:
+<ul>
+  <li>To get a source to move into the 'Finished' pile, you'll need to tick the 'Catalogued' checkbox in the cataloguing page. Remmber to have a final check for spellings and things!</li>
+</ul>
+</div>
 <h2>Add source</h2>
 <div class="addsource">
 <%= form_for([:admin, Source.new]) do |f| %>
