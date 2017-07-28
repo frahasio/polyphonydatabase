@@ -248,6 +248,10 @@ td img {
     max-width: 24px;
     float: left
 }
+td img.clef-image.transitional {
+    max-width: 27px;
+    float: left
+}
 
 .edition img, .recording img {
     max-width: 15px;
