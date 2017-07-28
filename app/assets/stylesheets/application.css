@@ -482,8 +482,8 @@ div.left, div.right {
     flex:7
 }
 .composerbasics .left div img {
-    max-height:200px;
-    max-width:200px;
+    height:180px;
+    flex:0;
 }
 .composerbasics .right > div:last-of-type {
     flex:6
