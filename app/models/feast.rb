@@ -20,6 +20,7 @@ class Feast
     "ABB" => "Comm. Abbots",
     "APEV" => "Comm. Apostles & Evangelists",
     "CONB" => "Comm. Confessor Bishops",
+    "COMP" => "Compline",
     "CONF" => "Comm. Confessors, not Bishops",
     "DOC" => "Comm. Doctors",
     "HWOM" => "Comm. Holy Women",
