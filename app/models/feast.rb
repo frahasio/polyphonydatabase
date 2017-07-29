@@ -44,7 +44,6 @@ class Feast
     "EPI5" => "Epiphany V",
     "EPI6" => "Epiphany VI",
     "EPI7" => "Epiphany VII",
-    "EUCH" => "Eucharist",
     "GFRI" => "Good Friday",
     "CRUX" => "Holy Cross",
     "HFAM" => "Holy Family",
