@@ -16,11 +16,13 @@ module Admin
       last_inclusion = @inclusions.last
       last_order = last_inclusion&.order || -1
 
+      @clefs_inclusions = {}
       @inclusions.each do |i|
+        @clefs_inclusions[i] = i.clefs_inclusions.order(:id).to_a
         extra_clefs_needed = 8 - (i.clefs_inclusions.count % 8)
 
         extra_clefs_needed.times do
-          i.clefs_inclusions.build
+          @clefs_inclusions[i] << i.clefs_inclusions.build
         end
       end
 
