@@ -8,6 +8,7 @@ class ClefsInclusion < ActiveRecord::Base
 
     hash_object = has_clef.each_with_object(Hash.new {|h, k| h[k] = []}) do |obj, hash|
       hash[obj.clef.note] << obj
+      hash[obj.clef.note].sort_by! {|ci| ci.partial? ? 1 : 0 }
     end
 
     sorted = CLEF_ORDER.map { |note| hash_object[note] }.flatten.compact
