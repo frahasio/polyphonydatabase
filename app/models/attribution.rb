@@ -42,6 +42,8 @@ class Attribution < ActiveRecord::Base
       end
     end
 
+    return if inclusion.attributed_to.blank?
+
     inclusion.attributions.each do |attrib|
       if !names.include?(attrib.anonym_name)
         attrib.destroy
