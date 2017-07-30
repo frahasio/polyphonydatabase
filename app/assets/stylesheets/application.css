@@ -245,11 +245,11 @@ td.title {
 /* CLEF IMAGES AND ICONS*/
 
 td img {
-    max-width: 32px;
+    max-width: 24px;
     float: left
 }
 td img.clef-image.transitional {
-    max-width: 36px;
+    max-width: 27px;
     float: left
 }
 
