@@ -26,7 +26,7 @@ module Admin
         end
       end
 
-      num_blank_rows = [5, (20 - @inclusions.count)].max
+      num_blank_rows = [10, (20 - @inclusions.count)].max
 
       num_blank_rows.times do |n|
         inclusion = @source.inclusions.build(order: last_order + n + 1)
