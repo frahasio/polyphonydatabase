@@ -500,3 +500,15 @@ div.left, div.right {
     margin-top:3px;
     border-top:1px solid #a00;
 }
+table.unique-pieces td.editions input {
+    max-width:100px
+}
+table.unique-pieces td.functions *, table.unique-pieces td.recordings input {
+    max-width:150px
+}
+table.unique-pieces table.sources td.dates {
+    min-width:30px;
+}
+table.unique-pieces table.sources td.notes {
+    min-width:250px;
+}
