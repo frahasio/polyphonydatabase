@@ -49,7 +49,7 @@ class Inclusion < ActiveRecord::Base
     special_attribs += attributions.select {|a| a.resolved_composer.blank? }
 
     if special_attribs.any?
-      [%[#{special_attribs.map {|a| "Attrib: #{a.name}"}.join("; ")}], notes].reject(&:blank?).join("; ")
+      [%[#{special_attribs.map {|a| "Attrib: #{a.anonym_name || "Anon."}"}.join("; ")}], notes].reject(&:blank?).join("; ")
     else
       notes
     end
