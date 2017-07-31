@@ -183,6 +183,7 @@ class Source < ActiveRecord::Base
     "Rampazetto, Francesco",
     "Rastell, John",
     "Raverii, Alessandro",
+    "Redmer, Richard",
     "Rhau, Georg",
     "Robletti, Giovanni Battista",
     "Roderici, Johannes",
