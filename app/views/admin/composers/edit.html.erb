@@ -75,7 +75,7 @@
         <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
           <td class="title">
             <p><%= f.text_area :title %></p>
-            <p>Minimum voices: <%= unique_piece.minimum_voices %></p>
+            <p>a <%= unique_piece.minimum_voices %></p>
           </td>
           <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {class: "select2", multiple: true} %></td>
           <td class="editions">
