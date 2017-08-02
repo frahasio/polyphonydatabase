@@ -123,6 +123,7 @@ class Source < ActiveRecord::Base
     "Hantzsch, Andreas",
     "Hantzsch, Georg",
     "Haultin, Pierre",
+    "Henricum, Nicolaum",
     "Hernandez, Diego",
     "Heyden, Marx von der",
     "Hucher, Antonio",
