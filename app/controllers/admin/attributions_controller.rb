@@ -5,7 +5,7 @@ module Admin
     end
 
     def assign
-      params[:attributions].each do |attribution|
+      params[:attributions].each do |_, attribution|
         next if attribution[:id].blank?
 
         composer = Composer.find(params[:composer_id])

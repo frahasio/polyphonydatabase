@@ -20,11 +20,11 @@
         <th class="notes">Notes</th>
       </tr>
 
-      <% attribs.each do |attrib| %>
+      <% attribs.each_with_index do |attrib, index| %>
         <tr>
           <td class="select">
-            <%= check_box_tag "attributions[][id]", attrib.id %>
-            <%= hidden_field_tag "attributions[][inclusion_id]", attrib.inclusion_id %>
+            <%= check_box_tag "attributions[#{index}][id]", attrib.id %>
+            <%= hidden_field_tag "attributions[#{index}][inclusion_id]", attrib.inclusion_id %>
           </td>
           <td class="piece-title"><%= attrib.inclusion.piece.title %> (<%= ClefsInclusion.sort(attrib.inclusion.clefs_inclusions).map(&:annotated_note).join %>)</td>
           <td class="source-title"><%= attrib.inclusion.source.code %> (<%= truncate(attrib.inclusion.source.title, length: 50) %>)</td>
