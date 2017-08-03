@@ -1,6 +1,6 @@
 class InclusionsController < ApplicationController
   def index
-    inclusions = if params.slice(search_and_filter_params).empty?
+    inclusions = if (params.keys & search_and_filter_params).empty?
       Inclusion.all.limit(100)
     else
       Inclusion.all
@@ -77,6 +77,15 @@ private
   end
 
   def search_and_filter_params
-    [:q, :function, :composer, :composer_country, :voices, :source, :has_edition, :has_recording]
+    %w[
+        q
+        function
+        composer
+        composer_country
+        voices
+        source
+        has_edition
+        has_recording
+      ]
   end
 end
