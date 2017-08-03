@@ -1,6 +1,12 @@
 class InclusionsController < ApplicationController
   def index
-    @grouped_inclusions = UniquePiece.group(Inclusion.all)
+    inclusions = if params.slice(search_and_filter_params).empty?
+      Inclusion.all.limit(100)
+    else
+      Inclusion.all
+    end
+
+    @grouped_inclusions = UniquePiece.group(inclusions)
     @grouped_inclusions = filter(@grouped_inclusions)
   end
 
@@ -68,5 +74,9 @@ private
     return true if has_recording.blank?
 
     has_recording == "1" && unique_piece.recordings.any?
+  end
+
+  def search_and_filter_params
+    [:q, :function, :composer, :composer_country, :voices, :source, :has_edition, :has_recording]
   end
 end
