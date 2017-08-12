@@ -145,6 +145,7 @@ class Source < ActiveRecord::Base
     "Lehmann, Zacharias",
     "León, Juan de",
     "Lomazzo, Filippo",
+    "Lownes, Browne, & Snodham",
     "Lucius, Jacob",
     "Magni, Bartolomeo",
     "Marchetti, Pietro Maria",
