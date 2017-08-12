@@ -73,6 +73,7 @@ class Source < ActiveRecord::Base
     "Donangeli, Ascanio",
     "Dorico, Ludovico",
     "Dorico, Valerio",
+    "Dorico, Valerio & Luigi",
     "Dow, Robert",
     "Du Bosc, Simon",
     "Du Chemin, Nicolas",
