@@ -229,6 +229,7 @@ class Source < ActiveRecord::Base
     "Verovio, Simone",
     "Vincent, Barthelemi",
     "Vincenti, Giacomo",
+    "Vincenti & Amadino",
     "Vioto, Seth",
     "Vissenaecken, Willem van",
     "Vitale, Constantino",
