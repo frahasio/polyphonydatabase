@@ -127,6 +127,7 @@ class Source < ActiveRecord::Base
     "Henricum, Nicolaum",
     "Hernandez, Diego",
     "Heyden, Marx von der",
+    "Higgons, Edward",
     "Hucher, Antonio",
     "Hume, Tobias",
     "Jobin, Bernhard",
