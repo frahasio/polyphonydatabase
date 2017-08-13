@@ -209,6 +209,7 @@ class Source < ActiveRecord::Base
     "Short, Peter",
     "Siebeneicher, Matthäus",
     "Singriener, Hans",
+    "Snodham, Thomas",
     "Soldi, Luca Antonio",
     "Stephani, Clemens",
     "Stigliola, Nicola Antonio",
