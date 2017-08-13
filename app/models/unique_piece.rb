@@ -18,16 +18,35 @@ class UniquePiece < ActiveRecord::Base
   end
 
   def self.group(inclusions)
-    inclusions.group_by do |inclusion|
-      UniquePiece.find_or_initialize_by(
-        title: inclusion&.piece&.title,
-        composers: inclusion.composers.compact.map(&:id).sort.join(","),
-        minimum_voices: inclusion.minimum_voice_count,
-      )
+    unique_pieces = UniquePiece.all.to_a
+    eager_load(inclusions).group_by do |inclusion|
+      title = inclusion&.piece&.title
+      composers = inclusion.composers.compact.map(&:id).sort.join(",")
+      minimum_voices = inclusion.minimum_voice_count
+
+      unique_pieces.find { |up|
+        up.title == title && up.composers == composers && up.minimum_voices == minimum_voices
+      } || UniquePiece.new(title: title, composers: composers, minimum_voices: minimum_voices)
     end
   end
 
 private
+
+  def self.eager_load(inclusions)
+    inclusions.includes(
+      :piece,
+      :source,
+      attributions: [
+        :composer,
+        alias: [
+          :composer
+        ],
+      ],
+      clefs_inclusions: [
+        :clef,
+      ],
+    )
+  end
 
   def unfilled?(attrs)
     attrs.values.all?(&:blank?)

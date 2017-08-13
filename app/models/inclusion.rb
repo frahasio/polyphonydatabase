@@ -41,7 +41,7 @@ class Inclusion < ActiveRecord::Base
   end
 
   def minimum_voice_count
-    clefs_inclusions.where(partial: false).joins(:clef).where.not(clefs: {note: ['bc','lut','org']}).count
+    clefs_inclusions.where(partial: false).joins(:clef).where.not(clefs: {note: ['bc','lut','org']}).length
   end
 
   def public_notes
