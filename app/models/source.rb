@@ -141,6 +141,7 @@ class Source < ActiveRecord::Base
     "Kriesstein, Melchior",
     "Kröner, Michael",
     "Laet, Jean, Vve",
+    "Lazaris, Ignatius de",
     "Le Roy & Ballard",
     "Le Roy, Adrian",
     "Lehmann, Zacharias",
