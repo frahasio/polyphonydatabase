@@ -39,6 +39,7 @@ class Source < ActiveRecord::Base
     "Bariletto, Giovanni",
     "Barley, William",
     "Barré, Antoine",
+    "Basae, Dominici",
     "Baumann, Georg",
     "Beaumont, Willem van",
     "Bellère, Jean",
