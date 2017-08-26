@@ -33,6 +33,8 @@ class UniquePiece < ActiveRecord::Base
 private
 
   def self.eager_load(inclusions)
+    return inclusions unless inclusions.respond_to?(:includes)
+
     inclusions.includes(
       :piece,
       :source,
