@@ -60,8 +60,6 @@ module Admin
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
-      save_unique_pieces(source.inclusions)
-
       redirect_to edit_admin_source_path(source)
     end
 
@@ -70,12 +68,6 @@ module Admin
     end
 
   private
-
-    def save_unique_pieces(inclusions)
-      UniquePiece.group(inclusions).keys.each do |unique_piece|
-        unique_piece.save!
-      end
-    end
 
     def source_params
       params.require(:source).permit(

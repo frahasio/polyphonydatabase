@@ -2,6 +2,7 @@ class Composer < ActiveRecord::Base
   has_many :aliases, inverse_of: :composer
   has_many :attributions, inverse_of: :composer
   has_many :composers_unique_pieces, inverse_of: :composer
+  has_many :unique_pieces, through: :composers_unique_pieces, inverse_of: :composers
 
   validates :name, uniqueness: true
 

@@ -70,52 +70,52 @@
     <th></th>
   </tr>
 
-  <% @grouped_inclusions.sort_by {|up, _| up.title }.each do |unique_piece, inclusions| %>
-      <tr>
-        <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
-          <td class="title">
-            <p><%= f.text_area :title %></p>
-            <p>a <%= unique_piece.minimum_voices %></p>
-          </td>
-          <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {class: "select2", multiple: true} %></td>
-          <td class="editions">
-            <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |r| %>
-              <div class="edition">
-                <%= r.text_field :voicing, placeholder: "Voicing" %>
-                <%= r.text_field :editor, placeholder: "Editor" %>
-                <%= r.text_field :file_url, placeholder: "File URL" %>
-              </div>
+  <% @composer.unique_pieces.order(:title).each do |unique_piece| %>
+    <% unique_piece.editions.build %>
+    <% unique_piece.recordings.build %>
+
+    <tr>
+      <%= form_for([:admin, unique_piece], builder: ActionView::Helpers::FormBuilder) do |f| %>
+        <td class="title">
+          <p><%= f.text_area :title %></p>
+          <p>a <%= unique_piece.minimum_voices %></p>
+        </td>
+        <td class="functions"><%= f.select :feasts, Feast::FEASTS.map { |k, v| [v, k] }, {}, {class: "select2", multiple: true} %></td>
+        <td class="editions">
+          <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |r| %>
+            <div class="edition">
+              <%= r.text_field :voicing, placeholder: "Voicing" %>
+              <%= r.text_field :editor, placeholder: "Editor" %>
+              <%= r.text_field :file_url, placeholder: "File URL" %>
+            </div>
+          <% end %>
+        </td>
+        <td class="recordings">
+          <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
+            <div class="recording">
+              <%= r.text_field :performer, placeholder: "Performer" %>
+              <%= r.text_field :file_url, placeholder: "File URL" %>
+            </div>
+          <% end %>
+        </td>
+        <td>
+          <table class="sources">
+            <% unique_piece.inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
+              <tr class="source">
+                <% source = inclusion.source %>
+                <td class="dates"><%= source.dates %></td>
+                <td class="source-name"><%= link_to source.code, edit_admin_source_path(source), target: "_blank" %></td>
+                <td class="position"><%= inclusion.position %></td>
+                <td class="notes"><%= inclusion.notes %></td>
+              </tr>
             <% end %>
-          </td>
-          <td class="recordings">
-            <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
-              <div class="recording">
-                <%= r.text_field :performer, placeholder: "Performer" %>
-                <%= r.text_field :file_url, placeholder: "File URL" %>
-              </div>
-            <% end %>
-          </td>
-          <td>
-            <table class="sources">
-              <% inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
-                <tr class="source">
-                  <% source = inclusion.source %>
-                  <td class="dates"><%= source.dates %></td>
-                  <td class="source-name"><%= link_to source.code, edit_admin_source_path(source), target: "_blank" %></td>
-                  <td class="position"><%= inclusion.position %></td>
-                  <td class="notes"><%= inclusion.notes %></td>
-                </tr>
-              <% end %>
-            </table>
-          </td>
-          <td>
-            <%= hidden_field_tag :composer_id, @composer.id %>
-            <%= f.hidden_field :composers %>
-            <%= f.hidden_field :minimum_voices %>
-            <%= hidden_field_tag :inclusion_ids, inclusions.map(&:id).join(",") %>
-            <button class="save">Save</button>
-          </td>
-        <% end %>
-      </tr>
+          </table>
+        </td>
+        <td>
+          <%= hidden_field_tag :composer_id, @composer.id %>
+          <button class="save">Save</button>
+        </td>
+      <% end %>
+    </tr>
   <% end %>
 </table>

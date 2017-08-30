@@ -15,13 +15,6 @@ module Admin
 
     def edit
       @composer = Composer.find(params[:id])
-
-      @grouped_inclusions = UniquePiece.group(@composer.inclusions)
-
-      @grouped_inclusions.each do |unique_piece, _|
-        unique_piece.editions.build
-        unique_piece.recordings.build
-      end
     end
 
     def update
