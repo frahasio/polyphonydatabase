@@ -110,7 +110,9 @@ table {
     width:100%;
     margin-bottom:10px;
 }
-
+table.sortable th:hover {
+    cursor: pointer;
+}
 th {
     background: #104e8b;
     color: white;
