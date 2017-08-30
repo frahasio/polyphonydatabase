@@ -65,13 +65,9 @@ module Denormaliser
       hash[unique_piece] ||= {
         composers: composers,
         inclusions: [],
-        # sources: Hash.new { |hash, key| hash[key] = {} },
       }
 
       hash[unique_piece][:inclusions] << inclusion
-      # hash[unique_piece][:sources][inclusion.source][:clefs_inclusions] = ClefsInclusion.sort(inclusion.clefs_inclusions)
-      # hash[unique_piece][:sources][inclusion.source][:position] = inclusion.position
-      # hash[unique_piece][:sources][inclusion.source][:public_notes] = inclusion.public_notes
     end
   end
 end
