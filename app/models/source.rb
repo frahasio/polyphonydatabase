@@ -99,6 +99,7 @@ class Source < ActiveRecord::Base
     "Gargano & Nucci",
     "Gargano, Giovanni Battista",
     "Gehen, Andreas",
+    "Gerlach & Berg",
     "Gerlach & Neuber",
     "Gerlach, Dietrich",
     "Gerlach, Katharina",
