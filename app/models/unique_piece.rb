@@ -1,6 +1,10 @@
 class UniquePiece < ActiveRecord::Base
   has_many :recordings, dependent: :destroy, autosave: true, inverse_of: :unique_piece
   has_many :editions, inverse_of: :unique_piece
+  has_many :feasts_unique_pieces, inverse_of: :unique_piece
+  has_many :composers_unique_pieces, inverse_of: :unique_piece
+  has_many :composers, through: :composers_unique_pieces
+  has_many :inclusions, inverse_of: :unique_piece
 
   accepts_nested_attributes_for :recordings, reject_if: :unfilled?
   accepts_nested_attributes_for :editions, reject_if: :unfilled?
@@ -10,7 +14,12 @@ class UniquePiece < ActiveRecord::Base
   before_save :mark_blanks_for_deletion
 
   def feasts=(functions)
-    super(functions.reject(&:blank?))
+    tidy_feasts = functions.reject(&:blank?)
+
+    super(tidy_feasts)
+    self.feasts_unique_pieces = tidy_feasts.map { |f|
+      FeastsUniquePiece.new(feast_code: f)
+    }
   end
 
   def feast_names

@@ -1,6 +1,7 @@
 class Inclusion < ActiveRecord::Base
   belongs_to :source, inverse_of: :inclusions
   belongs_to :piece, inverse_of: :inclusions
+  belongs_to :unique_piece, inverse_of: :inclusions, optional: true
   has_many :attributions, inverse_of: :inclusion, dependent: :destroy
   has_many :clefs_inclusions, inverse_of: :inclusion
   has_many :clefs, through: :clefs_inclusions
@@ -34,24 +35,7 @@ class Inclusion < ActiveRecord::Base
     source.from_year
   end
 
-  def position
-    source.inclusions.order(:order).each_with_index do |inclusion, index|
-      return index + 1 if inclusion == self
-    end
-  end
-
   def minimum_voice_count
     clefs_inclusions.where(partial: false).joins(:clef).where.not(clefs: {note: ['bc','lut','org']}).length
-  end
-
-  def public_notes
-    special_attribs = attributions.where(incorrectly_attributed: true).to_a
-    special_attribs += attributions.select {|a| a.resolved_composer.blank? }
-
-    if special_attribs.any?
-      [%[#{special_attribs.map {|a| "Attrib: #{a.anonym_name || "Anon."}"}.join("; ")}], notes].reject(&:blank?).join("; ")
-    else
-      notes
-    end
   end
 end

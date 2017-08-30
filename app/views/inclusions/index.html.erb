@@ -67,12 +67,12 @@
     <th class="recording">Listen</th>
   </tr>
 
-  <% @grouped_inclusions.each do |unique_piece, inclusions| %>
+  <% @unique_pieces.each do |piece| %>
     <tr>
-      <td class="title"><%= unique_piece.title %></td>
-      <td class="functions"><%= unique_piece.feast_names.join(", ") %></td>
+      <td class="title"><%= piece.title %></td>
+      <td class="functions"><%= piece.feast_names.join(", ") %></td>
       <td class="composers">
-        <% inclusions.first.composers.each do |composer| %>
+        <% piece.composers.each do |composer| %>
           <div class="composer">
             <div class="name"><%= composer&.name %></div>
 
@@ -82,10 +82,10 @@
           </div>
         <% end %>
       </td>
-      <td class="minimum-voices"><%= unique_piece.minimum_voices %></td>
+      <td class="minimum-voices"><%= piece.minimum_voices %></td>
       <td class="sources">
         <table>
-          <% inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
+          <% piece.inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
             <tr>
               <% source = inclusion.source %>
               <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
@@ -116,7 +116,7 @@
         </table>
       </td>
       <td class="editions">
-        <% unique_piece.editions.each do |edition| %>
+        <% piece.editions.each do |edition| %>
           <div class="edition">
             <% edition_text = "#{edition.editor} (#{edition.voicing})" %>
             <% if edition.file_url.present? %>
@@ -131,7 +131,7 @@
         <% end %>
       </td>
       <td class="recordings">
-        <% unique_piece.recordings.each do |recording| %>
+        <% piece.recordings.each do |recording| %>
           <% if recording.file_url.present? %>
             <div class="recording">
               <%= link_to recording.file_url, target: "_blank" do %>

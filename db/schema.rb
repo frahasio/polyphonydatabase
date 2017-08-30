@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170726133540) do
+ActiveRecord::Schema.define(version: 20170827061854) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -77,6 +77,13 @@ ActiveRecord::Schema.define(version: 20170726133540) do
     t.datetime "updated_at",           null: false
   end
 
+  create_table "composers_unique_pieces", force: :cascade do |t|
+    t.integer "composer_id"
+    t.integer "unique_piece_id"
+    t.index ["composer_id"], name: "index_composers_unique_pieces_on_composer_id", using: :btree
+    t.index ["unique_piece_id"], name: "index_composers_unique_pieces_on_unique_piece_id", using: :btree
+  end
+
   create_table "editions", force: :cascade do |t|
     t.string   "voicing"
     t.string   "editor"
@@ -87,13 +94,22 @@ ActiveRecord::Schema.define(version: 20170726133540) do
     t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree
   end
 
+  create_table "feasts_unique_pieces", force: :cascade do |t|
+    t.string  "feast_code"
+    t.integer "unique_piece_id"
+    t.index ["unique_piece_id"], name: "index_feasts_unique_pieces_on_unique_piece_id", using: :btree
+  end
+
   create_table "inclusions", force: :cascade do |t|
     t.integer  "source_id"
     t.integer  "piece_id"
     t.string   "notes"
-    t.integer  "order",      null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.integer  "order",           null: false
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+    t.integer  "unique_piece_id"
+    t.string   "public_notes"
+    t.integer  "position"
     t.index ["piece_id"], name: "index_inclusions_on_piece_id", using: :btree
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree
   end
@@ -114,7 +130,7 @@ ActiveRecord::Schema.define(version: 20170726133540) do
   end
 
   create_table "sources", force: :cascade do |t|
-    t.string   "code",                                 null: false
+    t.string   "code",                                   null: false
     t.text     "title"
     t.string   "type"
     t.string   "format"
@@ -122,22 +138,26 @@ ActiveRecord::Schema.define(version: 20170726133540) do
     t.string   "town"
     t.string   "rism_link"
     t.string   "url"
-    t.boolean  "catalogued",           default: false, null: false
-    t.datetime "created_at",                           null: false
-    t.datetime "updated_at",                           null: false
+    t.boolean  "catalogued",             default: false, null: false
+    t.datetime "created_at",                             null: false
+    t.datetime "updated_at",                             null: false
     t.integer  "from_year"
     t.integer  "to_year"
     t.string   "from_year_annotation"
     t.string   "to_year_annotation"
+    t.string   "dates"
+    t.string   "location_and_pubscribe"
   end
 
   create_table "unique_pieces", force: :cascade do |t|
     t.text     "title"
-    t.string   "composers"
+    t.string   "composer_list"
     t.integer  "minimum_voices"
     t.text     "feasts"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
+    t.datetime "created_at",                     null: false
+    t.datetime "updated_at",                     null: false
+    t.boolean  "has_edition",    default: false
+    t.boolean  "has_recording",  default: false
   end
 
   create_table "users", force: :cascade do |t|

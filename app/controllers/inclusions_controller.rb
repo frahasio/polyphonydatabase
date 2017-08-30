@@ -1,91 +1,103 @@
 class InclusionsController < ApplicationController
   def index
-    inclusions = if (params.keys & search_and_filter_params).empty?
-      Inclusion.all.limit(100)
-    else
-      Inclusion.all
-    end
+    unique_pieces = UniquePiece.distinct.limit(100).includes(
+      :composers,
+      :editions,
+      :recordings,
+      inclusions: [
+        :source,
+        clefs_inclusions: [
+          :clef,
+        ],
+      ],
+    )
 
-    @grouped_inclusions = UniquePiece.group(inclusions)
-    @grouped_inclusions = filter(@grouped_inclusions)
+    @unique_pieces = filter(unique_pieces)
   end
 
 private
 
-  def filter(grouped_inclusions)
-    return grouped_inclusions unless params[:q]
-
-    grouped_inclusions.select { |unique_piece, inclusions|
-      search(params[:q], unique_piece, inclusions) &&
-      function(params[:function], unique_piece) &&
-      composer(params[:composer], unique_piece) &&
-      composer_country(params[:composer_country], inclusions) &&
-      voices(params[:voices], unique_piece) &&
-      source(params[:source], inclusions) &&
-      has_edition?(params[:has_edition], unique_piece) &&
-      has_recording?(params[:has_recording], unique_piece)
-    }
+  def filter(unique_pieces)
+    unique_pieces = search(unique_pieces)
+    unique_pieces = function(unique_pieces)
+    unique_pieces = composer(unique_pieces)
+    unique_pieces = composer_country(unique_pieces)
+    unique_pieces = voices(unique_pieces)
+    unique_pieces = source(unique_pieces)
+    unique_pieces = has_edition?(unique_pieces)
+    has_recording?(unique_pieces)
   end
 
-  def search(term, unique_piece, inclusions)
-    return true if term.blank?
+  def search(unique_pieces)
+    return unique_pieces if params[:q].blank?
 
-    Searcher.new(unique_piece, inclusions).search(term)
+    joined_pieces = unique_pieces.left_outer_joins(
+      :editions,
+      :recordings,
+      composers: {
+        aliases: :anonym,
+      },
+      inclusions: :source,
+    )
+
+    joined_pieces.where("unique_pieces.title ILIKE ?", "%#{params[:q]}%")
+      .or(joined_pieces.where("anonyms.name ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("composers.name ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("sources.title ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("sources.code ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("sources.location_and_pubscribe ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("sources.dates ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("sources.type ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("editions.voicing ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("editions.editor ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("editions.file_url ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("recordings.performer ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_pieces.where("recordings.file_url ILIKE ?", "%#{params[:q]}%"))
   end
 
-  def function(function_code, unique_piece)
-    return true if function_code.blank?
+  def function(unique_pieces)
+    return unique_pieces if params[:function].blank?
 
-    unique_piece.feasts.include?(function_code)
+    unique_pieces
+      .joins(:feasts_unique_pieces)
+      .where(feasts_unique_pieces: {feast_code: params[:function]})
   end
 
-  def composer(composer_id, unique_piece)
-    return true if composer_id.blank?
+  def composer(unique_pieces)
+    return unique_pieces if params[:composer].blank?
 
-    unique_piece.composers.split(",").include?(composer_id)
+    unique_pieces.where(composers_unique_pieces: {composer_id: params[:composer]})
   end
 
-  def composer_country(composer_country_text, inclusions)
-    return true if composer_country_text.blank?
+  def composer_country(unique_pieces)
+    return unique_pieces if params[:composer_country].blank?
 
-    composers = inclusions.first.composers.compact
-    composers.any? {|c| c.birthplace_2 == composer_country_text }
+    unique_pieces.where(composers: {birthplace_2: params[:composer_country]})
   end
 
-  def voices(minimum_voices, unique_piece)
-    return true if minimum_voices.blank?
+  def voices(unique_pieces)
+    return unique_pieces if params[:voices].blank?
 
-    unique_piece.minimum_voices.to_s == minimum_voices
+    unique_pieces.where(minimum_voices: params[:voices])
   end
 
-  def source(source_id, inclusions)
-    return true if source_id.blank?
+  def source(unique_pieces)
+    return unique_pieces if params[:source].blank?
 
-    inclusions.any? {|i| i.source_id.to_s == source_id }
+    unique_pieces
+      .joins(:inclusions)
+      .where(sources: {id: params[:source]})
   end
 
-  def has_edition?(has_edition, unique_piece)
-    return true if has_edition.blank?
+  def has_edition?(unique_pieces)
+    return unique_pieces if params[:has_edition].blank?
 
-    has_edition == "1" && unique_piece.editions.any?
+    unique_pieces.where(has_edition: true)
   end
 
-  def has_recording?(has_recording, unique_piece)
-    return true if has_recording.blank?
+  def has_recording?(unique_pieces)
+    return unique_pieces if params[:has_recording].blank?
 
-    has_recording == "1" && unique_piece.recordings.any?
-  end
-
-  def search_and_filter_params
-    %w[
-        q
-        function
-        composer
-        composer_country
-        voices
-        source
-        has_edition
-        has_recording
-      ]
+    unique_pieces.where(has_recording: true)
   end
 end

@@ -252,18 +252,51 @@ class Source < ActiveRecord::Base
     "Zetzner, Lazarus",
   ].freeze
 
-  def dates
-    [
+  def from_year=(_)
+    super
+    update_dates_string
+  end
+
+  def from_year_annotation=(_)
+    super
+    update_dates_string
+  end
+
+  def to_year=(_)
+    super
+    update_dates_string
+  end
+
+  def to_year_annotation=(_)
+    super
+    update_dates_string
+  end
+
+  def town=(_)
+    super
+    update_location_and_pubscribe
+  end
+
+  def publisher_or_scribe=(_)
+    super
+    update_location_and_pubscribe
+  end
+
+private
+
+  def update_dates_string
+    self.dates = [
       "#{from_year_annotation}#{from_year}",
       "#{to_year_annotation}#{to_year}",
     ].reject(&:blank?).join("-")
   end
 
-  def location_and_pubscribe
-    [town, publisher_or_scribe].reject(&:blank?).join(": ")
+  def update_location_and_pubscribe
+    self.location_and_pubscribe = [
+      town,
+      publisher_or_scribe
+    ].reject(&:blank?).join(": ")
   end
-
-private
 
   def unfilled?(attrs)
     unfilled_attributions?(attrs) && unfilled_piece?(attrs)
