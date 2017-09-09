@@ -178,6 +178,7 @@ class Source < ActiveRecord::Base
     "Petrucci, Pietro Giacomo",
     "Petrus optimus notator, Magister",
     "Petrus, Heinrich",
+    "Phalèse & Bellère",
     "Phalèse the Elder, Pierre",
     "Phalèse the Younger, Pierre",
     "Pietrasanta, Plinio",
