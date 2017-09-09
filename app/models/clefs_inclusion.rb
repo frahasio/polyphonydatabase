@@ -56,9 +56,9 @@ class ClefsInclusion < ActiveRecord::Base
     g4
     c2
     g5
-    g28
     c3
     f1
+    g28
     c4
     f2
     c5
