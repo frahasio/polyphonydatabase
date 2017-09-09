@@ -1,6 +1,6 @@
 class InclusionsController < ApplicationController
   def index
-    unique_pieces = UniquePiece.distinct.includes(
+    unique_pieces = UniquePiece.distinct.limit(200).includes(
       :composers,
       :editions,
       :recordings,
