@@ -35,6 +35,7 @@ class Source < ActiveRecord::Base
     "Attaingnant, Pierre",
     "Baldini, Vittorio",
     "Baldwin, John",
+    "Ballard, Pierre",
     "Ballard, Robert",
     "Bariletto, Giovanni",
     "Barley, William",
