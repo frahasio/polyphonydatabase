@@ -64,6 +64,7 @@ class Source < ActiveRecord::Base
     "Cancer, Matteo",
     "Carlino, Giovanni Giacomo",
     "Castiglione, Giovanni Antonio da",
+    "Channay, Jean de",
     "Coattino, Francesco",
     "Correggio, Claudio",
     "Corvinus, Georg",
