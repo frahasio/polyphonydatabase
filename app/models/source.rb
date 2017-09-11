@@ -194,6 +194,7 @@ class Source < ActiveRecord::Base
     "Rastell, John",
     "Raverii, Alessandro",
     "Redmer, Richard",
+    "Reinmichaelius, Leonhardus",
     "Rhau, Georg",
     "Robletti, Giovanni Battista",
     "Roderici, Johannes",
