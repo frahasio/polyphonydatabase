@@ -221,7 +221,7 @@ class Source < ActiveRecord::Base
     "Soldi, Luca Antonio",
     "Stephani, Clemens",
     "Stigliola, Nicola Antonio",
-    "Stöckel, Matthes",
+    "Stöckel, Mattheus",
     "Sultzbach, Johannes",
     "Susato, Tylman",
     "Symon de Sacaglia, Magister",
