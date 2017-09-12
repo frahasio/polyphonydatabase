@@ -67,6 +67,7 @@ class Source < ActiveRecord::Base
     "Channay, Jean de",
     "Coattino, Francesco",
     "Correggio, Claudio",
+    "Corvinus & Feyerabend",
     "Corvinus, Georg",
     "Craesbeeck, Pedro",
     "dall’Aquila, Gioseppe Cacchio",
