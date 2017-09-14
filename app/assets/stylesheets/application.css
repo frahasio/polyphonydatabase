@@ -392,6 +392,13 @@ div.listofsources div {
     margin: 10px 20px
 }
 
+div.listofsources a {
+    color:lightgrey;
+}
+div.listofsources a:hover {
+    color:orange;
+}
+
 div.listofsources div ul, div.listofcomposers ul {
     margin: 10px;
     font-size: 1.2em
