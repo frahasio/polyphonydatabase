@@ -51,6 +51,7 @@ class Source < ActiveRecord::Base
     "Beringen, Godefroy",
     "Berwald, Zacharias",
     "Bevilacqua, Nicolo",
+    "Birnstiel, Heinrich",
     "Blado, Antonio",
     "Bogard, Jean",
     "Borboni, Nicolo",
