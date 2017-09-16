@@ -207,6 +207,7 @@ class Source < ActiveRecord::Base
     "Saint-André, Pierre de",
     "Sambonetti, Pietro",
     "Sanchez, Francisco",
+    "Sartorius, Nicolaus",
     "Scharffenberg, Crispin",
     "Scharffenberg, Johann",
     "Schoeffer, Peter",
