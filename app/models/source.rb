@@ -221,6 +221,7 @@ class Source < ActiveRecord::Base
     "Singriener, Hans",
     "Snodham, Thomas",
     "Soldi, Luca Antonio",
+    "Stansby, William",
     "Stephani, Clemens",
     "Stigliola, Nicola Antonio",
     "Stöckel, Mattheus",
