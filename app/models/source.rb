@@ -204,6 +204,7 @@ class Source < ActiveRecord::Base
     "Rolla, Giorgio",
     "Rossi, Giovanni",
     "Sabbio, Vincenzo",
+    "Saint-André, Pierre de",
     "Sambonetti, Pietro",
     "Sanchez, Francisco",
     "Scharffenberg, Crispin",
