@@ -145,12 +145,13 @@ tr:last-child td:last-child {
 
 
 /* HIDE SOME THINGS ON SMALL SCREENS */
-
+/*
 @media screen and (max-width: 600px) {
     .maintable td.clefs,.maintable th.function,.maintable td.functions,.maintable td.sources td.notes {
         display:none
     }
 }
+*/
 div.maintable {
     overflow-x:auto;
     padding:5px;
