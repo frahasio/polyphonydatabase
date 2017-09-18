@@ -44,5 +44,13 @@
     }
 }
 </script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="jquery.tablenav.min.js"></script>
+<script>
+  $(document).on('ready', function() {
+  $('#demo').tableNav();
+  return $('#demo input').eq(1).click();
+  });
+</script>
   </body>
 </html>
