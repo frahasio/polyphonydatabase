@@ -234,6 +234,7 @@ class Source < ActiveRecord::Base
     "Theobaldus Gallicus",
     "Thomas de Sancto Juliano",
     "Thomassini, Filippo",
+    "Tini & Besozzi",
     "Tini, Francesco",
     "Tini, Francesco & Simone",
     "Tini, Michele",
