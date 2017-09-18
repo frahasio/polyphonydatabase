@@ -112,6 +112,7 @@ class Source < ActiveRecord::Base
     "Gerlach, Theodor",
     "Giunta, Giacomo",
     "Giunta, Jacomo",
+    "Godbid, William",
     "Gorlier, Simon",
     "Goudimel, Claude",
     "Gough, John",
