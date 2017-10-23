@@ -146,6 +146,7 @@ class Source < ActiveRecord::Base
     "Jullet, Herbert",
     "Kauffmann, Paul",
     "Kellner, Andreas",
+    "Kieffer, Carl",
     "Kirchner, Wolfgang",
     "Knorr, Nikolaus",
     "Kriesstein, Melchior",
