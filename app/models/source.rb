@@ -132,6 +132,7 @@ class Source < ActiveRecord::Base
     "Hanelle, Jean",
     "Hantzsch, Andreas",
     "Hantzsch, Georg",
+    "Hartmann, Friedrich",
     "Hauck, Justus",
     "Haultin, Pierre",
     "Henricum, Nicolaum",
