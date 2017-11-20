@@ -172,6 +172,7 @@ class Source < ActiveRecord::Base
     "Montedosca, Martin de",
     "Morley, Thomas",
     "Moscheni, Francesco",
+    "Moscheni, Francesco & Simone",
     "Mutii, Nicolo",
     "Neuber, Ulrich",
     "Nigrinus, Georg",
