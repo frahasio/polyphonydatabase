@@ -109,6 +109,7 @@ class Source < ActiveRecord::Base
     "Gerlach & Neuber",
     "Gerlach, Dietrich",
     "Gerlach, Katharina",
+    "Gerlach, Katharina & Theodor",
     "Gerlach, Theodor",
     "Giunta, Giacomo",
     "Giunta, Jacomo",
