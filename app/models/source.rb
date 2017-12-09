@@ -50,6 +50,7 @@ class Source < ActiveRecord::Base
     "Berg, Adam",
     "Berg, Johann",
     "Beringen, Godefroy",
+    "Beringen, Godefroy & Marcel",
     "Berwald, Zacharias",
     "Betzel, Andreas",
     "Bevilacqua, Nicolo",
