@@ -133,6 +133,7 @@ class Source < ActiveRecord::Base
     "Gutknecht, Christoff",
     "Haller, Jan",
     "Hanelle, Jean",
+    "Hanlin, Gregor",
     "Hantzsch, Andreas",
     "Hantzsch, Georg",
     "Hartmann, Friedrich",
