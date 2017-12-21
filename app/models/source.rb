@@ -31,6 +31,7 @@ class Source < ActiveRecord::Base
     "Angelieri, Giorgio",
     "Antico, Andrea",
     "Apiarius Mathias",
+    "Arbilius, Jakob",
     "Arnao, Antonio",
     "Arrivabene, Andrea",
     "Attaingnant, Pierre",
