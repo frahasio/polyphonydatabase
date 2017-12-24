@@ -12,7 +12,7 @@ class Source < ActiveRecord::Base
   TYPES = %w[
     MS
     Print
-    Mixture
+    Print/MS
   ].freeze
 
   FORMATS = %w[
