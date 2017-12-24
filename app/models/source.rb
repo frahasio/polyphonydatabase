@@ -56,6 +56,7 @@ class Source < ActiveRecord::Base
     "Berwald, Zacharias",
     "Betzel, Andreas",
     "Bevilacqua, Nicolo",
+    "Birckmanns, Arnold",
     "Birnstiel, Heinrich",
     "Blado, Antonio",
     "Bogard, Jean",
