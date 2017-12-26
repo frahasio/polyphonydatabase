@@ -236,6 +236,7 @@ class Source < ActiveRecord::Base
     "Snodham, Thomas",
     "Soldi, Luca Antonio",
     "Stansby, William",
+    "Stein, Nikolaus",
     "Stephani, Clemens",
     "Stigliola, Nicola Antonio",
     "Stöckel, Mattheus",
