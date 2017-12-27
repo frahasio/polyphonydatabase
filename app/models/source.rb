@@ -101,6 +101,7 @@ class Source < ActiveRecord::Base
     "Fernández, Francisco",
     "Feyerabend, Sigmund",
     "Flandrum, Joannem",
+    "Formica, Leonhard",
     "Formschneider, Hieronymus",
     "Galharde, German",
     "Gardano, Alessandro",
