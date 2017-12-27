@@ -27,6 +27,7 @@ class Source < ActiveRecord::Base
     "Adams, Thomas",
     "Aggere, Antonius de",
     "Alamire, Pierre",
+    "Allde, Edwin",
     "Amadino, Ricciardo",
     "Andreae, Hieronymus",
     "Angelieri, Giorgio",
