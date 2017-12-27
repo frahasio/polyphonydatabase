@@ -173,6 +173,7 @@ class Source < ActiveRecord::Base
     "Masotti, Paolo",
     "Mayer, Johann",
     "Mazzocchi, Giacomo",
+    "Meltzer, Adam",
     "Merulo, Claudio",
     "Moderne, Jacques",
     "Montedosca, Martin de",
