@@ -20,6 +20,7 @@ class Source < ActiveRecord::Base
     Partbook
     Score
     Tablebook
+    Choirbook/score
     Unidentifiable/fragment
   ].freeze
 
