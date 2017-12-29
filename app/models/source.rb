@@ -127,6 +127,7 @@ class Source < ActiveRecord::Base
     "Goulart, Simon",
     "Grafton, Richard",
     "Grevenbruch, Gerhard",
+    "Grimm & Wirsung",
     "Grimm, Sigismund",
     "Gruppenbach, Georg",
     "Guéroult, Guillaume",
