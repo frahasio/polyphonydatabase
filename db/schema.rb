@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180303154615) do
+ActiveRecord::Schema.define(version: 20180305122652) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -108,6 +108,8 @@ ActiveRecord::Schema.define(version: 20180303154615) do
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
     t.integer  "unique_piece_id"
+    t.integer  "group_id"
+    t.index ["group_id"], name: "index_editions_on_group_id", using: :btree
     t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree
   end
 
@@ -115,6 +117,12 @@ ActiveRecord::Schema.define(version: 20180303154615) do
     t.string  "feast_code"
     t.integer "unique_piece_id"
     t.index ["unique_piece_id"], name: "index_feasts_unique_pieces_on_unique_piece_id", using: :btree
+  end
+
+  create_table "groups", force: :cascade do |t|
+    t.string   "display_title"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
   end
 
   create_table "inclusions", force: :cascade do |t|
@@ -145,6 +153,8 @@ ActiveRecord::Schema.define(version: 20180303154615) do
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
     t.integer  "unique_piece_id"
+    t.integer  "group_id"
+    t.index ["group_id"], name: "index_recordings_on_group_id", using: :btree
     t.index ["unique_piece_id"], name: "index_recordings_on_unique_piece_id", using: :btree
   end
 
