@@ -1,0 +1,1 @@
+class Title < ApplicationRecord; end

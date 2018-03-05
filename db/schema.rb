@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170827061854) do
+ActiveRecord::Schema.define(version: 20180303154615) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -77,11 +77,28 @@ ActiveRecord::Schema.define(version: 20170827061854) do
     t.datetime "updated_at",           null: false
   end
 
+  create_table "composers_compositions", id: false, force: :cascade do |t|
+    t.integer "composer_id",    null: false
+    t.integer "composition_id", null: false
+    t.index ["composer_id", "composition_id"], name: "index_composers_compositions_on_composer_id_and_composition_id", using: :btree
+  end
+
   create_table "composers_unique_pieces", force: :cascade do |t|
     t.integer "composer_id"
     t.integer "unique_piece_id"
     t.index ["composer_id"], name: "index_composers_unique_pieces_on_composer_id", using: :btree
     t.index ["unique_piece_id"], name: "index_composers_unique_pieces_on_unique_piece_id", using: :btree
+  end
+
+  create_table "compositions", force: :cascade do |t|
+    t.integer  "number_of_voices"
+    t.integer  "group_id"
+    t.integer  "title_id"
+    t.datetime "created_at",       null: false
+    t.datetime "updated_at",       null: false
+    t.index ["group_id"], name: "index_compositions_on_group_id", using: :btree
+    t.index ["number_of_voices", "title_id"], name: "index_compositions_on_number_of_voices_and_title_id", using: :btree
+    t.index ["title_id"], name: "index_compositions_on_title_id", using: :btree
   end
 
   create_table "editions", force: :cascade do |t|
@@ -110,6 +127,8 @@ ActiveRecord::Schema.define(version: 20170827061854) do
     t.integer  "unique_piece_id"
     t.string   "public_notes"
     t.integer  "position"
+    t.integer  "composition_id"
+    t.index ["composition_id"], name: "index_inclusions_on_composition_id", using: :btree
     t.index ["piece_id"], name: "index_inclusions_on_piece_id", using: :btree
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree
   end
@@ -147,6 +166,12 @@ ActiveRecord::Schema.define(version: 20170827061854) do
     t.string   "to_year_annotation"
     t.string   "dates"
     t.string   "location_and_pubscribe"
+  end
+
+  create_table "titles", force: :cascade do |t|
+    t.string   "text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "unique_pieces", force: :cascade do |t|
