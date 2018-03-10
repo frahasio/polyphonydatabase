@@ -34,6 +34,7 @@ class CompositionGenerator
 
       composition.composers = composers
       composition.inclusions = unique_piece.inclusions
+      composition.group ||= Group.create!(display_title: title.text)
 
       composition.save!
     end
