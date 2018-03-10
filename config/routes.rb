@@ -26,7 +26,11 @@ Rails.application.routes.draw do
     post "/auth/authenticate", to: "authentication#authenticate", as: "authenticate"
     post "/auth/logout", to: "authentication#logout", as: "logout"
 
-    resources :groups, only: [:index]
+    resources :groups, only: [:index] do
+      collection do
+        post :merge
+      end
+    end
 
     root to: "home#index"
   end
