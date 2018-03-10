@@ -1,0 +1,24 @@
+<tr>
+  <td class="title"><%= piece.title %></td>
+  <td class="composers">
+    <% piece.composers.each do |composer| %>
+      <div class="composer">
+        <div class="name"><%= composer&.name %></div>
+
+        <% if composer %>
+          <div class="dates"><%= composer.dates %></div>
+        <% end %>
+      </div>
+    <% end %>
+  </td>
+  <td class="minimum-voices"><%= piece.minimum_voices %></td>
+  <td class="sources">
+    <table>
+      <% piece.inclusions.map(&:source).sort_by(&:code).each do |source| %>
+        <tr>
+          <td><%= source.code %></td>
+        </tr>
+      <% end %>
+    </table>
+  </td>
+</tr>
