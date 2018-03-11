@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180305122652) do
+ActiveRecord::Schema.define(version: 20180310204933) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -103,20 +103,41 @@ ActiveRecord::Schema.define(version: 20180305122652) do
 
   create_table "editions", force: :cascade do |t|
     t.string   "voicing"
-    t.string   "editor"
+    t.string   "editor_name"
     t.string   "file_url"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
     t.integer  "unique_piece_id"
     t.integer  "group_id"
+    t.integer  "editor_id"
+    t.index ["editor_id"], name: "index_editions_on_editor_id", using: :btree
     t.index ["group_id"], name: "index_editions_on_group_id", using: :btree
     t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree
+  end
+
+  create_table "editors", force: :cascade do |t|
+    t.string   "name"
+    t.date     "date_of_birth"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
   end
 
   create_table "feasts_unique_pieces", force: :cascade do |t|
     t.string  "feast_code"
     t.integer "unique_piece_id"
     t.index ["unique_piece_id"], name: "index_feasts_unique_pieces_on_unique_piece_id", using: :btree
+  end
+
+  create_table "functions", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "functions_titles", id: false, force: :cascade do |t|
+    t.integer "function_id", null: false
+    t.integer "title_id",    null: false
+    t.index ["function_id", "title_id"], name: "index_functions_titles_on_function_id_and_title_id", using: :btree
   end
 
   create_table "groups", force: :cascade do |t|
@@ -141,6 +162,12 @@ ActiveRecord::Schema.define(version: 20180305122652) do
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree
   end
 
+  create_table "performers", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "pieces", force: :cascade do |t|
     t.text     "title",      null: false
     t.datetime "created_at", null: false
@@ -148,13 +175,15 @@ ActiveRecord::Schema.define(version: 20180305122652) do
   end
 
   create_table "recordings", force: :cascade do |t|
-    t.string   "performer"
+    t.string   "performer_name"
     t.string   "file_url"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
     t.integer  "unique_piece_id"
     t.integer  "group_id"
+    t.integer  "performer_id"
     t.index ["group_id"], name: "index_recordings_on_group_id", using: :btree
+    t.index ["performer_id"], name: "index_recordings_on_performer_id", using: :btree
     t.index ["unique_piece_id"], name: "index_recordings_on_unique_piece_id", using: :btree
   end
 

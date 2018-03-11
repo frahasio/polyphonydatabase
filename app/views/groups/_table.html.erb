@@ -1,8 +1,8 @@
 <div class="maintable">
   <table class="sortable">
     <%= render "headings" %>
-    <% @unique_pieces.each do |piece| %>
-      <%= render "row", piece: piece %>
+    <% @groups.each do |group| %>
+      <%= render "row", group: group %>
     <% end %>
   </table>
 </div>

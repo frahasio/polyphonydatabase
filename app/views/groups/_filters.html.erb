@@ -1,5 +1,5 @@
 <div class="filters">
-  <%= form_tag nil, method: :get do %>
+  <%= form_tag search_path, method: :get do %>
     <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
     <%= select_tag :composer, options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers", class: "composer" %>
     <%= select_tag :function, options_for_select(Feast::FEASTS.map { |k, v| [v, k] }, params[:function]), include_blank: "All functions", class: "functions" %>

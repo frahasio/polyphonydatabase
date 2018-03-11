@@ -58,3 +58,7 @@ development:
 test:
   <<: *default
   database: music-cms_test
+
+production:
+  <<: *default
+  database: music-cms_production

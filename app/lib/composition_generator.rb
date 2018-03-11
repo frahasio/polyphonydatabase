@@ -17,26 +17,55 @@ class CompositionGenerator
         end
       }.uniq
 
-      composition = Composition.where(
+      puts "Creating new composition `#{title.text}`:#{number_of_voices}:`#{composers.map(&:name).join}`"
+      composition = Composition.new(
         number_of_voices: number_of_voices,
         title: title,
-      ).find { |c| c.composers.to_set == composers.to_set }
-
-      if composition
-        puts "Updating composition `#{title.text}`"
-      else
-        puts "Creating new composition `#{title.text}`"
-        composition = Composition.new(
-          number_of_voices: number_of_voices,
-          title: title,
-        )
-      end
+      )
 
       composition.composers = composers
       composition.inclusions = unique_piece.inclusions
-      composition.group ||= Group.create!(display_title: title.text)
+
+      if unique_piece.editions.count + unique_piece.recordings.count > 0
+        puts "-- Updating #{unique_piece.editions.count} editions and #{unique_piece.recordings.count} recordings on `#{unique_piece.title}`"
+      end
+
+      unique_piece.editions.each do |edition|
+        next if edition.editor_name.nil?
+
+        editor = Editor.find_or_create_by!(name: edition.editor_name)
+        edition.editor = editor
+      end
+
+      unique_piece.recordings.each do |recording|
+        next if recording.performer_name.nil?
+
+        performer = Performer.find_or_create_by!(name: recording.performer_name)
+        recording.performer = performer
+      end
+
+      composition.group = Group.create!(
+        display_title: title.text,
+        editions: unique_piece.editions,
+        recordings: unique_piece.recordings,
+      )
 
       composition.save!
+    end
+
+    Feast::FEASTS.each do |code, name|
+      titles = FeastsUniquePiece.where(feast_code: code).map {|fup|
+        fup.unique_piece&.title
+      }.compact
+
+      if titles.count > 0
+        puts "Creating feast `#{name}` with #{titles.count} titles"
+      end
+
+      Function.create!(
+        name: name,
+        titles: Title.where(text: titles.uniq),
+      )
     end
   end
 end

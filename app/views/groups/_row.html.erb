@@ -1,8 +1,8 @@
 <tr>
-  <td class="title"><%= piece.title %></td>
-  <td class="functions"><%= piece.feast_names.join(", ") %></td>
+  <td class="title"><%= group.display_title %></td>
+  <td class="functions"><%= group.functions.map(&:name).join(", ") %></td>
   <td class="composers">
-    <% piece.composers.each do |composer| %>
+    <% group.compositions.flat_map(&:composers).each do |composer| %>
       <div class="composer">
         <div class="name"><%= composer&.name %></div>
 
@@ -12,10 +12,10 @@
       </div>
     <% end %>
   </td>
-  <td class="minimum-voices"><%= piece.minimum_voices %></td>
+  <td class="minimum-voices"><%= group.compositions.first.number_of_voices %></td>
   <td class="sources">
     <table>
-      <% piece.inclusions.sort_by {|i| i.from_year || 0}.each do |inclusion| %>
+      <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
           <% source = inclusion.source %>
           <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
@@ -46,9 +46,9 @@
     </table>
   </td>
   <td class="editions">
-    <% piece.editions.each do |edition| %>
+    <% group.editions.each do |edition| %>
       <div class="edition">
-        <% edition_text = "#{edition.editor} (#{edition.voicing})" %>
+        <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
         <% if edition.file_url.present? %>
           <%= link_to edition.file_url, target: "_blank" do %>
             <%= image_tag "pdf.png" %>
@@ -61,7 +61,7 @@
     <% end %>
   </td>
   <td class="recordings">
-    <% piece.recordings.each do |recording| %>
+    <% group.recordings.each do |recording| %>
       <% if recording.file_url.present? %>
         <div class="recording">
           <%= link_to recording.file_url, target: "_blank" do %>

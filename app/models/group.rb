@@ -1,7 +1,15 @@
 class Group < ApplicationRecord
-  has_many :compositions
-  has_many :editions
-  has_many :recordings
+  has_many :compositions, inverse_of: :group
+
+  has_many :composers, through: :compositions
+  has_many :inclusions, through: :compositions
+  has_many :sources, through: :inclusions
+
+  has_many :editions, inverse_of: :group
+  has_many :recordings, inverse_of: :group
+
+  has_many :titles, through: :compositions
+  has_many :functions, through: :titles
 
   validate :matching_voices
 
