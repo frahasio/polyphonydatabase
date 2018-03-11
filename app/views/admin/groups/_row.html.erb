@@ -1,8 +1,8 @@
 <tr>
-  <td><%= check_box_tag "compositions[]", piece.id %></td>
-  <td class="title"><%= piece.title %></td>
+  <td><%= check_box_tag "groups[]", group.id %></td>
+  <td class="title"><%= group.display_title %></td>
   <td class="composers">
-    <% piece.composers.each do |composer| %>
+    <% group.composers.each do |composer| %>
       <div class="composer">
         <div class="name"><%= composer&.name %></div>
 
@@ -12,10 +12,10 @@
       </div>
     <% end %>
   </td>
-  <td class="minimum-voices"><%= piece.minimum_voices %></td>
+  <td class="minimum-voices"><%= group.compositions.first.number_of_voices %></td>
   <td class="sources">
     <table>
-      <% piece.inclusions.map(&:source).sort_by(&:code).each do |source| %>
+      <% group.inclusions.map(&:source).sort_by(&:code).each do |source| %>
         <tr>
           <td><%= source.code %></td>
         </tr>

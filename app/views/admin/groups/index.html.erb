@@ -1,8 +1,7 @@
 <h1>Composition grouping</h1>
 
-<%= render "inclusions/filters" %>
-
+<%= render "groups/filters", search_path: admin_groups_path %>
 <%= form_tag merge_admin_groups_path do %>
-  <%= render "inclusions/table" %>
+  <%= render "groups/table" %>
   <button>Merge</button>
 <% end %>
