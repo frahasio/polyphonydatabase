@@ -30,6 +30,10 @@ Rails.application.routes.draw do
       collection do
         post :merge
       end
+
+      member do
+        post :remove
+      end
     end
 
     root to: "home#index"

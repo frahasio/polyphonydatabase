@@ -13,6 +13,11 @@ class Group < ApplicationRecord
 
   validate :matching_voices
 
+  def multiple?
+    @multiple = (compositions.count > 1) if @multiple.nil?
+    @multiple
+  end
+
 private
 
   def matching_voices

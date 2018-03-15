@@ -41,5 +41,14 @@ module Admin
 
       redirect_to admin_groups_path(request.query_parameters)
     end
+
+    def remove
+      composition = Composition.find(params[:composition_id])
+      composition.update(
+        group: Group.create!(display_title: composition.title.text)
+      )
+
+      redirect_to admin_groups_path(request.query_parameters.except(:composition_id))
+    end
   end
 end
