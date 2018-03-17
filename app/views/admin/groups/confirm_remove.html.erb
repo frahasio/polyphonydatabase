@@ -1,0 +1,8 @@
+<h1>Confirm removal from group</h1>
+
+<p>
+  Confirm removal of composition <%= @composition.title.text %> from group
+  <%= @group.display_title %>
+</p>
+
+<%= button_to "Remove from group", remove_admin_group_path(@group, request.query_parameters.merge(composition_id: @composition.id)) %>

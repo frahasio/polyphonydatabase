@@ -42,6 +42,11 @@ module Admin
       redirect_to admin_groups_path(request.query_parameters)
     end
 
+    def confirm_remove
+      @group = Group.find(params[:id])
+      @composition = Composition.find(params[:composition_id])
+    end
+
     def remove
       composition = Composition.find(params[:composition_id])
       composition.update(

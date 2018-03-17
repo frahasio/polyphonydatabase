@@ -32,6 +32,7 @@ Rails.application.routes.draw do
       end
 
       member do
+        get :confirm_remove
         post :remove
       end
     end
