@@ -1,0 +1,12 @@
+<h1>Edit scribe</h1>
+
+<%= form_for([:admin, @scribe], builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div class="name">
+    <%= f.label :name %>
+    <%= f.text_field :name %>
+  </div>
+
+  <button class="save">Save</button>
+<% end %>
+
+<%= button_to "Delete #{@scribe.name}", admin_scribe_path(@scribe), method: :delete %>

@@ -1,0 +1,13 @@
+<h1>Publishers</h1>
+
+<h2>Add publisher</h2>
+<%= form_for([:admin, Publisher.new]) do |f| %>
+  <%= f.text_field :name %>
+  <button>Create</button>
+<% end %>
+
+<ul>
+  <% Publisher.order(:name).each do |publisher| %>
+    <li><%= link_to publisher.name, edit_admin_publisher_path(publisher) %></li>
+  <% end %>
+</ul>

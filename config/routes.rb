@@ -37,6 +37,9 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :publishers
+    resources :scribes
+
     root to: "home#index"
   end
 

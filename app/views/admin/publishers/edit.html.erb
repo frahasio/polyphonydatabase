@@ -1,0 +1,12 @@
+<h1>Edit publisher</h1>
+
+<%= form_for([:admin, @publisher], builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div class="name">
+    <%= f.label :name %>
+    <%= f.text_field :name %>
+  </div>
+
+  <button class="save">Save</button>
+<% end %>
+
+<%= button_to "Delete #{@publisher.name}", admin_publisher_path(@publisher), method: :delete %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180310204933) do
+ActiveRecord::Schema.define(version: 20180325125112) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -174,6 +174,19 @@ ActiveRecord::Schema.define(version: 20180310204933) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "publishers", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "publishers_sources", id: false, force: :cascade do |t|
+    t.integer "publisher_id", null: false
+    t.integer "source_id",    null: false
+    t.index ["publisher_id"], name: "index_publishers_sources_on_publisher_id", using: :btree
+    t.index ["source_id"], name: "index_publishers_sources_on_source_id", using: :btree
+  end
+
   create_table "recordings", force: :cascade do |t|
     t.string   "performer_name"
     t.string   "file_url"
@@ -185,6 +198,19 @@ ActiveRecord::Schema.define(version: 20180310204933) do
     t.index ["group_id"], name: "index_recordings_on_group_id", using: :btree
     t.index ["performer_id"], name: "index_recordings_on_performer_id", using: :btree
     t.index ["unique_piece_id"], name: "index_recordings_on_unique_piece_id", using: :btree
+  end
+
+  create_table "scribes", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "scribes_sources", id: false, force: :cascade do |t|
+    t.integer "scribe_id", null: false
+    t.integer "source_id", null: false
+    t.index ["scribe_id"], name: "index_scribes_sources_on_scribe_id", using: :btree
+    t.index ["source_id"], name: "index_scribes_sources_on_source_id", using: :btree
   end
 
   create_table "sources", force: :cascade do |t|

@@ -1,0 +1,13 @@
+<h1>Scribes</h1>
+
+<h2>Add scribe</h2>
+<%= form_for([:admin, Scribe.new]) do |f| %>
+  <%= f.text_field :name %>
+  <button>Create</button>
+<% end %>
+
+<ul>
+  <% Scribe.order(:name).each do |scribe| %>
+    <li><%= link_to scribe.name, edit_admin_scribe_path(scribe) %></li>
+  <% end %>
+</ul>
