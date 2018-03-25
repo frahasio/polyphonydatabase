@@ -1,6 +1,11 @@
 <h1>The Polyphony Database</h1>
 <div class="wrapper">
   <button onclick="myFunction()" class="help">Show/hide help</button>
+
+  <% if admin_user? %>
+    <%= link_to "Add & catalogue sources", admin_sources_path, target: "_blank" %>
+  <% end %>
+
   <div id="topexplanation">
     Welcome to the Polyphony Database, the new free resource for early music enthusiasts and musicologists. There's not much to see here at the moment, but check back soon as we'll be adding new things every day.
     <br><br>

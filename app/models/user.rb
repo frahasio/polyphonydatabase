@@ -1,1 +1,5 @@
-class User < ActiveRecord::Base; end
+class User < ActiveRecord::Base
+  def admin?
+    true
+  end
+end
