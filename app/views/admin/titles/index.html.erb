@@ -1,5 +1,17 @@
 <h1>Edit titles</h1>
 
+<ul>
+  <% letter_options.each do |letter| %>
+    <li>
+      <% if letter == current_letter %>
+        <%= letter %>
+      <% else %>
+        <%= link_to letter, url_for(letter: letter) %>
+      <% end %>
+    </li>
+  <% end %>
+</ul>
+
 <table>
   <thead>
     <tr>
