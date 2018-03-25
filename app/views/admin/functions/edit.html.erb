@@ -1,0 +1,12 @@
+<h1>Edit function</h1>
+
+<%= form_for([:admin, @function], builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div class="name">
+    <%= f.label :name %>
+    <%= f.text_field :name %>
+  </div>
+
+  <button class="save">Save</button>
+<% end %>
+
+<%= button_to "Delete #{@function.name}", admin_function_path(@function), method: :delete %>

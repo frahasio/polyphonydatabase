@@ -37,6 +37,7 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :functions
     resources :publishers
     resources :scribes
 
