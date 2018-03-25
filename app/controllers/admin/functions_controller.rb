@@ -1,5 +1,5 @@
 module Admin
-  class FunctionsController < ApplicationController
+  class FunctionsController < AdminControllerBase
     def index; end
 
     def create

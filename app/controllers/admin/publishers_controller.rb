@@ -1,5 +1,5 @@
 module Admin
-  class PublishersController < ApplicationController
+  class PublishersController < AdminControllerBase
     def index; end
 
     def create

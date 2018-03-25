@@ -1,5 +1,5 @@
 module Admin
-  class ScribesController < ApplicationController
+  class ScribesController < AdminControllerBase
     def index; end
 
     def create
