@@ -41,6 +41,8 @@ Rails.application.routes.draw do
     resources :publishers
     resources :scribes
 
+    resources :titles, only: [:index, :update]
+
     root to: "home#index"
   end
 
