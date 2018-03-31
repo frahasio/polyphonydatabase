@@ -28,7 +28,26 @@
 <div class="sourcebasics">
   <div class="left">
   <%= f.text_area :title %>
-  <%= f.select :publisher_or_scribe, Source::PUBLISHERS_AND_SCRIBES.map { |pub| [pub, pub] }, include_blank: true %>
+  <%= f.select :publisher_ids,
+    Publisher.order(:name).map {|pub| [pub.name, pub.id] },
+    {
+      label: "Publishers",
+    },
+    {
+      class: "select2",
+      multiple: true
+    }
+  %>
+  <%= f.select :scribe_ids,
+    Scribe.order(:name).map {|s| [s.name, s.id] },
+    {
+      label: "Scribes",
+    },
+    {
+      class: "select2",
+      multiple: true
+    }
+  %>
   <%= f.text_field :town %>
   <div class="dates">
       <div class="prefix">

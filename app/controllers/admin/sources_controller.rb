@@ -84,6 +84,8 @@ module Admin
         :town,
         :type,
         :url,
+        publisher_ids: [],
+        scribe_ids: [],
         inclusions_attributes: [
           :attributed_to,
           :id,
