@@ -13,8 +13,23 @@ module Admin
       @functions = Function.order(:name)
     end
 
-    def update
-      title = Title.find(params[:id])
+    def update_all
+      params.require(:titles).each do |id, title_params|
+        title_params = title_params.permit(
+          :text,
+          function_ids: [],
+        )
+
+        update_title(id, title_params)
+      end
+
+      redirect_to admin_titles_path
+    end
+
+    private
+
+    def update_title(id, title_params)
+      title = Title.find(id)
 
       title.assign_attributes(title_params)
 
@@ -26,19 +41,13 @@ module Admin
 
       unless title.save
         errors = title.errors.full_messages
-        flash[:error] = errors.to_sentence
+        flash[:error] ||= ""
+        flash[:error] += "#{errors.to_sentence}\n"
       end
-
-      redirect_to admin_titles_path
     end
 
-  private
-
     def title_params
-      params.require(:title).permit(
-        :text,
-        function_ids: [],
-      )
+
     end
 
     def current_letter

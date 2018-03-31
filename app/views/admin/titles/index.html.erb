@@ -12,36 +12,38 @@
   <% end %>
 </ul>
 
-<table>
-  <thead>
-    <tr>
-      <th>Title</th>
-      <th>Function</th>
-      <th># inclusions</th>
-      <th></th>
-    </tr>
-  </thead>
+<%= form_tag update_all_admin_titles_path do %>
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Function</th>
+        <th># inclusions</th>
+      </tr>
+    </thead>
 
-  <tbody>
-    <% function_options = @functions.map {|f| [f.name, f.id] } %>
-    <% @titles.each do |title| %>
-      <%= form_for([:admin, title], builder: ActionView::Helpers::FormBuilder) do |f| %>
-        <tr>
-          <td><%= f.text_field :text %></td>
-          <td class="functions">
-            <%= f.select :function_ids,
-              function_options,
-              {},
-              {
-                class: "select2",
-                multiple: true
-              }
-            %>
-          </td>
-          <td><%= title.inclusions_count %></td>
-          <td><button>Save</button></td>
-        </tr>
+    <tbody>
+      <% function_options = @functions.map {|f| [f.name, f.id] } %>
+      <% @titles.each do |title| %>
+        <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
+          <tr>
+            <td><%= f.text_field :text %></td>
+            <td class="functions">
+              <%= f.select :function_ids,
+                function_options,
+                {},
+                {
+                  class: "select2",
+                  multiple: true
+                }
+              %>
+            </td>
+            <td><%= title.inclusions_count %></td>
+          </tr>
+        <% end %>
       <% end %>
-    <% end %>
-  </tbody>
-</table>
+    </tbody>
+  </table>
+
+  <button>Save</button>
+<% end %>
