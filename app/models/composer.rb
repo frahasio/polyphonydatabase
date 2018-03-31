@@ -4,6 +4,7 @@ class Composer < ActiveRecord::Base
   has_many :composers_unique_pieces, inverse_of: :composer
   has_many :unique_pieces, through: :composers_unique_pieces, inverse_of: :composers
   has_and_belongs_to_many :compositions
+  has_many :groups, through: :compositions
 
   validates :name, uniqueness: true
 

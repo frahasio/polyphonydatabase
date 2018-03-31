@@ -1,8 +1,9 @@
+<% prefix = "" unless defined?(:prefix) %>
 <div class="maintable">
   <table class="sortable">
-    <%= render "headings" %>
+    <%= render "#{prefix}headings" %>
     <% @groups.each do |group| %>
-      <%= render "row", group: group %>
+      <%= render "#{prefix}row", group: group %>
     <% end %>
   </table>
 </div>
