@@ -27,6 +27,7 @@
 <%= form_for([:admin, @source]) do |f| %>
 <div class="sourcebasics">
   <div class="left">
+  <%= f.text_field :code %>
   <%= f.text_area :title %>
   <%= f.select :publisher_ids,
     Publisher.order(:name).map {|pub| [pub.name, pub.id] },
