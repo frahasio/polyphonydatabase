@@ -16,8 +16,17 @@ module Admin
     def update
       title = Title.find(params[:id])
 
-      unless title.update(title_params)
-        flash[:error] = title.errors.full_messages.to_sentence
+      title.assign_attributes(title_params)
+
+      if title.text_changed? && (other_title = Title.find_by(text: title.text))
+        title.functions += other_title.functions
+        title.compositions += other_title.compositions
+        other_title.destroy!
+      end
+
+      unless title.save
+        errors = title.errors.full_messages
+        flash[:error] = errors.to_sentence
       end
 
       redirect_to admin_titles_path
