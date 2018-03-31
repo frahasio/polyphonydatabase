@@ -23,13 +23,14 @@
   </thead>
 
   <tbody>
+    <% function_options = @functions.map {|f| [f.name, f.id] } %>
     <% @titles.each do |title| %>
       <%= form_for([:admin, title], builder: ActionView::Helpers::FormBuilder) do |f| %>
         <tr>
           <td><%= f.text_field :text %></td>
           <td class="functions">
             <%= f.select :function_ids,
-              options_from_collection_for_select(@functions, :id, :name, title.functions.pluck(:id)),
+              function_options,
               {},
               {
                 class: "select2",
