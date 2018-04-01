@@ -4,14 +4,16 @@ class GroupFilter
   end
 
   def filter(groups)
-    groups = search(groups)
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
     groups = voices(groups)
     groups = source(groups)
     groups = has_edition?(groups)
-    has_recording?(groups)
+    groups = has_recording?(groups)
+    groups = search(groups)
+
+    groups
   end
 
 private
@@ -55,12 +57,12 @@ private
 
   def function(groups)
     return groups if params[:function].blank?
-    groups.where(functions: {name: params[:function]})
+    groups.left_outer_joins(:functions).where(functions: {id: params[:function]})
   end
 
   def composer(groups)
     return groups if params[:composer].blank?
-    groups.where(composers: {id: params[:composer]})
+    groups.left_outer_joins(:composers).where(composers: {id: params[:composer]})
   end
 
   def composer_country(groups)
@@ -80,11 +82,11 @@ private
 
   def has_edition?(groups)
     return groups if params[:has_edition].blank?
-    groups.joins(:editions)
+    groups.left_outer_joins(:editions).where.not(editions: {id: nil})
   end
 
   def has_recording?(groups)
     return groups if params[:has_recording].blank?
-    groups.joins(:recordings)
+    groups.left_outer_joins(:recordings).where.not(recordings: {id: nil})
   end
 end

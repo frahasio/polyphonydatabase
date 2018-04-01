@@ -37,6 +37,12 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :editions, only: [:index] do
+      collection do
+        post :update_for_group
+      end
+    end
+
     resources :functions
     resources :publishers
     resources :scribes
