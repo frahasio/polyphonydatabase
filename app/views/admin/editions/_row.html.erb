@@ -1,0 +1,61 @@
+<%= form_for [:admin, group], url: update_for_group_admin_editions_path(request.query_parameters.merge(group_id: group.id)) do |f| %>
+  <% group.editions.build %>
+
+  <% group.compositions.each_with_index do |composition, index| %>
+    <tr>
+      <td class="title">
+        <%= composition.title.text %>
+        <% if group.multiple? %>
+          <% if index == 0 %>
+            <div>
+              Group display name:
+            </div>
+            <div>
+              <%= group.display_title %>
+            </div>
+          <% end %>
+        <% end %>
+      </td>
+      <td class="composers">
+        <% composition.composers.each do |composer| %>
+          <div class="composer">
+            <div class="name"><%= composer&.name %></div>
+
+            <% if composer %>
+              <div class="dates"><%= composer.dates %></div>
+            <% end %>
+          </div>
+        <% end %>
+      </td>
+      <td class="minimum-voices">
+        <% if index == 0 %>
+          <%= composition.number_of_voices %>
+        <% end %>
+      </td>
+      <td class="sources">
+        <table>
+          <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
+            <tr>
+              <td><%= source.code %></td>
+            </tr>
+          <% end %>
+        </table>
+      </td>
+      <td>
+        <% if index == 0 %>
+          <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |e| %>
+            <div class="edition">
+              <%= e.text_field :voicing, placeholder: "Voicing" %>
+              <%= e.text_field :file_url, placeholder: "File URL" %>
+            </div>
+          <% end %>
+        <% end %>
+      </td>
+      <td>
+        <% if index == 0 %>
+          <button>Save</button>
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
+<% end %>

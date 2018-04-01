@@ -39,7 +39,7 @@ Rails.application.routes.draw do
 
     resources :editions, only: [:index] do
       collection do
-        post :update_for_group
+        patch :update_for_group
       end
     end
 
