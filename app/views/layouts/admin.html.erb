@@ -16,7 +16,7 @@
       <li><%= link_to "Add & catalogue sources", admin_sources_path, target: "_blank" %></li>
       <li><%= link_to "Resolve attributions", admin_attributions_path, target: "_blank" %></li>
       <li><%= link_to "Add & edit composers", new_admin_composer_path, target: "_blank" %></li>
-      <li><a href="http://www.polyphonydatabase.com">Public website</a></li>
+      <li><%= link_to "Public website", root_path %></li>
     </ul>
     <div class="login">
       <% if logged_in? %>
