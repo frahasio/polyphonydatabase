@@ -1,9 +1,11 @@
-<% prefix = "" unless defined?(:prefix) %>
+<% headings_partial ||= "headings" %>
+<% row_partial ||= "row" %>
+
 <div class="maintable">
   <table class="sortable">
-    <%= render "#{prefix}headings" %>
+    <%= render headings_partial %>
     <% @groups.each do |group| %>
-      <%= render "#{prefix}row", group: group %>
+      <%= render row_partial, group: group %>
     <% end %>
   </table>
 </div>
