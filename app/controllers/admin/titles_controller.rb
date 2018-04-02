@@ -14,12 +14,7 @@ module Admin
     end
 
     def update_all
-      params.require(:titles).each do |id, title_params|
-        title_params = title_params.permit(
-          :text,
-          function_ids: [],
-        )
-
+      titles_to_update.each do |id, title_params|
         update_title(id, title_params)
       end
 
@@ -29,11 +24,23 @@ module Admin
     private
 
     def update_title(id, title_params)
-      title = Title.find(id)
+      title = Title.find_by(id: id)
+      return unless title
+
+      title_params = title_params.permit(
+        :text,
+        function_ids: [],
+      )
 
       title.assign_attributes(title_params)
 
       if title.text_changed? && (other_title = Title.find_by(text: title.text))
+        other_id = other_title.id.to_s
+
+        if (other_update_params = titles_to_update[other_id])
+          update_title(other_id, other_update_params)
+        end
+
         title.functions += other_title.functions
         title.compositions += other_title.compositions
         other_title.destroy!
@@ -44,6 +51,10 @@ module Admin
         flash[:error] ||= ""
         flash[:error] += "#{errors.to_sentence}\n"
       end
+    end
+
+    def titles_to_update
+      params.require(:titles)
     end
   end
 end
