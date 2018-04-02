@@ -1,0 +1,13 @@
+<h1>Editors</h1>
+
+<h2>Add editor</h2>
+<%= form_for([:admin, Editor.new]) do |f| %>
+  <%= f.text_field :name %>
+  <button>Create</button>
+<% end %>
+
+<ul>
+  <% Editor.order(:name).each do |editor| %>
+    <li><%= link_to editor.name, edit_admin_editor_path(editor) %></li>
+  <% end %>
+</ul>
