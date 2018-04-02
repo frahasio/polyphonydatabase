@@ -55,7 +55,9 @@
         <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
         <% if edition.file_url.present? %>
           <%= link_to edition.file_url, target: "_blank" do %>
-            <%= image_tag "pdf.png" %>
+            <% if edition.has_pdf? %>
+              <%= image_tag "pdf.png" %>
+            <% end %>
             <%= edition_text %>
           <% end %>
         <% else %>

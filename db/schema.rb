@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180331135428) do
+ActiveRecord::Schema.define(version: 20180402152125) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -105,11 +105,12 @@ ActiveRecord::Schema.define(version: 20180331135428) do
     t.string   "voicing"
     t.string   "editor_name"
     t.string   "file_url"
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
+    t.datetime "created_at",                      null: false
+    t.datetime "updated_at",                      null: false
     t.integer  "unique_piece_id"
     t.integer  "group_id"
     t.integer  "editor_id"
+    t.boolean  "has_pdf",         default: false
     t.index ["editor_id"], name: "index_editions_on_editor_id", using: :btree
     t.index ["group_id"], name: "index_editions_on_group_id", using: :btree
     t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree

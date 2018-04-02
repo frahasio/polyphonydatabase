@@ -33,6 +33,7 @@ module Admin
         editions_attributes: [
           :editor_id,
           :file_url,
+          :has_pdf,
           :id,
           :voicing,
         ]
