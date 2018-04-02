@@ -1,16 +1,6 @@
 <h1>Edit titles</h1>
 
-<ul>
-  <% letter_options.each do |letter| %>
-    <li>
-      <% if letter == current_letter %>
-        <%= letter %>
-      <% else %>
-        <%= link_to letter, url_for(letter: letter) %>
-      <% end %>
-    </li>
-  <% end %>
-</ul>
+<%= paginate @titles %>
 
 <%= form_tag update_all_admin_titles_path do %>
   <table>
@@ -44,6 +34,8 @@
       <% end %>
     </tbody>
   </table>
+
+  <%= paginate @titles %>
 
   <button>Save</button>
 <% end %>
