@@ -1,0 +1,61 @@
+<%= form_for [:admin, group], url: update_for_group_admin_recordings_path(request.query_parameters.merge(group_id: group.id)) do |f| %>
+  <% group.recordings.build %>
+
+  <% group.compositions.each_with_index do |composition, index| %>
+    <tr>
+      <td class="title">
+        <%= composition.title.text %>
+        <% if group.multiple? %>
+          <% if index == 0 %>
+            <div>
+              Group display name:
+            </div>
+            <div>
+              <%= group.display_title %>
+            </div>
+          <% end %>
+        <% end %>
+      </td>
+      <td class="composers">
+        <% composition.composers.each do |composer| %>
+          <div class="composer">
+            <div class="name"><%= composer&.name %></div>
+
+            <% if composer %>
+              <div class="dates"><%= composer.dates %></div>
+            <% end %>
+          </div>
+        <% end %>
+      </td>
+      <td class="minimum-voices">
+        <% if index == 0 %>
+          <%= composition.number_of_voices %>
+        <% end %>
+      </td>
+      <td class="sources">
+        <table>
+          <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
+            <tr>
+              <td><%= source.code %></td>
+            </tr>
+          <% end %>
+        </table>
+      </td>
+      <td>
+        <% if index == 0 %>
+          <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
+            <div class="recording">
+              <%= r.select :performer_id, Performer.order(:name).map {|rec| [rec.name, rec.id] }, include_blank: true %>
+              <%= r.text_field :file_url, placeholder: "File URL" %>
+            </div>
+          <% end %>
+        <% end %>
+      </td>
+      <td>
+        <% if index == 0 %>
+          <button>Save</button>
+        <% end %>
+      </td>
+    </tr>
+  <% end %>
+<% end %>

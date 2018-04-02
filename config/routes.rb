@@ -43,6 +43,12 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :recordings, only: [:index] do
+      collection do
+        patch :update_for_group
+      end
+    end
+
     resources :functions
     resources :publishers
     resources :scribes

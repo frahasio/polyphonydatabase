@@ -16,6 +16,9 @@ class Group < ApplicationRecord
   accepts_nested_attributes_for :editions, reject_if: :all_blank
   before_validation :delete_blank_editions
 
+  accepts_nested_attributes_for :recordings, reject_if: :all_blank
+  before_validation :delete_blank_recordings
+
   def multiple?
     @multiple = (compositions.count > 1) if @multiple.nil?
     @multiple
@@ -26,6 +29,12 @@ private
   def delete_blank_editions
     editions.each do |edition|
       edition.mark_for_destruction if edition.voicing.blank? && edition.file_url.blank?
+    end
+  end
+
+  def delete_blank_recordings
+    recordings.each do |recording|
+      recording.mark_for_destruction if recording.file_url.blank?
     end
   end
 
