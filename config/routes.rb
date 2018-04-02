@@ -51,6 +51,7 @@ Rails.application.routes.draw do
 
     resources :editors
     resources :functions
+    resources :performers
     resources :publishers
     resources :scribes
 

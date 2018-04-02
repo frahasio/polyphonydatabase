@@ -1,0 +1,12 @@
+<h1>Edit performer</h1>
+
+<%= form_for([:admin, @performer], builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div class="name">
+    <%= f.label :name %>
+    <%= f.text_field :name %>
+  </div>
+
+  <button class="save">Save</button>
+<% end %>
+
+<%= button_to "Delete #{@performer.name}", admin_performer_path(@performer), method: :delete %>

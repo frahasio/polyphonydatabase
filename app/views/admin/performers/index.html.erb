@@ -1,0 +1,13 @@
+<h1>Performers</h1>
+
+<h2>Add performer</h2>
+<%= form_for([:admin, Performer.new]) do |f| %>
+  <%= f.text_field :name %>
+  <button>Create</button>
+<% end %>
+
+<ul>
+  <% Performer.order(:name).each do |performer| %>
+    <li><%= link_to performer.name, edit_admin_performer_path(performer) %></li>
+  <% end %>
+</ul>
