@@ -18,7 +18,7 @@ module Admin
         update_title(id, title_params)
       end
 
-      redirect_to admin_titles_path
+      redirect_to admin_titles_path(page: params[:page])
     end
 
     private

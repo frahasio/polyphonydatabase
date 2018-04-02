@@ -2,7 +2,7 @@
 
 <%= paginate @titles %>
 
-<%= form_tag update_all_admin_titles_path do %>
+<%= form_tag update_all_admin_titles_path(page: params[:page]) do %>
   <table>
     <thead>
       <tr>
