@@ -76,36 +76,35 @@
     <tr>
       <th class="order">Order</th>
       <th class="attributed-to">Attributed to</th>
-      <th class="composers">Actual composer</th>
       <th class="title">Title</th>
       <th class="clefs">Clefs</th>
       <th class="notes">Notes</th>
       <th></th>
     </tr>
 
+    <% composer_list = Composer.order(:name).map {|c| [c.name, c.id] } %>
     <%= f.fields_for(:inclusions, @inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
       <tr class="inclusion">
         <td class="order"><%= i.text_field :order %></td>
         <td class="attributed-to">
-          <%= i.text_field :attributed_to %>
-        </td>
-        <td class="composers">
           <ul class="composer">
-            <% i.object.attributions.each do |a| %>
-              <% if composer = (a.alias&.composer || (a.incorrectly_attributed? && a.composer)) %>
-                <li class="resolved #{'incorrectly-attributed' if a.incorrectly_attributed}">
-                  <%= link_to (composer.name || "(Unnamed composer)"), edit_admin_composer_path(composer), target: "_blank", class: ("incorrectly-attributed" if a.incorrectly_attributed?) %>
-                </li>
-              <% elsif a.anonym_name.present? %>
-                <li class="unresolved"><%= link_to "Unresolved", admin_attributions_path, target: "_blank" %></li>
-              <% end %>
+            <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
+              <li>
+                <%= a.text_field :text %>
+                <%= a.select :refers_to_id, composer_list, include_blank: true %>
+              </li>
             <% end %>
           </ul>
         </td>
-        <%= i.fields_for(:piece) do |piece| %>
-          <td class="title">
-            <%= piece.text_area :title %>
-          </td>
+
+        <% i.object.composition ||= Composition.new %>
+        <%= i.fields_for(:composition) do |c| %>
+          <% c.object.title ||= Title.new %>
+          <%= c.fields_for(:title) do |t| %>
+            <td class="title">
+              <%= t.text_area :text %>
+            </td>
+          <% end %>
         <% end %>
         <td class="clefs">
           <%= i.fields_for(:clefs_inclusions, @clefs_inclusions[i.object]) do |clef_inclusion| %>

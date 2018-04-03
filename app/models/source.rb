@@ -332,20 +332,6 @@ private
   end
 
   def unfilled?(attrs)
-    unfilled_attributions?(attrs) && unfilled_piece?(attrs)
-  end
-
-  def unfilled_attributions?(attrs)
-    return true unless attrs.has_key?(:attributions_attributes)
-
-    attrs[:attributions_attributes].values.all? do |attribution|
-      attribution[:anonym_attributes] && attribution[:anonym_attributes].values.all?(&:blank?)
-    end
-  end
-
-  def unfilled_piece?(attrs)
-    return true unless attrs.has_key?(:piece_attributes)
-
-    attrs[:piece_attributes].values.all?(&:blank?)
+    attrs.dig(:composition_attributes, :title_attributes, :text).blank?
   end
 end

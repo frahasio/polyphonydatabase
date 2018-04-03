@@ -1,12 +1,14 @@
 class Inclusion < ActiveRecord::Base
   belongs_to :source, inverse_of: :inclusions
-  belongs_to :piece, inverse_of: :inclusions
+  belongs_to :piece, inverse_of: :inclusions, optional: true
   belongs_to :unique_piece, inverse_of: :inclusions, optional: true
   belongs_to :composition, inverse_of: :inclusions
   has_many :attributions, inverse_of: :inclusion, dependent: :destroy
   has_many :clefs_inclusions, inverse_of: :inclusion
   has_many :clefs, through: :clefs_inclusions
-  accepts_nested_attributes_for :attributions, :piece
+  accepts_nested_attributes_for :piece, reject_if: :all_blank
+  accepts_nested_attributes_for :composition, reject_if: :blank_title
+  accepts_nested_attributes_for :attributions, reject_if: :all_blank
   accepts_nested_attributes_for :clefs_inclusions, reject_if: :filler_clef?
 
   validates :source_id, uniqueness: { scope: :piece_id }
@@ -42,5 +44,11 @@ class Inclusion < ActiveRecord::Base
 
   def voice_count
     clefs_inclusions.count
+  end
+
+  private
+
+  def blank_title
+    composition&.title&.text.blank?
   end
 end

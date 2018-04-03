@@ -99,6 +99,18 @@ module Admin
             :id,
             :title,
           ],
+          attributions_attributes: [
+            :id,
+            :refers_to_id,
+            :text,
+          ],
+          composition_attributes: [
+            :id,
+            title_attributes: [
+              :id,
+              :text,
+            ]
+          ]
         ],
       )
     end
