@@ -97,9 +97,7 @@
           </ul>
         </td>
 
-        <% i.object.composition ||= Composition.new %>
         <%= i.fields_for(:composition) do |c| %>
-          <% c.object.title ||= Title.new %>
           <%= c.fields_for(:title) do |t| %>
             <td class="title">
               <%= t.text_area :text %>

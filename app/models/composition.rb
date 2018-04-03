@@ -11,6 +11,6 @@ class Composition < ApplicationRecord
   private
 
   def ensure_group
-    group ||= Group.new(display_title: title&.text)
+    self.group ||= Group.new(display_title: title&.text)
   end
 end

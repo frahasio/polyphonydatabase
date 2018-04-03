@@ -5,9 +5,6 @@ class Attribution < ActiveRecord::Base
   belongs_to :anonym, inverse_of: :attributions, optional: true
   accepts_nested_attributes_for :anonym
 
-  validate :has_some_attribution
-  validate :incorrect_attribution
-
   belongs_to :refers_to, class_name: "Composer", optional: true, inverse_of: :attributions
 
   def self.unattributed

@@ -18,6 +18,8 @@ module Admin
 
       @clefs_inclusions = {}
       @inclusions.each do |i|
+        i.attributions.build
+
         @clefs_inclusions[i] = i.clefs_inclusions.order(:id).to_a
         extra_clefs_needed = 8 - (i.clefs_inclusions.count % 8)
 
@@ -30,10 +32,8 @@ module Admin
 
       num_blank_rows.times do |n|
         inclusion = @source.inclusions.build(order: last_order + n + 1)
-        inclusion.piece = Piece.new
-
-        attributions = inclusion.attributions.build
-        attributions.anonym = Anonym.new
+        inclusion.composition = Composition.new(title: Title.new)
+        inclusion.attributions.build
 
         8.times do
           inclusion.clefs_inclusions.build
