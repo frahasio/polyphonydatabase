@@ -4,6 +4,22 @@ namespace :generate do
     CompositionGenerator.run
   end
 
+  task new_attributions: :environment do
+    print "Updating attributions"
+    Attribution
+      .where(incorrectly_attributed: false)
+      .includes(:anonym, alias: :anonym)
+      .find_each do |attribution|
+        attribution.update(
+          text: attribution.anonym_name,
+          refers_to: attribution.alias&.composer,
+        )
+        print "."
+      end
+
+    puts " done."
+  end
+
   desc "Loads publishers and scribes into the database"
   task publishers_and_scribes: :environment do
     publishers = [

@@ -8,6 +8,8 @@ class Attribution < ActiveRecord::Base
   validate :has_some_attribution
   validate :incorrect_attribution
 
+  belongs_to :refers_to, class_name: "Composer", foreign_key: "refers_to", optional: true, inverse_of: :attributions
+
   def self.unattributed
     where("composer_id is null").where("alias_id is null")
   end

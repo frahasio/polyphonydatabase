@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180402152125) do
+ActiveRecord::Schema.define(version: 20180402172029) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -38,6 +38,8 @@ ActiveRecord::Schema.define(version: 20180402152125) do
     t.boolean  "incorrectly_attributed"
     t.datetime "created_at",             null: false
     t.datetime "updated_at",             null: false
+    t.string   "text"
+    t.integer  "refers_to"
     t.index ["alias_id"], name: "index_attributions_on_alias_id", using: :btree
     t.index ["anonym_id"], name: "index_attributions_on_anonym_id", using: :btree
     t.index ["composer_id"], name: "index_attributions_on_composer_id", using: :btree
