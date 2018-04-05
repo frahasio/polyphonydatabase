@@ -20,6 +20,8 @@ module Admin
       @inclusions.each do |i|
         i.attributions.build
 
+        i.composition ||= Composition.new(title: Title.new)
+
         @clefs_inclusions[i] = i.clefs_inclusions.order(:id).to_a
         extra_clefs_needed = 8 - (i.clefs_inclusions.count % 8)
 
@@ -56,7 +58,9 @@ module Admin
     def update
       source = Source.find(params[:id])
 
-      unless source.update(source_params)
+      source.assign_attributes(source_params)
+
+      unless source.save && assign_compositions(source)
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
@@ -113,6 +117,34 @@ module Admin
           ]
         ],
       )
+    end
+
+    def assign_compositions(saved_source)
+      source = Source.find(saved_source.id)
+      source.inclusions.all? do |inclusion|
+        current_comp = inclusion.composition
+
+        possible_comps = Composition.where(
+          number_of_voices: inclusion.minimum_voice_count,
+          title: current_comp.title,
+        ).includes(:composers)
+
+        existing_comp = possible_comps.find {|c|
+          c.composers.sort == inclusion.composers.sort
+        }
+
+        if existing_comp
+          inclusion.composition = existing_comp unless existing_comp == current_comp
+        else
+          inclusion.composition = Composition.new(
+            number_of_voices: inclusion.minimum_voice_count,
+            title: current_comp.title,
+            composers: inclusion.composers,
+          )
+        end
+
+        inclusion.save
+      end
     end
   end
 end
