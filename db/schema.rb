@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180403134448) do
+ActiveRecord::Schema.define(version: 20180407115406) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -44,6 +44,29 @@ ActiveRecord::Schema.define(version: 20180403134448) do
     t.index ["anonym_id"], name: "index_attributions_on_anonym_id", using: :btree
     t.index ["composer_id"], name: "index_attributions_on_composer_id", using: :btree
     t.index ["inclusion_id"], name: "index_attributions_on_inclusion_id", using: :btree
+  end
+
+  create_table "clef_combinations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "clef_combinations_clefs", id: false, force: :cascade do |t|
+    t.integer  "clef_combination_id", null: false
+    t.integer  "clef_id",             null: false
+    t.datetime "created_at",          null: false
+    t.datetime "updated_at",          null: false
+    t.index ["clef_combination_id"], name: "index_clef_combinations_clefs_on_clef_combination_id", using: :btree
+    t.index ["clef_id"], name: "index_clef_combinations_clefs_on_clef_id", using: :btree
+  end
+
+  create_table "clef_combinations_voicings", id: false, force: :cascade do |t|
+    t.integer  "clef_combination_id", null: false
+    t.integer  "voicing_id",          null: false
+    t.datetime "created_at",          null: false
+    t.datetime "updated_at",          null: false
+    t.index ["clef_combination_id"], name: "index_clef_combinations_voicings_on_clef_combination_id", using: :btree
+    t.index ["voicing_id"], name: "index_clef_combinations_voicings_on_voicing_id", using: :btree
   end
 
   create_table "clefs", force: :cascade do |t|
@@ -257,6 +280,12 @@ ActiveRecord::Schema.define(version: 20180403134448) do
   create_table "users", force: :cascade do |t|
     t.string   "username"
     t.string   "password"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "voicings", force: :cascade do |t|
+    t.string   "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
