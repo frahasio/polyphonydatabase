@@ -54,6 +54,7 @@ Rails.application.routes.draw do
     resources :performers
     resources :publishers
     resources :scribes
+    resources :voicings
 
     resources :titles, only: [:index] do
       collection do

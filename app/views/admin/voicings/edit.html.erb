@@ -1,0 +1,12 @@
+<h1>Edit voicing</h1>
+
+<%= form_for([:admin, @voicing], builder: ActionView::Helpers::FormBuilder) do |f| %>
+  <div class="text">
+    <%= f.label :text %>
+    <%= f.text_field :text %>
+  </div>
+
+  <button class="save">Save</button>
+<% end %>
+
+<%= button_to "Delete #{@voicing.text}", admin_voicing_path(@voicing), method: :delete %>

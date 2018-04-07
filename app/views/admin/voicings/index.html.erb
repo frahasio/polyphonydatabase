@@ -1,0 +1,13 @@
+<h1>Voicings</h1>
+
+<h2>Add voicing</h2>
+<%= form_for([:admin, Voicing.new]) do |f| %>
+  <%= f.text_field :text %>
+  <button>Create</button>
+<% end %>
+
+<ul>
+  <% Voicing.order(:text).each do |voicing| %>
+    <li><%= link_to voicing.text, edit_admin_voicing_path(voicing) %></li>
+  <% end %>
+</ul>

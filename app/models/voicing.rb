@@ -1,0 +1,2 @@
+class Voicing < ApplicationRecord
+end
