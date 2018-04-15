@@ -21,13 +21,6 @@ module Admin
         i.attributions.build
 
         i.composition ||= Composition.new(title: Title.new)
-
-        @clefs_inclusions[i] = i.clefs_inclusions.order(:id).to_a
-        extra_clefs_needed = 8 - (i.clefs_inclusions.count % 8)
-
-        extra_clefs_needed.times do
-          @clefs_inclusions[i] << i.clefs_inclusions.build
-        end
       end
 
       num_blank_rows = [10, (20 - @inclusions.count)].max
@@ -36,10 +29,6 @@ module Admin
         inclusion = @source.inclusions.build(order: last_order + n + 1)
         inclusion.composition = Composition.new(title: Title.new)
         inclusion.attributions.build
-
-        8.times do
-          inclusion.clefs_inclusions.build
-        end
 
         @inclusions << inclusion
       end
@@ -95,10 +84,7 @@ module Admin
           :id,
           :notes,
           :order,
-          clefs_inclusions_attributes: [
-            :annotated_note,
-            :id,
-          ],
+          display_clefs: [],
           piece_attributes: [
             :id,
             :title,

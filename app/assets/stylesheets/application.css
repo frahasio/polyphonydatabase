@@ -13,8 +13,8 @@
  *= require_tree .
  *= require_self
  */
- 
- 
+
+
 /* GENERAL */
  * {
     padding: 0;
@@ -262,7 +262,7 @@ td img.clef-image.transitional {
     float: left;
     margin:2px;
 }
-.clef-image.partial {
+.clef-image.optional {
     filter:opacity(0.3);
 }
 

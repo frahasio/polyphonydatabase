@@ -11,7 +11,7 @@
   <li>Parts that change clef for a significant amount of a piece should have both catalogued, separated by a forward slash e.g. <strong>c4/c3</strong> where the first clef is the dominant one.</li>
   <li>Single clef instrumental parts should just be catalogued as normal with a note in the notes box. More complex insturmental parts should have <strong>bc</strong> (continuo) <strong>org</strong> (organ) or <strong>lut</strong> (lute) in place of a clef.</li>
   <li>Missing voices (i.e. that need reconstruction) should be surrounded with square brackets [].</li>
-  <li>Parts that are both missing AND partial must have square brackets inside round brackets. So ([c4]) is valid but [(c4)] is not.</li>
+  <li>Parts that are both missing AND optional must have round brackets inside square brackets. So [(c4)] is valid but ([c4]) is not.</li>
   <li>If you need more boxes for titles or clefs, save the page and more will magically appear.</li>
   <li>Separate multiple attributions (i.e. for collaborative pieces - pretty rare) with a pipe |.</li>
   <li>If you find a publisher or scribe that's not in the list, let me know - it's very quick to add things to the list.</li>
@@ -105,8 +105,12 @@
           <% end %>
         <% end %>
         <td class="clefs">
-          <%= i.fields_for(:clefs_inclusions, @clefs_inclusions[i.object]) do |clef_inclusion| %>
-            <%= clef_inclusion.text_field :annotated_note, size: 3 %>
+          <% i.object.display_clefs.each do |clef| %>
+            <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
+          <% end %>
+
+          <% (8 - (i.object.display_clefs.count % 8)).times do %>
+            <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", nil, size: 3 %>
           <% end %>
         </td>
         <td class="notes"><%= i.text_area :notes %></td>

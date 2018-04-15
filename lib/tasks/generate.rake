@@ -4,6 +4,7 @@ namespace :generate do
     CompositionGenerator.run
   end
 
+  desc "Updates attributions"
   task new_attributions: :environment do
     print "Updating attributions"
     Attribution
@@ -312,6 +313,15 @@ namespace :generate do
       Publisher.where(name: publishers).each do |publisher|
         publisher.update(sources: publisher.sources + sources)
       end
+    end
+  end
+
+  desc "Creates ClefCombination objects for blank inclusions"
+  task clef_combinations: :environment do
+    Inclusion.where(clef_combination_id: nil).find_each do |inclusion|
+      inclusion.display_clefs = inclusion.clefs_inclusions.map(&:annotated_note).reject(&:blank?)
+      puts "Saving clef combination #{inclusion.clef_combination_id} for inclusion #{inclusion.id}"
+      inclusion.save!
     end
   end
 end

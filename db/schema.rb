@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180407115406) do
+ActiveRecord::Schema.define(version: 20180415150714) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+  enable_extension "intarray"
 
   create_table "aliases", force: :cascade do |t|
     t.integer  "composer_id"
@@ -47,17 +48,9 @@ ActiveRecord::Schema.define(version: 20180407115406) do
   end
 
   create_table "clef_combinations", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "clef_combinations_clefs", id: false, force: :cascade do |t|
-    t.integer  "clef_combination_id", null: false
-    t.integer  "clef_id",             null: false
-    t.datetime "created_at",          null: false
-    t.datetime "updated_at",          null: false
-    t.index ["clef_combination_id"], name: "index_clef_combinations_clefs_on_clef_combination_id", using: :btree
-    t.index ["clef_id"], name: "index_clef_combinations_clefs_on_clef_id", using: :btree
+    t.datetime "created_at",              null: false
+    t.datetime "updated_at",              null: false
+    t.integer  "clef_ids",   default: [],              array: true
   end
 
   create_table "clef_combinations_voicings", id: false, force: :cascade do |t|
@@ -71,8 +64,10 @@ ActiveRecord::Schema.define(version: 20180407115406) do
 
   create_table "clefs", force: :cascade do |t|
     t.string   "note"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at",                 null: false
+    t.datetime "updated_at",                 null: false
+    t.boolean  "optional",   default: false, null: false
+    t.index ["note", "optional"], name: "index_clefs_on_note_and_optional", unique: true, using: :btree
   end
 
   create_table "clefs_inclusions", force: :cascade do |t|
@@ -176,13 +171,18 @@ ActiveRecord::Schema.define(version: 20180407115406) do
     t.integer  "source_id"
     t.integer  "piece_id"
     t.string   "notes"
-    t.integer  "order",           null: false
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
+    t.integer  "order",                            null: false
+    t.datetime "created_at",                       null: false
+    t.datetime "updated_at",                       null: false
     t.integer  "unique_piece_id"
     t.string   "public_notes"
     t.integer  "position"
     t.integer  "composition_id"
+    t.integer  "missing_clef_ids",    default: [],              array: true
+    t.integer  "incomplete_clef_ids", default: [],              array: true
+    t.integer  "clef_combination_id"
+    t.json     "transitions_to"
+    t.index ["clef_combination_id"], name: "index_inclusions_on_clef_combination_id", using: :btree
     t.index ["composition_id"], name: "index_inclusions_on_composition_id", using: :btree
     t.index ["piece_id"], name: "index_inclusions_on_piece_id", using: :btree
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree

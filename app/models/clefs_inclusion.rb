@@ -1,3 +1,4 @@
+#TODO Dead code
 class ClefsInclusion < ActiveRecord::Base
   belongs_to :inclusion, inverse_of: :clefs_inclusions
   belongs_to :clef, inverse_of: :clefs_inclusions
@@ -27,8 +28,8 @@ class ClefsInclusion < ActiveRecord::Base
 
     # Count transitional clef as one clef in min count
     annotated = [clef.note, transitions_to].reject(&:blank?).join("/")
-    annotated = "[#{annotated}]" if missing? # Include in min count
     annotated = "(#{annotated})" if partial? # Do not include in min count
+    annotated = "[#{annotated}]" if missing? # Include in min count
 
     return annotated
   end
@@ -36,9 +37,9 @@ class ClefsInclusion < ActiveRecord::Base
   def annotated_note=(annotated)
     if annotated.blank?
       self.mark_for_destruction
-    elsif annotated =~ %r{^(\()?(\[)?(\w+)(?:/(\w+))?}
-      self.partial = $1.present?
-      self.missing = $2.present?
+    elsif annotated =~ %r{^(\[)?(\()?(\w+)(?:/(\w+))?}
+      self.missing = $1.present?
+      self.partial = $2.present?
       self.transitions_to = $4 unless $4.blank?
       self.clef = Clef.find_or_initialize_by(note: $3)
     end

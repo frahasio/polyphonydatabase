@@ -40,8 +40,13 @@
           </td>
           <td class="position"><%= inclusion.position %></td>
           <td class="clefs">
-            <% ClefsInclusion.sort(inclusion.clefs_inclusions).each do |ci| %>
-              <%= image_tag "clefs/#{ci.note_for_image}.png", alt: ci.note_for_image, class: "clef-image #{'missing' if ci.missing?} #{'partial' if ci.partial?} #{'transitional' if ci.transitional?}" %>
+            <% if inclusion.clef_combination %>
+              <% inclusion.clef_combination.sorted_clefs.each do |clef| %>
+                <%= image_tag "clefs/#{note_for_image(clef, inclusion)}.png",
+                  alt: note_for_image(clef, inclusion),
+                  class: classes_for_image(clef, inclusion)
+                %>
+              <% end %>
             <% end %>
           </td>
           <td class="notes"><%= inclusion.public_notes %></td>
