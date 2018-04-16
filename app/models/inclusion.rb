@@ -1,8 +1,8 @@
 class Inclusion < ActiveRecord::Base
   belongs_to :source, inverse_of: :inclusions
   belongs_to :piece, inverse_of: :inclusions, optional: true
-  belongs_to :composition, inverse_of: :inclusions
-  belongs_to :clef_combination
+  belongs_to :composition, inverse_of: :inclusions, optional: true
+  belongs_to :clef_combination, optional: true
   has_many :composers, through: :attributions, source: :refers_to
   has_many :attributions, inverse_of: :inclusion, dependent: :destroy
   has_many :clefs, through: :clefs_inclusions
