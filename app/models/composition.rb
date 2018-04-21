@@ -7,7 +7,7 @@ class Composition < ApplicationRecord
   accepts_nested_attributes_for :title
 
   before_validation :ensure_group, :look_up_title
-  after_commit :delete_if_empty
+  after_commit :delete_if_empty, on: :update
 
   private
 

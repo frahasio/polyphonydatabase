@@ -1,7 +1,39 @@
 namespace :generate do
+  desc "Sets up the database according to the new schema"
+  task all: :environment do
+    %w[
+      compositions
+      feasts
+      new_attributions
+      publishers_and_scribes
+      clef_combinations
+    ].each do |task|
+      puts "Generating #{task}"
+      Rake::Task["generate:#{task}"].invoke
+    end
+  end
+
   desc "Creates compositions based on inclusions etc."
   task compositions: :environment do
     CompositionGenerator.run
+  end
+
+  desc "Creates feasts"
+  task feasts: :environment do
+    Feast::FEASTS.each do |code, name|
+      titles = FeastsUniquePiece.where(feast_code: code).map {|fup|
+        fup.unique_piece&.title
+      }.compact
+
+      if titles.count > 0
+        puts "Creating feast `#{name}` with #{titles.count} titles"
+      end
+
+      Function.create!(
+        name: name,
+        titles: Title.where(text: titles.uniq),
+      )
+    end
   end
 
   desc "Updates attributions"

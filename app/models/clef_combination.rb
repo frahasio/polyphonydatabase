@@ -60,12 +60,12 @@ class ClefCombination < ApplicationRecord
     return sorted + unsortable
   end
 
-  private
-
   def clefs
     clef_objects = Clef.find(clef_ids)
     clef_ids.map {|id| clef_objects.find {|co| co.id == id } }
   end
+
+  private
 
   CLEF_ORDER = %w[
     g1
