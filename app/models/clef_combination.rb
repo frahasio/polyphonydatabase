@@ -61,8 +61,7 @@ class ClefCombination < ApplicationRecord
   end
 
   def clefs
-    clef_objects = Clef.find(clef_ids)
-    clef_ids.map {|id| clef_objects.find {|co| co.id == id } }
+    clef_ids.map {|id| Clef.cached_clefs[id] }
   end
 
   private
