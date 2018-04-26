@@ -1,6 +1,6 @@
 class GroupsController < ApplicationController
   def index
-    groups = Group.distinct.order(:display_title)
+    groups = Group.order(:display_title)
     groups = GroupFilter.new(params).filter(groups)
     groups = groups.includes(
       :recordings,

@@ -1,7 +1,7 @@
 module Admin
   class GroupsController < AdminControllerBase
     def index
-      groups = Group.distinct.order(:display_title)
+      groups = Group.order(:display_title)
       groups = GroupFilter.new(params).filter(groups)
       groups = groups.includes(
         compositions: [
