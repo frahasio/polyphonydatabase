@@ -1,5 +1,5 @@
 <% group.compositions.each_with_index do |composition, index| %>
-  <tr>
+  <tr class="<%= 'first-of-group' if index == 0 %>">
     <td>
       <% if index == 0 %>
         <%= check_box_tag "groups[]", group.id %>
