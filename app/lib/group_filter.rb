@@ -73,17 +73,17 @@ private
 
   def composer_country(groups)
     return groups if params[:composer_country].blank?
-    groups.left_outer_joins(:composers).where(composers: {birthplace_2: params[:composer_country]})
+    groups.left_outer_joins(:compositions).where(composers: {birthplace_2: params[:composer_country]})
   end
 
   def voices(groups)
     return groups if params[:voices].blank?
-    groups.joins(:compositions).where(compositions: {number_of_voices: params[:voices]})
+    groups.left_outer_joins(:compositions).where(compositions: {number_of_voices: params[:voices]})
   end
 
   def source(groups)
     return groups if params[:source].blank?
-    groups.joins(:sources).where(sources: {id: params[:source]})
+    groups.left_outer_joins(:sources).where(sources: {id: params[:source]})
   end
 
   def has_edition?(groups)
