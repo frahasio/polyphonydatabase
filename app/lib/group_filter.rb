@@ -1,9 +1,14 @@
 class GroupFilter
+  def self.filter(params)
+    self.new(params).filter
+  end
+
   def initialize(params)
     @params = params
   end
 
-  def filter(groups)
+  def filter
+    groups = Group.select("distinct on(groups.id) groups.*")
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
@@ -12,6 +17,7 @@ class GroupFilter
     groups = has_edition?(groups)
     groups = has_recording?(groups)
     groups = search(groups)
+    groups = Group.from("(#{groups.to_sql}) as groups")
 
     groups
   end
@@ -67,17 +73,17 @@ private
 
   def composer_country(groups)
     return groups if params[:composer_country].blank?
-    groups.where(composers: {birthplace_2: params[:composer_country]})
+    groups.left_outer_joins(:composers).where(composers: {birthplace_2: params[:composer_country]})
   end
 
   def voices(groups)
     return groups if params[:voices].blank?
-    groups.where(compositions: {number_of_voices: params[:voices]})
+    groups.joins(:compositions).where(compositions: {number_of_voices: params[:voices]})
   end
 
   def source(groups)
     return groups if params[:source].blank?
-    groups.where(sources: {id: params[:source]})
+    groups.joins(:sources).where(sources: {id: params[:source]})
   end
 
   def has_edition?(groups)

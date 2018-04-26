@@ -1,19 +1,18 @@
 module Admin
   class RecordingsController < AdminControllerBase
     def index
-      groups = Group.order(:display_title)
-      groups = GroupFilter.new(params).filter(groups)
-      groups = groups.includes(
-        compositions: [
-          :composers,
-          :title,
-          inclusions: [
-            :source,
-          ]
-        ],
-      )
-
-      @groups = groups.limit(200)
+      @groups = GroupFilter.filter(params)
+        .order(:display_title)
+        .limit(200)
+        .includes(
+          compositions: [
+            :composers,
+            :title,
+            inclusions: [
+              :source,
+            ]
+          ],
+        )
     end
 
     def update_for_group
