@@ -12,6 +12,8 @@ class Source < ActiveRecord::Base
   scope :uncatalogued, -> { where(catalogued: false) }
   scope :catalogued, -> { where(catalogued: true) }
 
+  before_validation :update_dates_string, :update_location_and_pubscribe
+
   TYPES = %w[
     MS
     Print
@@ -327,7 +329,7 @@ private
   def update_location_and_pubscribe
     self.location_and_pubscribe = [
       town,
-      publisher_or_scribe
+      (publishers + scribes).map(&:name).to_sentence,
     ].reject(&:blank?).join(": ")
   end
 
