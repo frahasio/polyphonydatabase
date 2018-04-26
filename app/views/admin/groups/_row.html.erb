@@ -1,7 +1,7 @@
 <% group.compositions.each_with_index do |composition, index| %>
-  <tr class="<%= 'first-of-group' if index == 0 %>">
+  <tr class="<%= 'first-of-group' if index.zero? && group.multiple? %>">
     <td>
-      <% if index == 0 %>
+      <% if index.zero? %>
         <%= check_box_tag "groups[]", group.id %>
       <% end %>
     </td>
@@ -11,7 +11,7 @@
         <div>
           <%= link_to "Remove from group", confirm_remove_admin_group_path(group, request.query_parameters.merge(composition_id: composition.id)) %>
         </div>
-        <% if index == 0 %>
+        <% if index.zero? %>
           <div>
             Group display name:
           </div>
@@ -33,7 +33,7 @@
       <% end %>
     </td>
     <td class="minimum-voices">
-      <% if index == 0 %>
+      <% if index.zero? %>
         <%= composition.number_of_voices %>
       <% end %>
     </td>
