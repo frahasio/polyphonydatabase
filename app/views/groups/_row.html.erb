@@ -2,14 +2,20 @@
   <td class="title"><%= group.display_title %></td>
   <td class="functions"><%= group.functions.map(&:name).join(", ") %></td>
   <td class="composers">
-    <% group.compositions.flat_map(&:composers).each do |composer| %>
+    <% if group.conflicting_attributions? %>
       <div class="composer">
-        <div class="name"><%= composer&.name %></div>
-
-        <% if composer %>
-          <div class="dates"><%= composer.dates %></div>
-        <% end %>
+        <div class="name">Conflicting attributions</div>
       </div>
+    <% else %>
+      <% group.composers.uniq.each do |composer| %>
+        <div class="composer">
+          <div class="name"><%= composer&.name %></div>
+
+          <% if composer %>
+            <div class="dates"><%= composer.dates %></div>
+          <% end %>
+        </div>
+      <% end %>
     <% end %>
   </td>
   <td class="minimum-voices"><%= group.compositions.first.number_of_voices %></td>

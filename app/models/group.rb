@@ -24,6 +24,18 @@ class Group < ApplicationRecord
     @multiple
   end
 
+  def conflicting_attributions?
+    return false unless multiple?
+
+    compositions.map {|c| c.composers.order(:id).to_a }.uniq.size > 1
+  end
+
+  def delete_if_empty(composition_to_ignore = nil)
+    if compositions.empty? || compositions == [composition_to_ignore]
+      self.destroy
+    end
+  end
+
 private
 
   def delete_blank_editions
