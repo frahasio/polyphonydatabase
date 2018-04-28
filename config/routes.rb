@@ -62,6 +62,12 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :clef_combinations, path: "clef-combinations", only: [:index] do
+      collection do
+        post :match
+      end
+    end
+
     root to: "home#index"
   end
 

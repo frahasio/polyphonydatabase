@@ -523,3 +523,7 @@ table.unique-pieces table.sources td.dates {
 table.unique-pieces table.sources td.notes {
     min-width:250px;
 }
+
+table#combo-matcher select {
+    width: 250px;
+}

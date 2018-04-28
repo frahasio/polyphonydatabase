@@ -1,0 +1,43 @@
+<h1>Clef combination matcher</h1>
+
+<%= paginate @clef_combinations %>
+
+<%= form_tag match_admin_clef_combinations_path do %>
+  <table id="combo-matcher">
+    <thead>
+      <th>Clef combination</th>
+      <th>Voicings</th>
+      <th>Number of inclusions</th>
+    </thead>
+
+    <tbody>
+      <% @clef_combinations.each do |combo| %>
+        <tr>
+          <td><%= combo.to_display([], [], {}).join %></td>
+
+          <td>
+            <%= fields_for "clef_combinations[]", combo do |f| %>
+              <%= f.select :voicings,
+                options_for_select(
+                  Voicing.order(:text).map {|v| [v.text, v.id] },
+                  combo.voicings.map(&:id),
+                ),
+                {},
+                {
+                  class: "select2",
+                  multiple: true,
+                }
+              %>
+            <% end %>
+          </td>
+
+          <td><%= combo.inclusions.size %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <%= paginate @clef_combinations %>
+
+  <button>Save</button>
+<% end %>

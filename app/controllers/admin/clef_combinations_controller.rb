@@ -1,31 +1,22 @@
 module Admin
   class ClefCombinationsController < AdminControllerBase
-    def index; end
+    def index
+      @clef_combinations = ClefCombination.all.page(params[:page]).per(50)
+    end
 
-    def create
-      clef_combination = ClefCombination.create(clef_combination_params)
+    def match
+      params[:clef_combinations].each do |combo_id, voicing_params|
+        combo = ClefCombination.find(combo_id)
+        combo.voicings = Voicing.find(voicing_params[:voicings].reject(&:blank?))
 
-      unless clef_combination.persisted?
-        flash[:error] = clef_combination.errors.full_messages.to_sentence
+        unless combo.save
+          errors = combo.errors.full_messages
+          flash[:error] ||= ""
+          flash[:error] += "#{errors.to_sentence}\n"
+        end
       end
 
       redirect_to admin_clef_combinations_path
-    end
-
-    def destroy
-      clef_combination = ClefCombination.find(params[:id])
-
-      unless clef_combination.destroy
-        flash[:error] = clef_combination.errors.full_messages.to_sentence
-      end
-
-      redirect_to admin_clef_combinations_path
-    end
-
-  private
-
-    def clef_combination_params
-      params.require(:clef_combination).permit(:text)
     end
   end
 end
