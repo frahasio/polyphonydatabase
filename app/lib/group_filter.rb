@@ -13,6 +13,7 @@ class GroupFilter
     groups = composer(groups)
     groups = composer_country(groups)
     groups = voices(groups)
+    groups = voicing(groups)
     groups = source(groups)
     groups = has_edition?(groups)
     groups = has_recording?(groups)
@@ -79,6 +80,13 @@ private
   def voices(groups)
     return groups if params[:voices].blank?
     groups.left_outer_joins(:compositions).where(compositions: {number_of_voices: params[:voices]})
+  end
+
+  def voicing(groups)
+    return groups if params[:voicing].blank?
+    groups
+      .left_outer_joins(compositions: {inclusions: {clef_combination: :voicings}})
+      .where(voicings: {id: params[:voicing]})
   end
 
   def source(groups)
