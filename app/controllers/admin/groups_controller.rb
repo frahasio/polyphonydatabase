@@ -48,9 +48,15 @@ module Admin
 
     def remove
       composition = Composition.find(params[:composition_id])
+      existing_group = composition.group
+
       composition.update(
         group: Group.create!(display_title: composition.title.text)
       )
+
+      unless existing_group.reload.multiple?
+        existing_group.update(display_title: existing_group.compositions.first.title.text)
+      end
 
       redirect_to admin_groups_path(request.query_parameters.except(:composition_id))
     end

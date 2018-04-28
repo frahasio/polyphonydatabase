@@ -126,10 +126,15 @@ module Admin
             number_of_voices: inclusion.minimum_voice_count,
             title: current_comp.title,
             composers: inclusion.composers,
+            group: current_comp.group,
           )
         end
 
-        inclusion.save
+        saved = inclusion.save
+
+        current_comp.delete_if_empty(inclusion) unless existing_comp && existing_comp == current_comp
+
+        saved
       end
     end
   end
