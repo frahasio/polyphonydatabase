@@ -2,7 +2,7 @@
 
 <%= paginate @clef_combinations %>
 
-<%= form_tag match_admin_clef_combinations_path do %>
+<%= form_tag match_admin_clef_combinations_path(page: params[:page]) do %>
   <table id="combo-matcher">
     <thead>
       <th>Clef combination</th>

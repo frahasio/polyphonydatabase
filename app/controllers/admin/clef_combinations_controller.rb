@@ -19,7 +19,7 @@ module Admin
         end
       end
 
-      redirect_to admin_clef_combinations_path
+      redirect_to admin_clef_combinations_path(page: params[:page])
     end
   end
 end
