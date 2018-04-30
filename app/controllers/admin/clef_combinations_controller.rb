@@ -1,7 +1,10 @@
 module Admin
   class ClefCombinationsController < AdminControllerBase
     def index
-      @clef_combinations = ClefCombination.all.page(params[:page]).per(50)
+      @clef_combinations = ClefCombination
+        .order(:sorting)
+        .page(params[:page])
+        .per(50)
     end
 
     def match

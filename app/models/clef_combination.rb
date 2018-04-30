@@ -2,6 +2,8 @@ class ClefCombination < ApplicationRecord
   has_many :inclusions
   has_and_belongs_to_many :voicings
 
+  before_validation :update_sorting
+
   def self.from_display(annotated_notes)
     missing_ids = []
     incomplete_ids = []
@@ -97,4 +99,8 @@ class ClefCombination < ApplicationRecord
     bc
     lut
   ].freeze
+
+  def update_sorting
+    self.sorting = sorted_clefs.map(&:note).join
+  end
 end

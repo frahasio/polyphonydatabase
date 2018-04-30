@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180415150714) do
+ActiveRecord::Schema.define(version: 20180430120112) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -51,6 +51,7 @@ ActiveRecord::Schema.define(version: 20180415150714) do
     t.datetime "created_at",              null: false
     t.datetime "updated_at",              null: false
     t.integer  "clef_ids",   default: [],              array: true
+    t.string   "sorting"
   end
 
   create_table "clef_combinations_voicings", id: false, force: :cascade do |t|
