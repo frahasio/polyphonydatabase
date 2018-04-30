@@ -74,7 +74,7 @@ private
 
   def composer_country(groups)
     return groups if params[:composer_country].blank?
-    groups.left_outer_joins(:compositions).where(composers: {birthplace_2: params[:composer_country]})
+    groups.left_outer_joins(:composers).where(composers: {birthplace_2: params[:composer_country]})
   end
 
   def voices(groups)
