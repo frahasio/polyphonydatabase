@@ -34,6 +34,8 @@ module Admin
 
       title.assign_attributes(title_params)
 
+      other_functions = []
+      other_compositions = []
       if title.text_changed? && (other_title = Title.find_by(text: title.text))
         other_id = other_title.id.to_s
 
@@ -41,8 +43,8 @@ module Admin
           update_title(other_id, other_update_params)
         end
 
-        title.functions += other_title.functions
-        title.compositions += other_title.compositions
+        other_functions = other_title.functions.to_a
+        other_compositions = other_title.compositions.to_a
         other_title.destroy!
       end
 
@@ -51,6 +53,9 @@ module Admin
         flash[:error] ||= ""
         flash[:error] += "#{errors.to_sentence}\n"
       end
+
+      title.update(functions: title.functions + other_functions)
+      other_compositions.each {|c| c.update(title_id: title.id) }
     end
 
     def titles_to_update
