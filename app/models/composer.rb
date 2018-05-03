@@ -6,7 +6,7 @@ class Composer < ActiveRecord::Base
   has_and_belongs_to_many :compositions
   has_many :groups, through: :compositions
 
-  validates :name, uniqueness: true
+  validates :name, uniqueness: true, presence: true
 
   validate :years_are_valid
 
