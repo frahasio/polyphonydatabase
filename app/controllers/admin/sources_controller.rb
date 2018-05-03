@@ -11,7 +11,10 @@ module Admin
         h[s.catalogued ? "Catalogued" : "Uncatalogued"] << [s.code, s.id]
       }
 
-      @inclusions = @source.inclusions.order(:order).to_a
+      @inclusions = @source.inclusions
+        .includes({composition: :title}, :attributions, :clef_combination)
+        .order(:order)
+        .to_a
 
       last_inclusion = @inclusions.last
       last_order = last_inclusion&.order || -1
