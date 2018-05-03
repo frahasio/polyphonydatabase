@@ -46,6 +46,16 @@ module Admin
       redirect_to edit_admin_composer_path(composer)
     end
 
+    def destroy
+      composer = Composer.find(params[:id])
+
+      unless composer.destroy
+        flash[:error] = composer.errors.full_messages.to_sentence
+      end
+
+      redirect_to new_admin_composer_path
+    end
+
     def switch_to
       redirect_to edit_admin_composer_path(params[:id])
     end

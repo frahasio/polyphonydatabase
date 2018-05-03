@@ -60,4 +60,6 @@
   <button class="save">Save</button>
 <% end %>
 
+<%= button_to "Delete", admin_composer_path(@composer), method: :delete %>
+
 <%= render "groups/table", headings_partial: "groups/headings", row_partial: "groups/row" %>
