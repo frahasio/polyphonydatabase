@@ -50,6 +50,31 @@ namespace :generate do
         print "."
       end
 
+    to_check_composer = Composer.find_or_create_by!(name: "to check")
+    anon_composer = Composer.find_or_create_by!(name: "Anon")
+
+    Attribution
+      .where(incorrectly_attributed: true)
+      .joins(:anonym)
+      .find_each do |attribution|
+        attribution.update(
+          text: attribution.anonym_name,
+          refers_to: to_check_composer,
+        )
+        print "."
+      end
+
+    Attribution
+      .where(incorrectly_attributed: true)
+      .left_outer_joins(:anonym)
+      .where(anonyms: {id: nil})
+      .find_each do |attribution|
+        attribution.update(
+          refers_to: anon_composer,
+        )
+        print "."
+      end
+
     puts " done."
   end
 
