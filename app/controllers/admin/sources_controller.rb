@@ -20,7 +20,6 @@ module Admin
         .page(params[:page])
         .per(20)
 
-
       @clefs_inclusions = {}
       @inclusions.each do |i|
         i.attributions.build
@@ -58,7 +57,7 @@ module Admin
 
       source.assign_attributes(source_params)
 
-      unless source.save && assign_compositions(source)
+      unless source.save && assign_compositions
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
@@ -114,10 +113,14 @@ module Admin
       )
     end
 
-    def assign_compositions(saved_source)
-      source = Source.find(saved_source.id)
-      source.inclusions.all? do |inclusion|
+    def assign_compositions
+      inclusion_ids = source_params[:inclusions_attributes].map { |_, attributes|
+        attributes[:id]
+      }
+
+      Inclusion.where(id: inclusion_ids).includes(composition: [:title, :group]).each do |inclusion|
         current_comp = inclusion.composition
+        debugger if current_comp.nil?
 
         possible_comps = Composition.where(
           number_of_voices: inclusion.minimum_voice_count,
