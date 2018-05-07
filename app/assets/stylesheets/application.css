@@ -196,9 +196,17 @@ div.maintable {
 .maintable table td.sources {
     font-size:0.9em;
 }
-.maintable table td.sources tr {
+.maintable table td.sources tr > td {
     border-bottom:1px solid grey;
-    padding:5px 0px;
+    padding-top:5px;
+    padding-bottom:5px;
+}
+.maintable table td.sources tr:first-child > td {
+    padding-top:0;
+}
+.maintable table td.sources tr:last-child > td {
+    padding-bottom:0;
+    border-bottom:none;
 }
 .maintable table td.sources tr:last-child {
     border-bottom:none;
