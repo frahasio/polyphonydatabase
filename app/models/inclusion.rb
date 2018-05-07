@@ -61,6 +61,14 @@ class Inclusion < ActiveRecord::Base
     clef_combination.to_display(missing_clef_ids, incomplete_clef_ids, transitions_to)
   end
 
+  def public_notes
+    if composition.group.conflicting_attributions?
+      ["Attrib: #{attributions.map {|a| a.text}.join(', ')}", notes].reject(&:blank?).join("; ")
+    else
+      notes
+    end
+  end
+
   private
 
   def required_clefs
