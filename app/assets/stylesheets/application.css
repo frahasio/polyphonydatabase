@@ -37,3 +37,15 @@ a:hover {
     color: orange;
     cursor: pointer
 }
+h1 {
+    background-color: #039;
+    background: linear-gradient(#a00, #6c0000);
+    padding: 1%;
+    color: #fff;
+    text-align: center;
+    font-size: 190%;
+}
+button.help,
+div.topexplanation {
+    display:none;
+}
