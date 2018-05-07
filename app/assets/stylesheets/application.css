@@ -91,6 +91,7 @@ table {
     border-spacing: 1px;   
     width:100%;
     margin:10px;
+    min-width:960px;
 }
 th {
     color: white;
@@ -108,6 +109,10 @@ td {
 }
 table img {
     height:25px;
+}
+div.maintable {
+    overflow-x:auto;
+    width:100%;
 }
 .maintable table td.title,
 .maintable table th.title {
