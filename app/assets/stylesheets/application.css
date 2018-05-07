@@ -110,6 +110,10 @@ table table {
     margin:0;
     min-width:0;
     border-collapse: collapse;
+    border-spacing:5px;
+}
+table table td {
+    background-color:#e2e2e2;
 }
 th {
     color: white;
@@ -200,17 +204,6 @@ div.maintable {
 }
 .maintable table td.sources {
     font-size:0.9em;
-}
-.maintable table td.sources tr {
-    padding:5px 0px;
-    border-bottom:1px solid adabab;
-}
-.maintable table td.sources tr:first-child {
-    padding-top:0px;
-}
-.maintable table td.sources tr:last-child {
-    padding-bottom:0px;
-    border-bottom:none;
 }
 .maintable table td.source-name {
     width:30%;
