@@ -112,6 +112,9 @@ td {
     background-color: lightgrey;
     padding:6px;
 }
+td.position {
+    display:none;
+}
 table img {
     height:25px;
 }
@@ -138,4 +141,10 @@ div.maintable {
 .maintable table td.recordings,
 .maintable table th.recording {
     width:8%;
+}
+.maintable table td.sources {
+    font-size:0.8em;
+}
+.maintable table td.clefs {
+    display:flex;
 }
