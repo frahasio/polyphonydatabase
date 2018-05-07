@@ -92,7 +92,6 @@ table {
     border-collapse: separate;
     border-spacing: 1px;   
     width:100%;
-    margin:10px;
     min-width:960px;
 }
 table table {
