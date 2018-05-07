@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+  
   <head>
     <title>Polyphony Database</title>
     <%= csrf_meta_tags %>
@@ -12,17 +13,7 @@
     <% if flash[:error] %>
       <p><%= flash[:error] %></p>
     <% end %>
-
     <%= yield %>
-    <script>
-    function myFunction() {
-    var x = document.getElementById('topexplanation');
-    if (x.style.display !== 'block') {
-        x.style.display = 'block';
-    } else {
-        x.style.display = 'none';
-    }
-}
-</script>
   </body>
+  
 </html>
