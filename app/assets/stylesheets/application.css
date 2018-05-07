@@ -242,8 +242,19 @@ div.recording + div.recording {
 }
 
 /* ADMIN PAGES */
+div.nav {
+    width:98%;
+    margin:10px auto;
+}
 ul.navigation {
     display:flex;
+    flex-wrap:wrap;
+    flex-grow:1;
+    align-items:center;
+    justify-content:stretch;
+}
+ul.navigation * {
+    flex-grow:1;
 }
 ul.navigation a {
     display:block;
