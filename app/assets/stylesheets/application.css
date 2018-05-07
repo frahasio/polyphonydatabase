@@ -226,7 +226,7 @@ a.edition,
 a.recording {
     display:flex;
     justify-content:flex-start;
-    align-items:center;    
+    align-items:flex-start;    
 }
 a.edition img,
 a.recording img {
