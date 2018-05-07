@@ -121,6 +121,7 @@ table img {
 }
 div.maintable {
     overflow-x:auto;
+    max-width:100%;
     width:100%;
     font-size:12px;
 }
