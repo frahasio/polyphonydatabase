@@ -116,6 +116,7 @@ table {
     width:100%;
     min-width:960px;
     overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
     margin:10px 0 30px 0;
 }
 table.sortable {
@@ -196,6 +197,7 @@ table td.sources img.optional.incomplete + img.incomplete {
 }
 div.maintable {
     overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
     max-width:100%;
     width:100%;
     font-size:12px;
