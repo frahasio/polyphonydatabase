@@ -127,7 +127,7 @@ div.maintable {
 }
 .maintable table td.title,
 .maintable table th.title {
-    width:15%;
+    width:13%;
 }
 .maintable table td.functions,
 .maintable table th.function,
@@ -146,8 +146,19 @@ div.maintable {
     width:8%;
 }
 .maintable table td.sources {
-    font-size:0.8em;
+    font-size:0.9em;
+}
+.maintable table td.source-name {
+    width:30%;
+    padding:0;
 }
 .maintable table td.clefs {
     display:flex;
+    width:40%;
+    padding:0 6px;
+    background-color:#e5e2c7;
+}
+.maintable table td.notes {
+    width:20%;
+    padding:0;
 }
