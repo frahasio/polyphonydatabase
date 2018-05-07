@@ -118,7 +118,7 @@ td.position {
 }
 table td.sources img {
     display:inline-block;
-    height:45px;
+    height:50px;
     margin:0;
     padding:0;
     border:0;
@@ -160,7 +160,7 @@ div.maintable {
 .maintable table td.clefs {
     width:40%;
     padding:0 6px;
-    background-color:#e5e2c7;
+    background-color:#e2e2e2;
 }
 .maintable table td.notes {
     width:20%;
