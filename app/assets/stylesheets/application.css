@@ -72,11 +72,11 @@ div.filters form label {
 button {
     color: white;
     background-color: #104e8b;
-    border:2px groove #102e4c;
+    border:2px groove #2e6ca9;
 }
 button:hover {
-    background-color: #2378ce;
-    transform:scale(1.1,1.1);
+    background-color: #2e6ca9;
+    transform:scale(1.03,1.03);
 }
 table {
     border-collapse: separate;
