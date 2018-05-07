@@ -63,7 +63,12 @@ class Inclusion < ActiveRecord::Base
 
   def public_notes
     if composition.group.conflicting_attributions?
-      ["Attrib: #{attributions.map {|a| a.text}.join(', ')}", notes].reject(&:blank?).join("; ")
+      attrib_texts = attributions.map(&:text).reject(&:blank?)
+      if attrib_texts.any?
+        ["Attrib: #{.map {|a| a.text}.join(', ')}", notes].reject(&:blank?).join("; ")
+      else
+        notes
+      end
     else
       notes
     end
