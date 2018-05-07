@@ -79,7 +79,7 @@ div.filters form {
     align-items:center;
     justify-content:stretch;
 }
-div.filters form * {
+div.filters form > * {
     flex-grow:1;
 }
 div.filters input[type=text] {
