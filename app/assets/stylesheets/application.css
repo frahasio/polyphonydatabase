@@ -132,6 +132,10 @@ td {
     padding:6px;
     vertical-align:top;
 }
+.composer .dates {
+    text-style:italic;
+    color:grey;
+}
 td.position {
     display:none;
 }
