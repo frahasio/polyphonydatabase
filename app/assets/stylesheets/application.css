@@ -302,3 +302,7 @@ ul.navigation a:hover {
     background-color: #2e6ca9;
     transform:scale(1.07,1.07);
 }
+div.listofsources {
+    display:flex;
+    flex-wrap:nowrap;
+}
