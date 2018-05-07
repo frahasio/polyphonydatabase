@@ -62,7 +62,7 @@ div.topexplanation {
 }
 select,
 input {
-    margin:10px;
+    margin:6px;
     border-radius:5px;
     padding:5px;
     font-size:1.1em;
@@ -84,6 +84,7 @@ div.filters form > * {
 }
 div.filters input[type=text] {
     font-size:1.2em;
+    margin:10px 6px;
     width:100%;
     line-height:120%;
 }
