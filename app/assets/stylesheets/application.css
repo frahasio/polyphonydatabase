@@ -228,3 +228,8 @@ a.recording {
     justify-content:flex-start;
     align-items:center;    
 }
+a.edition img,
+a.recording img {
+    height: 20px;
+    margin-right:5px;
+}
