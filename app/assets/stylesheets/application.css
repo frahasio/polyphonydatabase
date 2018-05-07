@@ -58,7 +58,7 @@ input {
 }
 div.filters {
     width:98%;
-    margin:0 auto;
+    margin:10px auto;
     font-size:1.1em;
 }
 div.filters form {
@@ -73,6 +73,7 @@ div.filters form * {
 }
 div.filters input[type=text] {
     width:99%;
+    font-size:1.2em;
 }
 div.filters label {
     display:flex;
@@ -108,10 +109,11 @@ table {
 }
 table.sortable {
     width:98%;
-    margin:0 auto;
+    margin:10px auto 20px auto;
 }
 table table {
     width:100%;
+    height:100%;
     margin:0;
     min-width:0;
     border-spacing:2px;
