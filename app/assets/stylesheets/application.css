@@ -56,3 +56,9 @@ div.filters form {
     display:flex;
     flex-wrap:wrap;
 }
+div.filters form select,
+div.filters form input {
+    padding:5px;
+    font-size:1.1em;
+}
+
