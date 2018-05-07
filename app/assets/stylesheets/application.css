@@ -278,7 +278,9 @@ ul.navigation * {
 }
 .adminwrapper ul {
     display:flex;
-    flex-direction:column;    
+    flex-direction:column;
+    align-items:center;
+    font-size:1.2em;
 }
 .adminwrapper li {
     padding:3px;
