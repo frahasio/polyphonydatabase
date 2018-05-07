@@ -18,7 +18,7 @@ module Admin
 
       @inclusions = Kaminari.paginate_array(@inclusions)
         .page(params[:page])
-        .per(20)
+        .per(40)
 
       @clefs_inclusions = {}
       @inclusions.each do |i|
