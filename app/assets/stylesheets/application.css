@@ -62,7 +62,7 @@ div.topexplanation {
 }
 select,
 input {
-    margin:0.5%;
+    margin:10px;
     border-radius:5px;
     padding:5px;
     font-size:1.1em;
@@ -83,7 +83,6 @@ div.filters form > * {
     flex-grow:1;
 }
 div.filters input[type=text] {
-    width:99%;
     font-size:1.2em;
 }
 div.filters label {
