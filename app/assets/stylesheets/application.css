@@ -210,8 +210,7 @@ div.maintable {
 }
 .maintable table td.clefs {
     width:40%;
-    padding:0;
-    margin:0 6px;
+    padding:0 6px;
     background-color:#e2e2e2;
     vertical-align:middle;
 }
