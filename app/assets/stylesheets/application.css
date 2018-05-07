@@ -116,21 +116,21 @@ div.maintable {
 }
 .maintable table td.title,
 .maintable table th.title {
-    width:20%;
+    width:15%;
 }
 .maintable table td.functions,
 .maintable table th.function,
 .maintable table td.composers,
 .maintable table th.composers {
-    width:15%;
+    width:11%;
 }
 .maintable table td.minimum-voices,
 .maintable table th.minimum-voices {
-    width:3%;
+    width:2%;
 }
 .maintable table td.editions,
 .maintable table th.edition,
 .maintable table td.recordings,
 .maintable table th.recording {
-    width:11%;
+    width:8%;
 }
