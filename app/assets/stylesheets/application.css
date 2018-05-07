@@ -113,6 +113,7 @@ tr:last-child {
 td {
     background-color: lightgrey;
     padding:6px;
+    vertical-align:top;
 }
 td.position {
     display:none;
