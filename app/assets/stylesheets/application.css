@@ -168,11 +168,11 @@ div.maintable {
 .maintable table td.sources {
     font-size:0.9em;
 }
-.maintable table td.sources table {
+.maintable table td.sources tr {
     border-bottom:1px solid grey;
     padding:5px 0px;
 }
-.maintable table td.sources table:last-child {
+.maintable table td.sources tr:last-child {
     border-bottom:none;
     padding:5px 0px 0px 0px;
 }
