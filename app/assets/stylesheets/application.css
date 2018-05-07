@@ -37,6 +37,9 @@ a:hover {
     color: orange;
     cursor: pointer
 }
+form {
+    text-align:center;
+}
 li {
     list-style:none;
 }
@@ -47,6 +50,11 @@ h1 {
     color: #fff;
     text-align: center;
     font-size: 190%;
+}
+h2 {
+    color:white;
+    text-align:left;
+    padding:10px;
 }
 button.help,
 div.topexplanation {
