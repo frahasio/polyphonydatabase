@@ -307,7 +307,9 @@ div.listofsources {
     display:flex;
     width:100%;
     flex-wrap:nowrap;
-    justify-content:stretch;
+}
+div.listofsources > * {
+    flex-grow:1;
 }
 .adminwrapper form,
 .adminwrapper form p {
