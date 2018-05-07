@@ -83,6 +83,7 @@ button {
     margin:5px;
     min-width:120px;
     border-radius:5px;
+    cursor:pointer;
 }
 button:hover {
     background-color: #2e6ca9;
@@ -123,6 +124,19 @@ table td.sources img {
     padding:0;
     border:0;
     float:left;
+}
+table td.sources img.missing {
+    border:1px solid darkred;
+}
+table td.sources img.incomplete {
+    border:1px solid green;
+}
+table td.sources img.optional {
+    opacity:0.4;
+}
+table td.sources img.missing + img.missing,
+table td.sources img.incomplete + img.incomplete {
+    border-left:none;
 }
 div.maintable {
     overflow-x:auto;
