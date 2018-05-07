@@ -123,6 +123,7 @@ table img {
 div.maintable {
     overflow-x:auto;
     width:100%;
+    font-size:12px;
 }
 .maintable table td.title,
 .maintable table th.title {
