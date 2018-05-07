@@ -139,6 +139,12 @@ table td.sources img.missing + img.missing,
 table td.sources img.incomplete + img.incomplete {
     border-left:none;
 }
+table td.sources img.optional + img.missing {
+    border-left:1px solid darkred;
+}
+table td.sources img.optional + img.incomplete {
+    border-left:1px solid green;
+}
 div.maintable {
     overflow-x:auto;
     max-width:100%;
