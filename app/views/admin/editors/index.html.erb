@@ -6,6 +6,7 @@
   <button>Create</button>
 <% end %>
 
+<h2>Edit existing editors</h2>
 <ul>
   <% Editor.order(:name).each do |editor| %>
     <li><%= link_to editor.name, edit_admin_editor_path(editor) %></li>
