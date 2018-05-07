@@ -65,7 +65,7 @@ class Inclusion < ActiveRecord::Base
     if composition.group.conflicting_attributions?
       attrib_texts = attributions.map(&:text).reject(&:blank?)
       if attrib_texts.any?
-        ["Attrib: #{.map {|a| a.text}.join(', ')}", notes].reject(&:blank?).join("; ")
+        ["Attrib: #{attrib_texts.join(', ')}", notes].reject(&:blank?).join("; ")
       else
         notes
       end
