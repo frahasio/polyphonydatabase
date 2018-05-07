@@ -272,6 +272,17 @@ ul.navigation {
 ul.navigation * {
     flex-grow:1;
 }
+.adminwrapper label {
+    color:white;
+    text-transform:uppercase;
+}
+.adminwrapper ul {
+    display:flex;
+    flex-direction:column;    
+}
+.adminwrapper li {
+    padding:3px;
+}
 div.login input,
 ul.navigation a {
     display:flex;
