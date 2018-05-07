@@ -97,6 +97,7 @@ table {
     border-spacing: 1px;   
     width:100%;
     min-width:960px;
+    overflow-x:auto;
 }
 table table {
     width:100%;
