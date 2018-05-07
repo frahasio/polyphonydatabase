@@ -49,3 +49,10 @@ button.help,
 div.topexplanation {
     display:none;
 }
+div.filters {
+    padding:10px;
+}
+div.filters form {
+    display:flex;
+    flex-wrap:wrap;
+}
