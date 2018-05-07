@@ -37,6 +37,9 @@ a:hover {
     color: orange;
     cursor: pointer
 }
+li {
+    list-style:none;
+}
 h1 {
     background-color: #039;
     background: linear-gradient(#a00, #6c0000);
@@ -236,4 +239,24 @@ a.recording img {
 div.edition + div.edition,
 div.recording + div.recording {
     margin-top:10px
+}
+
+/* ADMIN PAGES */
+ul.navigation {
+    display:flex;
+}
+ul.navigation a {
+    display:block;
+    color: white;
+    background-color: #104e8b;
+    border:2px groove #2e6ca9;
+    padding:5px;
+    margin:5px;
+    min-width:120px;
+    border-radius:5px;
+    cursor:pointer;    
+}
+ul.navigation a:hover {
+    background-color: #2e6ca9;
+    transform:scale(1.07,1.07);
 }
