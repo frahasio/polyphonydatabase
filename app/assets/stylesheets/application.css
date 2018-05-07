@@ -133,7 +133,7 @@ table td.sources img.incomplete {
     border:1px solid green;
 }
 table td.sources img.optional {
-    opacity:0.4;
+    opacity:0.3;
 }
 table td.sources img.missing + img.missing,
 table td.sources img.incomplete + img.incomplete {
