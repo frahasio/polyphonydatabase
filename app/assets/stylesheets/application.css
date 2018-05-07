@@ -153,13 +153,22 @@ div.maintable {
 .maintable table td.sources {
     font-size:0.9em;
 }
+.maintable table td.sources table {
+    border-bottom:1px solid grey;
+    padding:5px 0px;
+}
+.maintable table td.sources table:last-child {
+    border-bottom:none;
+    padding:5px 0px 0px 0px;
+}
 .maintable table td.source-name {
     width:30%;
     padding:0;
 }
 .maintable table td.clefs {
     width:40%;
-    padding:0 6px;
+    padding:0;
+    margin:0 6px;
     background-color:#e2e2e2;
 }
 .maintable table td.notes {
