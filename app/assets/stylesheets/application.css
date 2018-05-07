@@ -73,6 +73,10 @@ div.filters form * {
 div.filters input[type=text] {
     width:99%;
 }
+div.filters label {
+    display:flex;
+    justify-content:space-around;
+}
 div.filters form label {
     margin:5px;
     border-radius:5px;
