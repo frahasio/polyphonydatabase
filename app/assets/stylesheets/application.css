@@ -80,14 +80,21 @@ button:hover {
 }
 table {
     border-collapse: separate;
-    border-spacing: 2px;    
+    border-spacing: 1px;    
 }
 th {
     color: white;
     background-color: #104e8b;
 }
+tr:first-child {
+    border-radius:5px 5px 0 0;
+}
+tr:last-child {
+    border-radius:0 0 5px 5px;
+}
 td {
     background-color: lightgrey;
+    padding:6px;
 }
 table img {
     height:25px;
