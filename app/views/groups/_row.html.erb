@@ -4,7 +4,13 @@
   <td class="composers">
     <% if group.conflicting_attributions? %>
       <div class="composer">
-        <div class="name">Conflicting attributions</div>
+        <div class="name">
+          <% if group.composers.uniq.size == 2 && group.composers.include?(anon_composer) %>
+            <%= (group.composers.uniq - [anon_composer]).first %>
+          <% else %>
+            Conflicting attributions
+          <% end %>
+        </div>
       </div>
     <% else %>
       <% group.composers.uniq.each do |composer| %>

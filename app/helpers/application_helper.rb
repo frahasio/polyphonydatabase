@@ -24,4 +24,8 @@ module ApplicationHelper
       ("transitional" unless inclusion.transitions_to[clef.id.to_s].blank?),
     ].compact.join(" ")
   end
+
+  def anon_composer
+    @anon_composer ||= Composer.find_by!(name: "Anon")
+  end
 end
