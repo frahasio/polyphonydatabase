@@ -281,6 +281,7 @@ ul.navigation * {
     flex-direction:column;
     align-items:center;
     font-size:1.2em;
+    margin:20px 10px;
 }
 .adminwrapper li {
     padding:3px;
