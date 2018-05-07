@@ -1,23 +1,4 @@
 <h1>Cataloguing</h1>
-<button onclick="myFunction()" class="help">Show/hide help</button>
-<div id="adminhelp"> <u>Some important things to remember when cataloguing</u>:
-<ul>
-  <li>The first box in the 'From year' and 'To year' bit is for prefix text such as 'c.' or 'fl.'</li>
-  <li>For the sake of consistency, please use the 'From year' field for single (i.e. print publication) dates.</li>
-  <li>Use modern names for publication towns. A list of translations from Latin can be found <a href="http://www.catholic-history.org.uk/latin_names.htm">here</a>.</li>
-  <li>If there is no attribution in the source, fill the box with <strong>&lt;no attribution&gt;</strong> otherwise you'll find it impossible to attribute later on.</li>
-  <li>Try to standardize spelling of motet titles as it make the punters' search a lot easier. e.g. Iesu &rarr; Jesu, coeli &rarr; caeli etc. and don't use elided vowels like <strong>&#230;</strong>.</li>
-  <li>Partial clefs (e.g. an extra voice found in one part of a mass) should be surrounded with round brackets ().</li>
-  <li>Parts that change clef for a significant amount of a piece should have both catalogued, separated by a forward slash e.g. <strong>c4/c3</strong> where the first clef is the dominant one.</li>
-  <li>Single clef instrumental parts should just be catalogued as normal with a note in the notes box. More complex insturmental parts should have <strong>bc</strong> (continuo) <strong>org</strong> (organ) or <strong>lut</strong> (lute) in place of a clef.</li>
-  <li>Missing voices (i.e. that need reconstruction) should be surrounded with square brackets [].</li>
-  <li>Parts that are both missing AND optional must have round brackets inside square brackets. So [(c4)] is valid but ([c4]) is not.</li>
-  <li>If you need more boxes for titles or clefs, save the page and more will magically appear.</li>
-  <li>Separate multiple attributions (i.e. for collaborative pieces - pretty rare) with a pipe |.</li>
-  <li>If you find a publisher or scribe that's not in the list, let me know - it's very quick to add things to the list.</li>
-  <li>It's worth adding some identifier to the TITLE of anonymous pieces (e.g. <strong>O sacrum convivium (from RISM_A123 c.1520)</strong>) as this will make it much easier to identify concordances later on.</li>
-</ul>
-</div>
 
 <%= form_tag("/admin/sources/switch-to", class: "composer-select") do %>
   <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
