@@ -55,10 +55,24 @@ div.filters {
 div.filters form {
     display:flex;
     flex-wrap:wrap;
+    flex-grow:1;
 }
 div.filters form select,
 div.filters form input {
     padding:5px;
     font-size:1.1em;
 }
-
+table {
+    border-collapse: separate;
+    border-spacing: 2px;    
+}
+th {
+    color: white;
+    background-color: #104e8b;
+}
+td {
+    background-color: lightgrey;
+}
+table img {
+    height:25px;
+}
