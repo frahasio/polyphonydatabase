@@ -177,7 +177,7 @@ div.maintable {
 }
 .maintable table td.source-name {
     width:30%;
-    padding:0;
+    padding:0 6px 0 0;
 }
 .maintable table td.clefs {
     width:40%;
@@ -187,5 +187,5 @@ div.maintable {
 }
 .maintable table td.notes {
     width:20%;
-    padding:0;
+    padding:0 0 0 6px;
 }
