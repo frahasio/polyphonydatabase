@@ -307,9 +307,13 @@ div.listofsources {
     display:flex;
     flex-wrap:nowrap;
 }
-.adminwrapper form {
+.adminwrapper form,
+.adminwrapper form p {
     display:flex;
     justify-content:center;
     align-items:center;
     flex-wrap:wrap;
+}
+.adminwrapper form input {
+    margin:0px 10px;
 }
