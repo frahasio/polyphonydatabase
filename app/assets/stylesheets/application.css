@@ -53,8 +53,9 @@ h2 {
     text-align:center;
     padding:10px;
     width:80%;
-    margin:10px auto;
-    border-bottom:1px solid #737373;
+    margin:20px auto;
+    border-bottom:1px solid #595959;
+    border-top:1px solid #595959;
 }
 button.help,
 div.topexplanation {
