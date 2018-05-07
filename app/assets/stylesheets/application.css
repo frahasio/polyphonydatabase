@@ -246,6 +246,11 @@ div.nav {
     width:98%;
     margin:10px auto;
 }
+div.login {
+    display:flex;
+    justify-content:space-between;
+    background-color:lightgrey;
+}
 ul.navigation {
     display:flex;
     flex-wrap:wrap;
@@ -256,6 +261,7 @@ ul.navigation {
 ul.navigation * {
     flex-grow:1;
 }
+div.login input,
 ul.navigation a {
     display:flex;
     color: white;
@@ -267,6 +273,7 @@ ul.navigation a {
     border-radius:5px;
     cursor:pointer;    
 }
+div.login input:hover,
 ul.navigation a:hover {
     background-color: #2e6ca9;
     transform:scale(1.07,1.07);
