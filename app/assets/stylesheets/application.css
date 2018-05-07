@@ -37,9 +37,6 @@ a:hover {
     color: orange;
     cursor: pointer
 }
-form {
-    text-align:center;
-}
 li {
     list-style:none;
 }
@@ -306,4 +303,10 @@ ul.navigation a:hover {
 div.listofsources {
     display:flex;
     flex-wrap:nowrap;
+}
+.adminwrapper form {
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
 }
