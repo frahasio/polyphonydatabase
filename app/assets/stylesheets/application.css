@@ -57,7 +57,8 @@ input {
     font-size:1.1em;
 }
 div.filters {
-    padding:10px;
+    width:98%;
+    margin:0 auto;
     font-size:1.1em;
 }
 div.filters form {
@@ -104,6 +105,10 @@ table {
     min-width:960px;
     overflow-x:auto;
     margin:10px 0 30px 0;
+}
+table.sortable {
+    width:98%;
+    margin:0 auto;
 }
 table table {
     width:100%;
