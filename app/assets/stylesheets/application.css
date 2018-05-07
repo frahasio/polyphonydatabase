@@ -61,13 +61,16 @@ div.filters form {
 }
 select,
 input {
-    margin:5px;
+    margin:0.5%;
     border-radius:5px;
     padding:5px;
     font-size:1.1em;
 }
 div.filters {
     font-size:1.1em;
+}
+div.filters input {
+    width:100%;
 }
 div.filters form label {
     margin:5px;
