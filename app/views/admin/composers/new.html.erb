@@ -1,11 +1,4 @@
 <h1>Composers</h1>
-<button onclick="myFunction()" class="help">Show/hide help</button>
-<div id="adminhelp"> <u>Some important things to remember when cataloguing</u>:
-<ul>
-  <li>Use standardised composer names from Grove where possible. The aliases are handled by the database already.</li>
-  <li>If you think you have found a new composer, make sure you do a bit of research first to make sure s/he's not already on the list under another name/spelling.</li>
-</ul>
-</div>
 <h2>Add composer</h2>
 <div clas="addcomposer">
 <%= form_for([:admin, Composer.new]) do |f| %>
@@ -13,7 +6,9 @@
   <button>Create</button>
 <% end %>
 </div>
-<hr>
+
+<h2>Edit existing composers</h2>
+
 <div class="listofcomposers">
 <ul class="composers">
   <% Composer.order(:name).each do |composer| %>
