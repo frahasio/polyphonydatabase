@@ -91,6 +91,7 @@ div.filters input[type=text] {
 div.filters label {
     display:flex;
     justify-content:space-around;
+    align-items:center;
 }
 div.filters form label {
     margin:5px;
@@ -279,6 +280,10 @@ ul.navigation * {
 .adminwrapper label {
     color:white;
     text-transform:uppercase;
+}
+.adminwrapper .filters label {
+    color:#000;
+    text-transform:none;
 }
 .adminwrapper ul {
     display:flex;
