@@ -93,6 +93,11 @@ table {
     margin:10px;
     min-width:960px;
 }
+table table {
+    width:100%;
+    margin:0;
+    min-width:0;
+}
 th {
     color: white;
     background-color: #104e8b;
