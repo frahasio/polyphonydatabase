@@ -222,3 +222,9 @@ div.maintable {
 .maintable table td.notes {
     width:20%;
 }
+a.edition,
+a.recording {
+    display:flex;
+    justify-content:flex-start;
+    align-items:center;    
+}
