@@ -84,6 +84,8 @@ div.filters form > * {
 }
 div.filters input[type=text] {
     font-size:1.2em;
+    width:100%;
+    line-height:120%;
 }
 div.filters label {
     display:flex;
