@@ -257,7 +257,7 @@ ul.navigation * {
     flex-grow:1;
 }
 ul.navigation a {
-    display:block;
+    display:flex;
     color: white;
     background-color: #104e8b;
     border:2px groove #2e6ca9;
