@@ -70,7 +70,7 @@ div.filters form {
 div.filters form * {
     flex-grow:1;
 }
-div.filters input {
+div.filters input[type=text] {
     width:99%;
 }
 div.filters form label {
