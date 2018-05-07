@@ -117,10 +117,12 @@ td.position {
     display:none;
 }
 table td.sources img {
+    display:inline-block;
     height:45px;
     margin:0;
     padding:0;
     border:0;
+    float:left;
 }
 div.maintable {
     overflow-x:auto;
@@ -156,7 +158,6 @@ div.maintable {
     padding:0;
 }
 .maintable table td.clefs {
-    display:flex;
     width:40%;
     padding:0 6px;
     background-color:#e5e2c7;
