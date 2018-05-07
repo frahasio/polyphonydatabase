@@ -62,9 +62,10 @@ input {
     margin:5px;
     border-radius:5px;
     padding:5px;
+    font-size:1.1em;
 }
 div.filters {
-    font-size:1.2em;
+    font-size:1.1em;
 }
 div.filters form label {
     margin:5px;
@@ -79,14 +80,17 @@ button {
     padding:5px;
     margin:5px;
     min-width:120px;
+    border-radius:5px;
 }
 button:hover {
     background-color: #2e6ca9;
-    transform:scale(1.03,1.03);
+    transform:scale(1.07,1.07);
 }
 table {
     border-collapse: separate;
-    border-spacing: 1px;    
+    border-spacing: 1px;   
+    width:100%;
+    margin:10px;
 }
 th {
     color: white;
@@ -104,4 +108,24 @@ td {
 }
 table img {
     height:25px;
+}
+.maintable table td.title,
+.maintable table th.title {
+    width:20%;
+}
+.maintable table td.functions,
+.maintable table th.function,
+.maintable table td.composers,
+.maintable table th.composers {
+    width:15%;
+}
+.maintable table td.minimum-voices,
+.maintable table th.minimum-voices {
+    width:3%;
+}
+.maintable table td.editions,
+.maintable table th.edition,
+.maintable table td.recordings,
+.maintable table th.recording {
+    width:11%;
 }
