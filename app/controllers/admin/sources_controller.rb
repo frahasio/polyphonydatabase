@@ -5,10 +5,10 @@ module Admin
 
     def edit
       @source = Source.find(params[:id])
-      @sources = Source.all
 
-      @grouped_sources = @sources.each_with_object(Hash.new {|h, k| h[k] = []}) { |s, h|
-        h[s.catalogued ? "Catalogued" : "Uncatalogued"] << [s.code, s.id]
+      @grouped_sources = {
+        "Catalogued" => Source.where(catalogued: true).pluck(:code, :id),
+        "Uncatalogued" => Source.where(catalogued: false).pluck(:code, :id),
       }
 
       @inclusions = @source.inclusions
