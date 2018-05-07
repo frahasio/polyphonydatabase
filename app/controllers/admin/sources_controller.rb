@@ -16,8 +16,10 @@ module Admin
         .order(:order)
         .to_a
 
-      last_inclusion = @inclusions.last
-      last_order = last_inclusion&.order || -1
+      @inclusions = Kaminari.paginate_array(@inclusions)
+        .page(params[:page])
+        .per(20)
+
 
       @clefs_inclusions = {}
       @inclusions.each do |i|
@@ -26,14 +28,18 @@ module Admin
         i.composition ||= Composition.new(title: Title.new)
       end
 
-      num_blank_rows = [10, (20 - @inclusions.count)].max
+      if @inclusions.last_page?
+        last_inclusion = @inclusions.last
+        last_order = last_inclusion&.order || -1
 
-      num_blank_rows.times do |n|
-        inclusion = @source.inclusions.build(order: last_order + n + 1)
-        inclusion.composition = Composition.new(title: Title.new)
-        inclusion.attributions.build
+        num_blank_rows = [10, (20 - @inclusions.count)].max
 
-        @inclusions << inclusion
+        @blank_inclusions = (1...num_blank_rows).map do |n|
+          inclusion = @source.inclusions.build(order: last_order + n + 1)
+          inclusion.composition = Composition.new(title: Title.new)
+          inclusion.attributions.build
+          inclusion
+        end
       end
     end
 
@@ -56,7 +62,7 @@ module Admin
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
-      redirect_to edit_admin_source_path(source)
+      redirect_to edit_admin_source_path(source, page: params[:page])
     end
 
     def switch_to

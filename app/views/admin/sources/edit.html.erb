@@ -27,7 +27,7 @@
 
 <hr>
 
-<%= form_for([:admin, @source]) do |f| %>
+<%= form_for([:admin, @source], url: admin_source_path(@source, page: params[:page])) do |f| %>
   <div class="sourcebasics">
     <div class="left">
       <%= f.text_field :code %>
@@ -76,6 +76,9 @@
   </div>
 
   <button class="save">Save</button>
+
+  <%= paginate @inclusions %>
+
   <table class="cataloguing">
     <tr>
       <th class="order">Order</th>
@@ -87,45 +90,14 @@
     </tr>
 
     <% composer_list = Composer.order(:name).map {|c| [c.name, c.id] } %>
-    <%= f.fields_for(:inclusions, @inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
-      <tr class="inclusion">
-        <td class="order"><%= i.text_field :order %></td>
-        <td class="attributed-to">
-          <ul class="composer">
-            <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
-              <li>
-                <%= a.text_field :text %>
-                <%= a.select :refers_to_id, composer_list, include_blank: true %>
-              </li>
-            <% end %>
-          </ul>
-        </td>
+    <%= render "catalogue_set", inclusions: @inclusions, composer_list: composer_list, f: f %>
 
-        <%= i.fields_for(:composition) do |c| %>
-          <%= c.fields_for(:title) do |t| %>
-            <td class="title">
-              <%= t.text_area :text %>
-            </td>
-          <% end %>
-        <% end %>
-        <td class="clefs">
-          <% i.object.display_clefs.each do |clef| %>
-            <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
-          <% end %>
-
-          <% (8 - (i.object.display_clefs.count % 8)).times do %>
-            <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", nil, size: 3 %>
-          <% end %>
-        </td>
-        <td class="notes"><%= i.text_area :notes %></td>
-        <% if i.object.persisted? %>
-          <td class="delete">
-            <%= link_to "Delete", admin_inclusion_path(i.object), method: :delete %>
-          </td>
-        <% end %>
-      </tr>
+    <% if @blank_inclusions %>
+      <%= render "catalogue_set", inclusions: @blank_inclusions, composer_list: composer_list, f: f %>
     <% end %>
   </table>
+
+  <%= paginate @inclusions %>
 
   <button class="save">Save</button>
 <% end %>
