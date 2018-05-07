@@ -233,3 +233,7 @@ a.recording img {
     height: 20px;
     margin-right:5px;
 }
+a.edition + a.edition,
+a.recording + a.recording {
+    margin-top:10px
+}
