@@ -57,10 +57,26 @@ div.filters form {
     flex-wrap:wrap;
     flex-grow:1;
 }
-div.filters form select,
-div.filters form input {
+select,
+input {
+    margin:5px;
+    border-radius:5px;
     padding:5px;
-    font-size:1.1em;
+}
+div.filters form label {
+    margin:5px;
+    border-radius:5px;
+    padding:5px;
+    background-color: lightgrey;
+}
+button {
+    color: white;
+    background-color: #104e8b;
+    border:2px groove #102e4c;
+}
+button:hover {
+    background-color: #2378ce;
+    transform:scale(1.1,1.1);
 }
 table {
     border-collapse: separate;
