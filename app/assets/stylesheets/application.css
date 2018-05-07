@@ -248,7 +248,10 @@ div.nav {
 }
 div.login {
     display:flex;
+    padding:5px 10px;
     justify-content:space-between;
+    align-items:center;
+    font-size:0.9em;
     background-color:lightgrey;
 }
 ul.navigation {
