@@ -6,6 +6,7 @@
   <button>Create</button>
 <% end %>
 
+<h2>Edit existing performer</h2>
 <ul>
   <% Performer.order(:name).each do |performer| %>
     <li><%= link_to performer.name, edit_admin_performer_path(performer) %></li>
