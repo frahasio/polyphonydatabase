@@ -300,7 +300,7 @@ ul.navigation a {
     min-width:120px;
     border-radius:5px;
     cursor:pointer;    
-    text-align:center;
+    justify-content:center;
 }
 div.login input:hover,
 ul.navigation a:hover {
