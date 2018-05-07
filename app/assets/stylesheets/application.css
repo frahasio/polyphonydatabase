@@ -114,8 +114,7 @@ table table {
     width:100%;
     margin:0;
     min-width:0;
-    border-collapse: collapse;
-    border-spacing:5px;
+    border-spacing:2px;
 }
 table table td {
     background-color:#e2e2e2;
@@ -208,18 +207,15 @@ div.maintable {
     width:8%;
 }
 .maintable table td.sources {
+    padding:0;
     font-size:0.9em;
 }
 .maintable table td.source-name {
     width:30%;
-    padding:0 6px 0 0;
 }
 .maintable table td.clefs {
     width:40%;
-    padding:0 6px;
-    background-color:#e2e2e2;
 }
 .maintable table td.notes {
     width:20%;
-    padding:0 0 0 6px;
 }
