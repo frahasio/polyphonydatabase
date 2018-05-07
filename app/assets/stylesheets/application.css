@@ -116,8 +116,11 @@ td {
 td.position {
     display:none;
 }
-table img {
-    height:25px;
+table td.sources img {
+    height:45px;
+    margin:0;
+    padding:0;
+    border:0;
 }
 div.maintable {
     overflow-x:auto;
