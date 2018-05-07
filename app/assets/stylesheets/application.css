@@ -49,16 +49,6 @@ button.help,
 div.topexplanation {
     display:none;
 }
-div.filters {
-    padding:10px;
-}
-div.filters form {
-    display:flex;
-    flex-wrap:wrap;
-    flex-grow:1;
-    align-items:center;
-    justify-content:stretch;
-}
 select,
 input {
     margin:0.5%;
@@ -67,10 +57,21 @@ input {
     font-size:1.1em;
 }
 div.filters {
+    padding:10px;
     font-size:1.1em;
 }
+div.filters form {
+    display:flex;
+    flex-wrap:wrap;
+    flex-grow:1;
+    align-items:center;
+    justify-content:stretch;
+}
+div.filters form * {
+    flex-grow:1;
+}
 div.filters input {
-    width:100%;
+    width:99%;
 }
 div.filters form label {
     margin:5px;
