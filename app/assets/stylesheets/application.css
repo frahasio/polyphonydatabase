@@ -27,6 +27,7 @@ body {
     font-size: 14px;
     font-family: "palatino linotype",serif;
     box-sizing: border-box
+    overflow-x:auto;
 }
 a,a:visited,a:active {
     text-decoration: none;
@@ -234,6 +235,7 @@ div.maintable {
 }
 .maintable table td.clefs {
     width:40%;
+    vertical-align:middle;
 }
 .maintable table td.notes {
     width:20%;
