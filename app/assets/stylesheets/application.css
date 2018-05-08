@@ -336,3 +336,6 @@ div.listofsources > * {
     width:100%;
     rows:3;
 }
+.titles-editor span.select2 {
+    width:100%;
+}
