@@ -173,6 +173,8 @@ table td.sources img {
     padding:0;
     border:0;
     float:left;
+    border-top:1px solid #e2e2e2;
+    border-bottom:1px solid #e2e2e2;
 }
 table td.sources img.missing {
     border:1px solid darkred;
@@ -235,7 +237,6 @@ div.maintable {
 }
 .maintable table td.clefs {
     width:40%;
-    vertical-align:middle;
 }
 .maintable table td.notes {
     width:20%;
