@@ -332,3 +332,7 @@ div.listofsources > * {
 .adminwrapper form input {
     margin:0px 10px;
 }
+.titles-editor textarea {
+    width:100%;
+    rows:3;
+}
