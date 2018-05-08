@@ -27,7 +27,7 @@ module Admin
         i.composition ||= Composition.new(title: Title.new)
       end
 
-      if @inclusions.last_page?
+      if @inclusions.last_page? || @inclusions.total_pages == 0
         last_inclusion = @inclusions.last
         last_order = last_inclusion&.order || -1
 
