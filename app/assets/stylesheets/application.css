@@ -27,7 +27,6 @@ body {
     font-size: 14px;
     font-family: "palatino linotype",serif;
     box-sizing: border-box;
-    overflow-x:auto;
 }
 a,a:visited,a:active {
     text-decoration: none;
@@ -202,7 +201,6 @@ table td.sources img.optional.incomplete + img.incomplete {
     margin-left:-1px;
 }
 div.maintable {
-    overflow-x:auto;
     -webkit-overflow-scrolling: touch;
     max-width:100%;
     width:100%;
