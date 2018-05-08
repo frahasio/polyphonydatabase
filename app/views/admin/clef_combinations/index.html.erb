@@ -13,7 +13,7 @@
     <tbody>
       <% @clef_combinations.each do |combo| %>
         <tr>
-          <td><%= combo.sorted_clefs.map(&:note).join %></td>
+          <td><%= combo.sorted_clefs.map{|c| c.optional? ? "(#{c.note})" : c.note}.join %></td>
 
           <td>
             <%= fields_for "clef_combinations[]", combo do |f| %>
