@@ -1,12 +1,12 @@
 <div class="filters">
   <%= form_tag search_path, method: :get do %>
     <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
-    <%= select_tag :composer, options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:composer]), include_blank: "All composers", class: "composer" %>
-    <%= select_tag :function, options_from_collection_for_select(Function.all.order(:name), :id, :name, params[:function]), include_blank: "All functions", class: "functions" %>
-    <%= select_tag :composer_country, options_from_collection_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2), :birthplace_2, :birthplace_2, params[:composer_country]), include_blank: "All countries", class: "composer-country" %>
-    <%= select_tag :voices, options_from_collection_for_select(UniquePiece.select(:minimum_voices).distinct.order(:minimum_voices), :minimum_voices, :minimum_voices, params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
-    <%= select_tag :voicing, options_from_collection_for_select(Voicing.all.order(:text), :id, :text, params[:voicing]), include_blank: "All voicings", class: "voicing" %>
-    <%= select_tag :source, options_from_collection_for_select(Source.all.order(:code), :id, :code, params[:source]), include_blank: "All sources", class: "source" %>
+    <%= select_tag :composer, options_for_select(Composer.joins(:compositions).distinct.order(:name).pluck(:name, :id), params[:composer]), include_blank: "All composers", class: "composer" %>
+    <%= select_tag :function, options_for_select(Function.joins(:titles).distinct.order(:name).pluck(:name, :id), params[:function]), include_blank: "All functions", class: "functions" %>
+    <%= select_tag :composer_country, options_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2).pluck(:birthplace_2, :birthplace_2), params[:composer_country]), include_blank: "All countries", class: "composer-country" %>
+    <%= select_tag :voices, options_for_select(Composition.select(:number_of_voices).distinct.order(:number_of_voices).pluck(:number_of_voices, :number_of_voices), params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
+    <%= select_tag :voicing, options_for_select(Voicing.joins(:clef_combinations).distinct.order(:text).pluck(:text, :id), params[:voicing]), include_blank: "All voicings", class: "voicing" %>
+    <%= select_tag :source, options_for_select(Source.joins(:inclusions).distinct.order(:code).pluck(:code, :id), params[:source]), include_blank: "All sources", class: "source" %>
     <label class="edition">
       Edition
       <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
