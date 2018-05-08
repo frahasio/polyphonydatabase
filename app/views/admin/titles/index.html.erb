@@ -3,7 +3,7 @@
 <%= paginate @titles %>
 
 <%= form_tag update_all_admin_titles_path(page: params[:page]) do %>
-  <table>
+  <table class="titles-editor">
     <thead>
       <tr>
         <th>Title</th>
@@ -17,7 +17,7 @@
       <% @titles.each do |title| %>
         <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
           <tr>
-            <td><%= f.text_field :text %></td>
+            <td><%= f.text_area :text %></td>
             <td class="functions">
               <%= f.select :function_ids,
                 function_options,
