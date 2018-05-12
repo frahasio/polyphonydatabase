@@ -1,39 +1,10 @@
 class Composer < ActiveRecord::Base
-  has_many :aliases, inverse_of: :composer
-  has_many :attributions, inverse_of: :composer
-  has_many :composers_unique_pieces, inverse_of: :composer
-  has_many :unique_pieces, through: :composers_unique_pieces, inverse_of: :composers
   has_and_belongs_to_many :compositions
   has_many :groups, through: :compositions
 
   validates :name, uniqueness: true, presence: true
 
   validate :years_are_valid
-
-  def all_attributions
-    aliases.flat_map(&:attributions) | attributions
-  end
-
-  def inclusions
-    all_attributions.map(&:inclusion).uniq.compact
-  end
-
-  def pieces
-    inclusions.map(&:piece).uniq
-  end
-
-  def aliased_as
-    aliases.map(&:anonym_name).join(" | ")
-  end
-
-  def aliased_as=(text)
-    names = text
-      .split("|")
-      .map(&:strip)
-      .reject(&:blank?)
-
-    Alias.set_by_names(self, names)
-  end
 
   def dates
     [

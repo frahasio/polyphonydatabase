@@ -1,26 +1,18 @@
 Rails.application.routes.draw do
   namespace :admin do
-    resources :sources do
+    resources :sources, except: [:new, :show, :destroy] do
       collection do
         post "/switch-to", to: "sources#switch_to"
       end
     end
 
-    resources :attributions do
-      collection do
-        post "/assign", to: "attributions#assign"
-      end
-    end
+    resources :inclusions, only: [:destroy]
 
-    resources :inclusions
-
-    resources :composers do
+    resources :composers, except: [:index] do
       collection do
         post "/switch-to", to: "composers#switch_to"
       end
     end
-
-    resources :unique_pieces, only: [:create, :update]
 
     get "/auth", to: "authentication#index", as: "authentication"
     post "/auth/authenticate", to: "authentication#authenticate", as: "authenticate"
@@ -49,12 +41,12 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :editors
-    resources :functions
-    resources :performers
-    resources :publishers
-    resources :scribes
-    resources :voicings
+    resources :editors, except: [:new, :show]
+    resources :functions, except: [:new, :show]
+    resources :performers, except: [:new, :show]
+    resources :publishers, except: [:new, :show]
+    resources :scribes, except: [:new, :show]
+    resources :voicings, except: [:new, :show]
 
     resources :titles, only: [:index] do
       collection do
@@ -68,7 +60,7 @@ Rails.application.routes.draw do
       end
     end
 
-    root to: "home#index"
+    root to: "sources#index"
   end
 
   resources :groups, only: [:index]

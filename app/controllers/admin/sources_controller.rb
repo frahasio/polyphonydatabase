@@ -7,8 +7,8 @@ module Admin
       @source = Source.find(params[:id])
 
       @grouped_sources = {
-        "Catalogued" => Source.where(catalogued: true).pluck(:code, :id),
-        "Uncatalogued" => Source.where(catalogued: false).pluck(:code, :id),
+        "Catalogued" => Source.catalogued.pluck(:code, :id),
+        "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
 
       @inclusions = @source.inclusions
@@ -20,7 +20,6 @@ module Admin
         .page(params[:page])
         .per(40)
 
-      @clefs_inclusions = {}
       @inclusions.each do |i|
         i.attributions.build
 
@@ -77,7 +76,6 @@ module Admin
         :format,
         :from_year_annotation,
         :from_year,
-        :publisher_or_scribe,
         :rism_link,
         :title,
         :to_year_annotation,
@@ -88,15 +86,10 @@ module Admin
         publisher_ids: [],
         scribe_ids: [],
         inclusions_attributes: [
-          :attributed_to,
           :id,
           :notes,
           :order,
           display_clefs: [],
-          piece_attributes: [
-            :id,
-            :title,
-          ],
           attributions_attributes: [
             :id,
             :refers_to_id,

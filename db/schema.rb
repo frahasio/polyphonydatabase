@@ -10,40 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180430120112) do
+ActiveRecord::Schema.define(version: 20180512153825) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "intarray"
 
-  create_table "aliases", force: :cascade do |t|
-    t.integer  "composer_id"
-    t.integer  "anonym_id"
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
-    t.index ["anonym_id"], name: "index_aliases_on_anonym_id", using: :btree
-    t.index ["composer_id"], name: "index_aliases_on_composer_id", using: :btree
-  end
-
-  create_table "anonyms", force: :cascade do |t|
-    t.string   "name"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-  end
-
   create_table "attributions", force: :cascade do |t|
     t.integer  "inclusion_id"
-    t.integer  "alias_id"
-    t.integer  "composer_id"
-    t.integer  "anonym_id"
-    t.boolean  "incorrectly_attributed"
-    t.datetime "created_at",             null: false
-    t.datetime "updated_at",             null: false
+    t.datetime "created_at",   null: false
+    t.datetime "updated_at",   null: false
     t.string   "text"
     t.integer  "refers_to_id"
-    t.index ["alias_id"], name: "index_attributions_on_alias_id", using: :btree
-    t.index ["anonym_id"], name: "index_attributions_on_anonym_id", using: :btree
-    t.index ["composer_id"], name: "index_attributions_on_composer_id", using: :btree
     t.index ["inclusion_id"], name: "index_attributions_on_inclusion_id", using: :btree
   end
 
@@ -71,18 +49,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.index ["note", "optional"], name: "index_clefs_on_note_and_optional", unique: true, using: :btree
   end
 
-  create_table "clefs_inclusions", force: :cascade do |t|
-    t.integer  "clef_id"
-    t.integer  "inclusion_id"
-    t.boolean  "missing",        default: false, null: false
-    t.boolean  "partial",        default: false, null: false
-    t.datetime "created_at",                     null: false
-    t.datetime "updated_at",                     null: false
-    t.string   "transitions_to"
-    t.index ["clef_id"], name: "index_clefs_inclusions_on_clef_id", using: :btree
-    t.index ["inclusion_id"], name: "index_clefs_inclusions_on_inclusion_id", using: :btree
-  end
-
   create_table "composers", force: :cascade do |t|
     t.string   "name"
     t.integer  "from_year"
@@ -104,13 +70,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.index ["composer_id", "composition_id"], name: "index_composers_compositions_on_composer_id_and_composition_id", using: :btree
   end
 
-  create_table "composers_unique_pieces", force: :cascade do |t|
-    t.integer "composer_id"
-    t.integer "unique_piece_id"
-    t.index ["composer_id"], name: "index_composers_unique_pieces_on_composer_id", using: :btree
-    t.index ["unique_piece_id"], name: "index_composers_unique_pieces_on_unique_piece_id", using: :btree
-  end
-
   create_table "compositions", force: :cascade do |t|
     t.integer  "number_of_voices"
     t.integer  "group_id"
@@ -124,17 +83,14 @@ ActiveRecord::Schema.define(version: 20180430120112) do
 
   create_table "editions", force: :cascade do |t|
     t.string   "voicing"
-    t.string   "editor_name"
     t.string   "file_url"
-    t.datetime "created_at",                      null: false
-    t.datetime "updated_at",                      null: false
-    t.integer  "unique_piece_id"
+    t.datetime "created_at",                 null: false
+    t.datetime "updated_at",                 null: false
     t.integer  "group_id"
     t.integer  "editor_id"
-    t.boolean  "has_pdf",         default: false
+    t.boolean  "has_pdf",    default: false
     t.index ["editor_id"], name: "index_editions_on_editor_id", using: :btree
     t.index ["group_id"], name: "index_editions_on_group_id", using: :btree
-    t.index ["unique_piece_id"], name: "index_editions_on_unique_piece_id", using: :btree
   end
 
   create_table "editors", force: :cascade do |t|
@@ -142,12 +98,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.date     "date_of_birth"
     t.datetime "created_at",    null: false
     t.datetime "updated_at",    null: false
-  end
-
-  create_table "feasts_unique_pieces", force: :cascade do |t|
-    t.string  "feast_code"
-    t.integer "unique_piece_id"
-    t.index ["unique_piece_id"], name: "index_feasts_unique_pieces_on_unique_piece_id", using: :btree
   end
 
   create_table "functions", force: :cascade do |t|
@@ -170,13 +120,10 @@ ActiveRecord::Schema.define(version: 20180430120112) do
 
   create_table "inclusions", force: :cascade do |t|
     t.integer  "source_id"
-    t.integer  "piece_id"
     t.string   "notes"
     t.integer  "order",                            null: false
     t.datetime "created_at",                       null: false
     t.datetime "updated_at",                       null: false
-    t.integer  "unique_piece_id"
-    t.string   "public_notes"
     t.integer  "position"
     t.integer  "composition_id"
     t.integer  "missing_clef_ids",    default: [],              array: true
@@ -185,18 +132,11 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.json     "transitions_to"
     t.index ["clef_combination_id"], name: "index_inclusions_on_clef_combination_id", using: :btree
     t.index ["composition_id"], name: "index_inclusions_on_composition_id", using: :btree
-    t.index ["piece_id"], name: "index_inclusions_on_piece_id", using: :btree
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree
   end
 
   create_table "performers", force: :cascade do |t|
     t.string   "name"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "pieces", force: :cascade do |t|
-    t.text     "title",      null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -215,7 +155,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
   end
 
   create_table "recordings", force: :cascade do |t|
-    t.string   "performer_name"
     t.string   "file_url"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
@@ -245,7 +184,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.text     "title"
     t.string   "type"
     t.string   "format"
-    t.string   "publisher_or_scribe"
     t.string   "town"
     t.string   "rism_link"
     t.string   "url"
@@ -265,17 +203,6 @@ ActiveRecord::Schema.define(version: 20180430120112) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["text"], name: "index_titles_on_text", unique: true, using: :btree
-  end
-
-  create_table "unique_pieces", force: :cascade do |t|
-    t.text     "title"
-    t.string   "composer_list"
-    t.integer  "minimum_voices"
-    t.text     "feasts"
-    t.datetime "created_at",                     null: false
-    t.datetime "updated_at",                     null: false
-    t.boolean  "has_edition",    default: false
-    t.boolean  "has_recording",  default: false
   end
 
   create_table "users", force: :cascade do |t|

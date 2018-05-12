@@ -35,8 +35,3 @@ group :development do
   gem "spring-watcher-listen", "~> 2.0.0"
   gem "ruby-prof"
 end
-
-group :test do
-  gem "rspec-rails"
-  gem "factory_girl_rails"
-end

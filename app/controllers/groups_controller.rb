@@ -10,9 +10,6 @@ class GroupsController < ApplicationController
           :composers,
           inclusions: [
             :source,
-            clefs_inclusions: [
-              :clef,
-            ],
           ],
         ],
         editions: [

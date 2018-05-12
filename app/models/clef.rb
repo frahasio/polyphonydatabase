@@ -1,8 +1,4 @@
 class Clef < ActiveRecord::Base
-  # Dead code
-  has_many :clefs_inclusions, inverse_of: :clef
-  has_many :inclusions, through: :clefs_inclusions
-
   after_commit :clear_cache
 
   def note=(note_string)

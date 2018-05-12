@@ -31,12 +31,13 @@ private
     return groups if params[:q].blank?
 
     joined_groups = groups.left_outer_joins(
-      composers: [
-        aliases: :anonym,
-      ],
+      :composers,
       compositions: [
         :title,
-        inclusions: :source,
+        inclusions: [
+          :attributions,
+          :source,
+        ],
       ],
       editions: [
         :editor,
@@ -48,7 +49,7 @@ private
 
     joined_groups.where("groups.display_title ILIKE ?", "%#{params[:q]}%")
       .or(joined_groups.where("titles.text ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("anonyms.name ILIKE ?", "%#{params[:q]}%"))
+      .or(joined_groups.where("attributions.text ILIKE ?", "%#{params[:q]}%"))
       .or(joined_groups.where("composers.name ILIKE ?", "%#{params[:q]}%"))
       .or(joined_groups.where("sources.title ILIKE ?", "%#{params[:q]}%"))
       .or(joined_groups.where("sources.code ILIKE ?", "%#{params[:q]}%"))

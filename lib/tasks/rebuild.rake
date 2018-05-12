@@ -3,8 +3,8 @@ namespace :rebuild do
   task local: :environment do
     abort("You're not running in development!") unless Rails.env.development?
 
-    system("b/rake db:drop RAILS_ENV=development")
+    system("bundle exec rake db:drop RAILS_ENV=development")
     system("heroku pg:pull -a music-cms-demo DATABASE_URL music-cms_development")
-    system("b/rake db:environment:set db:migrate generate:compositions RAILS_ENV=development")
+    system("bundle exec rake db:environment:set RAILS_ENV=development")
   end
 end
