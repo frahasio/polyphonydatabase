@@ -17,10 +17,18 @@ class Inclusion < ActiveRecord::Base
 
   def display_clefs=(annotated_notes)
     inclusion_combination = ClefCombination.from_display(annotated_notes)
-    self.clef_combination = inclusion_combination[:combination]
-    self.missing_clef_ids = inclusion_combination[:missing_ids]
-    self.incomplete_clef_ids = inclusion_combination[:incomplete_ids]
-    self.transitions_to = inclusion_combination[:transitions_to]
+
+    if inclusion_combination.nil?
+      self.clef_combination = nil
+      self.missing_clef_ids = []
+      self.incomplete_clef_ids = []
+      self.transitions_to = {}
+    else
+      self.clef_combination = inclusion_combination[:combination]
+      self.missing_clef_ids = inclusion_combination[:missing_ids]
+      self.incomplete_clef_ids = inclusion_combination[:incomplete_ids]
+      self.transitions_to = inclusion_combination[:transitions_to]
+    end
   end
 
   def display_clefs

@@ -5,6 +5,8 @@ class ClefCombination < ApplicationRecord
   before_validation :update_sorting
 
   def self.from_display(annotated_notes)
+    return nil if annotated_notes.reject(&:blank?).empty?
+
     missing_ids = []
     incomplete_ids = []
     transitions_to = {}
@@ -26,7 +28,7 @@ class ClefCombination < ApplicationRecord
       end
     }
 
-    clef_ids = clefs.compact.map(&:id)
+    clef_ids = clefs.compact.map(&:id).compact
     combination = self.where("sort(clef_ids) = sort('{?}')", clef_ids).first || self.create!(clef_ids: clef_ids.sort)
 
     {
