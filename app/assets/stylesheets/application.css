@@ -340,3 +340,7 @@ div.listofsources > * {
 .titles-editor select {
     width:100%;
 }
+div.sourcebasics {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+}
