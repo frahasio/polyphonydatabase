@@ -350,3 +350,21 @@ div.sourcebasics {
 .sourcebasics .dates label {
     display:none;
 }
+tr.inclusion td.order {
+    width:3%;
+}
+tr.inclusion td.attributed-to {
+    width:25%;
+}
+tr.inclusion td.title {
+    width:20%;
+}
+tr.inclusion td.clefs {
+    width:37%;
+}
+tr.inclusion td.notes {
+    width:12%;
+}
+tr.inclusion td.delete {
+    width:3%;
+}
