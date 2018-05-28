@@ -65,6 +65,7 @@
       <th class="delete">Delete</th>
       <th></th>
     </tr>
+    <tbody>
 
     <% composer_list = Composer.order(:name).map {|c| [c.name, c.id] } %>
     <%= render "catalogue_set", inclusions: @inclusions, composer_list: composer_list, f: f %>
@@ -72,6 +73,8 @@
     <% if @blank_inclusions %>
       <%= render "catalogue_set", inclusions: @blank_inclusions, composer_list: composer_list, f: f %>
     <% end %>
+      
+    </tbody>
   </table>
 
   <%= paginate @inclusions %>
