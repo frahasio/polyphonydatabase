@@ -10,7 +10,6 @@
 
 <%= form_for([:admin, @source], url: admin_source_path(@source, page: params[:page])) do |f| %>
   <div class="sourcebasics">
-    <div class="left">
       <%= f.text_field :code %>
       <%= f.text_area :title %>
       <%= f.select :publisher_ids,
@@ -46,14 +45,11 @@
          <%= f.text_field :to_year %>
         </div>
       </div>
-    </div>
-    <div class="right">
       <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
       <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
       <%= f.text_field :rism_link, label: "RISM URL" %>
       <%= f.text_field :url, label: "Image URL" %>
       <%= f.check_box :catalogued %>
-    </div>
   </div>
 
   <button class="save">Save</button>
