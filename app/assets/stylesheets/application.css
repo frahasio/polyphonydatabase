@@ -424,3 +424,12 @@ table.cataloguing text-area {
 .adminwrapper th.delete {
     width:3%;
 }
+span.add-more-attribs {
+    font-size:10px;
+    float:left;
+    clear:both;
+    cursor:pointer;
+}
+span.add-more-attribs:hover {
+    color:orange;
+}
