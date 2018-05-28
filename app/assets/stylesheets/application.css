@@ -344,14 +344,20 @@ div.sourcebasics {
     width:100%;
     padding:20px;
     display:grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
     justify-content:flex-start;
     align-items:center;
+}
+div.sourcebasics label {
+    flex-grow:1;
 }
 div.sourcebasics input,
 div.sourcebasics select,
 div.sourcebasics textarea {
-    font-size:11px;
+    font-size:12px;
+    margin:0;
+    margin-left:10px;
+    padding:6px;
     flex-grow:1;
 }
 div.sourcebasics > p,
