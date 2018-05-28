@@ -375,6 +375,7 @@ div.sourcebasics > div {
     flex-direction:column;
 }
 .sourcebasics .dates .prefix {
+    margin-bottom:5px;
     display:grid;
     grid-template-columns: 2fr 1fr 3fr;
     color:#fff;
@@ -384,6 +385,9 @@ div.sourcebasics > div {
 }
 .sourcebasics .dates label {
     display:none;
+}
+#source_title {
+    height:6em;
 }
 table.cataloguing input,
 table.cataloguing select,
