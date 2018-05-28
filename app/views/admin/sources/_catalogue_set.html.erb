@@ -31,7 +31,7 @@
     <td class="notes"><%= i.text_area :notes %></td>
     <% if i.object.persisted? %>
       <td class="delete">
-        <%= link_to "&#10006;", admin_inclusion_path(i.object), method: :delete %>
+        <%= link_to "✖", admin_inclusion_path(i.object), method: :delete %>
       </td>
     <% end %>
   </tr>
