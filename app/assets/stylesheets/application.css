@@ -357,21 +357,27 @@ div.sourcebasics > div {
 .sourcebasics .dates label {
     display:none;
 }
-tr.inclusion td.order {
+.adminwrapper td.order,
+.adminwrapper th.order {
     width:3%;
 }
-tr.inclusion td.attributed-to {
+.adminwrapper td.attributed-to,
+.adminwrapper th.attributed-to {
     width:25%;
 }
-tr.inclusion td.title {
+.adminwrapper td.title,
+.adminwrapper th.title {
     width:20%;
 }
-tr.inclusion td.clefs {
+.adminwrapper td.clefs,
+.adminwrapper th.clefs {
     width:37%;
 }
-tr.inclusion td.notes {
+.adminwrapper td.notes,
+.adminwrapper th.notes {
     width:12%;
 }
-tr.inclusion td.delete {
+.adminwrapper td.delete,
+.adminwrapper th.delete {
     width:3%;
 }
