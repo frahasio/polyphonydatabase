@@ -400,9 +400,11 @@ table.cataloguing text-area {
 .adminwrapper td.attributed-to,
 .adminwrapper th.attributed-to {
     width:25%;
+    padding:0;
 }
 .adminwrapper td.attributed-to ul {
     margin:0;
+    padding:10px;
 }
 .adminwrapper td.attributed-to select,
 .adminwrapper td.attributed-to input {
@@ -413,6 +415,7 @@ table.cataloguing text-area {
 .adminwrapper td.attributed-to.more span {
     display:none;
 }
+.adminwrapper td.attributed-to li:first-of-type,
 .adminwrapper td.attributed-to.more li:last-of-type {
     display:list-item;
 }
