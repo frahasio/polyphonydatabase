@@ -396,9 +396,6 @@ table.cataloguing text-area {
 .adminwrapper td.attributed-to li:last-of-type {
     display:none;
 }
-.adminwrapper td.attributed-to li:last-of-type::before {
-    content:"<span>Add more...</span>";
-}
 .adminwrapper td.attributed-to.more li:last-of-type {
     display:list-item;
 }
