@@ -18,6 +18,6 @@
 // Show more inputs for attributions
 $( document ).ready(function(){
 	$('.add-more-attribs').click(function(){
-		$(this).parent('td').addClass('more');
+		$(this).closest('td').addClass('more');
 	})
 });
