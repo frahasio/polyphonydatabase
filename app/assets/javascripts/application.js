@@ -17,8 +17,8 @@
 
 // Autofill composers
 $( document ).ready(function(){
-	var attr = $('table.cataloguing tbody tr.first-child ul.composer li:first-child input').val();
-	var comp = $('table.cataloguing tbody tr.first-child ul.composer li:first-child select').val();
+	var attr = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val();
+	var comp = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val();
 	$('.autofill-composers').click(function(){
 		alert(attr);
 		alert(comp);
