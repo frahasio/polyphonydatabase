@@ -419,6 +419,11 @@ table.cataloguing text-area {
 .adminwrapper th.title {
     width:20%;
 }
+.adminwrapper td.title textarea,
+.adminwrapper td.notes textarea {
+    width:100%;
+    height:4em;
+}
 .adminwrapper td.clefs,
 .adminwrapper th.clefs {
     width:37%;
