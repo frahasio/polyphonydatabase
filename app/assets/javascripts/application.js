@@ -13,3 +13,11 @@
 //= require jquery
 //= require jquery_ujs
 //= require_tree .
+
+
+// Show more inputs for attributions
+$( document ).ready(function(){
+	$('table.cataloguing td.attributed-to span').click(function(){
+		$(this).parent(td).addClass('more');
+	})
+});
