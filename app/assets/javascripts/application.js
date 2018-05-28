@@ -15,9 +15,12 @@
 //= require_tree .
 
 
-// Show more inputs for attributions
+// Autofill composers
 $( document ).ready(function(){
-	$('.add-more-attribs').click(function(){
-		$(this).closest('td').addClass('more');
+	var attr = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val();
+	var comp = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val();
+	$('.autofill-composers').click(function(){
+		$('ul.composer li:first-child input').val(attr);
+		$('ul.composer li:first-child select').val(comp);
 	})
 });
