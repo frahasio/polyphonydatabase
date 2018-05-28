@@ -344,3 +344,9 @@ div.sourcebasics {
     display:grid;
     grid-template-columns: 1fr 1fr;
 }
+.sourcebasics .dates .prefix {
+    display:flex;
+}
+.sourcebasics .dates label {
+    display:none;
+}
