@@ -348,6 +348,12 @@ div.sourcebasics {
     justify-content:flex-start;
     align-items:center;
 }
+div.sourcebasics input,
+div.sourcebasics select,
+div.sourcebasics textarea {
+    font-size:11px;
+    flex-grow:1;
+}
 div.sourcebasics > p,
 div.sourcebasics > div {
     display:flex;
@@ -362,7 +368,7 @@ div.sourcebasics > div {
     grid-template-columns: 2fr 1fr 3fr;
     color:#fff;
 }
-.sourcebasics .dates .prefix input:first-of-type {
+.sourcebasics .dates .prefix p:first-of-type input {
     width:30px;
 }
 .sourcebasics .dates label {
