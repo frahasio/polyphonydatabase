@@ -343,6 +343,13 @@ div.listofsources > * {
 div.sourcebasics {
     display:grid;
     grid-template-columns: 1fr 1fr;
+    justify-content:space-between;
+    align-items:center;
+}
+div.sourcebasics > p,
+div.sourcebasics > div {
+    padding:20px 30px;
+    color:#000;
 }
 .sourcebasics .dates .prefix {
     display:flex;
