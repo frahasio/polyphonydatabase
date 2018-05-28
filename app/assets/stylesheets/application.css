@@ -390,6 +390,9 @@ table.cataloguing text-area {
 .adminwrapper th.attributed-to {
     width:25%;
 }
+.adminwrapper td.attributed-to ul {
+    margin:0;
+}
 .adminwrapper td.attributed-to select {
     max-width:100%;
 }
@@ -406,6 +409,12 @@ table.cataloguing text-area {
 .adminwrapper td.clefs,
 .adminwrapper th.clefs {
     width:37%;
+}
+.adminwrapper td.clefs input {
+    width:30px;
+    margin:2px;
+    display:inline-block;
+    float:left;
 }
 .adminwrapper td.notes,
 .adminwrapper th.notes {
