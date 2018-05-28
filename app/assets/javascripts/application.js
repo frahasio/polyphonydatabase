@@ -23,6 +23,6 @@ $( document ).ready(function(){
 		alert(attr);
 		alert(comp);
 		$('ul.composer li:first-child input').val(attr);
-		$('ul.composer li:first-child select option[value=comp]').prop('selected', true);
+		$('ul.composer li:first-child select').val(comp);
 	})
 });
