@@ -17,7 +17,7 @@
 
 // Show more inputs for attributions
 $( document ).ready(function(){
-	$('table.cataloguing td.attributed-to span').click(function(){
+	$('.add-more-attribs').click(function(){
 		$(this).parent(td).addClass('more');
 	})
 });
