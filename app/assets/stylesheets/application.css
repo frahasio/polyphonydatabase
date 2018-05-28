@@ -407,7 +407,8 @@ table.cataloguing text-area {
 .adminwrapper td.attributed-to select {
     max-width:100%;
 }
-.adminwrapper td.attributed-to li:last-of-type {
+.adminwrapper td.attributed-to li:last-of-type,
+.adminwrapper td.attributed-to.more span {
     display:none;
 }
 .adminwrapper td.attributed-to.more li:last-of-type {
@@ -437,9 +438,10 @@ table.cataloguing text-area {
 }
 span.add-more-attribs {
     font-size:10px;
-    float:left;
     clear:both;
     cursor:pointer;
+    color:#104e8b;
+    text-align:left;
 }
 span.add-more-attribs:hover {
     color:orange;
