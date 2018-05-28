@@ -368,13 +368,30 @@ div.sourcebasics > div {
 .sourcebasics .dates label {
     display:none;
 }
+table.cataloguing input,
+table.cataloguing select,
+table.cataloguing text-area {
+    font-size:11px;
+}
 .adminwrapper td.order,
 .adminwrapper th.order {
     width:3%;
 }
+.adminwrapper td.order input {
+    width:40px;
+}
 .adminwrapper td.attributed-to,
 .adminwrapper th.attributed-to {
     width:25%;
+}
+.adminwrapper td.attributed-to select {
+    max-width:100%;
+}
+.adminwrapper td.attributed-to li:last-of-type {
+    display:none;
+}
+.adminwrapper td.attributed-to.more li:last-of-type {
+    display:list-item;
 }
 .adminwrapper td.title,
 .adminwrapper th.title {
