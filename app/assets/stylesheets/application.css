@@ -404,8 +404,9 @@ table.cataloguing text-area {
 .adminwrapper td.attributed-to ul {
     margin:0;
 }
-.adminwrapper td.attributed-to select {
-    max-width:100%;
+.adminwrapper td.attributed-to select,
+.adminwrapper td.attributed-to input {
+    width:100%;
 }
 .adminwrapper td.attributed-to li:last-of-type,
 .adminwrapper td.attributed-to.more span {
