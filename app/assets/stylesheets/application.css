@@ -446,13 +446,3 @@ table.cataloguing text-area {
 .adminwrapper th.delete {
     width:3%;
 }
-span.add-more-attribs {
-    font-size:10px;
-    clear:both;
-    cursor:pointer;
-    color:#104e8b;
-    text-align:left;
-}
-span.add-more-attribs:hover {
-    color:orange;
-}
