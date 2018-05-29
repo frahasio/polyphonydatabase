@@ -17,10 +17,8 @@
 
 // Autofill composers
 $( document ).ready(function(){
-	var attr = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val();
-	var comp = $('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val();
 	$('.autofill-composers').click(function(){
-		$('ul.composer li:first-child input').val(attr);
-		$('ul.composer li:first-child select').val(comp);
+		$('ul.composer li:first-child input').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val());
+		$('ul.composer li:first-child select').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val());
 	})
 });
