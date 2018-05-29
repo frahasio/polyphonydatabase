@@ -416,8 +416,11 @@ table.cataloguing text-area {
     margin:2px 0;
 }
 .adminwrapper td.attributed-to li:last-of-type {
-    font-size:8px !important;
-    height:10px;
+    display:flex;
+}
+.adminwrapper td.attributed-to li:last-of-type input,
+.adminwrapper td.attributed-to li:last-of-type select {
+    background-color:lightgrey;
 }
 .adminwrapper td.title,
 .adminwrapper th.title {
