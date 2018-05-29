@@ -423,11 +423,15 @@ table.cataloguing text-area {
 }
 .adminwrapper td.attributed-to li:last-of-type input,
 .adminwrapper td.attributed-to li:last-of-type select {
-    background-color:beige;
+    background-color:lightgrey;
+    border:1px solid grey;
+    margin:2px;
 }
 .adminwrapper td.attributed-to li:first-of-type input,
 .adminwrapper td.attributed-to li:first-of-type select {
     background-color:#fff;
+    border:none;
+    margin:0;
 }
 .adminwrapper td.title,
 .adminwrapper th.title {
