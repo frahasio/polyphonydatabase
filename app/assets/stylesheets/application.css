@@ -423,7 +423,7 @@ table.cataloguing text-area {
 }
 .adminwrapper td.attributed-to li:last-of-type input,
 .adminwrapper td.attributed-to li:last-of-type select {
-    background-color:azure;
+    background-color:beige;
 }
 .adminwrapper td.attributed-to li:first-of-type input,
 .adminwrapper td.attributed-to li:first-of-type select {
