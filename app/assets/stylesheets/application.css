@@ -415,13 +415,9 @@ table.cataloguing text-area {
     width:100%;
     margin:2px 0;
 }
-.adminwrapper td.attributed-to li:last-of-type,
-.adminwrapper td.attributed-to.more span {
-    display:none;
-}
-.adminwrapper td.attributed-to li:first-of-type,
-.adminwrapper td.attributed-to.more li:last-of-type {
-    display:list-item;
+.adminwrapper td.attributed-to li:last-of-type {
+    font-size:8px !important;
+    height:10px;
 }
 .adminwrapper td.title,
 .adminwrapper th.title {
