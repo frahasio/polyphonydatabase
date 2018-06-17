@@ -22,18 +22,20 @@ class Inclusion < ActiveRecord::Base
       self.clef_combination = nil
       self.missing_clef_ids = []
       self.incomplete_clef_ids = []
+      self.both_clef_ids = []
       self.transitions_to = {}
     else
       self.clef_combination = inclusion_combination[:combination]
       self.missing_clef_ids = inclusion_combination[:missing_ids]
       self.incomplete_clef_ids = inclusion_combination[:incomplete_ids]
+      self.both_clef_ids = inclusion_combination[:both_ids]
       self.transitions_to = inclusion_combination[:transitions_to]
     end
   end
 
   def display_clefs
     return [] if clef_combination.nil?
-    clef_combination.to_display(missing_clef_ids, incomplete_clef_ids, transitions_to)
+    clef_combination.to_display(missing_clef_ids, incomplete_clef_ids, both_clef_ids, transitions_to)
   end
 
   def public_notes

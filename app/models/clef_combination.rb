@@ -9,20 +9,21 @@ class ClefCombination < ApplicationRecord
 
     missing_ids = []
     incomplete_ids = []
+    both_ids = []
     transitions_to = {}
 
     clefs = annotated_notes.map { |annotated_note|
-      if annotated_note =~ %r|^(\[)?({)?(\()?(\w+)/?(\w+)?|
-        missing = $1.present?
-        incomplete = $2.present?
-        optional = $3.present?
-        note = $4
-        transition = $5
+      if (note_info = parse_annotations(annotated_note))
+        clef = Clef.find_or_create_by(note_info.slice(:note, :optional))
 
-        clef = Clef.find_or_create_by(note: note, optional: optional)
-        missing_ids << clef.id if missing
-        incomplete_ids << clef.id if incomplete
-        transitions_to[clef.id] = transition
+        if note_info[:missing] && note_info[:incomplete]
+          both_ids << clef.id
+        else
+          missing_ids << clef.id if note_info[:missing]
+          incomplete_ids << clef.id if note_info[:incomplete]
+        end
+
+        transitions_to[clef.id] = note_info[:transition]
 
         clef
       end
@@ -35,16 +36,26 @@ class ClefCombination < ApplicationRecord
       combination: combination,
       missing_ids: missing_ids,
       incomplete_ids: incomplete_ids,
+      both_ids: both_ids,
       transitions_to: transitions_to,
     }
   end
 
-  def to_display(missing_ids, incomplete_ids, transitions_to)
+  def to_display(missing_ids, incomplete_ids, both_ids, transitions_to)
     sorted_clefs.map { |clef|
       annotated = [clef.note, transitions_to[clef.id.to_s]].compact.join("/")
       annotated = "(#{annotated})" if clef.optional?
-      annotated = "{#{annotated}}" if incomplete_ids.include?(clef.id)
-      annotated = "[#{annotated}]" if missing_ids.include?(clef.id)
+
+      if both_ids.include?(clef.id)
+        annotated = "[{#{annotated}}]"
+        both_ids.delete_at(both_ids.index(clef.id))
+      elsif incomplete_ids.include?(clef.id)
+        annotated = "{#{annotated}}"
+        incomplete_ids.delete_at(incomplete_ids.index(clef.id))
+      elsif missing_ids.include?(clef.id)
+        annotated = "[#{annotated}]"
+        missing_ids.delete_at(missing_ids.index(clef.id))
+      end
 
       annotated
     }
@@ -101,6 +112,18 @@ class ClefCombination < ApplicationRecord
     bc
     lut
   ].freeze
+
+  def self.parse_annotations(annotated_note)
+    if annotated_note =~ %r|^(\[)?({)?(\()?(\w+)/?(\w+)?|
+      {
+        missing: $1.present?,
+        incomplete: $2.present?,
+        optional: $3.present?,
+        note: $4,
+        transition: $5,
+      }
+    end
+  end
 
   def update_sorting
     self.sorting = sorted_clefs.map(&:note).join

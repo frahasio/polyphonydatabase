@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180512153825) do
+ActiveRecord::Schema.define(version: 20180617135201) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -130,6 +130,7 @@ ActiveRecord::Schema.define(version: 20180512153825) do
     t.integer  "incomplete_clef_ids", default: [],              array: true
     t.integer  "clef_combination_id"
     t.json     "transitions_to"
+    t.integer  "both_clef_ids",       default: [],              array: true
     t.index ["clef_combination_id"], name: "index_inclusions_on_clef_combination_id", using: :btree
     t.index ["composition_id"], name: "index_inclusions_on_composition_id", using: :btree
     t.index ["source_id"], name: "index_inclusions_on_source_id", using: :btree
