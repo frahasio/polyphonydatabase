@@ -56,6 +56,8 @@ module Admin
 
       source.assign_attributes(source_params)
 
+      check_changed_titles(source)
+
       unless source.save && assign_compositions
         flash[:error] = source.errors.full_messages.to_sentence
       end
@@ -106,6 +108,18 @@ module Admin
       )
     end
 
+    def check_changed_titles(source)
+      source.inclusions = source.inclusions.map do |inclusion|
+        if inclusion.composition.title.text_changed?
+          new_comp = inclusion.composition.dup
+          new_comp.title = Title.find_or_initialize_by(text: inclusion.composition.title.text)
+          inclusion.composition = new_comp
+        end
+
+        inclusion
+      end
+    end
+
     def assign_compositions
       inclusion_ids = source_params[:inclusions_attributes].map { |_, attributes|
         attributes[:id]
@@ -113,7 +127,6 @@ module Admin
 
       Inclusion.where(id: inclusion_ids).includes(composition: [:title, :group]).each do |inclusion|
         current_comp = inclusion.composition
-        debugger if current_comp.nil?
 
         possible_comps = Composition.where(
           number_of_voices: inclusion.minimum_voice_count,
