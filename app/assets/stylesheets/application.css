@@ -393,6 +393,10 @@ div.composerbasics > div {
 .composerbasics .dates label {
     display:none;
 }
+.composerbasics img {
+    max-width:400px;
+    max-height:300px;
+}
 #source_title {
     height:6em;
 }
