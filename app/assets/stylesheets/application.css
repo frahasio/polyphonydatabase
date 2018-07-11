@@ -338,7 +338,7 @@ div.listofsources > * {
 }
 .titles-editor span.select2,
 .titles-editor select {
-    width:100%;
+    width:100% !important;
 }
 div.sourcebasics,
 div.composerbasics {
