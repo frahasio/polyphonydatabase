@@ -396,7 +396,7 @@ div.composerbasics > div {
 .composerbasics img {
     max-width:400px;
     max-height:300px;
-    padding:10px 30px;
+    margin:10px 30px;
 }
 #source_title {
     height:6em;
