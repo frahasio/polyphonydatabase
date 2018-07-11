@@ -340,7 +340,8 @@ div.listofsources > * {
 .titles-editor select {
     width:100%;
 }
-div.sourcebasics {
+div.sourcebasics,
+div.composerbasics {
     width:100%;
     padding:20px;
     display:grid;
@@ -348,17 +349,17 @@ div.sourcebasics {
     justify-content:flex-start;
     align-items:center;
 }
-div.sourcebasics label {
+div.sourcebasics label,
+div.composerbasics label {
     flex:1;
 }
 div.sourcebasics input,
 div.sourcebasics select,
-div.sourcebasics textarea {
+div.sourcebasics textarea,
+div.composerbasics input,
+div.composerbasics select,
+div.composerbasics textarea {
     flex:2;
-}
-div.sourcebasics input,
-div.sourcebasics select,
-div.sourcebasics textarea {
     font-size:12px;
     margin:0;
     margin-left:10px;
@@ -366,24 +367,30 @@ div.sourcebasics textarea {
     flex-grow:1;
 }
 div.sourcebasics > p,
-div.sourcebasics > div {
+div.sourcebasics > div,
+div.composerbasics > p,
+div.composerbasics > div {
     display:flex;
     justify-content:space-between;
     padding:10px 30px;
 }
-.sourcebasics .dates {
+.sourcebasics .dates,
+.composerbasics .dates {
     flex-direction:column;
 }
-.sourcebasics .dates .prefix {
+.sourcebasics .dates .prefix,
+.composerbasics .dates .prefix {
     margin-bottom:5px;
     display:grid;
     grid-template-columns: 2fr 1fr 3fr;
     color:#fff;
 }
-.sourcebasics .dates .prefix p:first-of-type input {
+.sourcebasics .dates .prefix p:first-of-type input,
+.composerbasics .dates .prefix p:first-of-type input {
     width:30px;
 }
-.sourcebasics .dates label {
+.sourcebasics .dates label,
+.composerbasics .dates label {
     display:none;
 }
 #source_title {
