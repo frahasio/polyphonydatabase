@@ -10,7 +10,7 @@ class Composer < ActiveRecord::Base
     [
       "#{from_year_annotation}#{from_year}",
       "#{to_year_annotation}#{to_year}",
-    ].reject(&:blank?).join("-")
+    ].reject(&:blank?).join("–")
   end
 
 private
