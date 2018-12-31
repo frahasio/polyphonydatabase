@@ -180,7 +180,7 @@ div.login {
 .open div.login {
     padding:0 5px;
 }
-div.login button {
+div.login input {
     max-width:120px;
     display:inline-block;
     float:right;
