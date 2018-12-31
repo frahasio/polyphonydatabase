@@ -128,7 +128,7 @@ div table td {
     transition:all 0.15s linear;
 }
 span.burger {
-    display:block;
+    max-height:1000px;
     font-size:3em;
     color:#ffffff;
     padding:4px 10px;
