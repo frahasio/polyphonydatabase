@@ -16,7 +16,7 @@
     <span class="burger">&#9776;</span>
     <div class="login">
       <% if logged_in? %>
-          Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %>
+          <span>Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %></span>
       <% end %>
     </div>
     <ul class="navigation">
