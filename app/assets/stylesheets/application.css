@@ -187,6 +187,7 @@ div.login input {
     background-color:transparent;
     font-weight: bold;
     color: #006699;
+    text-transform:uppercase;
 }
 .pagination > span {
     padding:4px;
