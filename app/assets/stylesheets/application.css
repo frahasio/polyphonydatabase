@@ -216,7 +216,7 @@ div.login input:hover {
     width:auto;
 }
 .save-button p {
-    text-style:italic;
+    font-style:italic;
     margin-bottom:5px;
 }
 @media screen and (max-width:550px) {
