@@ -93,10 +93,17 @@ button:hover {
     background-color:lightgrey;
     margin:1px;
     padding:5px;
+    flex:2;
 }
 .header-row > div {
     color: white;
     background-color: #104e8b;
+}
+.tiny {
+    flex:1;
+}
+.large {
+    flex:3;
 }
 @media screen and (max-width:550px) {
     .header-row,
@@ -108,5 +115,6 @@ button:hover {
     .body-row > div {
         width:100%;
         margin:0;
+        flex:1;
     }
 }
