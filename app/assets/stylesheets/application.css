@@ -233,8 +233,9 @@ div.filters form {
 .filters select,
 .filters button,
 .filters label {
-    margin-bottom:8px;
+    margin:6px;
     height:30px;
+    float:left;
 }
 .filters textarea,
 .filters select,
