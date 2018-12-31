@@ -216,4 +216,7 @@ div.login input:hover {
         margin:0;
         flex:1;
     }
+    span.select2 {
+        max-width: 100%;
+    }
 }
