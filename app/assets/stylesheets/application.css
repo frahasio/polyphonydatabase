@@ -228,10 +228,15 @@ div.login input:hover {
 div.filters form {
     padding:5px;
 }
+.filters label {
+    display:flex;
+    background-color:#ffffff;
+    justify-content:space-between;
+    align-items:center;
+}
 .filters input,
 .filters textarea,
 .filters select,
-.filters button,
 .filters label {
     margin:6px;
     height:30px;
@@ -239,15 +244,12 @@ div.filters form {
 }
 .filters textarea,
 .filters select,
-.filters button,
 .filters label {
     max-width:300px;
 }
-.filters label {
-    display:flex;
-    background-color:#ffffff;
-    justify-content:space-between;
-    align-items:center;
+.filters button {
+    margin:10px auto;
+    display:block;
 }
 @media screen and (max-width:550px) {
     .save-button {
