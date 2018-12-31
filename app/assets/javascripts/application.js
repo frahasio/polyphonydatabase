@@ -15,10 +15,17 @@
 //= require_tree .
 
 
-// Autofill composers
+// Autofill composers with values in first inclusion row
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
 		$('ul.composer li:first-child input').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val());
 		$('ul.composer li:first-child select').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val());
+	})
+});
+
+// Toggle menu with burger button
+$( document ).ready(function(){
+	$('.burger').click(function(){
+		$(this).siblings('ul').toggleClass('open');
 	})
 });
