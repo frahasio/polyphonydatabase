@@ -7,18 +7,15 @@
     <%= select_tag :voices, options_for_select(Composition.select(:number_of_voices).distinct.order(:number_of_voices).pluck(:number_of_voices, :number_of_voices), params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
     <%= select_tag :voicing, options_for_select(Voicing.joins(:clef_combinations).distinct.order(:text).pluck(:text, :id), params[:voicing]), include_blank: "All voicings", class: "voicing" %>
     <%= select_tag :source, options_for_select(Source.joins(:inclusions).distinct.order(:code).pluck(:code, :id), params[:source]), include_blank: "All sources", class: "source" %>
-    <div class="filter-div">
       <label class="edition">
         <span>Edition</span>
         <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
       </label>
-    </div>
-    <div class="filter-div">
       <label class="recording">
         <span>Recording</span>
         <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
       </label>
-    </div>
+  
     <button class="filter">Filter</button>
   <% end %>
 </div>
