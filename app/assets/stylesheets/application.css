@@ -122,16 +122,17 @@ div table {
 div table td {
     padding:4px;
 }
+.nav > * {
+    display:none;
+}
 span.burger {
     display:block;
     font-size:3em;
     color:#ffffff;
     padding:10px;
+    display:block;
 }
-ul.navigation {
-    display:none;
-}
-ul.navigation.open {
+.nav.open > * {
     display:block;
 }
 @media screen and (max-width:550px) {
