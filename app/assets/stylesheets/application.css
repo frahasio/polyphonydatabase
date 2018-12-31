@@ -198,6 +198,7 @@ div.login input {
 }
 div.login input:hover {
     color:orange;
+    cursor:pointer;
 }
 .pagination > span {
     padding:4px;
