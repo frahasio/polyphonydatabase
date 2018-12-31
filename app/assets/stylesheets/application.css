@@ -126,7 +126,7 @@ div table td {
     .header-row,
     .body-row {
         flex-wrap:wrap;
-        margin-bottom:2px;
+        margin:0px 4px 1px 4px;
     }
     .header-row > div,
     .body-row > div {
