@@ -102,8 +102,7 @@ button:hover {
 }
 textarea,
 input,
-select,
-.span.select2 {
+select {
     width:100% !important;
     border-radius:4px !important;
     padding:4px !important;
