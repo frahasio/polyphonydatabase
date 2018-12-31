@@ -111,6 +111,14 @@ select {
 .composer .dates {
     color:grey;
 }
+div table {
+    position:relative;
+    top:-4px;
+    left:-4px;
+}
+div table td {
+    padding:4px;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
