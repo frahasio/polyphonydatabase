@@ -112,6 +112,7 @@ span.select2 {
 }
 span.select2 {
     max-width: 300px;
+    padding:0;
 }
 .composer .dates {
     color:grey;
