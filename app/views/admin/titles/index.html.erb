@@ -8,7 +8,7 @@
       <div class="header-row">
         <div>Title</div>
         <div>Function</div>
-        <div># inclusions</div>
+        <div class="tiny"># inclusions</div>
       </div>
 
       <% function_options = @functions.map {|f| [f.name, f.id] } %>
@@ -16,7 +16,7 @@
         <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
           <div class="body-row">
             <div><%= f.text_area :text %></div>
-            <div class="functions">
+            <div>
               <%= f.select :function_ids,
                 function_options,
                 {},
@@ -26,7 +26,7 @@
                 }
               %>
             </div>
-            <div><%= title.inclusions_count %></div>
+            <div class="tiny"><%= title.inclusions_count %></div>
           </div>
         <% end %>
       <% end %>
