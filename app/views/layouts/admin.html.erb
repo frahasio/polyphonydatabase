@@ -12,13 +12,13 @@
   </head>
 
   <body>
-   <div class="login">
-      <% if logged_in? %>
-        Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %>
-      <% end %>
-   </div>
    <div class="nav">
     <span class="burger">&#9776;</span>
+    <div class="login">
+      <% if logged_in? %>
+          Logged in as <%= current_user.username %> <%= button_to "Log out", admin_logout_path %>
+      <% end %>
+    </div>
     <ul class="navigation">
       <li><%= link_to "Add & catalogue sources", admin_sources_path, target: "_blank" %></li>
       <li><%= link_to "Add & edit composers", new_admin_composer_path, target: "_blank" %></li>
