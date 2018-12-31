@@ -1,11 +1,11 @@
 <% group.compositions.each_with_index do |composition, index| %>
   <div class="body-row <%= 'first-of-group' if index.zero? && group.multiple? %>">
-    <div>
+    <div class="tiny">
       <% if index.zero? %>
         <%= check_box_tag "groups[]", group.id %>
       <% end %>
     </div>
-    <div class="title">
+    <div>
       <%= composition.title.text %>
       <% if group.multiple? %>
         <div>
@@ -21,7 +21,7 @@
         <% end %>
       <% end %>
     </div>
-    <div class="composers">
+    <div>
       <% composition.composers.each do |composer| %>
         <div class="composer">
           <div class="name"><%= composer&.name %></div>
@@ -32,12 +32,12 @@
         </div>
       <% end %>
     </div>
-    <div class="minimum-voices">
+    <div class="tiny">
       <% if index.zero? %>
         <%= composition.number_of_voices %>
       <% end %>
     </div>
-    <div class="sources">
+    <div>
       <table>
         <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
           <tr>
