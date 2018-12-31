@@ -135,7 +135,9 @@ span.burger {
     padding:4px 10px;
     display:block;
     cursor:pointer;
-    
+}
+.burger:hover {
+    color:orange;
 }
 .nav.open > * {
     max-height:1000px;
