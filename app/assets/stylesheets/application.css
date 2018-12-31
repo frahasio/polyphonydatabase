@@ -242,10 +242,23 @@ div.filters form {
     height:30px;
     float:left;
 }
-.filters textarea,
-.filters select,
-.filters label {
-    max-width:300px;
+@media screen and (min-width:580px) {
+    .filters select,
+    .filters label {
+        max-width:calc(50%-12px);
+    }
+}
+@media screen and (min-width:880px) {
+    .filters select,
+    .filters label {
+        max-width:calc(30%-12px);
+    }
+}
+@media screen and (min-width:1200px) {
+    .filters select,
+    .filters label {
+        max-width:calc(25%-12px);
+    }
 }
 .filters button {
     margin:10px auto;
