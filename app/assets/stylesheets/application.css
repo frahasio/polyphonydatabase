@@ -132,8 +132,10 @@ span.burger {
     display:block;
     font-size:3em;
     color:#ffffff;
-    padding:10px;
+    padding:4px 10px;
     display:block;
+    cursor:pointer;
+    
 }
 .nav.open > * {
     max-height:1000px;
