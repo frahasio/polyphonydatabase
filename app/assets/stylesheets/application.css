@@ -203,7 +203,7 @@ div.login input:hover {
 @media screen and (max-width:550px) {
     .body-row {
         flex-wrap:wrap;
-        margin:0px 4px 1px 4px;
+        margin:0 0 1px 0;
     }
     .header-row {
         display:block;
