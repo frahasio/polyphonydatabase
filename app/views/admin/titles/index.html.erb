@@ -3,22 +3,20 @@
 <%= paginate @titles %>
 
 <%= form_tag update_all_admin_titles_path(page: params[:page]) do %>
-  <table class="titles-editor">
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Function</th>
-        <th># inclusions</th>
-      </tr>
-    </thead>
+  <div class="titles-editor">
+    
+      <div class="header-row">
+        <div>Title</div>
+        <div>Function</div>
+        <div># inclusions</div>
+      </div>
 
-    <tbody>
       <% function_options = @functions.map {|f| [f.name, f.id] } %>
       <% @titles.each do |title| %>
         <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
-          <tr>
-            <td><%= f.text_area :text %></td>
-            <td class="functions">
+          <div class="body-row">
+            <div><%= f.text_area :text %></div>
+            <div class="functions">
               <%= f.select :function_ids,
                 function_options,
                 {},
@@ -27,13 +25,13 @@
                   multiple: true
                 }
               %>
-            </td>
-            <td><%= title.inclusions_count %></td>
-          </tr>
+            </div>
+            <div><%= title.inclusions_count %></div>
+          </div>
         <% end %>
       <% end %>
-    </tbody>
-  </table>
+    
+  </div>
 
   <%= paginate @titles %>
 
