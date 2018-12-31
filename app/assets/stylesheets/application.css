@@ -173,6 +173,9 @@ ul.navigation {
     background-color:#ececec;
 }
 div.login {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
     color:#ececec;
     padding:0 10px;
     text-transform:uppercase;
@@ -183,7 +186,9 @@ div.login {
 div.login input {
     max-width:120px;
     display:inline-block;
-    float:right;
+    margin:0;
+    padding:0;
+    border:none;
     background-color:transparent;
     font-weight: bold;
     color: #006699;
