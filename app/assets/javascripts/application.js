@@ -26,6 +26,6 @@ $( document ).ready(function(){
 // Toggle menu with burger button
 $( document ).ready(function(){
 	$('.burger').click(function(){
-		$(this).parents('nav').toggleClass('open');
+		$(this).parents('.nav').toggleClass('open');
 	})
 });
