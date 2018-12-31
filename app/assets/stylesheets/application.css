@@ -219,6 +219,22 @@ div.login input:hover {
     font-style:italic;
     margin-bottom:5px;
 }
+div.filters form {
+    padding:5px;
+}
+.filters input,
+.filters textarea,
+.filters select,
+.filters button,
+.filters label {
+    margin-bottom:4px;
+}
+.filters label {
+    display:flex;
+    background-color:#ffffff;
+    justify-content:space-between;
+    align-items:center;
+}
 @media screen and (max-width:550px) {
     .save-button {
         position:sticky;
