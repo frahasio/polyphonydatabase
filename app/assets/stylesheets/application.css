@@ -103,8 +103,7 @@ textarea,
 input,
 select,
 span.select2,
-label
-div.filter-div, {
+label {
     width:100%;
     border-radius:4px;
     padding:4px;
@@ -233,15 +232,13 @@ div.filters form {
 .filters textarea,
 .filters select,
 .filters button,
-.filters label
-.filters div.filter-div, {
+.filters label {
     margin-bottom:8px;
     height:30px;
 }
 .filters textarea,
 .filters select,
 .filters button,
-.filters div.filterdiv,
 .filters label {
     max-width:300px;
 }
