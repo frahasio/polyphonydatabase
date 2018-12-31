@@ -194,6 +194,9 @@ div.login input {
     color: #006699;
     text-transform:uppercase;
 }
+div.login input:hover {
+    color:orange;
+}
 .pagination > span {
     padding:4px;
 }
