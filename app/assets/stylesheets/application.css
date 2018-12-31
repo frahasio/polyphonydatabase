@@ -217,6 +217,9 @@ div.login input:hover {
     width:100%;
     color:#ffffff;
 }
+.save-button input {
+    width:auto;
+}
 .save-button p {
     font-style:italic;
     margin-bottom:5px;
