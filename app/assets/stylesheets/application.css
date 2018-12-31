@@ -471,3 +471,18 @@ table.cataloguing text-area {
 .adminwrapper th.delete {
     width:3%;
 }
+/* new updates start here */
+.header-row,
+.body-row {
+    display:flex;
+}
+@media screen and (max-width:550px) {
+    .header-row,
+    .body-row {
+        flex-wrap:wrap;
+    }
+    .header-row > div,
+    .body-row > div {
+        width:100%;
+    }
+}
