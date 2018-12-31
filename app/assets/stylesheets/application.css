@@ -92,10 +92,12 @@ button:hover {
     color: white;
     background-color: #104e8b;
 }
-.tiny {
+.header-row > div.tiny,
+.body-row > div.tiny {
     flex:1;
 }
-.large {
+.header-row > div.large,
+.body-row > div.large {
     flex:3;
 }
 textarea,
