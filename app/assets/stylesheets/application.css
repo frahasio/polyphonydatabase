@@ -90,14 +90,19 @@ button:hover {
 .header-row > div,
 .body-row > div {
     flex-grow:1;
+    background-color:lightgrey;
+    margin:1px;
+    padding:5px;
 }
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
         flex-wrap:wrap;
+        margin-bottom:2px;
     }
     .header-row > div,
     .body-row > div {
         width:100%;
+        margin:0;
     }
 }
