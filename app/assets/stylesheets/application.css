@@ -94,6 +94,10 @@ button:hover {
     margin:1px;
     padding:5px;
 }
+.header-row > div {
+    color: white;
+    background-color: #104e8b;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
