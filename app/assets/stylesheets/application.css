@@ -180,6 +180,7 @@ div.login {
     color:#ececec;
     padding:0 10px;
     text-transform:uppercase;
+    background-color:#006699;
 }
 .open div.login {
     padding:10px;
@@ -192,7 +193,7 @@ div.login input {
     border:none;
     background-color:transparent;
     font-weight: bold;
-    color: #006699;
+    color: #ffffff;
     text-transform:uppercase;
 }
 div.login input:hover {
