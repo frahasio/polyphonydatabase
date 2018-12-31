@@ -102,12 +102,16 @@ button:hover {
 textarea,
 input,
 select,
-span.select2 {
+span.select2,
+label {
     width:100%;
     border-radius:4px;
     padding:4px;
     font-size:1.1em;
     border:none;
+}
+input[type=checkbox] {
+    width:auto;
 }
 span.select2 {
     max-width: 300px;
