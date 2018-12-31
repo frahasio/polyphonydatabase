@@ -252,7 +252,7 @@ div.filters form {
         position:sticky;
         bottom:0;
         left:0;
-        background: repeating-linear-gradient(45deg, #3a3a3a, #3a3a3a 1px, #3c3c3c 3px, #3a3a3a 5px);
+        background-color: rgba(58,58,58,0.75);
     }
     .body-row {
         flex-wrap:wrap;
