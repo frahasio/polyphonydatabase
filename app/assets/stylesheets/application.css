@@ -135,6 +135,16 @@ span.burger {
 .nav.open > * {
     display:block;
 }
+nav.pagination {
+    text-align:center;
+    padding:10px;
+    font-size:1.1em;
+    width:100%;
+    background-color#ececec;
+}
+.pagination > span {
+    padding:4px;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
