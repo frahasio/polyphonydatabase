@@ -105,6 +105,11 @@ button:hover {
 .large {
     flex:3;
 }
+textarea,
+input,
+select {
+    width:100%;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
