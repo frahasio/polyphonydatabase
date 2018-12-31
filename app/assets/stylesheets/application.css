@@ -212,6 +212,13 @@ div.login input:hover {
     width:100%;
     color:#ffffff;
 }
+.save-button label {
+    width:auto;
+}
+.save-button p {
+    text-style:italic;
+    margin-bottom:5px;
+}
 @media screen and (max-width:550px) {
     .save-button {
         position:sticky;
