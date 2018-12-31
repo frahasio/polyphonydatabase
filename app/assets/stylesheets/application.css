@@ -233,6 +233,13 @@ div.filters form {
 .filters button,
 .filters label {
     margin-bottom:8px;
+    height:30px;
+}
+.filters input,
+.filters textarea,
+.filters button,
+.filters label {
+    max-width:300px;
 }
 .filters label {
     display:flex;
