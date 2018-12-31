@@ -122,6 +122,12 @@ div table {
 div table td {
     padding:4px;
 }
+ul.navigation {
+    display:none;
+}
+ul.navigation.open {
+    display:block;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
