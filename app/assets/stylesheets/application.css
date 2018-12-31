@@ -148,7 +148,6 @@ nav.pagination {
     padding:10px;
     font-size:1.1em;
     width:100%;
-    background-color:#ececec;
 }
 ul.navigation li {
     display:flex;
@@ -162,6 +161,7 @@ ul.navigation li a {
 }
 ul.navigation {
     padding:5px;
+    background-color:#ececec;
 }
 .pagination > span {
     padding:4px;
