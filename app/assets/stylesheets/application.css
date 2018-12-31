@@ -122,6 +122,12 @@ div table {
 div table td {
     padding:4px;
 }
+span.burger {
+    display:block;
+    font-size:3em;
+    color:#ffffff;
+    padding:10px;
+}
 ul.navigation {
     display:none;
 }
