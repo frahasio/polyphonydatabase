@@ -154,12 +154,13 @@ nav.pagination {
     padding:4px;
 }
 @media screen and (max-width:550px) {
-    .header-row,
     .body-row {
         flex-wrap:wrap;
         margin:0px 4px 1px 4px;
     }
-    .header-row > div,
+    .header-row {
+        display:block;
+    }
     .body-row > div {
         min-width:100%;
         max-width:100%;
