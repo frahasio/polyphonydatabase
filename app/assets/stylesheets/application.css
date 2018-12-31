@@ -73,7 +73,6 @@ button {
 }
 button:hover {
     background-color: #2e6ca9;
-    transform:scale(1.07,1.07);
 }
 /* new updates start here */
 .header-row,
