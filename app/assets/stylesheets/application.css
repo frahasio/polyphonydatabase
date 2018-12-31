@@ -151,8 +151,14 @@ nav.pagination {
     background-color:#ececec;
 }
 ul.navigation li {
+    display:flex;
+    align-items:stretch;
+    justify-content:center;
+}
+ul.navigation li a {
     width:100%;
     padding:5px;
+    display:flex;
 }
 ul.navigation {
     padding:5px;
