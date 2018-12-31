@@ -263,6 +263,7 @@ div.filters form {
 .filters button {
     margin:10px auto;
     display:block;
+    clear:both;
 }
 .filters input {
     width:calc(100%-12px);
