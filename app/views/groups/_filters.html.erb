@@ -8,11 +8,11 @@
     <%= select_tag :voicing, options_for_select(Voicing.joins(:clef_combinations).distinct.order(:text).pluck(:text, :id), params[:voicing]), include_blank: "All voicings", class: "voicing" %>
     <%= select_tag :source, options_for_select(Source.joins(:inclusions).distinct.order(:code).pluck(:code, :id), params[:source]), include_blank: "All sources", class: "source" %>
     <label class="edition">
-      Edition
+      <span>Edition</span>
       <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
     </label>
     <label class="recording">
-      Recording
+      <span>Recording</span>
       <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
     </label>
     <button class="filter">Filter</button>
