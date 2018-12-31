@@ -142,12 +142,20 @@ span.burger {
     max-height:1000px;
     transition:all 0.15s linear;
 }
+ul.navigation li,
 nav.pagination {
     text-align:center;
     padding:10px;
     font-size:1.1em;
     width:100%;
     background-color:#ececec;
+}
+ul.navigation li {
+    width:100%;
+    padding:5px;
+}
+ul.navigation {
+    padding:5px;
 }
 .pagination > span {
     padding:4px;
