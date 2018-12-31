@@ -1,11 +1,11 @@
 <% headings_partial ||= "headings" %>
 <% row_partial ||= "row" %>
 
-<div class="maintable">
-  <table class="sortable">
+<div>
+  <div class="table">
     <%= render headings_partial %>
     <% @groups.each do |group| %>
       <%= render row_partial, group: group %>
     <% end %>
-  </table>
+  </div>
 </div>
