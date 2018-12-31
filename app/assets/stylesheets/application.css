@@ -164,6 +164,7 @@ ul.navigation li a {
     width:100%;
     padding:5px;
     display:flex;
+    text-transform:uppercase;
 }
 ul.navigation {
     padding:0px 5px;
@@ -181,6 +182,7 @@ div.login {
     padding:0 10px;
     text-transform:uppercase;
     background-color:#006699;
+    letter-spacing:1px;
 }
 .open div.login {
     padding:10px;
@@ -195,6 +197,7 @@ div.login input {
     font-weight: bold;
     color: #ffffff;
     text-transform:uppercase;
+    letter-spacing:1px;
 }
 div.login input:hover {
     color:orange;
