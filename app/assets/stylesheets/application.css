@@ -109,6 +109,7 @@ label {
     padding:4px;
     font-size:1.1em;
     border:none;
+    min-height:30px;
 }
 input[type=checkbox] {
     width:auto;
@@ -228,7 +229,7 @@ div.filters form {
 .filters select,
 .filters button,
 .filters label {
-    margin-bottom:4px;
+    margin-bottom:8px;
 }
 .filters label {
     display:flex;
