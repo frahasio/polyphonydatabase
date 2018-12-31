@@ -109,6 +109,9 @@ select {
     padding:4px;
     font-size:1.1em;
 }
+.composer .dates {
+    color:grey;
+}
 @media screen and (max-width:550px) {
     .header-row,
     .body-row {
