@@ -1,7 +1,7 @@
-<tr>
-  <td class="title"><%= group.display_title %></td>
-  <td class="functions"><%= group.functions.map(&:name).join(", ") %></td>
-  <td class="composers">
+<div class="body-row">
+  <div><%= group.display_title %></td>
+  <div><%= group.functions.map(&:name).join(", ") %></td>
+  <div>
     <% if group.conflicting_attributions? %>
       <div class="composer">
         <div class="name">
@@ -29,9 +29,9 @@
         </div>
       <% end %>
     <% end %>
-  </td>
-  <td class="minimum-voices"><%= group.compositions.first.number_of_voices %></td>
-  <td class="sources">
+  </div>
+  <div class="tiny"><%= group.compositions.first.number_of_voices %></div>
+  <div>
     <table>
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
@@ -71,8 +71,8 @@
         </tr>
       <% end %>
     </table>
-  </td>
-  <td class="editions">
+  </div>
+  <div>
     <% group.editions.each do |edition| %>
       <div class="edition">
         <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
@@ -88,8 +88,8 @@
         <% end %>
       </div>
     <% end %>
-  </td>
-  <td class="recordings">
+  </div>
+  <div class="recordings">
     <% group.recordings.each do |recording| %>
       <% if recording.file_url.present? %>
         <div class="recording">
@@ -100,5 +100,5 @@
         </div>
       <% end %>
     <% end %>
-  </td>
-</tr>
+  </div>
+</div>
