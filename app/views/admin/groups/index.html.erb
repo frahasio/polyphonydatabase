@@ -5,7 +5,7 @@
   <%= render "groups/table" %>
 
   <span class="save-button">
-    <%= text_field_tag :display_title, placeholder: "Display title" %>
+    <label>Display title: <%= text_field_tag :display_title %></label>
     <p>(Will use the first composition's title if left blank)</p>
     <button>Group</button>
   </span>
