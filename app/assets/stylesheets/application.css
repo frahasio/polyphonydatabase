@@ -251,6 +251,9 @@ div.filters form {
     margin:10px auto;
     display:block;
 }
+.filters input {
+    width:calc(100%-12px);
+}
 @media screen and (max-width:550px) {
     .save-button {
         position:sticky;
