@@ -85,6 +85,11 @@ button:hover {
 .header-row,
 .body-row {
     display:flex;
+    width:100%;
+}
+.header-row > div,
+.body-row > div {
+    flex-grow:1;
 }
 @media screen and (max-width:550px) {
     .header-row,
