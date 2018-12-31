@@ -111,6 +111,7 @@ div.filter-div, {
     font-size:1.1em;
     border:none;
     min-height:30px;
+    display:inline-block;
 }
 input[type=checkbox] {
     width:auto;
