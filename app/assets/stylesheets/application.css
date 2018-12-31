@@ -173,6 +173,10 @@ ul.navigation {
 }
 div.login {
     color:#ececec;
+    padding:0 5px;
+}
+.open div.login {
+    padding:0 5px;
 }
 div.login button {
     display:inline-block;
