@@ -89,7 +89,6 @@ button:hover {
 }
 .header-row > div,
 .body-row > div {
-    flex-grow:1;
     background-color:lightgrey;
     margin:1px;
     padding:5px;
@@ -118,7 +117,8 @@ select {
     }
     .header-row > div,
     .body-row > div {
-        width:100%;
+        min-width:100%;
+        max-width:100%;
         margin:0;
         flex:1;
     }
