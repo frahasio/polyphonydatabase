@@ -4,8 +4,10 @@
 <%= form_tag merge_admin_groups_path(request.query_parameters) do %>
   <%= render "groups/table" %>
 
-  <%= label_tag :display_title %>
-  <%= text_field_tag :display_title %>
-  <p>Note: Will use the first composition's title if left blank</p>
-  <span class="save-button"><button>Group</button></span>
+  <span class="save-button">
+    <%= label_tag :display_title %>
+    <%= text_field_tag :display_title %>
+    <p>Note: Will use the first composition's title if left blank</p>
+    <button>Group</button>
+  </span>
 <% end %>
