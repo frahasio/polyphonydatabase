@@ -61,13 +61,6 @@ button.help,
 div.topexplanation {
     display:none;
 }
-select,
-input {
-    margin:6px;
-    border-radius:5px;
-    padding:5px;
-    font-size:1.1em;
-}
 button {
     color: white;
     background-color: #104e8b;
@@ -109,6 +102,10 @@ textarea,
 input,
 select {
     width:100%;
+    margin:4px;
+    border-radius:4px;
+    padding:4px;
+    font-size:1.1em;
 }
 @media screen and (max-width:550px) {
     .header-row,
