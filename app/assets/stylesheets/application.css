@@ -115,6 +115,7 @@ div table {
     position:relative;
     top:-4px;
     left:-4px;
+    background-color:gainsboro;
 }
 div table td {
     padding:4px;
