@@ -374,9 +374,9 @@ th span {
     display:block;
     font-size:0.9em;
 }
-table table td,
-table table th {
+table table td {
     border:none;
+    background-color:gainsboro;
 }
 table table tr+tr {
     border-top:1px solid darkgrey;
