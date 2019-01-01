@@ -297,6 +297,7 @@ td.clefs {
     display:flex;
     flex-wrap:wrap;
     flex-grow:1;
+    min-width:280px;
     max-width:280px;
 }
 img.clef-image {
