@@ -238,6 +238,7 @@ div.filters form {
 .filters textarea,
 .filters select,
 .filters label {
+    width:calc(100% - 12px);
     margin:6px;
     height:30px;
     float:left;
@@ -259,11 +260,6 @@ div.filters form {
     .filters label {
         max-width:calc(25% - 12px);
     }
-}
-.filters button {
-    margin:10px auto;
-    display:block;
-    clear:both;
 }
 .filters input {
     width:calc(100% - 12px);
