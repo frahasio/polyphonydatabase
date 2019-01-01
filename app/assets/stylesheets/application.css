@@ -330,8 +330,9 @@ td a img {
     margin-right:6px;
     vertcal-align:bottom;
 }
-td a + a img {
-    margin-top:10px;
+td a + a {
+    display:block;
+    padding-top:10px;
 }
 table {
     border-collapse:collapse;
