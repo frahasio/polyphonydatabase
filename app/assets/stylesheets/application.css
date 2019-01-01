@@ -322,6 +322,14 @@ img.clef-image.missing+img.clef-image.missing,
 img.clef-image.incomplete+img.clef-image.incomplete {
     border-left:none;
 }
+td a img {
+    max-height:60px;
+    min-height:60px;
+    display:inline-block;
+    float:left;
+    margin:4px;
+    vertcal-align:bottom;
+}
 table {
     border-collapse:collapse;
 }
