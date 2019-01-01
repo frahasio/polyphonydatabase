@@ -291,6 +291,10 @@ div.filters form {
 input[type=checkbox] {
     width:auto;
 }
+td.clefs {
+    display:flex;
+    flex-wrap:nowrap;
+}
 img.clef-image {
     height:60px;
     max-height:60px;
@@ -319,12 +323,17 @@ table {
 td,
 th {
     border:1px solid grey;
+    padding:6px;
 }
 td {
     background-color:lightgrey;
 }
 th {
     background-color: #104e8b;
+    colo:white;
+}
+th span {
+    display:block;
 }
 table table td,
 table table th {
