@@ -293,9 +293,9 @@ input[type=checkbox] {
     width:auto;
 }
 img.clef-image {
-    height:50px;
-    max-height:50px;
-    min-height:50px;
+    height:60px;
+    max-height:60px;
+    min-height:60px;
     border-top:1px solid transparent;
     border-bottom:1px solid transparent;
     display:inline-block;
