@@ -296,5 +296,16 @@ img.clef-image {
     height:44px;
     max-height:44px;
     min-height:44px;
+    border-top:1px solid transparent;
+    border-bottom:1px solid transparent;
+}
+img.clef-image.missing {
+    border:1px solid red;
+}
+img.clef-image.optional {
+    opacity:0.5;
+}
+img.clef-image.incomplete {
+    border:1px solid green;
 }
 
