@@ -233,6 +233,8 @@ div.filters form {
     background-color:#ffffff;
     justify-content:space-between;
     align-items:center;
+    padding-left:8px;
+    font-family:arial;
 }
 .filters input,
 .filters textarea,
