@@ -313,4 +313,9 @@ img.clef-image.missing+img.clef-image.missing,
 img.clef-image.incomplete+img.clef-image.incomplete {
     border-left:none;
 }
-
+table {
+    border-collapse:collapse;
+}
+td {
+    border:1px solid grey;
+}
