@@ -308,7 +308,7 @@ img.clef-image.missing {
     border:1px solid darkred;
 }
 img.clef-image.optional {
-    opacity:0.5;
+    opacity:0.3;
 }
 img.clef-image.incomplete {
     border:1px solid green;
