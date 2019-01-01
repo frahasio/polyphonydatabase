@@ -25,7 +25,7 @@
     <% end %>
   </div>
   <div class="tiny"><%= group.compositions.first.number_of_voices %></div>
-  <div>
+  <div class="large">
     <table>
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
