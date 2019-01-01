@@ -1,32 +1,26 @@
 <div class="body-row">
-  <div><%= group.display_title %></td>
-  <div><%= group.functions.map(&:name).join(", ") %></td>
+  <div><%= group.display_title %></div>
+  <div><%= group.functions.map(&:name).join(", ") %></div>
   <div>
     <% if group.conflicting_attributions? %>
-      <div class="composer">
-        <div class="name">
           <% if group.composers.uniq.size == 2 && group.composers.include?(anon_composer) %>
             <% composer = (group.composers.uniq - [anon_composer]).first %>
             <%= composer&.name %>
 
           <% else %>
-            Conflicting attributions
+            <span class="conflicting">Conflicting attributions</span>
           <% end %>
-        </div>
 
         <% if composer %>
-          <div class="dates"><%= composer.dates %></div>
+          <span class="dates"><%= composer.dates %></span>
         <% end %>
-      </div>
     <% else %>
       <% group.composers.uniq.each do |composer| %>
-        <div class="composer">
-          <div class="name"><%= composer&.name %></div>
+          <%= composer&.name %>
 
           <% if composer %>
-            <div class="dates"><%= composer.dates %></div>
+            <span class="dates"><%= composer.dates %></span>
           <% end %>
-        </div>
       <% end %>
     <% end %>
   </div>
@@ -38,19 +32,15 @@
           <% source = inclusion.source %>
           <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
           <td class="source-name">
-            <div>
               <% if source.url.present? %>
                 <%= link_to source_name, source.url, target: "_blank" %>
               <% else %>
                 <%= source_name %>
               <% end %>
-            </div>
 
-            <div class="source-text">
               <%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %>
               <em>(<%= [source.format, source.type].reject(&:blank?).join(", ") %>)</em>
               <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
-            </div>
 
             <% if admin_user? %>
               <%= link_to "Catalogue source", edit_admin_source_path(source), target: "_blank" %>
