@@ -39,7 +39,7 @@
     </div>
     <div>
         <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
-          <div><%= source.code %></div>
+          <div class="source"><%= source.code %></div>
         <% end %>
     </div>
   </div>
