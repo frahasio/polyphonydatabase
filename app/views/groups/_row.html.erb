@@ -1,7 +1,7 @@
-<div class="body-row">
-  <div><%= group.display_title %></div>
-  <div><%= group.functions.map(&:name).join(", ") %></div>
-  <div>
+<tr>
+  <td><%= group.display_title %></td>
+  <td><%= group.functions.map(&:name).join(", ") %></td>
+  <td>
     <% if group.conflicting_attributions? %>
           <% if group.composers.uniq.size == 2 && group.composers.include?(anon_composer) %>
             <% composer = (group.composers.uniq - [anon_composer]).first %>
@@ -23,9 +23,9 @@
           <% end %>
       <% end %>
     <% end %>
-  </div>
-  <div class="tiny"><%= group.compositions.first.number_of_voices %></div>
-  <div class="large">
+  </td>
+  <td><%= group.compositions.first.number_of_voices %></td>
+  <td>
     <table>
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
@@ -61,10 +61,9 @@
         </tr>
       <% end %>
     </table>
-  </div>
-  <div>
+  </td>
+  <td>
     <% group.editions.each do |edition| %>
-      <div class="edition">
         <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
         <% if edition.file_url.present? %>
           <%= link_to edition.file_url, target: "_blank", class: "edition" do %>
@@ -76,19 +75,16 @@
         <% else %>
           <%= edition_text %>
         <% end %>
-      </div>
     <% end %>
-  </div>
-  <div class="recordings">
+  </td>
+  <td class="recordings">
     <% group.recordings.each do |recording| %>
       <% if recording.file_url.present? %>
-        <div class="recording">
           <%= link_to recording.file_url, target: "_blank", class: "recording" do %>
             <%= image_tag "listen.png" %>
             <%= recording.performer_name %>
           <% end %>
-        </div>
       <% end %>
     <% end %>
-  </div>
-</div>
+  </td>
+</tr>
