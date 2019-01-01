@@ -327,6 +327,7 @@ td.source-name {
 td.notes {
     min-width:250px;
     max-width:250px;
+    font-size:0.9em;
 }
 td,
 th {
@@ -344,6 +345,7 @@ th {
 }
 th span {
     display:block;
+    font-size:0.9em;
 }
 table table td,
 table table th {
