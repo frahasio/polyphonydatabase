@@ -337,12 +337,9 @@ td.notes {
     max-width:250px;
     font-size:0.9em;
 }
-td,
-th {
+td {
     border:1px solid grey;
     padding:6px;
-}
-td {
     background-color:lightgrey;
     valign:top;
     vertical-align:top;
@@ -350,6 +347,8 @@ td {
 th {
     background-color: #104e8b;
     color:#ffffff;
+    text-align:left;
+    padding:6px;
 }
 th span {
     display:block;
