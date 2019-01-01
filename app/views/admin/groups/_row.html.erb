@@ -38,13 +38,9 @@
       <% end %>
     </div>
     <div>
-      <table>
         <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
-          <tr>
-            <td><%= source.code %></td>
-          </tr>
+          <div><%= source.code %></div>
         <% end %>
-      </table>
     </div>
   </div>
 <% end %>
