@@ -85,7 +85,7 @@ button:hover {
     background-color:lightgrey;
     margin:1px;
     padding:5px;
-    flex:2;
+    flex:3;
 }
 .header-row > div {
     color: white;
@@ -97,7 +97,10 @@ button:hover {
 }
 .header-row > div.large,
 .body-row > div.large {
-    flex:3;
+    flex:6;
+}
+div.table {
+    width: auto;
 }
 textarea,
 input,
