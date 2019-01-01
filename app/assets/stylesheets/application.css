@@ -329,6 +329,9 @@ td.source-name {
     min-width:350px;
     max-width:350px;
 }
+td.source-name > * {
+    display:block;
+}
 td.notes {
     min-width:250px;
     max-width:250px;
