@@ -332,7 +332,7 @@ td a img {
 }
 td a + a {
     display:block;
-    padding-top:10px;
+    margin-top:10px;
 }
 table {
     border-collapse:collapse;
