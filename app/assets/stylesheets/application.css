@@ -320,6 +320,9 @@ img.clef-image.incomplete+img.clef-image.incomplete {
 table {
     border-collapse:collapse;
 }
+td.source-name {
+    width:350px;
+}
 td,
 th {
     border:1px solid grey;
