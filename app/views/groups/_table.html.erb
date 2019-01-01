@@ -1,11 +1,9 @@
 <% headings_partial ||= "headings" %>
 <% row_partial ||= "row" %>
 
-<div>
-  <div class="table">
+  <table>
     <%= render headings_partial %>
     <% @groups.each do |group| %>
       <%= render row_partial, group: group %>
     <% end %>
-  </div>
-</div>
+  </table>
