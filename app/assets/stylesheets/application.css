@@ -327,8 +327,11 @@ td a img {
     min-height:60px;
     display:inline-block;
     float:left;
-    margin:4px;
+    margin-right:6px;
     vertcal-align:bottom;
+}
+td a + a img {
+    margin-top:10px;
 }
 table {
     border-collapse:collapse;
