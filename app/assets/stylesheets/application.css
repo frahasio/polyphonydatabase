@@ -302,12 +302,16 @@ img.clef-image {
     float:left;
 }
 img.clef-image.missing {
-    border:1px solid red;
+    border:1px solid darkred;
 }
 img.clef-image.optional {
     opacity:0.5;
 }
 img.clef-image.incomplete {
     border:1px solid green;
+}
+img.clef-image.missing+img.clef-image.missing,
+img.clef-image.incomplete+img.clef-image.incomplete {
+    border-left:none;
 }
 
