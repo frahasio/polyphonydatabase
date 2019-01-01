@@ -1,5 +1,27 @@
 <tr>
-  <td><%= group.display_title %></td>
+  <td><%= group.display_title %>  
+    <% group.editions.each do |edition| %>
+        <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
+        <% if edition.file_url.present? %>
+          <%= link_to edition.file_url, target: "_blank", class: "edition" do %>
+            <% if edition.has_pdf? %>
+              <%= image_tag "pdf.png" %>
+            <% end %>
+            <%= edition_text %>
+          <% end %>
+        <% else %>
+          <%= edition_text %>
+        <% end %>
+    <% end %>
+    <% group.recordings.each do |recording| %>
+      <% if recording.file_url.present? %>
+          <%= link_to recording.file_url, target: "_blank", class: "recording" do %>
+            <%= image_tag "listen.png" %>
+            <%= recording.performer_name %>
+          <% end %>
+      <% end %>
+    <% end %>
+  </td>
   <td><%= group.functions.map(&:name).join(", ") %></td>
   <td>
     <% if group.conflicting_attributions? %>
@@ -63,30 +85,5 @@
         </tr>
       <% end %>
     </table>
-  </td>
-  <td>
-    <% group.editions.each do |edition| %>
-        <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
-        <% if edition.file_url.present? %>
-          <%= link_to edition.file_url, target: "_blank", class: "edition" do %>
-            <% if edition.has_pdf? %>
-              <%= image_tag "pdf.png" %>
-            <% end %>
-            <%= edition_text %>
-          <% end %>
-        <% else %>
-          <%= edition_text %>
-        <% end %>
-    <% end %>
-  </td>
-  <td class="recordings">
-    <% group.recordings.each do |recording| %>
-      <% if recording.file_url.present? %>
-          <%= link_to recording.file_url, target: "_blank", class: "recording" do %>
-            <%= image_tag "listen.png" %>
-            <%= recording.performer_name %>
-          <% end %>
-      <% end %>
-    <% end %>
   </td>
 </tr>
