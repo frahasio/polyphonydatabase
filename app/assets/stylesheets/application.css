@@ -333,10 +333,12 @@ th {
 }
 td {
     background-color:lightgrey;
+    valign:top;
+    vertical-align:top;
 }
 th {
     background-color: #104e8b;
-    colo:white;
+    color:#ffffff;
 }
 th span {
     display:block;
@@ -346,5 +348,5 @@ table table th {
     border:none;
 }
 table table tr+tr {
-    border-top:1px solid grey;
+    border-top:1px solid gainsboro;
 }
