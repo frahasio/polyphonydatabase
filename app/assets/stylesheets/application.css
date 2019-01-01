@@ -323,8 +323,8 @@ img.clef-image.incomplete+img.clef-image.incomplete {
     border-left:none;
 }
 td a img {
-    max-height:60px;
-    min-height:60px;
+    max-height:18px;
+    min-height:18px;
     display:inline-block;
     float:left;
     margin-right:6px;
