@@ -339,6 +339,6 @@ table table td,
 table table th {
     border:none;
 }
-table table tr {
-    border-bottom:1px solid grey;
+table table tr+tr {
+    border-top:1px solid grey;
 }
