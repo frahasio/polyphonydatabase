@@ -326,3 +326,10 @@ td {
 th {
     background-color: #104e8b;
 }
+table table td,
+table table th {
+    border:none;
+}
+table table tr {
+    border-bottom:1px solid grey;
+}
