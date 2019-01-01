@@ -293,11 +293,13 @@ input[type=checkbox] {
     width:auto;
 }
 img.clef-image {
-    height:44px;
-    max-height:44px;
-    min-height:44px;
+    height:50px;
+    max-height:50px;
+    min-height:50px;
     border-top:1px solid transparent;
     border-bottom:1px solid transparent;
+    display:inline-block;
+    float:left;
 }
 img.clef-image.missing {
     border:1px solid red;
