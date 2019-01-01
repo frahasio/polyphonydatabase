@@ -321,7 +321,7 @@ img.clef-image.incomplete+img.clef-image.incomplete {
 table {
     border-collapse:collapse;
 }
-table table {
+table table tr {
     display:flex;
     width:100%;
 }
