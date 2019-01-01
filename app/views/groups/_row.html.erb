@@ -41,7 +41,7 @@
                 <span class="position">#<%= inclusion.position %></span>
               <% end %>
 
-              <%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %>
+              <span><%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %></span>
               <em>(<%= [source.format, source.type].reject(&:blank?).join(", ") %>)</em>
               <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
               
