@@ -316,6 +316,13 @@ img.clef-image.incomplete+img.clef-image.incomplete {
 table {
     border-collapse:collapse;
 }
-td {
+td,
+th {
     border:1px solid grey;
+}
+td {
+    background-color:lightgrey;
+}
+th {
+    background-color: #104e8b;
 }
