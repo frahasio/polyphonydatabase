@@ -112,9 +112,6 @@ label {
     min-height:30px;
     display:inline-block;
 }
-input[type=checkbox] {
-    width:auto;
-}
 span.select2 {
     max-width: 300px;
     padding:0;
@@ -292,3 +289,12 @@ div.filters form {
         max-width: 100%;
     }
 }
+input[type=checkbox] {
+    width:auto;
+}
+img.clef-image {
+    height:44px;
+    max-height:44px;
+    min-height:44px;
+}
+
