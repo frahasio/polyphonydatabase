@@ -41,12 +41,12 @@
               <%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %>
               <em>(<%= [source.format, source.type].reject(&:blank?).join(", ") %>)</em>
               <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
+              <span class="position">#<%= inclusion.position %></span>
 
             <% if admin_user? %>
               <%= link_to "Catalogue source", edit_admin_source_path(source), target: "_blank" %>
             <% end %>
           </td>
-          <td class="position"><%= inclusion.position %></td>
           <td class="clefs">
             <% if inclusion.clef_combination %>
               <% inclusion.clef_combination.sorted_clefs.each do |clef| %>
