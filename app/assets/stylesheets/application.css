@@ -536,6 +536,14 @@ form.edit_group {
 .edition-upload {
     display:flex;
     flex-wrap:wrap;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid gainsboro;
+}
+@media screen and (max-width:850px) {
+    .edition-upload {
+        flex-direction:column;
+    }
 }
 .edition-upload div {
     display:flex;
@@ -543,4 +551,9 @@ form.edit_group {
 .edition-upload input,
 .edition-upload select {
     margin:2px;
+}
+.edition-upload:first-of-type {
+    margin-top:0;
+    padding-top:0;
+    border-top:none;
 }
