@@ -1,10 +1,11 @@
 <h1>Cataloguing</h1>
 
-<%= form_tag("/admin/sources/switch-to", class: "composer-select") do %>
-  <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
-
-  <button>Edit</button>
-<% end %>
+<div class="topform">
+  <%= form_tag("/admin/sources/switch-to", class: "composer-select") do %>
+    <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
+    <button>Go to source...</button>
+  <% end %>
+</div>
 
 <hr>
 
