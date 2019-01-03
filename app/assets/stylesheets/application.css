@@ -424,10 +424,11 @@ td.title a {
     display:block;
 }
 /* ===================== Composer editor =================== */
-.composer-basics {
+.composerbasics {
     display:grid;
     grid-template-columns:1fr;
     grid-template-rows:1fr;
+    grid-gap:10px;
     color:#fff;
 }
 .dates .prefix input:first-of-type {
