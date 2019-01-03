@@ -8,17 +8,19 @@
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
 <div class="composerbasics">
   <label for="name"><span>Name:</span><%= f.text_field :name %></label>
-  <label for="image_url"><span>Image URL:</span><%= f.text_field :image_url %></label>
-  <%= image_tag @composer.image_url if @composer.image_url %></p>
+  <!-- Composer images - hidden for time being
+    <label for="image_url"><span>Image URL:</span><%= f.text_field :image_url %></label>
+    <%= image_tag @composer.image_url if @composer.image_url %></p>
+  -->
   
   <p class="dates">
       <label>
-        <span>From date:</span>
+        <span>Birth year:</span>
         <%= f.text_field :from_year_annotation %>
         <%= f.text_field :from_year %>
       </label>
       <label>
-        <span>To date:</span>
+        <span>Death year:</span>
         <%= f.text_field :to_year_annotation %>
         <%= f.text_field :to_year %>
       </label>
