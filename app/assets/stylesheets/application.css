@@ -423,3 +423,15 @@ td.title a {
     color:darkgrey;
     display:block;
 }
+/* ===================== Composer editor =================== */
+.composer-basics {
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:1fr;
+    color:#fff;
+}
+.dates .prefix input:first-of-type {
+    max-width:40px;
+    margin-right:6px;
+    float:left;
+}
