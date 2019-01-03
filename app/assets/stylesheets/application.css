@@ -256,52 +256,25 @@ p.message {
     border-radius:5px;
     width:calc(100% - 12px);
 }
-form.new_composer p, 
-form.new_source p, 
-form.new_publisher p, 
-form.new_editor p, 
-form.new_scribe p, 
-form.new_performer p {
+.topform p {
   display: flex;
   flex-grow:1;
 }
-form.composer-select,
-form.new_source,
-form.new_composer, 
-form.new_publisher, 
-form.new_editor, 
-form.new_scribe, 
-form.new_performer {
+.topform {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
 }
-form.new_composer label,
-form.new_source label, 
-form.new_publisher label, 
-form.new_editor label, 
-form.new_scribe label, 
-form.new_performer label {
+.topform label {
   margin-right:10px;
   width:auto !important;
   color:#ffffff;
 }
-form.new_composer p input,
-form.new_source p input, 
-form.new_publisher p input, 
-form.new_editor p input, 
-form.new_scribe p input, 
-form.new_performer p input {
+.topform p input {
   width:auto !important;
   flex-grow:1;
 }
-form.composer-select button,
-form.new_composer button,
-form.new_source button, 
-form.new_publisher button, 
-form.new_editor button, 
-form.new_scribe button, 
-form.new_performer button {
+.topform button {
   margin:0;
   margin-left:10px;
 }
