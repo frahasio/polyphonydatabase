@@ -446,9 +446,8 @@ td.title a {
 .composerbasics label > * {
     flex:1;
 }
-.composerbasics label > input,
-.composerbasics label > select {
-    margin-left:10px;
+.composerbasics label > span {
+    margin-right:10px;
 }
 .composerbasics label > input:last-of-type,
 .composerbasics label > select:last-of-type {
