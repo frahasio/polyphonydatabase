@@ -61,9 +61,6 @@ button.help,
 div.topexplanation {
     display:none;
 }
-button:hover {
-    background-color: #2e6ca9;
-}
 form {
     padding:5px;
 }
@@ -95,6 +92,10 @@ input[type=submit] {
     min-width:120px;
     border-radius:5px;
     cursor:pointer;
+}
+button:hover,
+input[type=submit]:hover {
+    background-color: #2e6ca9;
 }
 /* ===================== admin tables as responsive flexi divs ======================= */
 .header-row,
