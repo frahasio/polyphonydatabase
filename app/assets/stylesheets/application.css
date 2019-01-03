@@ -93,6 +93,14 @@ button:hover,
 input[type=submit]:hover {
     background-color: #2e6ca9;
 }
+hr {
+    width:80%;
+    background-color:gainsboro;
+    height:1px;
+    border:none;
+    color:gainsboro;
+    margin:20px auto;
+}
 /* ===================== admin tables as responsive flexi divs ======================= */
 .header-row,
 .body-row {
