@@ -426,10 +426,11 @@ td.title a {
 /* ===================== Composer editor =================== */
 .composerbasics {
     display:grid;
-    grid-template-columns:1fr;
-    grid-template-rows:1fr;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto;
     grid-gap:10px;
     color:#fff;
+    grid-auto-flow: row dense;
 }
 .dates .prefix input:first-of-type {
     max-width:40px;
