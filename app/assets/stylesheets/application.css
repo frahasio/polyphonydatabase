@@ -531,7 +531,7 @@ span.composer-image img {
     max-height:300px;
 }
 /*  ==================  Admin list pages  ======================  */
-.listofcomposers ul {
+.mainlist {
     padding:20px;
     font-size:1.5em;
     text-align: center;
@@ -548,8 +548,6 @@ span.composer-image img {
     flex:1;
 }
 .listofsources ul {
-    padding:20px;
-    font-size:1.5em;
     max-width: 400px;
     margin: 0 auto;
     display: block;
