@@ -6,7 +6,9 @@
   <button>Create</button>
 <% end %>
 
-<ul>
+<h2>Edit existing scribes</h2>
+
+<ul class="mainlist">
   <% Scribe.order(:name).each do |scribe| %>
     <li><%= link_to scribe.name, edit_admin_scribe_path(scribe) %></li>
   <% end %>
