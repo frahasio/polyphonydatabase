@@ -439,4 +439,13 @@ td.title a {
 .composerbasics label {
     display:flex;
     width:100%;
+    justify-content:space-between;
+    align-items:center;
+}
+.composerbasics label > * {
+    flex:1;
+}
+.composerbasics label > input:last-of-type,
+.composerbasics label > select:last-of-type {
+    flex:4;
 }
