@@ -44,7 +44,7 @@
       <div>
         <% if index == 0 %>
           <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
-            <div class="recording">
+            <div class="recording-upload">
               <%= r.select :performer_id, Performer.order(:name).map {|rec| [rec.name, rec.id] }, include_blank: true %>
               <%= r.text_field :file_url, placeholder: "File URL" %>
             </div>
