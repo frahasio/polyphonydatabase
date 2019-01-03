@@ -529,3 +529,15 @@ span.composer-image img {
     margin: 0 auto;
     display: block;
 }
+/* ============== Edition uploader ================== */
+.edition-upload {
+    display:flex;
+    flex-wrap:wrap;
+}
+.edition-upload div {
+    display:flex;
+}
+.edition-upload input,
+.edition-upload select {
+    margin:2px;
+}
