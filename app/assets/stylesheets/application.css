@@ -393,6 +393,7 @@ td.title a {
     padding:4px;
     background-color:gainsboro;
 }
+/* =========== groups editor =================== */
 .body-row.in-group > * {
     margin:0 1px;
     background-color:gainsboro;
@@ -404,4 +405,9 @@ td.title a {
 .body-row.in-group a {
     display:inline-block;
     float:right;
+}
+.group-display-name {
+    font-style:italic;
+    color:darkgrey;
+    display:block;
 }
