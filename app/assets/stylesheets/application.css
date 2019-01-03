@@ -509,3 +509,13 @@ span.composer-image img {
     font-size:1.5em;
     text-align: center;
 }
+.listofsources {
+    display:flex;
+}
+.listofsources > * {
+    flex:1;
+}
+.listofsources ul {
+    padding:20px;
+    font-size:1.5em;
+}
