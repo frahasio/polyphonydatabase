@@ -61,16 +61,6 @@ button.help,
 div.topexplanation {
     display:none;
 }
-button {
-    color: white;
-    background-color: #104e8b;
-    border:2px groove #2e6ca9;
-    padding:5px;
-    margin:5px;
-    min-width:120px;
-    border-radius:5px;
-    cursor:pointer;
-}
 button:hover {
     background-color: #2e6ca9;
 }
@@ -93,6 +83,18 @@ label {
 span.select2 {
     max-width: 300px;
     padding:0;
+}
+button,
+input[type=submit] {
+    color: white;
+    background-color: #104e8b;
+    border:2px groove #2e6ca9;
+    padding:5px;
+    margin:5px;
+    width:auto;
+    min-width:120px;
+    border-radius:5px;
+    cursor:pointer;
 }
 /* ===================== admin tables as responsive flexi divs ======================= */
 .header-row,
@@ -223,6 +225,13 @@ div.login input:hover {
 .save-button p {
     font-style:italic;
     margin-bottom:5px;
+}
+p.message {
+    background-color:lightgrey;
+    padding:10px;
+    margin:6px;
+    border-radius:5px;
+    width:calc(100% - 12px);
 }
 /* ================================ Filter dropdowns ========================== */
 .filters label {
