@@ -7,7 +7,7 @@
 <% end %>
 
 <h2>Edit existing performers</h2>
-<ul>
+<ul class="mainlist">
   <% Performer.order(:name).each do |performer| %>
     <li><%= link_to performer.name, edit_admin_performer_path(performer) %></li>
   <% end %>
