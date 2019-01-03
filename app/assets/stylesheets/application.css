@@ -238,6 +238,20 @@ p.message {
     border-radius:5px;
     width:calc(100% - 12px);
 }
+form.composer-select,
+form.new_composer p {
+  display: flex;
+  max-width: 600px;
+  margin: 10px auto;
+}
+form.new_composer p label {
+  margin-right:10px;
+}
+form.composer-select button,
+form.new_composer p button {
+  margin:0;
+  margin-left:10px;
+}
 /* ================================ Filter dropdowns ========================== */
 .filters label {
     display:flex;
@@ -304,7 +318,7 @@ p.message {
 input[type=checkbox] {
     width:auto;
 }
-/* ============= public table ============ */
+/* ============= Public table ============ */
 table {
     border-collapse:collapse;
 }
@@ -407,7 +421,7 @@ td.title a {
     padding:4px;
     background-color:gainsboro;
 }
-/* =========== groups editor =================== */
+/* =========== Groups editor =================== */
 .body-row.in-group > * {
     margin:0 1px;
     background-color:gainsboro;
@@ -465,17 +479,6 @@ td.title a {
 .composerbasics label > select:nth-of-type(2) {
     flex:3;
     margin-left:2px;
-}
-form.composer-select,
-form.new_composer {
-  display: flex;
-  max-width: 600px;
-  margin: 10px auto;
-}
-form.composer-select button,
-form.new_composer button {
-  margin:0;
-  margin-left:10px;
 }
 span.composer-image {
     display:block;
