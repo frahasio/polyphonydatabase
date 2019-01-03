@@ -532,6 +532,7 @@ span.composer-image img {
 /* ============== Edition uploader ================== */
 form.edit_group {
     margin:0;
+    padding:0;
 }
 .edition-upload {
     display:flex;
