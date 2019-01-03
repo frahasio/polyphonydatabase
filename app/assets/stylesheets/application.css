@@ -238,7 +238,8 @@ p.message {
     border-radius:5px;
     width:calc(100% - 12px);
 }
-form.new_composer p {
+form.new_composer p, 
+form.new_source p {
   display: flex;
   flex-grow:1;
 }
