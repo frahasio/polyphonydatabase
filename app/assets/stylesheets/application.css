@@ -431,7 +431,7 @@ td.title a {
     grid-gap:10px;
     color:#fff;
 }
-@media screen and (min-width:580px) {
+@media screen and (max-width:580px) {
     .composerbasics {
         grid-template-columns:1fr;
     }
