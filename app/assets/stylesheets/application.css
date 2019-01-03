@@ -530,6 +530,9 @@ span.composer-image img {
     display: block;
 }
 /* ============== Edition uploader ================== */
+form.edit_group {
+    margin:0;
+}
 .edition-upload {
     display:flex;
     flex-wrap:wrap;
