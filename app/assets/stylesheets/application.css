@@ -434,8 +434,6 @@ td.title a {
 }
 .dates .prefix input:first-of-type {
     max-width:40px;
-    margin-right:6px;
-    float:left;
 }
 .composerbasics label {
     display:flex;
