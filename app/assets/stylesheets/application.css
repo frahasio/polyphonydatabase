@@ -336,7 +336,7 @@ form.new_source button {
     }
 }
 input[type=checkbox] {
-    width:auto;
+    width:auto !important;
 }
 /* ============= Public table ============ */
 table {
@@ -553,7 +553,9 @@ form.edit_group {
         flex-direction:column;
     }
 }
-.edition-upload div {
+.edition-upload div,
+.edition-upload span,
+.recording-upload span {
     display:flex;
     justify-content:space-between;
     width:100%;
@@ -563,7 +565,7 @@ form.edit_group {
 .recording-upload input,
 .recording-upload select {
     margin:2px;
-    width:100%;
+    width: calc(100% - 4px);
 }
 .edition-upload:first-of-type,
 .recording-upload:first-of-type {
