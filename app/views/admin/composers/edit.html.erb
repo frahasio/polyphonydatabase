@@ -42,6 +42,6 @@
 <%= button_to "Delete", admin_composer_path(@composer), method: :delete %>
 -->
 
-<%= image_tag @composer.image_url if @composer.image_url %>
+<span class="composer-image"><%= image_tag @composer.image_url if @composer.image_url %></span>
 
 <%= render "groups/table", headings_partial: "groups/headings", row_partial: "groups/row" %>
