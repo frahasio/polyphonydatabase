@@ -12,12 +12,16 @@
   <%= image_tag @composer.image_url if @composer.image_url %></p>
   
   <p class="dates">
-      <span>From date:</span>
-      <%= f.text_field :from_year_annotation %>
-      <%= f.text_field :from_year %>
-      <span>To date:</span>
-      <%= f.text_field :to_year_annotation %>
-      <%= f.text_field :to_year %>
+      <label>
+        <span>From date:</span>
+        <%= f.text_field :from_year_annotation %>
+        <%= f.text_field :from_year %>
+      </label>
+      <label>
+        <span>To date:</span>
+        <%= f.text_field :to_year_annotation %>
+        <%= f.text_field :to_year %>
+      </label>
   </p>
 
   <label for="birthplace_1">Birth town: <%= f.text_field :birthplace_1 %></label>
