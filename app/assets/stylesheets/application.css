@@ -454,6 +454,10 @@ td.title a {
 .composerbasics label > select:last-of-type {
     flex:4;
 }
+.composerbasics label > input:nth-of-type(2),
+.composerbasics label > select:nth-of-type(2) {
+    flex:3;
+}
 form.composer-select {
   display: flex;
   max-width: 600px;
