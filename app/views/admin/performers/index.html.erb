@@ -1,7 +1,7 @@
 <h1>Performers</h1>
 
+<h2>Add performer</h2>
 <div class="topform">
-  <h2>Add performer</h2>
   <%= form_for([:admin, Performer.new]) do |f| %>
     <%= f.text_field :name %>
     <button>Create</button>
