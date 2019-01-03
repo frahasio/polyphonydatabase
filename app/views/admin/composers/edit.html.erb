@@ -9,7 +9,7 @@
 
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
 <div class="basics">
-  <label for="name"><span>Name:</span><%= f.text_field :name %></label>
+  <div class="label"><span>Name:</span><%= f.text_field :name %></div>
   
   <div class="dates">
       <label>
@@ -24,13 +24,13 @@
       </label>
   </div>
 
-  <label for="birthplace_1"><span>Birth town:</span><%= f.text_field :birthplace_1 %></label>
-  <label for="birthplace_2"><span>Birth country:</span><%= f.text_field :birthplace_2 %></label>
+  <div class="label"><span>Birth town:</span><%= f.text_field :birthplace_1 %></div>
+  <div class="label"><span>Birth country:</span><%= f.text_field :birthplace_2 %></div>
 
-  <label for="deathplace_1"><span>Death town:</span><%= f.text_field :deathplace_1 %></label>
-  <label for="deathplace_2"><span>Death country:</span><%= f.text_field :deathplace_2 %></label>
+  <div class="label"><span>Death town:</span><%= f.text_field :deathplace_1 %></div>
+  <div class="label"><span>Death country:</span><%= f.text_field :deathplace_2 %></div>
   
-  <label for="image_url"><span>Image URL:</span><%= f.text_field :image_url %></label>
+  <div class="label"><span>Image URL:</span><%= f.text_field :image_url %></div>
 
 </div>
 
