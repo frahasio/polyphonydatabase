@@ -398,10 +398,10 @@ td.title a {
     margin:0 1px;
     background-color:gainsboro;
 }
-.body-row.in-group + .body-row {
+.body-row.in-group + .body-row > * {
     margin-top:2px;
 }
-.body-row.in-group + .body-row.in-group {
+.body-row.in-group + .body-row.in-group > * {
     margin:0 1px;
 }
 .body-row.first-in-group > * {
