@@ -8,6 +8,8 @@
   <% end %>
 </div>
 
+<h2>Edit existing publishers</h2>
+
 <ul class="mainlist">
   <% Publisher.order(:name).each do |publisher| %>
     <li><%= link_to publisher.name, edit_admin_publisher_path(publisher) %></li>
