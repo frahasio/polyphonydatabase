@@ -470,6 +470,10 @@ form.composer-select {
   max-width: 600px;
   margin: 10px auto;
 }
+form.composer-select button {
+  margin:0;
+  margin-left:10px;
+}
 span.composer-image {
     display:block;
     margin:20px auto;
