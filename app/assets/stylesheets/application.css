@@ -525,4 +525,7 @@ span.composer-image img {
 .listofsources ul {
     padding:20px;
     font-size:1.5em;
+    max-width: 400px;
+    margin: 0 auto;
+    display: block;
 }
