@@ -6,7 +6,9 @@
   <button>Create</button>
 <% end %>
 
-<ul>
+<h2>Edit existing voicings</h2>
+
+<ul class="mainlist">
   <% Voicing.order(:text).each do |voicing| %>
     <li><%= link_to voicing.text, edit_admin_voicing_path(voicing) %></li>
   <% end %>
