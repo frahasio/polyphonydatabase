@@ -135,6 +135,9 @@ div table {
 div table td {
     padding:4px;
 }
+.body-row button {
+    min-width:auto;
+}
 /* ======================= Admin menu ==================== */
 .nav > * {
     display:block;
