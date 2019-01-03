@@ -95,10 +95,10 @@ input[type=submit]:hover {
 }
 hr {
     width:80%;
-    background-color:gainsboro;
+    background-color:grey;
     height:1px;
     border:none;
-    color:gainsboro;
+    color:grey;
     margin:20px auto;
 }
 /* ===================== admin tables as responsive flexi divs ======================= */
@@ -464,6 +464,7 @@ td.title a {
 .composerbasics label > input:nth-of-type(2),
 .composerbasics label > select:nth-of-type(2) {
     flex:3;
+    margin-left:2px;
 }
 form.composer-select {
   display: flex;
