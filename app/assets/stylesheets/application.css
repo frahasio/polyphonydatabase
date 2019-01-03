@@ -252,7 +252,7 @@ form.new_composer label {
   margin-right:10px;
   color:#ffffff;
 }
-form.new_composer label input {
+form.new_composer p input {
   width:auto !important;
   flex-grow:1;
 }
