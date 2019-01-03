@@ -9,7 +9,7 @@
 
 <h2>Edit existing composers</h2>
 
-<div class="listofcomposers">
+<div class="mainlist">
 <ul class="composers">
   <% Composer.order(:name).each do |composer| %>
     <li class="composer"><%= link_to composer.name, edit_admin_composer_path(composer) %></li>
