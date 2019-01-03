@@ -561,3 +561,6 @@ form.edit_group {
     padding-top:0;
     border-top:none;
 }
+.edit_group td {
+    border:none;
+}
