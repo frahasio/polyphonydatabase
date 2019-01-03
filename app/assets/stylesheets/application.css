@@ -32,11 +32,11 @@ body {
 a,a:visited,a:active {
     text-decoration: none;
     font-weight: bold;
-    color: #006699
+    color: #006699;
 }
 a:hover {
     color: orange;
-    cursor: pointer
+    cursor: pointer;
 }
 li {
     list-style:none;
@@ -430,7 +430,6 @@ td.title a {
     grid-template-rows:auto;
     grid-gap:10px;
     color:#fff;
-    grid-auto-flow: row dense;
 }
 @media screen and (min-width:580px) {
     .composerbasics {
