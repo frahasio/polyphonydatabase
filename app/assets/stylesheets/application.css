@@ -459,3 +459,13 @@ form.composer-select {
   max-width: 600px;
   margin: 10px auto;
 }
+span.composer-image {
+    display:block;
+    margin:20px auto;
+    max-width: 300px;
+    max-height:300px;
+}
+span.composer-image img {
+    max-width: 300px;
+    max-height:300px;
+}
