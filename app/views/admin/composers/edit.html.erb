@@ -34,9 +34,10 @@
 
   <button class="save">Save</button>
 
-  <%= image_tag @composer.image_url if @composer.image_url %>
 <% end %>
 
 <%= button_to "Delete", admin_composer_path(@composer), method: :delete %>
+
+<%= image_tag @composer.image_url if @composer.image_url %>
 
 <%= render "groups/table", headings_partial: "groups/headings", row_partial: "groups/row" %>
