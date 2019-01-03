@@ -10,10 +10,10 @@
 <hr>
 
 <%= form_for([:admin, @source], url: admin_source_path(@source, page: params[:page])) do |f| %>
-  <div class="sourcebasics">
-      <%= f.text_field :code %>
-      <%= f.text_area :title %>
-      <%= f.select :publisher_ids,
+  <div class="basics">
+      <div class="label"><%= f.text_field :code %></div>
+      <div class="label"><%= f.text_area :title %></div>
+      <div class="label"><%= f.select :publisher_ids,
         Publisher.order(:name).map {|pub| [pub.name, pub.id] },
         {
           label: "Publishers",
@@ -33,24 +33,26 @@
           multiple: true
         }
       %>
-      <%= f.text_field :town %>
+      </div>
+      <div class="label"><%= f.text_field :town %></div>
+    
       <div class="dates">
-        <div class="prefix">
-         FROM DATE:
+        <label>
+         <span style="margin-right:12px">From year:</span>
          <%= f.text_field :from_year_annotation %>
          <%= f.text_field :from_year %>
-        </div>
-        <div class="prefix">
-         TO DATE:
+        </label>
+        <label>
+         <span style="margin-right:12px">To year:</span>
          <%= f.text_field :to_year_annotation %>
          <%= f.text_field :to_year %>
-        </div>
+        </label>
       </div>
-      <%= f.select :type, Source::TYPES.map { |s| [s, s] } %>
-      <%= f.select :format, Source::FORMATS.map { |f| [f, f] } %>
-      <%= f.text_field :rism_link, label: "RISM URL" %>
-      <%= f.text_field :url, label: "Image URL" %>
-      <%= f.check_box :catalogued %>
+      <div class="label"><%= f.select :type, Source::TYPES.map { |s| [s, s] } %></div>
+      <div class="label"><%= f.select :format, Source::FORMATS.map { |f| [f, f] } %></div>
+      <div class="label"><%= f.text_field :rism_link, label: "RISM URL" %></div>
+      <div class="label"><%= f.text_field :url, label: "Image URL" %></div>
+      <div class="label"><%= f.check_box :catalogued %></div>
   </div>
 
   <span class="save-button"><button>Save</button></span>
