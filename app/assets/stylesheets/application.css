@@ -240,6 +240,7 @@ p.message {
 }
 form.new_composer p {
   display: flex;
+  flex-grow:1;
 }
 form.composer-select,
 form.new_composer {
@@ -252,7 +253,8 @@ form.new_composer label {
   color:#ffffff;
 }
 form.new_composer label input {
-  width:auto;
+  width:auto !important;
+  flex-grow:1;
 }
 form.composer-select button,
 form.new_composer button {
