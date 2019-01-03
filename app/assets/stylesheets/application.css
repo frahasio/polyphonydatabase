@@ -57,10 +57,6 @@ h2 {
     border-bottom:1px solid #595959;
     border-top:1px solid #595959;
 }
-button.help,
-div.topexplanation {
-    display:none;
-}
 form {
     padding:5px;
 }
