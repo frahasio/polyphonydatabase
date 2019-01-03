@@ -260,7 +260,7 @@ p.message {
   display: flex;
   flex-grow:1;
 }
-.topform {
+.topform form {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
