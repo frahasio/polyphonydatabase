@@ -1,10 +1,12 @@
 <h1>Voicings</h1>
 
-<h2>Add voicing</h2>
-<%= form_for([:admin, Voicing.new]) do |f| %>
-  <%= f.text_field :text %>
-  <button>Create</button>
-<% end %>
+<div class="topform">
+  <h2>Add voicing</h2>
+  <%= form_for([:admin, Voicing.new]) do |f| %>
+    <%= f.text_field :text %>
+    <button>Create</button>
+  <% end %>
+</div>
 
 <h2>Edit existing voicings</h2>
 
