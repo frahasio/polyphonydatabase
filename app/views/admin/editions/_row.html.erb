@@ -38,11 +38,11 @@
         <% if index == 0 %>
           <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |e| %>
             <div class="edition-upload">
-              <%= e.text_field :voicing, placeholder: "Voicing" %>
-              <%= e.select :editor_id, Editor.order(:name).map {|ed| [ed.name, ed.id] }, include_blank: true %>
-              <%= e.text_field :file_url, placeholder: "File URL" %>
-              <%= e.check_box :has_pdf %>
-              <%= e.label :has_pdf %>
+              <span><%= e.text_field :voicing, placeholder: "Voicing" %></span>
+              <span><%= e.select :editor_id, Editor.order(:name).map {|ed| [ed.name, ed.id] }, include_blank: true %></span>
+              <span><%= e.text_field :file_url, placeholder: "File URL" %></span>
+              <span><%= e.check_box :has_pdf %></span>
+              <span><%= e.label :has_pdf %></span>
             </div>
           <% end %>
         <% end %>
