@@ -12,24 +12,17 @@
           <%= link_to "Remove from group", confirm_remove_admin_group_path(group, request.query_parameters.merge(composition_id: composition.id)) %>
         </div>
         <% if index.zero? %>
-          <div>
-            Group display name:
-          </div>
-          <div>
-            <%= group.display_title %>
-          </div>
+          <span class="group-display-name">Group display name: <%= group.display_title %></span>
         <% end %>
       <% end %>
     </div>
     <div>
       <% composition.composers.each do |composer| %>
-        <div class="composer">
-          <div class="name"><%= composer&.name %></div>
+          <%= composer&.name %>
 
           <% if composer %>
-            <div class="dates"><%= composer.dates %></div>
+            <span class="dates"><%= composer.dates %></span>
           <% end %>
-        </div>
       <% end %>
     </div>
     <div class="tiny">
