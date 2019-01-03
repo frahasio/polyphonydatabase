@@ -485,3 +485,9 @@ span.composer-image img {
     max-width: 300px;
     max-height:300px;
 }
+/*  ==================  Admin list pages  ======================  */
+.listofcomposers ul {
+    padding:20px;
+    font-size:1.5em;
+    text-align: center;
+}
