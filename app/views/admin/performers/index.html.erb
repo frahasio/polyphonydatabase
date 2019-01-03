@@ -1,10 +1,12 @@
 <h1>Performers</h1>
 
-<h2>Add performer</h2>
-<%= form_for([:admin, Performer.new]) do |f| %>
-  <%= f.text_field :name %>
-  <button>Create</button>
-<% end %>
+<div class="topform">
+  <h2>Add performer</h2>
+  <%= form_for([:admin, Performer.new]) do |f| %>
+    <%= f.text_field :name %>
+    <button>Create</button>
+  <% end %>
+</div>
 
 <h2>Edit existing performers</h2>
 <ul class="mainlist">
