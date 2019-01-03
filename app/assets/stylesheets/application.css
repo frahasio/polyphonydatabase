@@ -466,12 +466,14 @@ td.title a {
     flex:3;
     margin-left:2px;
 }
-form.composer-select {
+form.composer-select,
+form.new_composer {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
 }
-form.composer-select button {
+form.composer-select button,
+form.new_composer button {
   margin:0;
   margin-left:10px;
 }
