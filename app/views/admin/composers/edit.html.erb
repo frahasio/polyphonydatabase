@@ -8,12 +8,8 @@
 <%= form_for([:admin, @composer], builder: ActionView::Helpers::FormBuilder) do |f| %>
 <div class="composerbasics">
   <label for="name"><span>Name:</span><%= f.text_field :name %></label>
-  <!-- Composer images - hidden for time being
-    <label for="image_url"><span>Image URL:</span><%= f.text_field :image_url %></label>
-    <%= image_tag @composer.image_url if @composer.image_url %></p>
-  -->
   
-  <p class="dates">
+  <div class="dates">
       <label>
         <span>Birth year:</span>
         <%= f.text_field :from_year_annotation %>
@@ -24,7 +20,7 @@
         <%= f.text_field :to_year_annotation %>
         <%= f.text_field :to_year %>
       </label>
-  </p>
+  </div>
 
   <label for="birthplace_1"><span>Birth town:</span><%= f.text_field :birthplace_1 %></label>
   <label for="birthplace_2"><span>Birth country:</span><%= f.text_field :birthplace_2 %></label>
@@ -32,10 +28,13 @@
   <label for="deathplace_1"><span>Death town:</span><%= f.text_field :deathplace_1 %></label>
   <label for="deathplace_2"><span>Death country:</span><%= f.text_field :deathplace_2 %></label>
   
+  <label for="image_url"><span>Image URL:</span><%= f.text_field :image_url %></label>
+
 </div>
 
   <button class="save">Save</button>
 
+  <%= image_tag @composer.image_url if @composer.image_url %>
 <% end %>
 
 <%= button_to "Delete", admin_composer_path(@composer), method: :delete %>
