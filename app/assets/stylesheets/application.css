@@ -429,6 +429,7 @@ td.title a {
     grid-template-columns:1fr 1fr;
     grid-template-rows:auto;
     grid-gap:10px;
+    align-items:start;
     color:#fff;
 }
 @media screen and (max-width:580px) {
@@ -452,4 +453,9 @@ td.title a {
 .composerbasics label > input:last-of-type,
 .composerbasics label > select:last-of-type {
     flex:4;
+}
+form.composer-select {
+  display: flex;
+  max-width: 600px;
+  margin: 10px auto;
 }
