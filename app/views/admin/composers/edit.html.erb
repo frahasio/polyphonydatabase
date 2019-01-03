@@ -1,9 +1,10 @@
 <h1>Edit composer</h1>
-<%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
-  <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
-
-  <button>Go to composer...</button>
-<% end %>
+<div class="topform">
+  <%= form_tag("/admin/composers/switch-to", class: "composer-select") do %>
+    <%= select_tag "id", options_from_collection_for_select(Composer.all.order(:name), :id, :name, params[:id]) %>
+    <button>Go to composer...</button>
+  <% end %>
+</div>
 
 <hr>
 
