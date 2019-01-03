@@ -538,7 +538,7 @@ form.edit_group {
     flex-wrap:wrap;
     margin-top:10px;
     padding-top:10px;
-    border-top:1px solid gainsboro;
+    border-top:1px solid darkgrey;
 }
 @media screen and (max-width:850px) {
     .edition-upload {
