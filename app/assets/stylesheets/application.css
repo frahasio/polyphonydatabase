@@ -244,6 +244,7 @@ form.new_composer p {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
+  color:white;
 }
 form.new_composer label {
   margin-right:10px;
