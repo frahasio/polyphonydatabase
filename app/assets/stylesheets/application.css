@@ -101,7 +101,7 @@ hr {
     color:grey;
     margin:20px auto;
 }
-/* ===================== admin tables as responsive flexi divs ======================= */
+/* ===================== Admin tables as responsive flexi divs ======================= */
 .header-row,
 .body-row {
     display:flex;
@@ -238,16 +238,21 @@ p.message {
     border-radius:5px;
     width:calc(100% - 12px);
 }
-form.composer-select,
-form.new_composer,
 form.new_composer p {
+  display: flex;
+}
+form.composer-select,
+form.new_composer {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
-  color:white;
 }
 form.new_composer label {
   margin-right:10px;
+  color:#ffffff;
+}
+form.new_composer label input {
+  width:auto;
 }
 form.composer-select button,
 form.new_composer button {
