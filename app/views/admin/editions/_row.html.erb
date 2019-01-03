@@ -37,7 +37,7 @@
       <div>
         <% if index == 0 %>
           <%= f.fields_for(:editions, builder: ActionView::Helpers::FormBuilder) do |e| %>
-            <div class="edition">
+            <div class="edition-upload">
               <%= e.text_field :voicing, placeholder: "Voicing" %>
               <%= e.select :editor_id, Editor.order(:name).map {|ed| [ed.name, ed.id] }, include_blank: true %>
               <%= e.text_field :file_url, placeholder: "File URL" %>
