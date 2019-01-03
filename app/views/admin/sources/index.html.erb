@@ -10,7 +10,7 @@
 <div class="listofsources">
   <div>
     <h2>To catalogue</h2>
-    <ul>
+    <ul class="mainlist">
       <% Source.uncatalogued.order(:code).each do |src| %>
         <li><%= link_to src.code, edit_admin_source_path(src) %></li>
       <% end %>
@@ -18,7 +18,7 @@
   </div>
   <div>
        <h2>Finished</h2>
-    <ul>
+    <ul class="mainlist">
       <% Source.catalogued.order(:code).each do |src| %>
         <li><%= link_to src.code, edit_admin_source_path(src) %></li>
       <% end %>
