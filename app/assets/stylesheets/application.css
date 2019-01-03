@@ -472,24 +472,24 @@ td.title a {
         grid-template-columns:1fr;
     }
 }
-.basics label {
+.basics .label {
     display:flex;
     width:100%;
     justify-content:space-between;
     align-items:center;
 }
-.basics label > * {
+.basics .label > * {
     flex:1;
 }
-.basics label > span {
+.basics .label > span {
     margin-right:10px;
 }
-.basics label > input:last-of-type,
-.basics label > select:last-of-type {
+.basics .label > input:last-of-type,
+.basics .label > select:last-of-type {
     flex:4;
 }
-.basics label > input:nth-of-type(2),
-.basics label > select:nth-of-type(2) {
+.basics .label > input:nth-of-type(2),
+.basics .label > select:nth-of-type(2) {
     flex:3;
     margin-left:2px;
 }
