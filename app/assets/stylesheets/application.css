@@ -479,7 +479,7 @@ td.title a {
     align-items:flex-start;
 }
 .basics .label > * {
-    flex:1;
+    flex:2;
 }
 .basics .label > span {
     margin-right:10px;
@@ -487,11 +487,11 @@ td.title a {
 }
 .basics .label > input:last-of-type,
 .basics .label > select:last-of-type {
-    flex:4;
+    flex:5;
 }
 .basics .label > input:nth-of-type(2),
 .basics .label > select:nth-of-type(2) {
-    flex:3;
+    flex:4;
     margin-left:2px;
 }
 span.composer-image {
