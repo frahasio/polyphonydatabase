@@ -126,6 +126,21 @@ hr {
 .body-row > div.large {
     flex:6;
 }
+@media screen and (max-width:850px) {
+    .body-row {
+        flex-wrap:wrap;
+        margin:0 0 1px 0;
+    }
+    .header-row {
+        display:block;
+    }
+    .body-row > div {
+        min-width:100%;
+        max-width:100%;
+        margin:0;
+        flex:1;
+    }
+}
 div table {
     position:relative;
     top:-4px;
@@ -315,19 +330,6 @@ form.new_source button {
         bottom:0;
         left:0;
         background-color: rgba(58,58,58,0.9);
-    }
-    .body-row {
-        flex-wrap:wrap;
-        margin:0 0 1px 0;
-    }
-    .header-row {
-        display:block;
-    }
-    .body-row > div {
-        min-width:100%;
-        max-width:100%;
-        margin:0;
-        flex:1;
     }
     span.select2 {
         max-width: 100%;
