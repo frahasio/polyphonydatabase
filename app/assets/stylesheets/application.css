@@ -552,6 +552,9 @@ form.edit_group {
     .recording-upload {
         flex-direction:column;
     }
+    .body-row .title {
+        font-weight:bold;
+    }
 }
 .edition-upload div,
 .edition-upload span,
