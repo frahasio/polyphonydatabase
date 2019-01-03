@@ -294,6 +294,10 @@ input[type=checkbox] {
 table {
     border-collapse:collapse;
 }
+table.sortable {
+    margin:0 11px;
+    min-width:calc(100% - 22px);
+}
 td {
     border:1px solid grey;
     padding:6px;
