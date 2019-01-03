@@ -534,12 +534,13 @@ span.composer-image img {
     margin: 0 auto;
     display: block;
 }
-/* ============== Edition uploader ================== */
+/* ============== Edition/recording uploader ================== */
 form.edit_group {
     margin:0;
     padding:0;
 }
-.edition-upload {
+.edition-upload,
+.recording-upload {
     display:flex;
     flex-wrap:wrap;
     margin-top:10px;
@@ -547,7 +548,8 @@ form.edit_group {
     border-top:1px solid darkgrey;
 }
 @media screen and (max-width:850px) {
-    .edition-upload {
+    .edition-upload,
+    .recording-upload {
         flex-direction:column;
     }
 }
@@ -555,10 +557,13 @@ form.edit_group {
     display:flex;
 }
 .edition-upload input,
-.edition-upload select {
+.edition-upload select,
+.recording-upload input,
+.recording-upload select {
     margin:2px;
 }
-.edition-upload:first-of-type {
+.edition-upload:first-of-type,
+.recording-upload:first-of-type {
     margin-top:0;
     padding-top:0;
     border-top:none;
