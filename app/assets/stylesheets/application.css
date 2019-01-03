@@ -485,6 +485,10 @@ td.title a {
     margin-right:10px;
     text-align:right;
 }
+.basics .label > input:first-of-type,
+.basics .label > select:first-of-type {
+    flex:1;
+}
 .basics .label > input:last-of-type,
 .basics .label > select:last-of-type {
     flex:5;
