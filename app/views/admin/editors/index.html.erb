@@ -7,7 +7,7 @@
 <% end %>
 
 <h2>Edit existing editors</h2>
-<ul>
+<ul class="mainlist">
   <% Editor.order(:name).each do |editor| %>
     <li><%= link_to editor.name, edit_admin_editor_path(editor) %></li>
   <% end %>
