@@ -432,8 +432,10 @@ td.title a {
     color:#fff;
     grid-auto-flow: row dense;
 }
-.dates .prefix input:first-of-type {
-    max-width:40px;
+@media screen and (min-width:580px) {
+    .composerbasics {
+        grid-template-columns:1fr;
+    }
 }
 .composerbasics label {
     display:flex;
