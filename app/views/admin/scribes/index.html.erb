@@ -1,10 +1,12 @@
 <h1>Scribes</h1>
 
-<h2>Add scribe</h2>
-<%= form_for([:admin, Scribe.new]) do |f| %>
-  <%= f.text_field :name %>
-  <button>Create</button>
-<% end %>
+<div class="topform">
+  <h2>Add scribe</h2>
+  <%= form_for([:admin, Scribe.new]) do |f| %>
+    <%= f.text_field :name %>
+    <button>Create</button>
+  <% end %>
+</div>
 
 <h2>Edit existing scribes</h2>
 
