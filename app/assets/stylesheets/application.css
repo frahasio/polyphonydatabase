@@ -243,25 +243,25 @@ form.new_composer p {
   flex-grow:1;
 }
 form.composer-select,
-form.addsource,
+form.new_source,
 form.new_composer {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
 }
 form.new_composer label,
-form.addsource label {
+form.new_source label {
   margin-right:10px;
   color:#ffffff;
 }
 form.new_composer p input,
-form.addsource p input {
+form.new_source p input {
   width:auto !important;
   flex-grow:1;
 }
 form.composer-select button,
 form.new_composer button,
-form.addsource button {
+form.new_source button {
   margin:0;
   margin-left:10px;
 }
