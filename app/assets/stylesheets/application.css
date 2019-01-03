@@ -393,3 +393,14 @@ td.title a {
     padding:4px;
     background-color:gainsboro;
 }
+.in-group > * {
+    margin:0 1px;
+    background-color:gainsboro;
+}
+.first-in-group > * {
+    margin-bottom:0;
+}
+.in-group a {
+    display:inline-block;
+    float:right;
+}
