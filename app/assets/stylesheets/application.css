@@ -458,8 +458,8 @@ td.title a {
     color:darkgrey;
     display:block;
 }
-/* ===================== Composer editor =================== */
-.composerbasics {
+/* ===================== Composer/source editor =================== */
+.basics {
     display:grid;
     grid-template-columns:1fr 1fr;
     grid-template-rows:auto;
@@ -468,28 +468,28 @@ td.title a {
     color:#fff;
 }
 @media screen and (max-width:580px) {
-    .composerbasics {
+    .basics {
         grid-template-columns:1fr;
     }
 }
-.composerbasics label {
+.basics label {
     display:flex;
     width:100%;
     justify-content:space-between;
     align-items:center;
 }
-.composerbasics label > * {
+.basics label > * {
     flex:1;
 }
-.composerbasics label > span {
+.basics label > span {
     margin-right:10px;
 }
-.composerbasics label > input:last-of-type,
-.composerbasics label > select:last-of-type {
+.basics label > input:last-of-type,
+.basics label > select:last-of-type {
     flex:4;
 }
-.composerbasics label > input:nth-of-type(2),
-.composerbasics label > select:nth-of-type(2) {
+.basics label > input:nth-of-type(2),
+.basics label > select:nth-of-type(2) {
     flex:3;
     margin-left:2px;
 }
