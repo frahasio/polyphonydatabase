@@ -2,7 +2,6 @@
 
 <p class="message">
   Confirm removal of composition <em><%= @composition.title.text %></em> from group <strong><%= @group.display_title %></strong>
-  
 </p>
 
 <%= button_to "Remove from group", remove_admin_group_path(@group, request.query_parameters.merge(composition_id: @composition.id)) %>
