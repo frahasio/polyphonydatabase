@@ -512,6 +512,11 @@ span.composer-image img {
 .listofsources {
     display:flex;
 }
+@media screen and (max-width:440px) {
+    .listofsources {
+        flex-direction:column;
+    }
+}
 .listofsources > * {
     flex:1;
 }
