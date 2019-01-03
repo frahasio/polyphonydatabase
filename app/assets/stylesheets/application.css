@@ -239,16 +239,17 @@ p.message {
     width:calc(100% - 12px);
 }
 form.composer-select,
+form.new_composer,
 form.new_composer p {
   display: flex;
   max-width: 600px;
   margin: 10px auto;
 }
-form.new_composer p label {
+form.new_composer label {
   margin-right:10px;
 }
 form.composer-select button,
-form.new_composer p button {
+form.new_composer button {
   margin:0;
   margin-left:10px;
 }
