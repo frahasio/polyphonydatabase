@@ -437,3 +437,7 @@ td.title a {
     margin-right:6px;
     float:left;
 }
+.composerbasics label {
+    display:flex;
+    width:100%;
+}
