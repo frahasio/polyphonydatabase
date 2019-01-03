@@ -158,7 +158,7 @@ div table td {
     display:block;
     max-height:0;
     overflow:hidden;
-    transition:all 0.15s linear;
+    transition:all 0.05s linear;
 }
 span.burger {
     max-height:1000px;
@@ -173,7 +173,7 @@ span.burger {
 }
 .nav.open > * {
     max-height:1000px;
-    transition:all 0.15s linear;
+    transition:all 0.05s linear;
 }
 ul.navigation li,
 nav.pagination {
