@@ -555,12 +555,15 @@ form.edit_group {
 }
 .edition-upload div {
     display:flex;
+    justify-content:space-between;
+    width:100%;
 }
 .edition-upload input,
 .edition-upload select,
 .recording-upload input,
 .recording-upload select {
     margin:2px;
+    width:100%;
 }
 .edition-upload:first-of-type,
 .recording-upload:first-of-type {
