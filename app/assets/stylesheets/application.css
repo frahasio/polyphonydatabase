@@ -646,12 +646,19 @@ div.clefs {
     grid-template-rows:min-content;
     grid-gap:4px;
 }
+.body-row div.delete {
+  text-align: center;
+  font-size: 1.8em;
+}
 @media screen and (max-width:550px) {
     div.clefs {
         display:grid;
         grid-template-columns:1fr 1fr 1fr 1fr;
         grid-template-rows:min-content;
         grid-gap:4px;
+    }
+    .body-row div.delete {
+      text-align: right;
     }
 }
 div.order input,
@@ -680,10 +687,6 @@ div.attributed-to li:last-of-type {
 }
 div.attributed-to li:first-of-type {
   display:block;
-}
-.body-row div.delete {
-  text-align: right;
-  font-size: 1.8em;
 }
 .another-att-trigger {
     color:#104e8b;
