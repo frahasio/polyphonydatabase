@@ -641,10 +641,8 @@ form.edit_group {
 }
 /* ============== Source editing rows ================ */
 div.clefs {
-    display:flex;
-    flex-wrap:wrap;
-}
-div.clefs input {
-    margin:2px;
-    max-width:50px;
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+    grid-template-rows:auto;
+    grid-gap:6px;
 }
