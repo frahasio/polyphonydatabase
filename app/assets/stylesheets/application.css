@@ -578,7 +578,7 @@ form.edit_group {
 .login-form {
     padding:10px;
 }
-.login-form > * {
+.login-form form > * {
     display:block;
     margin:6px auto;
 }
