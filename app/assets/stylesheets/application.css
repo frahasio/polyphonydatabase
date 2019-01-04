@@ -575,3 +575,10 @@ form.edit_group {
 .edit_group td {
     border:none;
 }
+.login-form {
+    padding:10px;
+}
+.login-form > * {
+    display:block;
+    margin:6px auto;
+}
