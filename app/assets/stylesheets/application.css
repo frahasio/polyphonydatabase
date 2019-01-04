@@ -533,8 +533,8 @@ span.composer-image img {
     flex:4;
     margin-left:2px;
 }
-.after-me + p {
-    flex:1;
+.basics .label .after-me + p {
+    flex:1 !important;
 }
 .basics ul {
     color:#000;
