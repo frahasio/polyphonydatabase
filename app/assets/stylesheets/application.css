@@ -526,18 +526,14 @@ span.composer-image img {
 .dates .label p label {
     display:none;
 }
-.basics .label p:last-of-type > input,
-.basics .label p:last-of-type > textarea,
-.basics .label p:last-of-type > select {
+.basics .label p:last-of-type {
     flex:5;
 }
-.basics .label p:nth-of-type(2) > input,
-.basics .label p:nth-of-type(2) > textarea,
-.basics .label p:nth-of-type(2) > select {
+.basics .label p:nth-of-type(2) {
     flex:4;
     margin-left:2px;
 }
-.after-me + p > input {
+.after-me + p {
     flex:1;
 }
 .basics ul {
