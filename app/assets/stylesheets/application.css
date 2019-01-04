@@ -492,8 +492,7 @@ td.title a {
     text-align:right;
 }
 .basics .label > span.select2,
-.basics .label p > span.select2,
-.basics .label p label {
+.basics .label p > span.select2 {
     margin-right:0;
     text-align:left;
 }
@@ -661,6 +660,8 @@ div.clefs {
         grid-template-rows:min-content;
         grid-gap:4px;
     }
+}
+@media screen and (max-width:850px) {
     .body-row div.delete {
       text-align: right;
     }
