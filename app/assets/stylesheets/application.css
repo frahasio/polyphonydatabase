@@ -681,7 +681,7 @@ div.attributed-to li:last-of-type {
 div.attributed-to li:first-of-type {
   display:block;
 }
-div.delete {
+.body-row div.delete {
   text-align: right;
   font-size: 1.8em;
 }
