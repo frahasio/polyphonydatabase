@@ -488,6 +488,11 @@ td.title a {
     margin-right:10px;
     text-align:right;
 }
+.basics .label > span.select2,
+.basics .label p > span.select2 {
+    margin-right:0;
+    text-align:left;
+}
 .basics .label > input:first-of-type,
 .basics .label > textarea:first-of-type,
 .basics .label > select:first-of-type,
