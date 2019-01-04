@@ -18,8 +18,8 @@
 // Autofill composers with values in first inclusion row
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
-		$('ul.composer li:first-child input').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child input').val());
-		$('ul.composer li:first-child select').val($('table.cataloguing tr.inclusion:first-of-type ul.composer li:first-child select').val());
+		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
+		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	})
 });
 
@@ -27,5 +27,12 @@ $( document ).ready(function(){
 $( document ).ready(function(){
 	$('.burger').click(function(){
 		$(this).parents('.nav').toggleClass('open');
+	})
+});
+
+// Show extra attribution input
+$( document ).ready(function(){
+	$('.another-att-trigger').click(function(){
+		$(this).parents('.attributed-to').children('ul li').css('display','block');
 	})
 });
