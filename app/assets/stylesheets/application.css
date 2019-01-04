@@ -655,10 +655,8 @@ div.clefs {
 }
 @media screen and (max-width:550px) {
     div.clefs {
-        display:grid;
         grid-template-columns:1fr 1fr 1fr 1fr;
-        grid-template-rows:min-content;
-        grid-gap:4px;
+        justify-content:center;
     }
 }
 @media screen and (max-width:850px) {
