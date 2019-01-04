@@ -681,6 +681,10 @@ div.attributed-to li:last-of-type {
 div.attributed-to li:first-of-type {
   display:block;
 }
+div.delete {
+  text-align: right;
+  font-size: 1.8em;
+}
 .another-att-trigger {
     color:#104e8b;
 }
