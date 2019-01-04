@@ -40,16 +40,16 @@
       <div class="label"><%= f.text_field :town %></div>
     
       <div class="dates source-editor">
-        <label class="label">
+        <div class="label">
          <span style="margin-right:12px" class="after-me">From year:</span>
          <%= f.text_field :from_year_annotation %>
          <%= f.text_field :from_year %>
-        </label>
-        <label class="label">
+        </div>
+        <div class="label">
          <span style="margin-right:12px" class="after-me">To year:</span>
          <%= f.text_field :to_year_annotation %>
          <%= f.text_field :to_year %>
-        </label>
+        </div>
       </div>
       <div class="label"><%= f.select :type, Source::TYPES.map { |s| [s, s] } %></div>
       <div class="label"><%= f.select :format, Source::FORMATS.map { |f| [f, f] } %></div>
