@@ -39,16 +39,16 @@ $( document ).ready(function(){
 
 // Use arrow keys to move around cataloguing table
 $( document ).ready(function(){
-    $('.title textarea').keydown(function(e){
+    $('html').keydown(function(e){
        if (e.which == 38) { // up arrow
-	    $(this).parents('.body-row').prev().children('.title').children('textarea').focus();
+	    $('.title textarea:focus').parents('.body-row').prev().children('.title').children('textarea').focus();
        }
     });
 });
 $( document ).ready(function(){
-    $('.title textarea').keydown(function(e){
+    $('html').keydown(function(e){
        if (e.which == 40) { // down arrow
-	    $(this).parents('.body-row').next().children('.title').children('textarea').focus();
+	    $('.title textarea:focus').parents('.body-row').next().children('.title').children('textarea').focus();
        }
     });
 });
