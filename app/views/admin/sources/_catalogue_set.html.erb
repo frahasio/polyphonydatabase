@@ -1,7 +1,7 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
-  <tr class="inclusion">
-    <td class="order"><%= i.text_field :order %></td>
-    <td class="attributed-to">
+  <div class="inclusion body-row">
+    <div class="order"><%= i.text_field :order %></div>
+    <div class="attributed-to">
       <ul class="composer">
         <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
           <li>
@@ -10,16 +10,16 @@
           </li>
         <% end %>
       </ul>
-    </td>
+    </div>
 
     <%= i.fields_for(:composition) do |c| %>
       <%= c.fields_for(:title) do |t| %>
-        <td class="title">
+        <div class="title">
           <%= t.text_area :text %>
-        </td>
+        </div>
       <% end %>
     <% end %>
-    <td class="clefs">
+    <div class="clefs">
       <% i.object.display_clefs.each do |clef| %>
         <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
       <% end %>
@@ -27,12 +27,12 @@
       <% (8 - (i.object.display_clefs.count % 8)).times do %>
         <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", nil, size: 3 %>
       <% end %>
-    </td>
-    <td class="notes"><%= i.text_area :notes %></td>
+    </div>
+    <div class="notes"><%= i.text_area :notes %></div>
     <% if i.object.persisted? %>
-      <td class="delete">
+      <div class="delete">
         <%= link_to "✖", admin_inclusion_path(i.object), method: :delete %>
-      </td>
+      </div>
     <% end %>
-  </tr>
+  </div>
 <% end %>
