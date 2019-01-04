@@ -529,6 +529,9 @@ span.composer-image img {
     max-width: 300px;
     max-height:300px;
 }
+.dates.source-editor .label {
+    margin-bottom:2px;
+}
 .dates .label p label {
     display:none;
 }
@@ -544,6 +547,9 @@ span.composer-image img {
 }
 .basics ul {
     color:#000;
+}
+label.checkbox {
+    text-align:left;
 }
 label.checkbox input {
     position:relative;
