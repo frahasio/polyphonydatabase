@@ -648,4 +648,5 @@ div.clefs {
 }
 div.clefs input {
     max-height:30px;
+    max-width:60px;
 }
