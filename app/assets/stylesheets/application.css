@@ -643,7 +643,7 @@ form.edit_group {
 div.clefs {
     display:grid;
     grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-    grid-template-rows:auto;
+    grid-template-rows:min-content;
     grid-gap:4px;
 }
 div.clefs input {
