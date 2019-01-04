@@ -489,20 +489,26 @@ td.title a {
     text-align:right;
 }
 .basics .label > input:first-of-type,
+.basics .label > textarea:first-of-type,
 .basics .label > select:first-of-type,
 .basics .label p > input:first-of-type,
+.basics .label p > textarea:first-of-type,
 .basics .label p > select:first-of-type {
     flex:1;
 }
 .basics .label > input:last-of-type,
+.basics .label > textarea:last-of-type,
 .basics .label > select:last-of-type,
 .basics .label p > input:last-of-type,
+.basics .label p > textarea:last-of-type,
 .basics .label p > select:last-of-type {
     flex:5;
 }
 .basics .label > input:nth-of-type(2),
+.basics .label > textarea:nth-of-type(2),
 .basics .label > select:nth-of-type(2),
 .basics .label p > input:nth-of-type(2),
+.basics .label p > textarea:nth-of-type(2),
 .basics .label p > select:nth-of-type(2) {
     flex:4;
     margin-left:2px;
@@ -521,17 +527,21 @@ span.composer-image img {
     display:none;
 }
 .basics .label p:last-of-type > input,
+.basics .label p:last-of-type > textarea,
 .basics .label p:last-of-type > select {
     flex:5;
 }
 .basics .label p:nth-of-type(2) > input,
+.basics .label p:nth-of-type(2) > textarea,
 .basics .label p:nth-of-type(2) > select {
     flex:4;
     margin-left:2px;
 }
-.after-me + p > input,
-.after-me + p > select {
+.after-me + p > input {
     flex:1;
+}
+.basics ul {
+    color:#000;
 }
 /*  ==================  Admin list pages  ======================  */
 .mainlist {
