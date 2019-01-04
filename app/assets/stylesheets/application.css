@@ -646,7 +646,38 @@ div.clefs {
     grid-template-rows:min-content;
     grid-gap:4px;
 }
+@media screen and (max-width:550px) {
+    div.clefs {
+        display:grid;
+        grid-template-columns:1fr 1fr 1fr 1fr;
+        grid-template-rows:min-content;
+        grid-gap:4px;
+    }
+}
+div.order input,
 div.clefs input {
     max-height:30px;
     max-width:60px;
+}
+div.title textarea,
+div.notes textarea {
+    min-height:60px;
+}
+div.attributed-to li input,
+div.attributed-to li select {
+  margin-bottom:2px;
+}
+div.attributed-to li + li {
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid darkgrey;
+}
+div.attributed-to li {
+  display:block;
+}
+div.attributed-to li:last-of-type {
+  display:none;
+}
+div.attributed-to li:first-of-type {
+  display:block;
 }
