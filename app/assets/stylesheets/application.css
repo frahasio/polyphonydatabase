@@ -316,6 +316,9 @@ p.message {
 .filters input {
     width:calc(100% - 12px);
 }
+span.select2 {
+    max-width: 40vw;
+}
 @media screen and (max-width:550px) {
     .save-button {
         position:sticky;
