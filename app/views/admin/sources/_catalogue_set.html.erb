@@ -1,6 +1,6 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
   <div class="inclusion body-row">
-    <div class="order"><%= i.text_field :order %></div>
+    <div class="order tiny"><%= i.text_field :order %></div>
     <div class="attributed-to">
       <ul class="composer">
         <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
@@ -14,12 +14,12 @@
 
     <%= i.fields_for(:composition) do |c| %>
       <%= c.fields_for(:title) do |t| %>
-        <div class="title">
+        <div class="title large">
           <%= t.text_area :text %>
         </div>
       <% end %>
     <% end %>
-    <div class="clefs">
+    <div class="clefs large">
       <% i.object.display_clefs.each do |clef| %>
         <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
       <% end %>
@@ -29,10 +29,10 @@
       <% end %>
     </div>
     <div class="notes"><%= i.text_area :notes %></div>
-    <% if i.object.persisted? %>
-      <div class="delete">
-        <%= link_to "✖", admin_inclusion_path(i.object), method: :delete %>
-      </div>
-    <% end %>
+    <div class="delete tiny">
+      <% if i.object.persisted? %>
+          <%= link_to "✖", admin_inclusion_path(i.object), method: :delete %>
+      <% end %>
+    </div>
   </div>
 <% end %>
