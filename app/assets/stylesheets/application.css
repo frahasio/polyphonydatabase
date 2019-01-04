@@ -484,7 +484,8 @@ td.title a {
     flex:2;
 }
 .basics .label > span,
-.basics .label p > span {
+.basics .label p > span,
+.basics .label p label {
     margin-right:10px;
     text-align:right;
 }
@@ -538,6 +539,11 @@ span.composer-image img {
 }
 .basics ul {
     color:#000;
+}
+label.checkbox input {
+    position:relative;
+    top:11px;
+    margin-right:6px;
 }
 /*  ==================  Admin list pages  ======================  */
 .mainlist {
