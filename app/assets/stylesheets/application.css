@@ -529,8 +529,8 @@ span.composer-image img {
     flex:4;
     margin-left:2px;
 }
-.basics .label p:first-of-type > input,
-.basics .label p:first-of-type > select {
+.after-me + p > input,
+.after-me + p > select {
     flex:1;
 }
 /*  ==================  Admin list pages  ======================  */
