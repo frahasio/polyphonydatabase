@@ -608,3 +608,12 @@ form.edit_group {
     margin:6px auto;
     max-width:200px;
 }
+/* ============== Source editing rows ================ */
+div.clefs {
+    display:flex;
+    flex-wrap:wrap;
+}
+div.clefs input {
+    margin:2px;
+    max-width:50px;
+}
