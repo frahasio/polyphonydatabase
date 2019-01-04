@@ -13,31 +13,34 @@
   <div class="basics">
       <div class="label"><%= f.text_field :code %></div>
       <div class="label"><%= f.text_area :title %></div>
-      <div class="label"><%= f.select :publisher_ids,
-        Publisher.order(:name).map {|pub| [pub.name, pub.id] },
-        {
-          label: "Publishers",
-        },
-        {
-          class: "select2",
-          multiple: true
-        }
-      %>
-      <%= f.select :scribe_ids,
-        Scribe.order(:name).map {|s| [s.name, s.id] },
-        {
-          label: "Scribes",
-        },
-        {
-          class: "select2",
-          multiple: true
-        }
-      %>
+      <div class="label">
+        <%= f.select :publisher_ids,
+            Publisher.order(:name).map {|pub| [pub.name, pub.id] },
+            {
+              label: "Publishers",
+            },
+            {
+              class: "select2",
+              multiple: true
+            }
+          %>
+      </div>
+      <div class="label">
+        <%= f.select :scribe_ids,
+            Scribe.order(:name).map {|s| [s.name, s.id] },
+            {
+              label: "Scribes",
+            },
+            {
+              class: "select2",
+              multiple: true
+            }
+          %>
       </div>
       <div class="label"><%= f.text_field :town %></div>
     
       <div class="dates source-editor">
-        <label class="label">
+        <label class="label first">
          <span style="margin-right:12px">From year:</span>
          <%= f.text_field :from_year_annotation %>
          <%= f.text_field :from_year %>
