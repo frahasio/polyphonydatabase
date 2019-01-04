@@ -74,7 +74,6 @@ label {
     display:inline-block;
 }
 span.select2 {
-    max-width: 300px;
     padding:0;
 }
 button,
