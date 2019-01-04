@@ -466,7 +466,9 @@ td.title a {
     grid-template-columns:1fr 1fr;
     grid-template-rows:auto;
     grid-gap:10px;
-    grid-column-gap:20%;
+    grid-column-gap:14%;
+    max-width:1000px;
+    margin:0 auto;
     align-items:start;
     color:#fff;
 }
@@ -551,6 +553,10 @@ span.composer-image img {
 .basics .label p:nth-of-type(2) {
     flex:4;
     margin-left:2px;
+}
+.basics .label .after-me {
+    padding-left:4px;
+    padding-top:4px;
 }
 .basics .label .after-me + p {
     flex:1 !important;
