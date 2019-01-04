@@ -468,6 +468,8 @@ td.title a {
     grid-gap:10px;
     align-items:start;
     color:#fff;
+    max-width:950px;
+    margin:0 auto;
 }
 @media screen and (max-width:580px) {
     .basics {
