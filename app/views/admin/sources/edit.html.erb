@@ -58,19 +58,16 @@
   <span class="save-button"><button>Save</button></span>
 
   <%= paginate @inclusions %>
-  <table class="cataloguing">
-    <thead>
-    <tr>
-      <th class="order">Order</th>
-      <th class="attributed-to">Attributed to  <a class="autofill-composers">autofill</a></th>
-      <th class="title">Title</th>
-      <th class="clefs">Clefs</th>
-      <th class="notes">Notes</th>
-      <th class="delete">Delete</th>
-      <th></th>
-    </tr>
-    </thead>
-    <tbody>
+  <div class="cataloguing">
+    <div class="header-row">
+      <div class="order">Order</div>
+      <div class="attributed-to">Attributed to  <a class="autofill-composers">autofill</a></div>
+      <div class="title">Title</div>
+      <div class="clefs">Clefs</div>
+      <div class="notes">Notes</div>
+      <div class="delete">Delete</div>
+      <div></div>
+    </div>
 
     <% composer_list = Composer.order(:name).map {|c| [c.name, c.id] } %>
     <%= render "catalogue_set", inclusions: @inclusions, composer_list: composer_list, f: f %>
@@ -78,9 +75,8 @@
     <% if @blank_inclusions %>
       <%= render "catalogue_set", inclusions: @blank_inclusions, composer_list: composer_list, f: f %>
     <% end %>
-      
-    </tbody>
-  </table>
+    
+  </div>
 
   <%= paginate @inclusions %>
 
