@@ -472,29 +472,38 @@ td.title a {
         grid-template-columns:1fr;
     }
 }
-.basics .label {
+.basics .label,
+.basics .label p {
     display:flex;
     width:100%;
     justify-content:space-between;
     align-items:flex-start;
 }
-.basics .label > * {
+.basics .label > *,
+.basics .label p > * {
     flex:2;
 }
-.basics .label > span {
+.basics .label > span,
+.basics .label p > span {
     margin-right:10px;
     text-align:right;
 }
 .basics .label > input:first-of-type,
-.basics .label > select:first-of-type {
+.basics .label > select:first-of-type,
+.basics .label p > input:first-of-type,
+.basics .label p > select:first-of-type {
     flex:1;
 }
 .basics .label > input:last-of-type,
-.basics .label > select:last-of-type {
+.basics .label > select:last-of-type,
+.basics .label p > input:last-of-type,
+.basics .label p > select:last-of-type {
     flex:5;
 }
 .basics .label > input:nth-of-type(2),
-.basics .label > select:nth-of-type(2) {
+.basics .label > select:nth-of-type(2),
+.basics .label p > input:nth-of-type(2),
+.basics .label p > select:nth-of-type(2) {
     flex:4;
     margin-left:2px;
 }
