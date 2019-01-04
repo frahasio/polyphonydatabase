@@ -581,4 +581,5 @@ form.edit_group {
 .login-form form > * {
     display:block;
     margin:6px auto;
+    max-width:200px;
 }
