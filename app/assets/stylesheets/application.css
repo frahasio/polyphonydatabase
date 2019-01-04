@@ -498,7 +498,7 @@ td.title a {
     text-align:left;
 }
 .basics .label.select2 {
-    margin-right:0;
+    margin-right:5px;
 }
 .basics .label > input:first-of-type,
 .basics .label > textarea:first-of-type,
