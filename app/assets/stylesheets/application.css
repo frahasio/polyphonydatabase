@@ -681,3 +681,9 @@ div.attributed-to li:last-of-type {
 div.attributed-to li:first-of-type {
   display:block;
 }
+.another-att-trigger {
+    color:#104e8b;
+}
+.another-att-trigger:hover {
+    color:orange;
+}
