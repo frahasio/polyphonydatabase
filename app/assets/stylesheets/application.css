@@ -491,25 +491,31 @@ td.title a {
 .basics .label > input:first-of-type,
 .basics .label > textarea:first-of-type,
 .basics .label > select:first-of-type,
+.basics .label > .select2:first-of-type,
 .basics .label p > input:first-of-type,
 .basics .label p > textarea:first-of-type,
-.basics .label p > select:first-of-type {
+.basics .label p > select:first-of-type,
+.basics .label p > .select2:first-of-type {
     flex:1;
 }
 .basics .label > input:last-of-type,
 .basics .label > textarea:last-of-type,
 .basics .label > select:last-of-type,
+.basics .label > .select2:last-of-type,
 .basics .label p > input:last-of-type,
 .basics .label p > textarea:last-of-type,
-.basics .label p > select:last-of-type {
+.basics .label p > select:last-of-type,
+.basics .label p > .select2:last-of-type {
     flex:5;
 }
 .basics .label > input:nth-of-type(2),
 .basics .label > textarea:nth-of-type(2),
 .basics .label > select:nth-of-type(2),
+.basics .label > .select2:nth-of-type(2),
 .basics .label p > input:nth-of-type(2),
 .basics .label p > textarea:nth-of-type(2),
-.basics .label p > select:nth-of-type(2) {
+.basics .label p > select:nth-of-type(2),
+.basics .label p > .select2:nth-of-type(2)  {
     flex:4;
     margin-left:2px;
 }
