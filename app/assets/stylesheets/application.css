@@ -517,6 +517,22 @@ span.composer-image img {
     max-width: 300px;
     max-height:300px;
 }
+.dates .label p label {
+    display:none;
+}
+.basics .label p:last-of-type > input,
+.basics .label p:last-of-type > select {
+    flex:5;
+}
+.basics .label p:nth-of-type(2) > input,
+.basics .label p:nth-of-type(2) > select {
+    flex:4;
+    margin-left:2px;
+}
+.basics .label p:first-of-type > input,
+.basics .label p:first-of-type > select {
+    flex:1;
+}
 /*  ==================  Admin list pages  ======================  */
 .mainlist {
     padding:20px;
