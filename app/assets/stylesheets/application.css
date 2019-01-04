@@ -686,4 +686,5 @@ div.attributed-to li:first-of-type {
 }
 .another-att-trigger:hover {
     color:orange;
+    cursor:pointer;
 }
