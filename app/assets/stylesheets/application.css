@@ -642,7 +642,10 @@ form.edit_group {
 /* ============== Source editing rows ================ */
 div.clefs {
     display:grid;
-    grid-template-columns:1fr 1fr 1fr 1fr;
+    grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
     grid-template-rows:auto;
-    grid-gap:6px;
+    grid-gap:4px;
+}
+div.clefs input {
+    max-height:30px;
 }
