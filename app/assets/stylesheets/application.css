@@ -466,10 +466,9 @@ td.title a {
     grid-template-columns:1fr 1fr;
     grid-template-rows:auto;
     grid-gap:10px;
+    grid-column-gap:20%;
     align-items:start;
     color:#fff;
-    max-width:950px;
-    margin:0 auto;
 }
 @media screen and (max-width:580px) {
     .basics {
@@ -491,12 +490,10 @@ td.title a {
 .basics .label p > span,
 .basics .label p label {
     margin-right:10px;
-    text-align:right;
 }
 .basics .label > span.select2,
 .basics .label p > span.select2 {
     margin-right:0;
-    text-align:left;
 }
 .basics .label.includes-select2 {
     margin-right:5px;
