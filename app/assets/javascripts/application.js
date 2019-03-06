@@ -33,6 +33,6 @@ $( document ).ready(function(){
 // Show extra attribution input
 $( document ).ready(function(){
 	$('.another-att-trigger').click(function(){
-		$(this).parents('.attributed-to').children('ul').children('li').css('display','block');
+		$(this).parents('.attributed-to').children('ul').children('li:last-of-type').css('display','block !important');
 	})
 });
