@@ -29,7 +29,7 @@
         <%= f.select :scribe_ids,
             Scribe.order(:name).map {|s| [s.name, s.id] },
             {
-              label: "Scribes",
+              label: "Scribes/Editors",
             },
             {
               class: "select2",
