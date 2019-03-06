@@ -24,6 +24,7 @@ class Source < ActiveRecord::Base
     Choirbook
     Partbook
     Score
+    Tablature
     Tablebook
     Choirbook/score
     Unidentifiable/fragment
