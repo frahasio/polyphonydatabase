@@ -34,6 +34,22 @@ a,a:visited,a:active {
     font-weight: bold;
     color: #006699;
 }
+a.contact-email {
+    position: absolute;
+    right: 16px;
+    top: 10px;
+    z-index: 999;
+    color: #fff;
+    font-size: 1.1em;
+}
+@media screen and (max-width:550px) {
+    a.contact-email {
+        position: static;
+        display:block;
+        margin:6px auto;
+        text-align:center;
+    }
+}
 a:hover {
     color: orange;
     cursor: pointer;
