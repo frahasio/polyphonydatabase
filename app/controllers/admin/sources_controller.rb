@@ -7,8 +7,8 @@ module Admin
       @source = Source.find(params[:id])
 
       @grouped_sources = {
-        "Catalogued" => Source.catalogued.pluck(:code, :id).order(:code),
-        "Uncatalogued" => Source.uncatalogued.pluck(:code, :id).order(:code),
+        "Catalogued" => Source.catalogued.pluck(:code, :id),
+        "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
 
       @inclusions = @source.inclusions
