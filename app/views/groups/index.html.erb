@@ -1,6 +1,9 @@
 <h1>The Polyphony Database</h1>
 <a class="contact-email" href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a>
 
+<%= paginate @groups %>
+
   <%= render "filters", search_path: root_path %>
   <%= render "table" %>
 
+<%= paginate @groups %>
