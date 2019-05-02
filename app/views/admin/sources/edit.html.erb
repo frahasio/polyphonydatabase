@@ -2,7 +2,7 @@
 
 <div class="topform">
   <%= form_tag("/admin/sources/switch-to", class: "composer-select") do %>
-    <%= select_tag "id", grouped_options_for_select(@grouped_sources, params[:id]) %>
+    <%= select_tag "id", options_from_collection_for_select(Source.all.order(:code), :id, :code, params[:id]) %>
     <button>Go to source...</button>
   <% end %>
 </div>
