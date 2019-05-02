@@ -1,6 +1,8 @@
 <% headings_partial ||= "headings" %>
 <% row_partial ||= "row" %>
 
+<%= paginate @groups %>
+
   <table class="sortable">
     <%= render headings_partial %>
     <% @groups.each do |group| %>
