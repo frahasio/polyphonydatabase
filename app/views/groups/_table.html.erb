@@ -8,4 +8,7 @@
     <% @groups.each do |group| %>
       <%= render row_partial, group: group %>
     <% end %>
+    
   </table>
+    
+<%= paginate @groups %>
