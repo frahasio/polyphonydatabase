@@ -11,7 +11,7 @@ module Admin
         "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
       
-      @grouped_sources.keys.sort.each { |key| puts @grouped_sources[key] }
+      @grouped_sources = @grouped_sources.keys.sort.each { |key| puts @grouped_sources[key] }
 
       @inclusions = @source.inclusions
         .includes({composition: :title}, :attributions, :clef_combination)
