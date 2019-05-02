@@ -10,9 +10,6 @@ module Admin
         "Catalogued" => Source.catalogued.pluck(:code, :id),
         "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
-      
-      @grouped_sources = @grouped_sources
-        .order(:code)
 
       @inclusions = @source.inclusions
         .includes({composition: :title}, :attributions, :clef_combination)
