@@ -6,7 +6,7 @@ module Admin
     def edit
       @source = Source.find(params[:id])
 
-      @grouped_sources = Sources.order(:code) {
+      @grouped_sources = {
         "Catalogued" => Source.catalogued.pluck(:code, :id),
         "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
