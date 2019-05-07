@@ -26,6 +26,7 @@ class Source < ActiveRecord::Base
     Score
     Tablature
     Tablebook
+    Multiple choirbooks
     Choirbook/score
     Unidentifiable/fragment
   ].freeze
