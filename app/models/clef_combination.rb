@@ -90,16 +90,21 @@ class ClefCombination < ApplicationRecord
     c2
     g5
     c3
+    y1
     f1
     g28
     c4
+    y2
     f2
     c5
     d1
+    y3
     f3
     d2
+    y4
     f4
     d3
+    y5
     f5
     d4
     d5
