@@ -1,5 +1,18 @@
 <h1>The Polyphony Database</h1>
-<a class="contact-email" href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a>
+    <a class="contact-email" href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a>
+    <a class="about-link" onclick="$('div.about,span.swivel').toggleClass('open');">About the database<span class="swivel open">❯</span></a>
+    <div class="about open" style="/* display:none; */">
+        <p>PolyphonyDatabase.com is a detailed catalogue of early music sources designed to help musicians perform, academics study, and enthusiasts explore a vast and glorious repertoire quickly and easily. It aims to combine the practicality of CPDL with the academic rigour and ambition of the RISM census, to make use of similar projects where possible, and to directly combat the frustrations performing musicians have with all existing resources.</p>
+        <p>Its three main goals are:</p>
+        <ul>
+          <li>To assist performers, directors, and editors by cataloguing the contents of primary sources, source concordances, and basic information about how each piece of music can be performed.</li>
+          <li>To provide a reliable starting point for academic research by linking to library catalogues, other existing databases, and facsimile images of early music manuscripts and prints.</li>
+          <li>To provide a repository for properly sourced critical editions, performing scores, and recordings of as much of this music as possible, each carefully vetted for typesetting quality and accuracy, and made available for free download, so that this music might be discovered and appreciated by a wider audience.</li>
+        </ul>
+        <p>The database was founded by Francis Bevan in 2014 as an outlet for his editing hobby and is regularly updated by him and a small team of enthusiasts. If you would like to contribute some cataloguing time, recordings or editions, submit corrections, commission an edition or just donate some cash, please get in touch with Francis via email: <a href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a></p>
+        <p><strong>The best way to help fund the project is to commission performing editions. New editions can be made quickly for as little as £10</strong></p>
+        <p>Read more about the project's history at the <a href="https://www.crowdfunder.co.uk/polyphony-database-improvements">2018 Crowdfunder page</a>.</p>
+    </div>
 
   <%= render "filters", search_path: root_path %>
   <%= render "table" %>
