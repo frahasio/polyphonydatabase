@@ -741,7 +741,7 @@ div.attributed-to li:first-of-type {
     padding:14px;
 }
 .about.open {
-    display:block;
+    display:block !important;
 }
 .about p, .about ul {
     margin:0 20px 20px 20px;
