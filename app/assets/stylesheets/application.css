@@ -719,3 +719,34 @@ div.attributed-to li:first-of-type {
     color:orange;
     cursor:pointer;
 }
+.about-link {
+    width:100%;
+    display:block;
+    background-color:gainsboro;
+    padding:14px;
+}
+.swivel {
+    margin-left:10px;
+    display:inline-block;
+    transition:transform linear 0.3s;
+}
+.swivel.open {
+    transform:rotate(90deg);
+    transition:transform linear 0.3s;
+}
+.about {
+    width:100%;
+    display:block;
+    background-color:gainsboro;
+    padding:14px;
+}
+.about.open {
+    display:block;
+}
+.about p, .about ul {
+    margin:0 20px 20px 20px;
+}
+.about ul li {
+    margin:0 20px 6px 20px ;
+    list-style:circle outside;
+}
