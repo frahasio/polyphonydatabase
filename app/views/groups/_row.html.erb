@@ -66,6 +66,8 @@
               
             <% if admin_user? %>
               <%= link_to "Catalogue source", edit_admin_source_path(source), target: "_blank" %>
+              <span class="position">#<%= inclusion.position %></span>
+            <% else %>
               <% if inclusion.position %>
                 <span class="position">#<%= inclusion.position %></span>
               <% end %>
