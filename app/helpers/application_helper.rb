@@ -16,13 +16,26 @@ module ApplicationHelper
   end
 
   def classes_for_image(clef, inclusion)
-    [
-      "clef-image",
-      ("missing" if inclusion.missing_clef_ids.include?(clef.id)),
-      ("incomplete" if inclusion.incomplete_clef_ids.include?(clef.id)),
-      ("optional" if clef.optional?),
-      ("transitional" unless inclusion.transitions_to[clef.id.to_s].blank?),
-    ].compact.join(" ")
+    classes = ["clef-image"]
+
+    classes << "optional" if clef.optional?
+
+    @both_ids ||= inclusion.both_clef_ids.to_a.dup
+    @incomplete_ids ||= inclusion.incomplete_clef_ids.to_a.dup
+    @missing_ids ||= inclusion.missing_clef_ids.to_a.dup
+
+    if @both_ids.include?(clef.id)
+      classes += ["missing", "incomplete"]
+      @both_ids.delete_at(@both_ids.index(clef.id))
+    elsif @incomplete_ids.include?(clef.id)
+      classes << "incomplete"
+      @incomplete_ids.delete_at(@incomplete_ids.index(clef.id))
+    elsif @missing_ids.include?(clef.id)
+      classes << "missing"
+      @missing_ids.delete_at(@missing_ids.index(clef.id))
+    end
+
+    classes.join(" ")
   end
 
   def anon_composer
