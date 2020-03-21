@@ -121,7 +121,7 @@ module Admin
     end
 
     def assign_compositions
-      inclusion_ids = source_params[:inclusions_attributes].map { |_, attributes|
+      inclusion_ids = source_params[:inclusions_attributes].to_unsafe_hash.map { |_, attributes|
         attributes[:id]
       }
 
