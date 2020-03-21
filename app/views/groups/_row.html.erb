@@ -1,5 +1,5 @@
 <tr>
-  <td class="title"><%= group.display_title %>  
+  <td class="title"><%= group.display_title %>
     <% group.editions.each do |edition| %>
         <% edition_text = "#{edition.editor.name} (#{edition.voicing})" %>
         <% if edition.file_url.present? %>
@@ -63,7 +63,7 @@
               <span><%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %></span>
               <em>(<%= [source.format, source.type].reject(&:blank?).join(", ") %>)</em>
               <%= link_to "RISM", source.rism_link, target: "_blank" if source.rism_link.present? %>
-              
+
             <% if admin_user? %>
               <%= link_to "Catalogue source", edit_admin_source_path(source), target: "_blank" %>
               <span class="position">#<%= inclusion.position %></span>
@@ -75,11 +75,8 @@
           </td>
           <td class="clefs">
             <% if inclusion.clef_combination %>
-              <% inclusion.clef_combination.sorted_clefs.each do |clef| %>
-                <%= image_tag "clefs/#{note_for_image(clef, inclusion)}.png",
-                  alt: note_for_image(clef, inclusion),
-                  class: classes_for_image(clef, inclusion)
-                %>
+              <% notes_and_classes(inclusion).each do |(note, classes)| %>
+                <%= image_tag "clefs/#{note}.png", alt: note, class: classes %>
               <% end %>
             <% end %>
           </td>
