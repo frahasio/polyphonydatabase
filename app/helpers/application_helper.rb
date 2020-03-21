@@ -15,24 +15,33 @@ module ApplicationHelper
     [clef.note, inclusion.transitions_to[clef.id.to_s]].compact.join
   end
 
-  def classes_for_image(clef, inclusion)
+  def notes_and_classes(inclusion)
+    both_ids = inclusion.both_clef_ids.to_a.dup
+    incomplete_ids = inclusion.incomplete_clef_ids.to_a.dup
+    missing_ids = inclusion.missing_clef_ids.to_a.dup
+
+    inclusion.clef_combination.sorted_clefs.map do |clef|
+      [
+        note_for_image(clef, inclusion),
+        classes_for_image(clef, inclusion, both_ids, incomplete_ids, missing_ids)
+      ]
+    end
+  end
+
+  def classes_for_image(clef, inclusion, both_ids, incomplete_ids, missing_ids)
     classes = ["clef-image"]
 
     classes << "optional" if clef.optional?
 
-    @both_ids ||= inclusion.both_clef_ids.to_a.dup
-    @incomplete_ids ||= inclusion.incomplete_clef_ids.to_a.dup
-    @missing_ids ||= inclusion.missing_clef_ids.to_a.dup
-
-    if @both_ids.include?(clef.id)
+    if both_ids.include?(clef.id)
       classes += ["missing", "incomplete"]
-      @both_ids.delete_at(@both_ids.index(clef.id))
-    elsif @incomplete_ids.include?(clef.id)
+      both_ids.delete_at(both_ids.index(clef.id))
+    elsif incomplete_ids.include?(clef.id)
       classes << "incomplete"
-      @incomplete_ids.delete_at(@incomplete_ids.index(clef.id))
-    elsif @missing_ids.include?(clef.id)
+      incomplete_ids.delete_at(incomplete_ids.index(clef.id))
+    elsif missing_ids.include?(clef.id)
       classes << "missing"
-      @missing_ids.delete_at(@missing_ids.index(clef.id))
+      missing_ids.delete_at(missing_ids.index(clef.id))
     end
 
     classes.join(" ")
