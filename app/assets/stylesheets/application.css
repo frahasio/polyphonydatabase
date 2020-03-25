@@ -709,6 +709,9 @@ div.attributed-to li {
 div.attributed-to li:last-of-type {
   display:none;
 }
+div.attributed-to li.visible {
+  display:block !important;
+}
 div.attributed-to li:first-of-type {
   display:block;
 }
