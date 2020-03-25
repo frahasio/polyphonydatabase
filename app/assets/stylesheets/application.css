@@ -706,14 +706,11 @@ div.attributed-to li + li {
 div.attributed-to li {
   display:block;
 }
-div.attributed-to li:last-of-type {
+div.attributed-to li.hidden {
   display:none;
 }
-div.attributed-to li.visible {
-  display:block !important;
-}
 div.attributed-to li:first-of-type {
-  display:block;
+  display:block !important;
 }
 .another-att-trigger {
     color:#104e8b;
