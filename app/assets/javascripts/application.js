@@ -33,7 +33,6 @@ $( document ).ready(function(){
 // Show extra attribution input
 $( document ).ready(function(){
 	$('.another-att-trigger').click(function(){
-		alert('testing');
-		$(this).parents('.attributed-to').find('li:last-of-type').css('display','block !important');
+		$(this).siblings('.composer').find('li:last-of-type').addClass('visible');
 	})
 });
