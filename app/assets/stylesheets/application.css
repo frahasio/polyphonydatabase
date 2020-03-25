@@ -706,8 +706,11 @@ div.attributed-to li + li {
 div.attributed-to li {
   display:block;
 }
-div.attributed-to li.hidden {
+div.attributed-to li:last-of-type {
   display:none;
+}
+div.attributed-to li.visible {
+  display:block !important;
 }
 div.attributed-to li:first-of-type {
   display:block !important;
