@@ -753,3 +753,7 @@ div.attributed-to li:first-of-type {
     margin:0 20px 6px 20px ;
     list-style:circle outside;
 }
+.recordings-editor form .body-row + .body-row > div {
+    margin-top:-1px;
+    border-top:1px solid #bdbdbd;
+}
