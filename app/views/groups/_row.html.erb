@@ -6,6 +6,8 @@
           <%= link_to edition.file_url, target: "_blank", class: "edition" do %>
             <% if edition.has_pdf? %>
               <%= image_tag "pdf.png" %>
+            <% else %>
+              <%= image_tag "pound.png" %>
             <% end %>
             <%= edition_text %>
           <% end %>
