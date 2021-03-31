@@ -30,7 +30,7 @@ module Admin
         last_inclusion = @inclusions.last
         last_order = last_inclusion&.order || -1
 
-        num_blank_rows = [10, (20 - @inclusions.count)].max
+        num_blank_rows = [40, (20 - @inclusions.count)].max
 
         @blank_inclusions = (1...num_blank_rows).map do |n|
           inclusion = @source.inclusions.build(order: last_order + n + 1)
