@@ -36,18 +36,3 @@ $( document ).ready(function(){
 		$(this).siblings('.composer').find('li:last-of-type').addClass('visible');
 	})
 });
-
-// Tab up and down in source editor
-$(document).keydown(
-    function(e)
-    {    
-        if (e.keyCode == 38) {  
-	    var mov = $(':focus').index();
-            $(':focus').parents('.body-row').prev().children().eq(mov).focus();
-        }
-        if (e.keyCode == 40) {      
-	    var mov = $(':focus').index();
-            $(':focus').parents('.body-row').next().children().eq(mov).focus();
-        }
-    }
-);
