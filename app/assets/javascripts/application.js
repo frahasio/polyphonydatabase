@@ -111,15 +111,6 @@ $(document).keydown(
 			if (e.keyCode == 40) {  //MOVE DOWN
 				$('.body-row').eq(par + 1).find('.notes').children('textarea').focus();
 			}
-		} else if ($(':focus').closest('div').hasClass('attributed-to')) {
-			if ($(':focus').is('input') {
-				if (e.keyCode == 38) {  //MOVE UP
-					$('.body-row').eq(par - 1).find('.attributed-to').find('li').first().find('input[type=text]').focus();
-				}
-				if (e.keyCode == 40) {  //MOVE DOWN
-					$('.body-row').eq(par + 1).find('.attributed-to').find('li').first().find('input[type=text]').focus();
-				}
-			}
 		}
     }
 );
