@@ -62,3 +62,11 @@ test:
 production:
   <<: *default
   database: music-cms_production
+
+docker:
+  <<: *default
+  database: music-cms_development
+  password: pw
+  username: music-cms
+  host: db
+  
