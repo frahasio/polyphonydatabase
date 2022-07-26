@@ -1,8 +1,10 @@
 class GroupsController < ApplicationController
+  @groups = Kaminari.paginate_array(@groups)
+      .page(params[:page])
+      .per(100)
   def index
     @groups = GroupFilter.filter(params)
       .order(:display_title)
-      .limit(100)
       .includes(
         :recordings,
         :functions,
