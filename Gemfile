@@ -1,37 +1,37 @@
 source "https://rubygems.org"
 
-ruby "2.6.5"
+ruby "3.1.2"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails"
-gem "rails", "< 6"
+gem "rails", "< 7"
 # Use postgresql as the database for Active Record
-gem "pg", "~> 0.18"
+gem "pg", "~> 1.4"
 # Use Puma as the app server
-gem "puma", "~> 3.0"
+gem "puma", "~> 6.0"
 # Use SCSS for stylesheets
-gem "sass-rails", "~> 5.0"
+gem "sass-rails", "~> 6.0"
 # Use Uglifier as compressor for JavaScript assets
-gem "uglifier", ">= 1.3.0"
+gem "uglifier", "~> 4.2"
 
 # Use jquery as the JavaScript library
-gem "jquery-rails"
+gem "jquery-rails", "~> 4.5"
 
-gem "active_record_union"
-gem "generic_form_builder"
+gem "active_record_union", "~> 1.3"
+gem "generic_form_builder", "~> 0.13"
 
-gem "kaminari"
+gem "kaminari", "~> 1.2"
 
 group :development, :test do
   # Call "byebug" anywhere in the code to stop execution and get a debugger console
-  gem "byebug", platform: :mri
+  gem "byebug", "~> 11.1", platform: :mri
 end
 
 group :development do
   # Access an IRB console on exception pages or by using <%= console %> anywhere in the code.
-  gem "web-console", ">= 3.3.0"
-  gem "listen", "~> 3.0.5"
+  gem "web-console", "~> 4.2", ">= 3.3.0"
+  gem "listen", "~> 3.7"
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
-  gem "spring"
-  gem "spring-watcher-listen", "~> 2.0.0"
-  gem "ruby-prof"
+  gem "spring", "~> 4.1"
+  gem "spring-watcher-listen", "~> 2.1"
+  gem "ruby-prof", "~> 1.4"
 end
