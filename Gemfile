@@ -12,7 +12,10 @@ gem "puma", "~> 6.0"
 gem "sass-rails", "~> 6.0"
 # Use Uglifier as compressor for JavaScript assets
 gem "uglifier", "~> 4.2"
-gem "net-smtp", "~> 0.3"
+
+gem "net-smtp", require: false
+gem "net-imap", require: false
+gem "net-pop", require: false
 
 # Use jquery as the JavaScript library
 gem "jquery-rails", "~> 4.5"
