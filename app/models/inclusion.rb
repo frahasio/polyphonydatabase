@@ -39,12 +39,8 @@ class Inclusion < ActiveRecord::Base
   end
 
   def public_notes
-    if composition.group.conflicting_attributions?
       attrib_texts = attributions.map {|a| a.text.blank? ? "Anon" : a.text}
       ["Attrib: #{attrib_texts.join(', ')}", notes].reject(&:blank?).join("; ")
-    else
-      notes
-    end
   end
 
   private
