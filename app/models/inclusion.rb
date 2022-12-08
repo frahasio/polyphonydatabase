@@ -44,7 +44,7 @@ class Inclusion < ActiveRecord::Base
 
   def public_attrib
       attrib_texts = attributions.map {|a| a.text.blank? ? "Anon" : a.text}
-      attrib_texts.join(', ')
+      attrib_texts.uniq.join(', ')
   end
 
   private
