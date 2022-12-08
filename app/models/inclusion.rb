@@ -39,8 +39,12 @@ class Inclusion < ActiveRecord::Base
   end
 
   def public_notes
+      notes
+  end
+
+  def public_attrib
       attrib_texts = attributions.map {|a| a.text.blank? ? "Anon" : a.text}
-      ["Attrib: #{attrib_texts.join(', ')}", notes].reject(&:blank?).join("; ")
+      attrib_texts.join(', ')
   end
 
   private
