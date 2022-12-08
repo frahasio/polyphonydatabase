@@ -43,7 +43,7 @@ class Inclusion < ActiveRecord::Base
   end
 
   def public_attrib
-      attrib_texts = attributions.map {|a| a.text.blank? ? "<em>Anon</em>" : a.text}
+      attrib_texts = attributions.map {|a| a.text.blank? ? "Anon" : a.text}
       "Attrib: #{attrib_texts.uniq.join(', ')}"
   end
 
