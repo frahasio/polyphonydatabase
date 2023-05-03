@@ -39,3 +39,8 @@ group :development do
   gem "spring-watcher-listen", "~> 2.1"
   gem "ruby-prof", "~> 1.6"
 end
+
+group :test do
+  gem "factory_bot_rails", "~> 6.2"
+  gem "rspec-rails", "~> 6.0"
+end

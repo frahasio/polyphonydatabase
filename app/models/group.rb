@@ -4,6 +4,8 @@ class Group < ApplicationRecord
   has_many :composers, through: :compositions
   has_many :inclusions, through: :compositions
   has_many :sources, through: :inclusions
+  has_many :clef_combinations, through: :inclusions
+  has_many :voicings, through: :clef_combinations
 
   has_many :editions, inverse_of: :group
   has_many :recordings, inverse_of: :group
