@@ -8,7 +8,8 @@ class GroupFilter
   end
 
   def filter
-    groups = Group.select("distinct on(groups.id) groups.*")
+    groups = Group.distinct
+    groups = search(groups)
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
@@ -16,11 +17,7 @@ class GroupFilter
     groups = voicing(groups)
     groups = source(groups)
     groups = has_edition?(groups)
-    groups = has_recording?(groups)
-    groups = search(groups)
-    groups = Group.from("(#{groups.to_sql}) as groups")
-
-    groups
+    has_recording?(groups)
   end
 
 private
@@ -28,39 +25,26 @@ private
   attr_reader :params
 
   def search(groups)
-    return groups if params[:q].blank?
+    return groups if (query = params[:q]).blank?
 
-    joined_groups = groups.left_outer_joins(
-      :composers,
-      compositions: [
-        :title,
-        inclusions: [
-          :attributions,
-          :source,
-        ],
-      ],
-      editions: [
-        :editor,
-      ],
-      recordings: [
-        :performer,
-      ],
-    )
+    tables = %i[
+      attributions
+      composers
+      editions
+      editors
+      performers
+      recordings
+      sources
+      titles
+    ]
 
-    joined_groups.where("groups.display_title ILIKE ?", "%#{params[:q]}%")
-      .or(joined_groups.where("titles.text ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("attributions.text ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("composers.name ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("sources.title ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("sources.code ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("sources.location_and_pubscribe ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("sources.dates ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("sources.type ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("editions.voicing ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("editors.name ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("editions.file_url ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("performers.name ILIKE ?", "%#{params[:q]}%"))
-      .or(joined_groups.where("recordings.file_url ILIKE ?", "%#{params[:q]}%"))
+    groups = groups.left_outer_joins(tables)
+
+    search_sql = ([:groups] + tables).map { |table|
+      "#{table}.search_vector @@ to_tsquery('english', :query)"
+    }.join(" OR ")
+
+    groups.where(search_sql, query:)
   end
 
   def function(groups)

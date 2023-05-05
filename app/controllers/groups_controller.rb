@@ -4,16 +4,16 @@ class GroupsController < ApplicationController
       .order(:display_title)
       .limit(100)
       .includes(
-        :recordings,
+        :composers,
+        :editions,
         :functions,
+        :recordings,
         compositions: [
-          :composers,
           inclusions: [
+            :attributions,
+            :clef_combination,
             :source,
           ],
-        ],
-        editions: [
-          :editor,
         ],
       )
   end

@@ -18,3 +18,4 @@
 
 *.dump
 profile.html
+.envrc

@@ -33,5 +33,7 @@ module MusicCms
     # config.eager_load_paths << Rails.root.join("extras")
 
     config.action_view.default_form_builder = "GenericFormBuilder"
+
+    config.active_record.schema_format = :sql
   end
 end

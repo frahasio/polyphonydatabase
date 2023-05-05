@@ -70,4 +70,12 @@ Rails.application.configure do
 
   # Uncomment if you wish to allow Action Cable access from any origin.
   # config.action_cable.disable_request_forgery_protection = true
+
+  config.after_initialize do
+    Bullet.enable = ENV["BULLET"] == "true"
+    Bullet.bullet_logger = true
+    Bullet.console = false
+    Bullet.rails_logger = false
+    Bullet.skip_html_injection = true
+  end
 end

@@ -38,6 +38,8 @@ group :development do
   gem "spring", "~> 4.1"
   gem "spring-watcher-listen", "~> 2.1"
   gem "ruby-prof", "~> 1.6"
+
+  gem "bullet", "~> 7.0"
 end
 
 group :test do

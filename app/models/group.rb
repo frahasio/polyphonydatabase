@@ -3,12 +3,15 @@ class Group < ApplicationRecord
 
   has_many :composers, through: :compositions
   has_many :inclusions, through: :compositions
+  has_many :attributions, through: :inclusions
   has_many :sources, through: :inclusions
   has_many :clef_combinations, through: :inclusions
   has_many :voicings, through: :clef_combinations
 
   has_many :editions, inverse_of: :group
+  has_many :editors, through: :editions
   has_many :recordings, inverse_of: :group
+  has_many :performers, through: :recordings
 
   has_many :titles, through: :compositions
   has_many :functions, through: :titles
@@ -22,7 +25,7 @@ class Group < ApplicationRecord
   before_validation :delete_blank_recordings
 
   def multiple?
-    @multiple = (compositions.count > 1) if @multiple.nil?
+    @multiple = (compositions.size > 1) if @multiple.nil?
     @multiple
   end
 
