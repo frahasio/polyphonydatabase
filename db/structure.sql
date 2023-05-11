@@ -20,7 +20,7 @@ CREATE SCHEMA heroku_ext;
 -- Name: intarray; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA heroku_ext;
 
 
 --
@@ -1215,5 +1215,3 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20180512153825'),
 ('20180617135201'),
 ('20230505092834');
-
-
