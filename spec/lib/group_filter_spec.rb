@@ -232,6 +232,15 @@ RSpec.describe GroupFilter do
           expect(result).to eq([target_group])
         end
       end
+
+      context "when searching with multiple words" do
+        let(:target_group) { create(:group, display_title: "Main Target Group") }
+        let(:query) { "Main Target" }
+
+        it "returns only the target group" do
+          expect(result).to eq([target_group])
+        end
+      end
     end
   end
 end

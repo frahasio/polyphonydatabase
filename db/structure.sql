@@ -9,6 +9,12 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: heroku_ext; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA heroku_ext;
+
 
 --
 -- Name: intarray; Type: EXTENSION; Schema: -; Owner: -
@@ -22,6 +28,20 @@ CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION intarray IS 'functions, operators, and index support for 1-D arrays of integers';
+
+
+--
+-- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA heroku_ext;
+
+
+--
+-- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
 
 
 SET default_tablespace = '';
@@ -1195,3 +1215,5 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20180512153825'),
 ('20180617135201'),
 ('20230505092834');
+
+

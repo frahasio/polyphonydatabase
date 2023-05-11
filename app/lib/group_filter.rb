@@ -41,7 +41,7 @@ private
     groups = groups.left_outer_joins(tables)
 
     search_sql = ([:groups] + tables).map { |table|
-      "#{table}.search_vector @@ to_tsquery('english', :query)"
+      "#{table}.search_vector @@ websearch_to_tsquery('english', :query)"
     }.join(" OR ")
 
     groups.where(search_sql, query:)
