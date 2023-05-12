@@ -45,4 +45,6 @@ end
 group :test do
   gem "factory_bot_rails", "~> 6.2"
   gem "rspec-rails", "~> 6.0"
+  gem "capybara", "~> 3.39"
+  gem "launchy"
 end

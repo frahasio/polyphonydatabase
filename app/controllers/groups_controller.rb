@@ -2,7 +2,7 @@ class GroupsController < ApplicationController
   def index
     @groups = GroupFilter.filter(params)
       .order(:display_title)
-      .limit(100)
+      .page(params[:page])
       .includes(
         :composers,
         :editions,
