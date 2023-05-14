@@ -20,7 +20,7 @@ CREATE SCHEMA heroku_ext;
 -- Name: intarray; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA heroku_ext;
+CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA public;
 
 
 --
@@ -222,6 +222,37 @@ ALTER SEQUENCE public.composers_id_seq OWNED BY public.composers.id;
 
 
 --
+-- Name: composition_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.composition_types (
+    id bigint NOT NULL,
+    name character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: composition_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.composition_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: composition_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.composition_types_id_seq OWNED BY public.composition_types.id;
+
+
+--
 -- Name: compositions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -231,7 +262,10 @@ CREATE TABLE public.compositions (
     group_id integer,
     title_id integer,
     created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    updated_at timestamp without time zone NOT NULL,
+    composition_type_id bigint,
+    tone integer,
+    even_odd integer
 );
 
 
@@ -648,7 +682,8 @@ CREATE TABLE public.titles (
     text character varying,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    search_vector tsvector GENERATED ALWAYS AS (setweight(to_tsvector('english'::regconfig, (COALESCE(text, ''::character varying))::text), 'A'::"char")) STORED
+    search_vector tsvector GENERATED ALWAYS AS (setweight(to_tsvector('english'::regconfig, (COALESCE(text, ''::character varying))::text), 'A'::"char")) STORED,
+    language integer
 );
 
 
@@ -760,6 +795,13 @@ ALTER TABLE ONLY public.clefs ALTER COLUMN id SET DEFAULT nextval('public.clefs_
 --
 
 ALTER TABLE ONLY public.composers ALTER COLUMN id SET DEFAULT nextval('public.composers_id_seq'::regclass);
+
+
+--
+-- Name: composition_types id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.composition_types ALTER COLUMN id SET DEFAULT nextval('public.composition_types_id_seq'::regclass);
 
 
 --
@@ -898,6 +940,14 @@ ALTER TABLE ONLY public.clefs
 
 ALTER TABLE ONLY public.composers
     ADD CONSTRAINT composers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: composition_types composition_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.composition_types
+    ADD CONSTRAINT composition_types_pkey PRIMARY KEY (id);
 
 
 --
@@ -1053,6 +1103,13 @@ CREATE UNIQUE INDEX index_clefs_on_note_and_optional ON public.clefs USING btree
 --
 
 CREATE INDEX index_composers_compositions_on_composer_id_and_composition_id ON public.composers_compositions USING btree (composer_id, composition_id);
+
+
+--
+-- Name: index_compositions_on_composition_type_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_compositions_on_composition_type_id ON public.compositions USING btree (composition_type_id);
 
 
 --
@@ -1214,4 +1271,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20180430120112'),
 ('20180512153825'),
 ('20180617135201'),
-('20230505092834');
+('20230505092834'),
+('20230514115400');
+
+

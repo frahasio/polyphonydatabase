@@ -3,6 +3,10 @@ class Composition < ApplicationRecord
   belongs_to :group
   has_many :inclusions, inverse_of: :composition
   has_and_belongs_to_many :composers
+  belongs_to :composition_type, inverse_of: :compositions, optional: true
+
+  enum tone: %w[1 2 3 4 5 6 7 8 P M].freeze
+  enum even_odd: %w[even odd both].freeze
 
   accepts_nested_attributes_for :title
 

@@ -1,5 +1,6 @@
 class Group < ApplicationRecord
   has_many :compositions, inverse_of: :group
+  has_many :composition_types, through: :compositions
 
   has_many :composers, through: :compositions
   has_many :inclusions, through: :compositions
