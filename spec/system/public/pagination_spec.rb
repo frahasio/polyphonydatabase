@@ -15,4 +15,18 @@ RSpec.describe "Pagination", type: :system do
 
     expect(page).to have_css(".group", count: 5)
   end
+
+  it "has an adjustable page size" do
+    # 60 total
+    create_list(:group, 30, :with_composition)
+
+    visit groups_path
+
+    expect(page).to have_css(".group", count: 25)
+
+    select "50", from: "page_size"
+    click_on "Go"
+
+    expect(page).to have_css(".group", count: 50)
+  end
 end

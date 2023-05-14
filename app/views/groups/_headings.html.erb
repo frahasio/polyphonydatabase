@@ -1,6 +1,6 @@
 <tr>
   <th class="sorttable_nosort">
-    <%= link_to "Title", url_for(sort: "title", order: invert_sort_order) %>
+    <%= link_to "Title", url_for(sort: "title", order: invert_sort_order, page: params[:page], page_size: params[:page_size]) %>
   </th>
   <th>Function(s)</th>
   <th>Composer</th>

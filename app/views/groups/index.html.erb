@@ -15,6 +15,24 @@
     </div>
 
 <%= render "filters", search_path: root_path %>
+
+<%= form_tag url_for, method: "get", style: "margin: 5px" do %>
+  <%= select_tag :page_size,
+    options_for_select(%w[25 50 100 200 500], params[:page_size]),
+    prompt: "Page size",
+    style: "width: auto" %>
+
+  <%= hidden_field_tag :sort, params[:sort] %>
+  <%= hidden_field_tag :order, params[:order] %>
+  <%= hidden_field_tag :page, params[:page] %>
+
+  <%= submit_tag "Go" %>
+
+  <p style="color: white; padding-top: 5px">
+    Warning!  Selecting a very large page size may affect performance.
+  </p>
+<% end %>
+
 <%= render "table" %>
 
 <%= paginate(@groups) %>

@@ -2,6 +2,7 @@ class GroupsController < ApplicationController
   def index
     @groups = sort(GroupFilter.filter(params))
       .page(params[:page])
+      .per(params[:page_size])
       .includes(
         :composers,
         :editions,
