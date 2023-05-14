@@ -9,6 +9,7 @@ class GroupsController < ApplicationController
         :functions,
         :recordings,
         compositions: [
+          :composition_type,
           inclusions: [
             :attributions,
             :clef_combination,

@@ -38,7 +38,7 @@
           %>
       </div>
       <div class="label"><%= f.text_field :town %></div>
-    
+
       <div class="dates source-editor">
         <div class="label">
          <span style="margin-right:12px" class="after-me">From year:</span>
@@ -66,6 +66,7 @@
       <div class="order tiny">Order</div>
       <div class="attributed-to">Attributed to  <a class="autofill-composers">autofill</a></div>
       <div class="title large">Title</div>
+      <div class="type">Type</div>
       <div class="clefs large">Clefs</div>
       <div class="notes">Notes</div>
       <div class="delete tiny">Delete</div>
@@ -77,7 +78,7 @@
     <% if @blank_inclusions %>
       <%= render "catalogue_set", inclusions: @blank_inclusions, composer_list: composer_list, f: f %>
     <% end %>
-    
+
   </div>
 
   <%= paginate @inclusions %>

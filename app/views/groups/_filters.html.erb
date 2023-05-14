@@ -2,6 +2,7 @@
   <%= form_tag search_path, method: :get do %>
     <%= text_field_tag :q, params[:q], placeholder: "Search...", class: "search" %>
     <%= select_tag :composer, options_for_select(Composer.joins(:compositions).distinct.order(:name).pluck(:name, :id), params[:composer]), include_blank: "All composers", class: "composer" %>
+    <%= select_tag :composition_type, options_for_select(CompositionType.distinct.order(:name).pluck(:name, :id), params[:composition_type]), include_blank: "All composition types", class: "composition-type" %>
     <%= select_tag :function, options_for_select(Function.joins(:titles).distinct.order(:name).pluck(:name, :id), params[:function]), include_blank: "All functions", class: "functions" %>
     <%= select_tag :composer_country, options_for_select(Composer.select(:birthplace_2).distinct.where.not(birthplace_2: [nil, ""]).order(:birthplace_2).pluck(:birthplace_2, :birthplace_2), params[:composer_country]), include_blank: "All countries", class: "composer-country" %>
     <%= select_tag :voices, options_for_select(Composition.select(:number_of_voices).distinct.order(:number_of_voices).pluck(:number_of_voices, :number_of_voices), params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
@@ -15,7 +16,7 @@
         <span>Recording exists</span>
         <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
       </label>
-  
+
     <button class="filter">Filter</button>
   <% end %>
 </div>

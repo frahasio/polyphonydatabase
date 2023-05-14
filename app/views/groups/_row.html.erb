@@ -1,3 +1,4 @@
+<% presenter = GroupPresenter.new(group) %>
 <tr class="group">
   <td class="title"><%= group.display_title %>
     <% group.editions.each do |edition| %>
@@ -24,7 +25,7 @@
       <% end %>
     <% end %>
   </td>
-  <td><%= group.functions.uniq.map(&:name).join(", ") %></td>
+  <td><%= presenter.functions %></td>
   <td>
     <% if group.conflicting_attributions? %>
           <% if group.composers.uniq.size == 2 && group.composers.include?(anon_composer) %>

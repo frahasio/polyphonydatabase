@@ -22,6 +22,23 @@ RSpec.describe GroupFilter do
       end
     end
 
+    context "with a composition type" do
+      let(:hymn) { create(:composition_type, name: "Hymn") }
+      let(:mass) { create(:composition_type, name: "Mass") }
+
+      let!(:target_group) { create(:group, composition_type: hymn) }
+
+      before do
+        create(:group, composition_type: mass)
+      end
+
+      let(:params) { { composition_type: hymn.id } }
+
+      it "returns only the target group" do
+        expect(result).to eq([target_group])
+      end
+    end
+
     context "with a composer" do
       let(:target_group) { create(:group, :with_composer) }
       let(:composer) { target_group.composers.first }

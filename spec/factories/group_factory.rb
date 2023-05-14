@@ -7,6 +7,7 @@ FactoryBot.define do
     transient do
       attribution_text { nil }
       composer_name { nil }
+      composition_type { nil }
       country { nil }
       edition_file_url { nil }
       edition_voicing { nil }
@@ -25,6 +26,7 @@ FactoryBot.define do
         {
           attribution_text:,
           composer_name:,
+          composition_type:,
           country:,
           group: instance,
           number_of_voices:,

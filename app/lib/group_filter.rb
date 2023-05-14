@@ -10,6 +10,7 @@ class GroupFilter
   def filter
     groups = Group.distinct
     groups = search(groups)
+    groups = composition_type(groups)
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
@@ -45,6 +46,11 @@ private
     }.join(" OR ")
 
     groups.where(search_sql, query:)
+  end
+
+  def composition_type(groups)
+    return groups if params[:composition_type].blank?
+    groups.left_outer_joins(:composition_types).where(composition_types: {id: params[:composition_type]})
   end
 
   def function(groups)

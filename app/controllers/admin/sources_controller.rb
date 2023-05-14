@@ -11,8 +11,10 @@ module Admin
         "Uncatalogued" => Source.uncatalogued.pluck(:code, :id),
       }
 
+      @composition_types = CompositionType.order(:name).pluck(:name, :id)
+
       @inclusions = @source.inclusions
-        .includes({composition: :title}, :attributions, :clef_combination)
+        .includes({composition: [:composition_type, :title]}, :attributions, :clef_combination)
         .order(:order)
         .to_a
 
@@ -99,6 +101,7 @@ module Admin
           ],
           composition_attributes: [
             :id,
+            :composition_type_id,
             title_attributes: [
               :id,
               :text,

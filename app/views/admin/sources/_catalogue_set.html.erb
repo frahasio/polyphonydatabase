@@ -19,6 +19,10 @@
           <%= t.text_area :text %>
         </div>
       <% end %>
+
+      <div class="type">
+        <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
+      </div>
     <% end %>
     <div class="clefs large">
       <% i.object.display_clefs.each do |clef| %>
