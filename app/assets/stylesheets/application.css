@@ -374,6 +374,12 @@ th span {
     display:block;
     font-size:0.9em;
 }
+th a {
+    color:#ffffff;
+}
+th a:visited {
+    color:#ffffff;
+}
 table table {
     width:100%;
 }

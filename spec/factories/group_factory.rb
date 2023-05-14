@@ -2,6 +2,8 @@ FactoryBot.define do
   factory :group do
     sequence(:display_title) { |n| "Group #{n}" }
 
+    with_composition
+
     transient do
       attribution_text { nil }
       composer_name { nil }
