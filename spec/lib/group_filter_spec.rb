@@ -39,6 +39,19 @@ RSpec.describe GroupFilter do
       end
     end
 
+    context "with a composition tone" do
+      let(:target_group) { create(:group, composition_tone: "3") }
+      let(:params) { { tone: "3" } }
+
+      before do
+        create(:group, composition_tone: "4")
+      end
+
+      it "returns only the target group" do
+        expect(result).to eq([target_group])
+      end
+    end
+
     context "with a composer" do
       let(:target_group) { create(:group, :with_composer) }
       let(:composer) { target_group.composers.first }

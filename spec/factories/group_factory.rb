@@ -7,6 +7,7 @@ FactoryBot.define do
     transient do
       attribution_text { nil }
       composer_name { nil }
+      composition_tone { nil }
       composition_type { nil }
       country { nil }
       edition_file_url { nil }
@@ -36,6 +37,7 @@ FactoryBot.define do
           source_town:,
           source_type:,
           title_text: title,
+          tone: composition_tone,
         }.compact_blank
       }
 

@@ -23,6 +23,10 @@
       <div class="type">
         <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
       </div>
+
+      <div class="tone">
+        <%= c.select :tone, Composition::TONES.keys, prompt: "Tone" %>
+      </div>
     <% end %>
     <div class="clefs large">
       <% i.object.display_clefs.each do |clef| %>

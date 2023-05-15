@@ -20,4 +20,16 @@ RSpec.describe "Inclusions (admin)", type: :system do
     expect(page).to have_text("Some title")
     expect(page).to have_text("(Mass)")
   end
+
+  it "allows choosing a composition tone" do
+    click_on source.code
+
+    fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
+    select "3", from: "source_inclusions_attributes_0_composition_attributes_tone"
+    click_on "Save", match: :first
+
+    visit root_path
+    expect(page).to have_text("Some title")
+    expect(page).to have_text("tertii toni")
+  end
 end

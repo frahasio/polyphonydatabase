@@ -11,6 +11,7 @@ class GroupFilter
     groups = Group.distinct
     groups = search(groups)
     groups = composition_type(groups)
+    groups = composition_tone(groups)
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
@@ -51,6 +52,11 @@ private
   def composition_type(groups)
     return groups if params[:composition_type].blank?
     groups.left_outer_joins(:composition_types).where(composition_types: {id: params[:composition_type]})
+  end
+
+  def composition_tone(groups)
+    return groups if params[:tone].blank?
+    groups.left_outer_joins(:compositions).where(compositions: {tone: params[:tone]})
   end
 
   def function(groups)

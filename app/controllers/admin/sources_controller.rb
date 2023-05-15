@@ -102,6 +102,7 @@ module Admin
           composition_attributes: [
             :id,
             :composition_type_id,
+            :tone,
             title_attributes: [
               :id,
               :text,

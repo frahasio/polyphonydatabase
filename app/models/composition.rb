@@ -5,7 +5,20 @@ class Composition < ApplicationRecord
   has_and_belongs_to_many :composers
   belongs_to :composition_type, inverse_of: :compositions, optional: true
 
-  enum tone: %w[1 2 3 4 5 6 7 8 P M].freeze
+  TONES = {
+    "1" => "primi toni",
+    "2" => "secundi toni",
+    "3" => "tertii toni",
+    "4" => "quarti toni",
+    "5" => "quinti toni",
+    "6" => "sexti toni",
+    "7" => "septimi toni",
+    "8" => "octavi toni",
+    "P" => "peregrini toni",
+    "M" => "mixti/proprii toni",
+  }.freeze
+
+  enum tone: TONES.keys
   enum even_odd: %w[even odd both].freeze
 
   accepts_nested_attributes_for :title
