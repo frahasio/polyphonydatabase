@@ -106,6 +106,7 @@ module Admin
             :tone,
             title_attributes: [
               :id,
+              :language,
               :text,
             ]
           ]

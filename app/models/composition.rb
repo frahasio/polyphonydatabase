@@ -45,9 +45,9 @@ class Composition < ApplicationRecord
   end
 
   def look_up_title
-    current_title = self.title
-    existing_title = Title.find_by(text: current_title.text)
-    if existing_title
+    return if title.persisted?
+
+    if (existing_title = Title.find_by(text: self.title.text))
       self.title = existing_title
     end
   end

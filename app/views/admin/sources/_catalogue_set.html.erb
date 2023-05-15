@@ -18,6 +18,10 @@
         <div class="title large">
           <%= t.text_area :text %>
         </div>
+
+        <div class="language">
+          <%= t.select :language, Title.languages.keys, prompt: "Language" %>
+        </div>
       <% end %>
 
       <div class="type">

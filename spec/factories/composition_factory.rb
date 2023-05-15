@@ -1,12 +1,6 @@
 FactoryBot.define do
   factory :composition do
-    title do
-      if title_text
-        association(:title, text: title_text)
-      else
-        association(:title)
-      end
-    end
+    title { association(:title, **title_options) }
 
     transient do
       attribution_text { nil }
@@ -17,6 +11,7 @@ FactoryBot.define do
       source_title { nil }
       source_town { nil }
       source_type { nil }
+      title_language { nil }
       title_text { nil }
 
       composer_options {
@@ -34,6 +29,13 @@ FactoryBot.define do
           source_title:,
           source_town:,
           source_type:,
+        }.compact_blank
+      }
+
+      title_options {
+        {
+          language: title_language,
+          text: title_text,
         }.compact_blank
       }
     end

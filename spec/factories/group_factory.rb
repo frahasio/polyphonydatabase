@@ -14,6 +14,7 @@ FactoryBot.define do
       edition_file_url { nil }
       edition_voicing { nil }
       editor_name { nil }
+      language { nil }
       number_of_voices { nil }
       performer_name { nil }
       recording_file_url { nil }
@@ -38,6 +39,7 @@ FactoryBot.define do
           source_title:,
           source_town:,
           source_type:,
+          title_language: language,
           title_text: title,
           tone: composition_tone,
         }.compact_blank

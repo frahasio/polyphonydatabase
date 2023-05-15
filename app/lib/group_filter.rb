@@ -16,6 +16,7 @@ class GroupFilter
     groups = function(groups)
     groups = composer(groups)
     groups = composer_country(groups)
+    groups = title_language(groups)
     groups = voices(groups)
     groups = voicing(groups)
     groups = source(groups)
@@ -78,6 +79,11 @@ private
   def composer_country(groups)
     return groups if params[:composer_country].blank?
     groups.left_outer_joins(:composers).where(composers: {birthplace_2: params[:composer_country]})
+  end
+
+  def title_language(groups)
+    return groups if params[:language].blank?
+    groups.left_outer_joins(compositions: :title).where(titles: {language: params[:language]})
   end
 
   def voices(groups)

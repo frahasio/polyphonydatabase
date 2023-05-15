@@ -22,6 +22,19 @@ RSpec.describe GroupFilter do
       end
     end
 
+    context "with a title language" do
+      let(:target_group) { create(:group, language: "Latin") }
+      let(:params) { { language: "Latin" } }
+
+      before do
+        create(:group, language: "English")
+      end
+
+      it "returns only the target group" do
+        expect(result).to eq([target_group])
+      end
+    end
+
     context "with a composition type" do
       let(:hymn) { create(:composition_type, name: "Hymn") }
       let(:mass) { create(:composition_type, name: "Mass") }
