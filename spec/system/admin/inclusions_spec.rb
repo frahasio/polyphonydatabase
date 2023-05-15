@@ -32,4 +32,16 @@ RSpec.describe "Inclusions (admin)", type: :system do
     expect(page).to have_text("Some title")
     expect(page).to have_text("tertii toni")
   end
+
+  it "allows choosing composition even/oddness" do
+    click_on source.code
+
+    fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
+    select "even", from: "source_inclusions_attributes_0_composition_attributes_even_odd"
+    click_on "Save", match: :first
+
+    visit root_path
+    expect(page).to have_text("Some title")
+    expect(page).to have_text("(pares)")
+  end
 end

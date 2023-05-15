@@ -52,6 +52,19 @@ RSpec.describe GroupFilter do
       end
     end
 
+    context "with composition even/oddness" do
+      let(:target_group) { create(:group, composition_even_odd: "even") }
+      let(:params) { { even_odd: "even" } }
+
+      before do
+        create(:group, composition_even_odd: "odd")
+      end
+
+      it "returns only the target group" do
+        expect(result).to eq([target_group])
+      end
+    end
+
     context "with a composer" do
       let(:target_group) { create(:group, :with_composer) }
       let(:composer) { target_group.composers.first }

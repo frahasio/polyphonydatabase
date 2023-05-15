@@ -10,6 +10,7 @@ class GroupFilter
   def filter
     groups = Group.distinct
     groups = search(groups)
+    groups = composition_even_odd(groups)
     groups = composition_type(groups)
     groups = composition_tone(groups)
     groups = function(groups)
@@ -57,6 +58,11 @@ private
   def composition_tone(groups)
     return groups if params[:tone].blank?
     groups.left_outer_joins(:compositions).where(compositions: {tone: params[:tone]})
+  end
+
+  def composition_even_odd(groups)
+    return groups if params[:even_odd].blank?
+    groups.left_outer_joins(:compositions).where(compositions: {even_odd: params[:even_odd]})
   end
 
   def function(groups)

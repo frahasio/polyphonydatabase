@@ -18,8 +18,14 @@ class Composition < ApplicationRecord
     "M" => "mixti/proprii toni",
   }.freeze
 
+  EVEN_ODD = {
+    "even" => "pares",
+    "odd" => "impares",
+    "both" => "pares & impares",
+  }.freeze
+
   enum tone: TONES.keys
-  enum even_odd: %w[even odd both].freeze
+  enum even_odd: EVEN_ODD.keys
 
   accepts_nested_attributes_for :title
 

@@ -27,6 +27,10 @@
       <div class="tone">
         <%= c.select :tone, Composition::TONES.keys, prompt: "Tone" %>
       </div>
+
+      <div class="even-odd">
+        <%= c.select :even_odd, Composition::EVEN_ODD.keys, prompt: "Even/Odd" %>
+      </div>
     <% end %>
     <div class="clefs large">
       <% i.object.display_clefs.each do |clef| %>
