@@ -30,18 +30,4 @@ class GroupsController < ApplicationController
       scope.order(:display_title)
     end
   end
-
-  def sort_order
-    case params[:order]
-    when "desc"
-      "desc"
-    else
-      "asc"
-    end
-  end
-
-  def invert_sort_order
-    sort_order == "asc" ? "desc" : "asc"
-  end
-  helper_method :invert_sort_order
 end

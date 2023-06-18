@@ -2,9 +2,17 @@ class Composer < ActiveRecord::Base
   has_and_belongs_to_many :compositions
   has_many :groups, through: :compositions
 
+  has_many :attributions, inverse_of: :refers_to
+
   validates :name, uniqueness: true, presence: true
 
   validate :years_are_valid
+
+  ANON_NAME = "Anon".freeze
+
+  def self.anon
+    find_or_initialize_by(name: ANON_NAME)
+  end
 
   def dates
     [

@@ -60,7 +60,7 @@ module Admin
 
       check_changed_titles(source)
 
-      unless source.save && assign_compositions
+      unless SourceCompositionIncluder.call(source) && source.save
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
@@ -115,50 +115,12 @@ module Admin
     end
 
     def check_changed_titles(source)
-      source.inclusions = source.inclusions.map do |inclusion|
+      source.inclusions.each do |inclusion|
         if inclusion.composition.title.text_changed?
           new_comp = inclusion.composition.dup
           new_comp.title = Title.find_or_initialize_by(text: inclusion.composition.title.text)
           inclusion.composition = new_comp
         end
-
-        inclusion
-      end
-    end
-
-    def assign_compositions
-      inclusion_ids = source_params[:inclusions_attributes].to_unsafe_hash.map { |_, attributes|
-        attributes[:id]
-      }
-
-      Inclusion.where(id: inclusion_ids).includes(composition: [:title, :group]).each do |inclusion|
-        current_comp = inclusion.composition
-
-        possible_comps = Composition.where(
-          number_of_voices: inclusion.minimum_voice_count,
-          title: current_comp.title,
-        ).includes(:composers)
-
-        existing_comp = possible_comps.find {|c|
-          c.composers.sort == inclusion.composers.sort
-        }
-
-        if existing_comp
-          inclusion.composition = existing_comp unless existing_comp == current_comp
-        else
-          inclusion.composition = Composition.new(
-            number_of_voices: inclusion.minimum_voice_count,
-            title: current_comp.title,
-            composers: inclusion.composers,
-            group: current_comp.group,
-          )
-        end
-
-        saved = inclusion.save
-
-        current_comp.delete_if_empty(inclusion) unless existing_comp && existing_comp == current_comp
-
-        saved
       end
     end
   end

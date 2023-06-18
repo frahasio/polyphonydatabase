@@ -6,6 +6,8 @@ class Source < ActiveRecord::Base
   has_many :inclusions, inverse_of: :source
   accepts_nested_attributes_for :inclusions, reject_if: :unfilled?
 
+  has_many :compositions, through: :inclusions
+
   has_and_belongs_to_many :publishers, inverse_of: :sources
   has_and_belongs_to_many :scribes, inverse_of: :sources
 

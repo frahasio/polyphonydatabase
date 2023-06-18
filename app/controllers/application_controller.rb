@@ -19,4 +19,18 @@ private
     @current_user ||= User.find_by(id: session[:user_id])
   end
   helper_method :current_user
+
+  def sort_order
+    case params[:order]
+    when "desc"
+      "desc"
+    else
+      "asc"
+    end
+  end
+
+  def invert_sort_order
+    sort_order == "asc" ? "desc" : "asc"
+  end
+  helper_method :invert_sort_order
 end
