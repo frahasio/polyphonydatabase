@@ -11,14 +11,17 @@
     <%= select_tag :voices, options_for_select(Composition.select(:number_of_voices).distinct.order(:number_of_voices).pluck(:number_of_voices).compact_blank, params[:voices]), include_blank: "All # voices", class: "minimum-voices" %>
     <%= select_tag :voicing, options_for_select(Voicing.joins(:clef_combinations).distinct.order(:text).pluck(:text, :id), params[:voicing]), include_blank: "All voicings", class: "voicing" %>
     <%= select_tag :source, options_for_select(Source.joins(:inclusions).distinct.order(:code).pluck(:code, :id), params[:source]), include_blank: "All sources", class: "source" %>
-      <label class="edition">
-        <span>Performing edition uploaded</span>
-        <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
-      </label>
-      <label class="recording">
-        <span>Recording exists</span>
-        <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
-      </label>
+    <label class="edition">
+      <span>Performing edition uploaded</span>
+      <%= check_box_tag :has_edition, "1", params[:has_edition] == "1" %>
+    </label>
+    <label class="recording">
+      <span>Recording exists</span>
+      <%= check_box_tag :has_recording, "1", params[:has_recording] == "1" %>
+    </label>
+
+    <%= hidden_field_tag :page_size, params[:page_size] %>
+    <%= hidden_field_tag :page, params[:page] %>
 
     <button class="filter">Filter</button>
   <% end %>

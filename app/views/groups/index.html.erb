@@ -22,9 +22,9 @@
     prompt: "Page size",
     style: "width: auto" %>
 
-  <%= hidden_field_tag :sort, params[:sort] %>
-  <%= hidden_field_tag :order, params[:order] %>
-  <%= hidden_field_tag :page, params[:page] %>
+  <% GroupsController::PERSISTENT_PARAMS.each do |param| %>
+    <%= hidden_field_tag param, params[param] %>
+  <% end %>
 
   <%= submit_tag "Go" %>
 

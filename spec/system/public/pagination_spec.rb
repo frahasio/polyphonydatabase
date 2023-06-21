@@ -29,4 +29,27 @@ RSpec.describe "Pagination", type: :system do
 
     expect(page).to have_css(".group", count: 50)
   end
+
+  it "doesn't affect the other filtering options" do
+    create_list(:group, 29, :with_composition)
+    create(:group, :with_composition, composition_tone: "1")
+
+    visit groups_path
+    expect(page).to have_css(".group", count: 25)
+
+    select "primi toni", from: "tone"
+    click_on "Filter"
+
+    expect(page).to have_css(".group", count: 1)
+
+    select "50", from: "page_size"
+    click_on "Go"
+
+    expect(page).to have_css(".group", count: 1)
+
+    select "All tones", from: "tone"
+    click_on "Filter"
+
+    expect(page).to have_css(".group", count: 50)
+  end
 end

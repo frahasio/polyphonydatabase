@@ -1,4 +1,25 @@
 class GroupsController < ApplicationController
+  # Keep these updated, otherwise changing the
+  # page size will drop existing filters.
+  PERSISTENT_PARAMS = %i[
+    composer
+    composer_country
+    composition_type
+    even_odd
+    function
+    has_edition
+    has_recording
+    language
+    order
+    page
+    q
+    sort
+    source
+    tone
+    voices
+    voicing
+  ].freeze
+
   def index
     @groups = sort(GroupFilter.filter(params))
       .page(params[:page])
