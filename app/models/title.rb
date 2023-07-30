@@ -4,13 +4,16 @@ class Title < ApplicationRecord
   has_many :inclusions, through: :compositions
 
   LANGUAGES = %w[
+    Catalan
+    Dutch
     English
-    Flemish
     French
     German
     Greek
     Italian
     Latin
+    Spanish
+    textless
   ].freeze
 
   enum language: LANGUAGES

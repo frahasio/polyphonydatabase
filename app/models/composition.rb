@@ -14,8 +14,11 @@ class Composition < ApplicationRecord
     "6" => "sexti toni",
     "7" => "septimi toni",
     "8" => "octavi toni",
-    "P" => "peregrini toni",
-    "M" => "mixti/proprii toni",
+    "9" => "noni toni",
+    "12" => "duodecimi toni",
+    "mix" => "mixti toni",
+    "per" => "peregrini toni",
+    "pro" => "proprii toni",
   }.freeze
 
   EVEN_ODD = {
