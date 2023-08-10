@@ -64,6 +64,14 @@ class Source < ActiveRecord::Base
     update_location_and_pubscribe
   end
 
+  def short_name_and_code
+    "#{short_name} (#{code})"
+  end
+
+  def short_name
+    title.truncate(40)
+  end
+
 private
 
   def update_dates_string

@@ -65,12 +65,11 @@
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
           <% source = inclusion.source %>
-          <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
           <td class="source-name">
               <% if source.url.present? %>
-                <%= link_to source_name, source.url, target: "_blank" %>
+                <%= link_to source.short_name_and_code, source.url, target: "_blank" %>
               <% else %>
-                <%= source_name %>
+                <%= source.short_name_and_code %>
               <% end %>
 
               <span><%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %></span>
