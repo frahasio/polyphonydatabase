@@ -27,12 +27,12 @@
   <p style="color: white; padding-top: 5px">
     Warning!  Selecting a very large page size may affect performance.
   </p>
-<% end %>
 
-<% GroupsController::PERSISTENT_PARAMS.each do |param| %>
+  <% GroupsController::PERSISTENT_PARAMS.each do |param| %>
     <%= hidden_field_tag param, params[param] %>
+  <% end %>
+    
+  <%= submit_tag "Go" %>
 <% end %>
-
-<%= submit_tag "Go" %>
 
 <%= paginate(@groups) %>
