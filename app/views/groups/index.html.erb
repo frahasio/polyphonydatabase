@@ -18,8 +18,6 @@
 
 <%= render "table" %>
 
-<%= paginate(@groups) %>
-
 <%= form_tag url_for, method: "get", style: "margin: 5px" do %>
   <%= select_tag :page_size,
     options_for_select(%w[25 50 100 200 500], params[:page_size]),
@@ -36,3 +34,5 @@
 <% end %>
 
 <%= submit_tag "Go" %>
+
+<%= paginate(@groups) %>
