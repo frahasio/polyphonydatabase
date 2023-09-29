@@ -11,7 +11,6 @@ class GroupsController < ApplicationController
     has_recording
     language
     order
-    page
     q
     sort
     source
