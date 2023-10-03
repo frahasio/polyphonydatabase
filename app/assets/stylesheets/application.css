@@ -137,6 +137,10 @@ hr {
 .body-row > div.tiny {
     flex:1;
 }
+.header-row > div.small,
+.body-row > div.small {
+    flex:2;
+}
 .header-row > div.large,
 .body-row > div.large {
     flex:6;
