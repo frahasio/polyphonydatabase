@@ -19,12 +19,12 @@
           <%= t.text_area :text %>
         </div>
 
-        <div class="language">
+        <div class="language small">
           <%= t.select :language, Title.languages.keys, prompt: "Language" %>
         </div>
       <% end %>
 
-      <div class="type">
+      <div class="type small">
         <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
       </div>
 
