@@ -28,11 +28,11 @@
         <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
       </div>
 
-      <div class="tone">
+      <div class="tone tiny">
         <%= c.select :tone, Composition::TONES.keys, prompt: "Tone" %>
       </div>
 
-      <div class="even-odd">
+      <div class="even-odd tiny">
         <%= c.select :even_odd, Composition::EVEN_ODD.keys, prompt: "Even/Odd" %>
       </div>
     <% end %>
