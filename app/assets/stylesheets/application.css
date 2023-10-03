@@ -141,6 +141,36 @@ hr {
 .body-row > div.large {
     flex:6;
 }
+.body-row > div.order {
+    order:1;
+}
+.body-row > div.attributed-to {
+    order:2;
+}
+.body-row > div.title {
+    order:3;
+}
+.body-row > div.language {
+    order:4;
+}
+.body-row > div.type {
+    order:5;
+}
+.body-row > div.clefs {
+    order:6;
+}
+.body-row > div.tone {
+    order:7;
+}
+.body-row > div.even-odd {
+    order:8;
+}
+.body-row > div.notes {
+    order:9;
+}
+.body-row > div.delete {
+    order:10;
+}
 @media screen and (max-width:850px) {
     .body-row {
         flex-wrap:wrap;
