@@ -22,12 +22,12 @@ $( document ).ready(function(){
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	})
 	$('.autofill-language').click(function(){
-		console.log($('.body-row:first-of-type .language select').val());
-		$('.body-row .language select').val($('.body-row:first-of-type .language select').val());
+		console.log($('div.inclusion:first-of-type div.language select').val());
+		$('div.inclusion div.language select').val($('div.inclusion:first-of-type div.language select').val());
 	})
 	$('.autofill-composition-type').click(function(){
-		console.log($('.body-row:first-of-type .type select').val());
-		$('.body-row .type select').val($('.body-row:first-of-type .type select').val());
+		console.log($('div.inclusion div.type select').val());
+		$('div.inclusion div.type select').val($('div.inclusion:first-of-type div.type select').val());
 	})
 });
 
