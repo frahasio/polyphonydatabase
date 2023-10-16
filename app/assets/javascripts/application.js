@@ -21,6 +21,12 @@ $( document ).ready(function(){
 		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	})
+	$('.autofill-language').click(function(){
+		$('.language select').val($('.language:first-of-type select').val());
+	})
+	$('.autofill-composition-type').click(function(){
+		$('.type select').val($('.type:first-of-type select').val());
+	})
 });
 
 // Toggle menu with burger button
