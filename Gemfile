@@ -8,22 +8,18 @@ gem "rails", "~> 7.1"
 gem "pg", "~> 1.5"
 # Use Puma as the app server
 gem "puma", "~> 6.4"
-# Use SCSS for stylesheets
-gem "sass-rails", "~> 6.0"
-# Use Uglifier as compressor for JavaScript assets
-gem "uglifier", "~> 4.2"
 
 gem "net-smtp", "~> 0.4", require: false
 gem "net-imap", "~> 0.4", require: false
 gem "net-pop", "~> 0.1", require: false
 
-# Use jquery as the JavaScript library
-gem "jquery-rails", "~> 4.6"
-
 gem "active_record_union", "~> 1.3"
 gem "generic_form_builder", "~> 0.13"
 
 gem "kaminari", "~> 1.2"
+
+gem "importmap-rails", "~> 1.2"
+gem "sprockets-rails", "~> 3.4"
 
 group :development, :test do
   # Call "byebug" anywhere in the code to stop execution and get a debugger console

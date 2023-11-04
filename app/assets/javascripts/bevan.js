@@ -1,20 +1,3 @@
-// This is a manifest file that'll be compiled into application.js, which will include all the files
-// listed below.
-//
-// Any JavaScript/Coffee file within this directory, lib/assets/javascripts, vendor/assets/javascripts,
-// or any plugin's vendor/assets/javascripts directory can be referenced here using a relative path.
-//
-// It's not advisable to add code directly here, but if you do, it'll appear at the bottom of the
-// compiled file. JavaScript code in this file should be added after the last require_* statement.
-//
-// Read Sprockets README (https://github.com/rails/sprockets#sprockets-directives) for details
-// about supported directives.
-//
-//= require jquery
-//= require jquery_ujs
-//= require_tree .
-
-
 // Autofill composers with values in first inclusion row
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
@@ -40,7 +23,7 @@ $( document ).ready(function(){
 // Use arrow keys to move around inputs in source editor
 $(document).keydown(
     function(e)
-    {    
+    {
 	    var mov = $(':focus').index();
 	    var sib = $(':focus').siblings('input').length;
 	    var par = $(':focus').closest('.body-row').index('.body-row');
@@ -71,28 +54,28 @@ $(document).keydown(
 						mov = mov - 32;
 					} else {
 						par = par - 1;
-						mov = mov + 8;					
+						mov = mov + 8;
 					}
 				} else if (sib > 23) {
 					if (mov > 23) {
 						mov = mov - 24;
 					} else {
 						par = par - 1;
-						mov = mov + 8;					
+						mov = mov + 8;
 					}
 				} else if (sib > 15) {
 					if (mov > 15) {
 						mov = mov - 16;
 					} else {
 						par = par - 1;
-						mov = mov + 8;					
+						mov = mov + 8;
 					}
 				} else if (sib > 7) {
 					if (mov > 7) {
 						mov = mov - 8;
 					} else {
 						par = par - 1;
-						mov = mov + 8;					
+						mov = mov + 8;
 					}
 				}
 				$('.body-row').eq(par + 1).find('.clefs').children().eq(mov).focus();
@@ -105,6 +88,7 @@ $(document).keydown(
 				$('.body-row').eq(par + 1).find('.title').children('textarea').focus();
 			}
 		} else if ($(':focus').parent().hasClass('notes')) {
+
 			if (e.keyCode == 38) {  //MOVE UP
 				$('.body-row').eq(par - 1).find('.notes').children('textarea').focus();
 			}
