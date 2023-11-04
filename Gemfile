@@ -3,22 +3,22 @@ source "https://rubygems.org"
 ruby "3.2.2"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails"
-gem "rails", "< 7"
+gem "rails", "~> 7.1"
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.5"
 # Use Puma as the app server
-gem "puma", "~> 6.2"
+gem "puma", "~> 6.4"
 # Use SCSS for stylesheets
 gem "sass-rails", "~> 6.0"
 # Use Uglifier as compressor for JavaScript assets
 gem "uglifier", "~> 4.2"
 
-gem "net-smtp", require: false
-gem "net-imap", require: false
-gem "net-pop", require: false
+gem "net-smtp", "~> 0.4", require: false
+gem "net-imap", "~> 0.4", require: false
+gem "net-pop", "~> 0.1", require: false
 
 # Use jquery as the JavaScript library
-gem "jquery-rails", "~> 4.5"
+gem "jquery-rails", "~> 4.6"
 
 gem "active_record_union", "~> 1.3"
 gem "generic_form_builder", "~> 0.13"
@@ -39,12 +39,12 @@ group :development do
   gem "spring-watcher-listen", "~> 2.1"
   gem "ruby-prof", "~> 1.6"
 
-  gem "bullet", "~> 7.0"
+  gem "bullet", "~> 7.1"
 end
 
 group :test do
   gem "factory_bot_rails", "~> 6.2"
   gem "rspec-rails", "~> 6.0"
   gem "capybara", "~> 3.39"
-  gem "launchy"
+  gem "launchy", "~> 2.5"
 end

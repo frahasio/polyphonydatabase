@@ -30,20 +30,6 @@ CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA public;
 COMMENT ON EXTENSION intarray IS 'functions, operators, and index support for 1-D arrays of integers';
 
 
---
--- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA heroku_ext;
-
-
---
--- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
-
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -1245,33 +1231,32 @@ CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20170317194007'),
-('20170708111404'),
-('20170708201857'),
-('20170709115805'),
-('20170709123723'),
-('20170713192222'),
-('20170722110438'),
-('20170726133540'),
-('20170827061854'),
-('20180303151137'),
-('20180303154615'),
-('20180305122652'),
-('20180310200940'),
-('20180310204933'),
-('20180325125112'),
-('20180331135428'),
-('20180402152125'),
-('20180402172029'),
-('20180403134448'),
-('20180407115406'),
-('20180408131628'),
-('20180415144208'),
-('20180415150714'),
-('20180430120112'),
-('20180512153825'),
-('20180617135201'),
+('20230514115400'),
 ('20230505092834'),
-('20230514115400');
-
+('20180617135201'),
+('20180512153825'),
+('20180430120112'),
+('20180415150714'),
+('20180415144208'),
+('20180408131628'),
+('20180407115406'),
+('20180403134448'),
+('20180402172029'),
+('20180402152125'),
+('20180331135428'),
+('20180325125112'),
+('20180310204933'),
+('20180310200940'),
+('20180305122652'),
+('20180303154615'),
+('20180303151137'),
+('20170827061854'),
+('20170726133540'),
+('20170722110438'),
+('20170713192222'),
+('20170709123723'),
+('20170709115805'),
+('20170708201857'),
+('20170708111404'),
+('20170317194007');
 
