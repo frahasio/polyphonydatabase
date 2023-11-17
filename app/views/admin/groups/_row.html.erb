@@ -7,6 +7,15 @@
     </div>
     <div>
       <%= composition.title.text %>
+
+      <%if (tone = Composition::TONES[group.compositions.first.tone]).present? %>
+        <%= tone %>
+      <% end %>
+  
+      <%if (even_odd = Composition::EVEN_ODD[group.compositions.first.even_odd]).present? %>
+        (<%= even_odd %>)
+      <% end %>
+
       <% if group.multiple? %>
         <div>
           <%= link_to "Remove from group", confirm_remove_admin_group_path(group, request.query_parameters.merge(composition_id: composition.id)) %>
