@@ -6,6 +6,11 @@
       <% end %>
     </div>
     <div>
+
+      <% if index.zero? %>
+        <span class="group-display-name">Group display name: <%= group.display_title %></span>
+      <% end %>
+
       <%= composition.title.text %>
 
       <%if (tone = Composition::TONES[group.compositions.first.tone]).present? %>
@@ -14,10 +19,6 @@
   
       <%if (even_odd = Composition::EVEN_ODD[group.compositions.first.even_odd]).present? %>
         (<%= even_odd %>)
-      <% end %>
-
-      <% if index.zero? %>
-        <span class="group-display-name">Group display name: <%= group.display_title %></span>
       <% end %>
 
       <% if group.multiple? %>
