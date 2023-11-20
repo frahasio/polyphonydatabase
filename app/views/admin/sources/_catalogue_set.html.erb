@@ -25,15 +25,15 @@
       <% end %>
 
       <div class="type small">
-        <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
+        <%= c.select :composition_type_id, @composition_types, prompt: "Composition type", include_blank: true %>
       </div>
 
       <div class="tone tiny">
-        <%= c.select :tone, Composition::TONES.keys, prompt: "Tone" %>
+        <%= c.select :tone, Composition::TONES.keys, prompt: "Tone", include_blank: true %>
       </div>
 
       <div class="even-odd tiny">
-        <%= c.select :even_odd, Composition::EVEN_ODD.keys, prompt: "Even/Odd" %>
+        <%= c.select :even_odd, Composition::EVEN_ODD.keys, prompt: "Even/Odd", include_blank: true %>
       </div>
     <% end %>
     <div class="clefs large">
