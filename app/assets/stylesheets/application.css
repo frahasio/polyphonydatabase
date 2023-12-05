@@ -477,11 +477,15 @@ td.clefs {
     background-color:#00800014;
 }
 .clef-image.missing+.clef-image.missing,
-.clef-image.incomplete+.clef-image.incomplete {
+.clef-image.incomplete+.clef-image.incomplete,
+.clef-image.missing+.clef-image.incomplete,
+.clef-image.incomplete+.clef-image.missing {
     border-left:none;
 }
 .clef-image.missing:has(+ .clef-image.missing),
-.clef-image.incomplete:has(+ .clef-image.incomplete) {
+.clef-image.incomplete:has(+ .clef-image.incomplete),
+.clef-image.missing:has(+ .clef-image.incomplete),
+.clef-image.incomplete:has(+ .clef-image.missing) {
     border-right:none;
 }
 .clef-image.optional img {
