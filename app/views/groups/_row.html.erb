@@ -103,7 +103,7 @@
           <td class="clefs">
             <% if inclusion.clef_combination %>
               <% notes_and_classes(inclusion).each do |(note, classes)| %>
-                <%= image_tag "clefs/#{note}.png", alt: note, class: classes %>
+                <span class="#{classes}"><%= image_tag "clefs/#{note}.png", alt: note, class: classes %></span>
               <% end %>
             <% end %>
           </td>
