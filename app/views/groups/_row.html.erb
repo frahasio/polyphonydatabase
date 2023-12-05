@@ -68,9 +68,23 @@
           <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
           <td class="source-name">
               <% if source.url.present? %>
-                <span class="tooltip"><%= link_to source_name, source.url, target: "_blank" %><span class="tooltip-text"><%= "#{source.title}" %></span></span>
+                <% if source.title.present? && source.title.length > 40 %>
+                  <span class="tooltip">
+                <% end %>
+                    <%= link_to source_name, source.url, target: "_blank" %>
+                <% if source.title.present? && source.title.length > 40 %>
+                    <span class="tooltip-text"><%= "#{source.title}" %></span>
+                  </span>
+                <% end %>
               <% else %>
-                <span class="tooltip"><%= source_name %><span class="tooltip-text"><%= "#{source.title}" %></span></span>
+                <% if source.title.present? && source.title.length > 40 %>
+                  <span class="tooltip">
+                <% end %>
+                    <span class="tooltip"><%= source_name %><span class="tooltip-text">
+                <% if source.title.present? && source.title.length > 40 %>
+                    <span class="tooltip-text"><%= "#{source.title}" %></span>
+                  </span>
+                <% end %>
               <% end %>
 
               <span><%= [source.location_and_pubscribe, source.dates].reject(&:blank?).join(", ") %></span>
