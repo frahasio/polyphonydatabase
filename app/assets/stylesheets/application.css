@@ -467,15 +467,19 @@ img.clef-image {
 img.clef-image.missing {
     border:1px solid darkred;
 }
-img.clef-image.optional {
-    opacity:0.3;
-}
 img.clef-image.incomplete {
     border:1px solid green;
 }
 img.clef-image.missing+img.clef-image.missing,
 img.clef-image.incomplete+img.clef-image.incomplete {
     border-left:none;
+}
+img.clef-image.missing:has(+ img.clef-image.missing),
+img.clef-image.incomplete:has(+ img.clef-image.incomplete) {
+    border-right:none;
+}
+img.clef-image.optional {
+    opacity:0.3;
 }
 td a img {
     max-height:18px;
