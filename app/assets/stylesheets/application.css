@@ -476,12 +476,12 @@ td.clefs {
     border:1px solid green;
     background-color:#00800014;
 }
-.clef-image.missing+img.clef-image.missing,
-.clef-image.incomplete+img.clef-image.incomplete {
+.clef-image.missing+.clef-image.missing,
+.clef-image.incomplete+.clef-image.incomplete {
     border-left:none;
 }
-.clef-image.missing:has(+ img.clef-image.missing),
-.clef-image.incomplete:has(+ img.clef-image.incomplete) {
+.clef-image.missing:has(+ .clef-image.missing),
+.clef-image.incomplete:has(+ .clef-image.incomplete) {
     border-right:none;
 }
 .clef-image.optional img {
