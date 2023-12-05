@@ -464,6 +464,10 @@ td.clefs {
     display:inline-block;
     float:left;
 }
+.clef-image img {
+    height:100%;
+    width:auto;
+}
 .clef-image.missing {
     border:1px solid darkred;
     background-color:#8b000024;
