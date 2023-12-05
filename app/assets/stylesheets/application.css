@@ -69,7 +69,7 @@ a:hover {
     font-size:0.9em;
     padding:10px;
     z-index: 2;
-    box-shadow: 0 0 5px 5px rgba(0,0,0,0.
+    box-shadow: 0 0 5px 5px rgba(0,0,0,0.1);
 }
 .tooltip:hover .tooltip-text {
     visibility:visible;
