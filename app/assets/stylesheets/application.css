@@ -455,7 +455,7 @@ td.clefs {
     min-width:280px;
     max-width:280px;
 }
-img.clef-image {
+.clef-image {
     height:60px;
     max-height:60px;
     min-height:60px;
@@ -464,23 +464,23 @@ img.clef-image {
     display:inline-block;
     float:left;
 }
-img.clef-image.missing {
+.clef-image.missing {
     border:1px solid darkred;
     background-color:#8b000024;
 }
-img.clef-image.incomplete {
+.clef-image.incomplete {
     border:1px solid green;
     background-color:#00800014;
 }
-img.clef-image.missing+img.clef-image.missing,
-img.clef-image.incomplete+img.clef-image.incomplete {
+.clef-image.missing+img.clef-image.missing,
+.clef-image.incomplete+img.clef-image.incomplete {
     border-left:none;
 }
-img.clef-image.missing:has(+ img.clef-image.missing),
-img.clef-image.incomplete:has(+ img.clef-image.incomplete) {
+.clef-image.missing:has(+ img.clef-image.missing),
+.clef-image.incomplete:has(+ img.clef-image.incomplete) {
     border-right:none;
 }
-img.clef-image.optional {
+.clef-image.optional img {
     opacity:0.3;
 }
 td a img {
