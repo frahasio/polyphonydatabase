@@ -54,6 +54,24 @@ a:hover {
     color: orange;
     cursor: pointer;
 }
+.tooltip {
+    position:relative;
+}
+.tooltip .tooltip-text {
+    visibility:hidden;
+    position:absolute;
+    top:100%;
+    left:0;
+    display:block;
+    background-color:#fff;
+    border:1px solid black;
+    color:#000;
+    font-size:0.9em;
+    padding:10px;
+}
+.tooltip:hover .tooltip-text {
+    visibility:visible;
+}
 li {
     list-style:none;
 }
