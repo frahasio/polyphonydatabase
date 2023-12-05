@@ -466,9 +466,11 @@ img.clef-image {
 }
 img.clef-image.missing {
     border:1px solid darkred;
+    background-color:#8b000024;
 }
 img.clef-image.incomplete {
     border:1px solid green;
+    background-color:#00800014;
 }
 img.clef-image.missing+img.clef-image.missing,
 img.clef-image.incomplete+img.clef-image.incomplete {
