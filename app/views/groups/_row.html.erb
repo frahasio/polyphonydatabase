@@ -65,7 +65,7 @@
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
           <% source = inclusion.source %>
-          <% source_name = "#{truncate(source.title, length: 40)} (#{source.code})" %>
+          <% source_name = "#{truncate(source.title, length: 40, :escape => false)} (#{source.code})" %>
           <td class="source-name">
               <% if source.url.present? %>
                 <% if source.title.present? && source.title.length > 40 %>
