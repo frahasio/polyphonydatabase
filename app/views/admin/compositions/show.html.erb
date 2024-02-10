@@ -1,0 +1,12 @@
+<h1>Composition #<%= @composition.id %></h1>
+
+<dl>
+  <dt>Title</dt>
+  <dd><%= @composition.title&.text %></dd>
+
+  <dt>Tone</dt>
+  <dd><%= @composition.tone %></dd>
+
+  <dt>Even/odd</dt>
+  <dd><%= @composition.even_odd %></dd>
+</dl>

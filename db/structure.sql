@@ -251,7 +251,8 @@ CREATE TABLE public.compositions (
     updated_at timestamp without time zone NOT NULL,
     composition_type_id bigint,
     tone integer,
-    even_odd integer
+    even_odd integer,
+    voices_count integer DEFAULT 0 NOT NULL
 );
 
 
@@ -725,6 +726,38 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
+-- Name: voices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.voices (
+    id bigint NOT NULL,
+    optional boolean DEFAULT false NOT NULL,
+    composition_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: voices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.voices_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: voices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.voices_id_seq OWNED BY public.voices.id;
+
+
+--
 -- Name: voicings; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -879,6 +912,13 @@ ALTER TABLE ONLY public.titles ALTER COLUMN id SET DEFAULT nextval('public.title
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: voices id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.voices ALTER COLUMN id SET DEFAULT nextval('public.voices_id_seq'::regclass);
 
 
 --
@@ -1046,6 +1086,14 @@ ALTER TABLE ONLY public.titles
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: voices voices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.voices
+    ADD CONSTRAINT voices_pkey PRIMARY KEY (id);
 
 
 --
@@ -1218,10 +1266,25 @@ CREATE UNIQUE INDEX index_titles_on_text ON public.titles USING btree (text);
 
 
 --
+-- Name: index_voices_on_composition_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_voices_on_composition_id ON public.voices USING btree (composition_id);
+
+
+--
 -- Name: search_vector_index; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
+
+
+--
+-- Name: voices fk_rails_e70a186a9e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.voices
+    ADD CONSTRAINT fk_rails_e70a186a9e FOREIGN KEY (composition_id) REFERENCES public.compositions(id);
 
 
 --
@@ -1231,6 +1294,8 @@ CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231105181036'),
+('20231105175657'),
 ('20230514115400'),
 ('20230505092834'),
 ('20180617135201'),

@@ -6,42 +6,81 @@ RSpec.describe "Inclusions (admin)", type: :system do
   include AdminTestHelpers
   before { log_in_admin }
 
-  it "allows choosing a composition type" do
-    create(:composition_type, name: "Mass")
-    create(:composition_type, name: "Psalm/Canticle")
+  describe "attributing a composer" do
+    context "when the composer already exists" do
+      let!(:composer) { create(:composer, name: "Jeremy Makemusic") }
 
-    click_on source.code
+      it "allows choosing a composer" do
+        click_on source.code
 
-    fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
-    select "Mass", from: "source_inclusions_attributes_0_composition_attributes_composition_type_id"
-    click_on "Save", match: :first
+        fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
+        fill_in "source_inclusions_attributes_0_attributions_attributes_0_text", with: "Jimmy Musics"
+        select "Jeremy Makemusic", from: "source_inclusions_attributes_0_attributions_attributes_0_refers_to_id"
+        click_on "Save", match: :first
 
-    visit root_path
-    expect(page).to have_text("Some title")
-    expect(page).to have_text("(Mass)")
+        visit root_path
+        expect(page).to have_text("Jimmy Musics")
+        expect(page).to have_text("Jeremy Makemusic")
+      end
+    end
+
+    context "when the composer does not exist" do
+      it "requires you to add the composer separately" do
+        click_on source.code
+
+        expect(page).not_to have_text("Jeremy Makemusic")
+
+        visit new_admin_composer_path
+        fill_in "Name", with: "Jeremy Makemusic"
+        click_on "Create"
+
+        visit edit_admin_source_path(source)
+
+        fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
+        fill_in "source_inclusions_attributes_0_attributions_attributes_0_text", with: "Jimmy Musics"
+        select "Jeremy Makemusic", from: "source_inclusions_attributes_0_attributions_attributes_0_refers_to_id"
+        click_on "Save", match: :first
+
+        visit root_path
+        expect(page).to have_text("Jimmy Musics")
+        expect(page).to have_text("Jeremy Makemusic")
+      end
+    end
   end
 
-  it "allows choosing a composition tone" do
-    click_on source.code
+  describe "assigning a title" do
+    context "when the title already exists" do
+      let!(:title) { create(:title, text: "Some title") }
 
-    fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
-    select "3", from: "source_inclusions_attributes_0_composition_attributes_tone"
-    click_on "Save", match: :first
+      it "allows choosing a title" do
+        click_on source.code
 
-    visit root_path
-    expect(page).to have_text("Some title")
-    expect(page).to have_text("tertii toni")
-  end
+        select "Some title", from: "source_inclusions_attributes_0_composition_attributes_title_id"
+        click_on "Save", match: :first
 
-  it "allows choosing composition even/oddness" do
-    click_on source.code
+        visit root_path
+        expect(page).to have_text("Some title")
+      end
+    end
 
-    fill_in "source_inclusions_attributes_0_composition_attributes_title_attributes_text", with: "Some title"
-    select "even", from: "source_inclusions_attributes_0_composition_attributes_even_odd"
-    click_on "Save", match: :first
+    context "when the title does not exist" do
+      it "requires you to add the title separately" do
+        click_on source.code
 
-    visit root_path
-    expect(page).to have_text("Some title")
-    expect(page).to have_text("(pares)")
+        expect(page).not_to have_text("Some title")
+
+        visit admin_titles_path
+        fill_in "New title", with: "Some title"
+        click_on "Create"
+
+        visit edit_admin_source_path(source)
+
+        select "Some title", from: "source_inclusions_attributes_0_composition_attributes_title_id"
+        click_on "Save", match: :first
+
+        visit root_path
+        expect(page).to have_text("Some title")
+      end
+    end
   end
 end

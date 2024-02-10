@@ -1,5 +1,13 @@
 <h1>Edit titles</h1>
 
+<div class="topform">
+  <%= form_for [:admin, Title.new] do |f| %>
+    <p><%= f.text_field :text, label: "New title" %></p>
+
+    <button>Create</button>
+  <% end %>
+</div>
+
 <%= paginate @titles %>
 
 <%= form_tag update_all_admin_titles_path(page: params[:page]) do %>

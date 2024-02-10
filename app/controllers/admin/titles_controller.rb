@@ -1,16 +1,37 @@
 module Admin
   class TitlesController < AdminControllerBase
     def index
-      @titles = Title
-        .includes(:functions)
-        .select("titles.*, count(inclusions.id) as inclusions_count")
-          .joins(compositions: :inclusions)
-          .group("titles.id")
-        .order(:text)
-        .page(params[:page])
-        .per(50)
+      respond_to do |format|
+        format.html {
+          @titles = Title
+            .includes(:functions)
+            .select("titles.*, count(inclusions.id) as inclusions_count")
+              .joins(compositions: :inclusions)
+              .group("titles.id")
+            .order(:text)
+            .page(params[:page])
+            .per(50)
 
-      @functions = Function.order(:name)
+          @functions = Function.order(:name)
+        }
+
+        format.json {
+          titles = Title.search(params[:q]).order(:text)
+
+          render json: {
+            results: titles.select(:id, :text).map {|t| { id: t.id, text: t.text } },
+            pagination: {
+              more: false,
+            }
+          }
+        }
+      end
+    end
+
+    def create
+      title = Title.create!(title_params)
+
+      redirect_to admin_titles_path(page: params[:page])
     end
 
     def update_all
@@ -22,6 +43,12 @@ module Admin
     end
 
     private
+
+    def title_params
+      params.require(:title).permit(
+        :text,
+      )
+    end
 
     def update_title(id, title_params)
       title = Title.find_by(id: id)

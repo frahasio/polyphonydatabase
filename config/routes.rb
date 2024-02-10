@@ -1,5 +1,11 @@
 Rails.application.routes.draw do
   namespace :admin do
+    resources :compositions do
+      member do
+        get :confirm_delete
+      end
+    end
+
     resources :sources, except: [:new, :show, :destroy] do
       collection do
         post "/switch-to", to: "sources#switch_to"
@@ -48,7 +54,7 @@ Rails.application.routes.draw do
     resources :scribes, except: [:new, :show]
     resources :voicings, except: [:new, :show]
 
-    resources :titles, only: [:index] do
+    resources :titles, only: [:index, :create] do
       collection do
         post :update_all
       end

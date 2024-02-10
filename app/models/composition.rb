@@ -4,6 +4,7 @@ class Composition < ApplicationRecord
   has_many :inclusions, inverse_of: :composition
   has_and_belongs_to_many :composers
   belongs_to :composition_type, inverse_of: :compositions, optional: true
+  has_many :voices, inverse_of: :composition, dependent: :destroy
 
   TONES = {
     "1" => "primi toni",

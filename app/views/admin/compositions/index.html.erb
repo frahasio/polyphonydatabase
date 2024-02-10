@@ -1,0 +1,49 @@
+<h1>Compositions</h1>
+
+<h2>Select title</h2>
+<select class="composition-title">
+  <% if @title.present? %>
+    <%= options_for_select([[@title.text, @title.id]], selected: @title.id) %>
+  <% end %>
+</select>
+
+<table>
+  <thead>
+    <tr>
+      <th>
+        Number of voices
+      </th>
+      <th>
+        Tone
+      </th>
+      <th>
+        Even/odd
+      </th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @compositions.each do |composition| %>
+      <tr>
+        <td>
+          <%= composition.voices_count %>
+        </td>
+        <td>
+          <%= composition.tone %>
+        </td>
+        <td>
+          <%= composition.even_odd %>
+        </td>
+        <td>
+          <%= link_to "Show", admin_composition_path(composition) %>
+        </td>
+        <td>
+          <%= link_to "Edit", edit_admin_composition_path(composition) %>
+        </td>
+        <td>
+          <%= link_to "Delete", confirm_delete_admin_composition_path(composition) %>
+        </td>
+      </tr>
+    <% end %>
+  <tbody>
+</table>
