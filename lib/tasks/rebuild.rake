@@ -6,5 +6,6 @@ namespace :rebuild do
     system("bundle exec rake db:drop RAILS_ENV=development")
     system("heroku pg:pull -a music-cms-demo DATABASE_URL polyphonydatabase_development")
     system("bundle exec rake db:environment:set RAILS_ENV=development")
+    system("bundle exec rake db:create:all RAILS_ENV=development")
   end
 end

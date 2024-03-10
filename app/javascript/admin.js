@@ -7,3 +7,6 @@ import "controllers"
 
 import addTitleSelect from "./admin/add_title_select"
 addTitleSelect()
+
+import addComposersSelect from "./admin/add_composers_select"
+addComposersSelect()

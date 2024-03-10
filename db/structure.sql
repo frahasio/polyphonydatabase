@@ -30,6 +30,20 @@ CREATE EXTENSION IF NOT EXISTS intarray WITH SCHEMA public;
 COMMENT ON EXTENSION intarray IS 'functions, operators, and index support for 1-D arrays of integers';
 
 
+--
+-- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA heroku_ext;
+
+
+--
+-- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -252,7 +266,7 @@ CREATE TABLE public.compositions (
     composition_type_id bigint,
     tone integer,
     even_odd integer,
-    voices_count integer DEFAULT 0 NOT NULL
+    composer_id_list integer[]
 );
 
 
@@ -726,38 +740,6 @@ ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: voices; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.voices (
-    id bigint NOT NULL,
-    optional boolean DEFAULT false NOT NULL,
-    composition_id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: voices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.voices_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: voices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.voices_id_seq OWNED BY public.voices.id;
-
-
---
 -- Name: voicings; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -912,13 +894,6 @@ ALTER TABLE ONLY public.titles ALTER COLUMN id SET DEFAULT nextval('public.title
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
-
-
---
--- Name: voices id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.voices ALTER COLUMN id SET DEFAULT nextval('public.voices_id_seq'::regclass);
 
 
 --
@@ -1089,14 +1064,6 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: voices voices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.voices
-    ADD CONSTRAINT voices_pkey PRIMARY KEY (id);
-
-
---
 -- Name: voicings voicings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1140,6 +1107,13 @@ CREATE INDEX index_composers_compositions_on_composer_id_and_composition_id ON p
 
 
 --
+-- Name: index_compositions_on_composer_id_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_compositions_on_composer_id_list ON public.compositions USING gin (composer_id_list);
+
+
+--
 -- Name: index_compositions_on_composition_type_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1154,6 +1128,13 @@ CREATE INDEX index_compositions_on_group_id ON public.compositions USING btree (
 
 
 --
+-- Name: index_compositions_on_number_of_voices; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_compositions_on_number_of_voices ON public.compositions USING btree (number_of_voices);
+
+
+--
 -- Name: index_compositions_on_number_of_voices_and_title_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1165,6 +1146,13 @@ CREATE INDEX index_compositions_on_number_of_voices_and_title_id ON public.compo
 --
 
 CREATE INDEX index_compositions_on_title_id ON public.compositions USING btree (title_id);
+
+
+--
+-- Name: index_compositions_on_unique_fields; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_compositions_on_unique_fields ON public.compositions USING btree (composer_id_list, composition_type_id, even_odd, number_of_voices, title_id, tone);
 
 
 --
@@ -1266,25 +1254,10 @@ CREATE UNIQUE INDEX index_titles_on_text ON public.titles USING btree (text);
 
 
 --
--- Name: index_voices_on_composition_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_voices_on_composition_id ON public.voices USING btree (composition_id);
-
-
---
 -- Name: search_vector_index; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
-
-
---
--- Name: voices fk_rails_e70a186a9e; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.voices
-    ADD CONSTRAINT fk_rails_e70a186a9e FOREIGN KEY (composition_id) REFERENCES public.compositions(id);
 
 
 --
@@ -1294,8 +1267,7 @@ ALTER TABLE ONLY public.voices
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20231105181036'),
-('20231105175657'),
+('20240211130206'),
 ('20230514115400'),
 ('20230505092834'),
 ('20180617135201'),

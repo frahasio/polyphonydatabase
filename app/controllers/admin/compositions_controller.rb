@@ -2,7 +2,6 @@ class Admin::CompositionsController < Admin::AdminControllerBase
   def index
     @title = Title.find_by(id: params[:title_id])
     @compositions = (@title.present? ? @title.compositions : Composition.none)
-      .includes(:voices)
   end
 
   def show
@@ -16,7 +15,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
   def create
     composition = Composition.create!(composition_params)
 
-    redirect_to admin_compositions_path
+    redirect_to admin_compositions_path(title_id: composition.title_id)
   end
 
   def edit
@@ -50,8 +49,12 @@ class Admin::CompositionsController < Admin::AdminControllerBase
 
   def composition_params
     params.require(:composition).permit(
-      :title_id,
       :composition_type_id,
+      :even_odd,
+      :number_of_voices,
+      :title_id,
+      :tone,
+      composer_ids: [],
     )
   end
 end

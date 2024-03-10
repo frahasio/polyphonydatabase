@@ -14,7 +14,7 @@ Rails.application.routes.draw do
 
     resources :inclusions, only: [:destroy]
 
-    resources :composers, except: [:index] do
+    resources :composers do
       collection do
         post "/switch-to", to: "composers#switch_to"
       end

@@ -1,0 +1,19 @@
+<%= form_for [:admin, @composition], html: { class: "admin" } do |f| %>
+  <%= f.select :title_id,
+    (title = @composition.title).present? ? options_for_select([[title.text, title.id]], selected: title.id) : [],
+    {},
+    class: "title" %>
+
+  <%= f.select :composer_ids,
+    options_for_select(@composition.composers.pluck(:name, :id), selected: @composition.composers.pluck(:id)),
+    { multiple: true, label: "Composers" },
+    class: "composers" %>
+
+  <%= f.collection_select :composition_type_id, CompositionType.order(:name), :id, :name, prompt: true, label: "Type" %>
+  <%= f.select :tone, options_for_select(Composition::TONES.invert) %>
+  <%= f.select :even_odd, options_for_select(Composition::EVEN_ODD.invert), label: "Even/odd" %>
+
+  <%= f.text_field :number_of_voices %>
+
+  <p><%= f.submit %></p>
+<% end %>

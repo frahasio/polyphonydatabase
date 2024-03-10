@@ -3,6 +3,21 @@ module Admin
     def new
     end
 
+    def index
+      respond_to do |format|
+        format.json {
+          composers = Composer.search(params[:q]).order(:name)
+
+          render json: {
+            results: composers.select(:id, :name).map {|c| { id: c.id, text: c.name } },
+            pagination: {
+              more: false,
+            },
+          }
+        }
+      end
+    end
+
     def create
       composer = Composer.create(composer_params)
 

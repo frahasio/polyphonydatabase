@@ -1,7 +1,9 @@
 <h1>Compositions</h1>
 
+<%= link_to "New composition", new_admin_composition_path %>
+
 <h2>Select title</h2>
-<select class="composition-title">
+<select class="title composition-list-title">
   <% if @title.present? %>
     <%= options_for_select([[@title.text, @title.id]], selected: @title.id) %>
   <% end %>
@@ -10,6 +12,9 @@
 <table>
   <thead>
     <tr>
+      <th>
+        Type
+      </th>
       <th>
         Number of voices
       </th>
@@ -26,13 +31,16 @@
     <% @compositions.each do |composition| %>
       <tr>
         <td>
-          <%= composition.voices_count %>
+          <%= composition.composition_type&.name %>
         </td>
         <td>
-          <%= composition.tone %>
+          <%= composition.number_of_voices %>
         </td>
         <td>
-          <%= composition.even_odd %>
+          <%= Composition::TONES[composition.tone] %>
+        </td>
+        <td>
+          <%= Composition::EVEN_ODD[composition.even_odd] %>
         </td>
         <td>
           <%= link_to "Show", admin_composition_path(composition) %>
