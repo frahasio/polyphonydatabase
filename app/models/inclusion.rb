@@ -1,4 +1,4 @@
-class Inclusion < ActiveRecord::Base
+class Inclusion < ApplicationRecord
   belongs_to :source, inverse_of: :inclusions
   belongs_to :composition, inverse_of: :inclusions, optional: true
   belongs_to :clef_combination, optional: true

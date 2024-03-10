@@ -1,4 +1,4 @@
-class Composer < ActiveRecord::Base
+class Composer < ApplicationRecord
   has_and_belongs_to_many :compositions
   has_many :groups, through: :compositions
 

@@ -1,4 +1,4 @@
-class Source < ActiveRecord::Base
+class Source < ApplicationRecord
   self.inheritance_column = :_type_disabled
 
   validates :code, presence: true, uniqueness: true

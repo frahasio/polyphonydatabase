@@ -1,4 +1,4 @@
-class Clef < ActiveRecord::Base
+class Clef < ApplicationRecord
   after_commit :clear_cache
 
   def note=(note_string)
