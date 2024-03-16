@@ -13,29 +13,13 @@
       <span class="another-att-trigger">+</span>
     </div>
 
-    <%= i.fields_for(:composition) do |c| %>
-      <%= c.fields_for(:title) do |t| %>
-        <div class="title large">
-          <%= t.text_area :text %>
-        </div>
+    <div class="composition large">
+      <%= i.select :composition_id,
+        (comp = i.object.composition).present? ? options_for_select([[comp.text, comp.id]], selected: comp.id) : [],
+        {},
+        class: "composition" %>
+    </div>
 
-        <div class="language">
-          <%= t.select :language, Title.languages.keys, prompt: "Language" %>
-        </div>
-      <% end %>
-
-      <div class="type">
-        <%= c.select :composition_type_id, @composition_types, prompt: "Composition type" %>
-      </div>
-
-      <div class="tone">
-        <%= c.select :tone, Composition::TONES.keys, prompt: "Tone" %>
-      </div>
-
-      <div class="even-odd">
-        <%= c.select :even_odd, Composition::EVEN_ODD.keys, prompt: "Even/Odd" %>
-      </div>
-    <% end %>
     <div class="clefs large">
       <% i.object.display_clefs.each do |clef| %>
         <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
@@ -48,7 +32,7 @@
     <div class="notes"><%= i.text_area :notes %></div>
     <div class="delete tiny">
       <% if i.object.persisted? %>
-          <%= link_to "✖", admin_inclusion_path(i.object), method: :delete %>
+        <%= link_to "✖", admin_inclusion_path(i.object), method: :delete, data: { turbo_confirm: "Are you sure?" } %>
       <% end %>
     </div>
   </div>

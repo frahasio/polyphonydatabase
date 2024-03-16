@@ -1,7 +1,26 @@
 class Admin::CompositionsController < Admin::AdminControllerBase
   def index
-    @title = Title.find_by(id: params[:title_id])
-    @compositions = (@title.present? ? @title.compositions : Composition.none)
+    respond_to do |format|
+      format.html {
+        @title = Title.find_by(id: params[:title_id])
+        @compositions = (@title.present? ? @title.compositions : Composition.none)
+      }
+
+      format.json {
+        titles = Title.search(params[:q])
+        compositions = Composition
+          .where(title_id: titles.select(:id))
+          .left_outer_joins(:title, :composers, :composition_type)
+          .order("titles.text, composers.name, composition_types.name")
+
+        render json: {
+          results: compositions.map { |c| { id: c.id, text: c.text } },
+          pagination: {
+            more: false,
+          }
+        }
+      }
+    end
   end
 
   def show

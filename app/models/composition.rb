@@ -53,6 +53,17 @@ class Composition < ApplicationRecord
     end
   end
 
+  def text
+    [
+      title.text,
+      composers.pluck(:name).join(', '),
+      composition_type&.name,
+      TONES[tone],
+      EVEN_ODD[even_odd],
+      ("#{number_of_voices} #{"voice".pluralize(number_of_voices)}" if number_of_voices),
+    ].compact_blank.join(' - ')
+  end
+
   private
 
   def ensure_group

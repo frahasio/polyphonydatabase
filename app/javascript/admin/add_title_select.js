@@ -1,6 +1,6 @@
 export default function addTitleSelect() {
   $(document).ready(function () {
-    var select = $(".title").select2({
+    var select = $("select.title").select2({
       ajax: {
         url: "/admin/titles",
         dataType: "json"

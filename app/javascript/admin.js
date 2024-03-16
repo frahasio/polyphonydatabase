@@ -10,3 +10,6 @@ addTitleSelect()
 
 import addComposersSelect from "./admin/add_composers_select"
 addComposersSelect()
+
+import addCompositionSelect from "./admin/add_composition_select"
+addCompositionSelect()
