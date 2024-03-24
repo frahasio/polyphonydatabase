@@ -32,9 +32,14 @@ class Admin::CompositionsController < Admin::AdminControllerBase
   end
 
   def create
-    composition = Composition.create!(composition_params)
+    return_to = params[:return_to]
 
-    redirect_to admin_compositions_path(title_id: composition.title_id)
+    unless (composition = Composition.new(composition_params)).save
+      flash[:error] = composition.errors.full_messages.to_sentence
+      return_to.gsub!("false", "true")
+    end
+
+    redirect_to return_to || admin_compositions_path(title_id: composition.title_id)
   end
 
   def edit

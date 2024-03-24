@@ -29,9 +29,11 @@ module Admin
     end
 
     def create
-      title = Title.create!(title_params)
+      unless (title = Title.new(title_params)).save
+        flash[:error] = title.errors.full_messages.to_sentence
+      end
 
-      redirect_to admin_titles_path(page: params[:page])
+      redirect_to params[:return_to].presence || admin_titles_path(page: params[:page])
     end
 
     def update_all

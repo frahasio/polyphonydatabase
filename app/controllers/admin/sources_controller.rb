@@ -13,7 +13,7 @@ module Admin
       @composition_types = CompositionType.order(:name).pluck(:name, :id)
 
       @inclusions = @source.inclusions
-        .includes(:attributions, :clef_inclusions, composition: [:title, :composers])
+        .includes(:attributions, :clef_inclusions, composition: [:title, :composers, :composition_type])
         .order(:order)
         .to_a
 
@@ -40,6 +40,8 @@ module Admin
             8.times { inclusion.clef_inclusions.build }
           end
         end
+
+        @composition = Composition.new if new_composition?
       end
     end
 
@@ -102,5 +104,10 @@ module Admin
         ],
       )
     end
+
+    def new_composition?
+      @new_composition ||= params[:new_composition] == "true"
+    end
+    helper_method :new_composition?
   end
 end

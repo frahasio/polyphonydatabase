@@ -1,11 +1,15 @@
 <h1>Edit titles</h1>
 
 <div class="topform">
-  <%= form_for [:admin, Title.new] do |f| %>
-    <p><%= f.text_field :text, label: "New title" %></p>
+  <turbo-frame id="modal-contents">
+    <%= flash[:error] %>
+    <%= form_for [:admin, Title.new] do |f| %>
+      <p><%= f.text_field :text, label: "New title" %></p>
+      <%= hidden_field_tag :return_to, params[:return_to] %>
 
-    <button>Create</button>
-  <% end %>
+      <button>Create</button>
+    <% end %>
+  </turbo-frame>
 </div>
 
 <%= paginate @titles %>

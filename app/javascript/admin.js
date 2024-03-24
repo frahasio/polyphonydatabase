@@ -6,10 +6,14 @@ Turbo.session.drive = false
 import "controllers"
 
 import addTitleSelect from "./admin/add_title_select"
-addTitleSelect()
-
 import addComposersSelect from "./admin/add_composers_select"
-addComposersSelect()
-
 import addCompositionSelect from "./admin/add_composition_select"
-addCompositionSelect()
+
+const addSelects = () => {
+  addTitleSelect()
+  addComposersSelect()
+  addCompositionSelect()
+}
+
+addSelects()
+document.addEventListener("turbo:frame-load", addSelects)

@@ -19,13 +19,11 @@ module Admin
     end
 
     def create
-      composer = Composer.create(composer_params)
-
-      unless composer.persisted?
+      unless (composer = Composer.new(composer_params)).save
         flash[:error] = composer.errors.full_messages.to_sentence
       end
 
-      redirect_to new_admin_composer_path
+      redirect_to params[:return_to] || new_admin_composer_path
     end
 
     def edit

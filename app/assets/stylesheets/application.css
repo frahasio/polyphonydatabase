@@ -931,3 +931,42 @@ div.attributed-to li:first-of-type {
   margin-top: -1px;
   border-top: 1px solid #bdbdbd;
 }
+
+.modal {
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+  color: black;
+}
+.modal #modal-contents {
+  position: relative;
+  display: block;
+  margin: 5% auto;
+  padding: 20px 50px;
+  width: fit-content;
+  background-color: #fefefe;
+  border: 1px solid #888;
+  border-radius: 5px;
+  text-align: center;
+}
+.modal h2 {
+  border: 0;
+}
+.modal label {
+  font-weight: bold;
+  text-align: left;
+}
+.modal input {
+  border: 1px solid black;
+}
+.modal h2,
+.modal label,
+.modal p {
+  color: black;
+  width: 300px;
+}

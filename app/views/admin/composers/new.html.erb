@@ -2,10 +2,14 @@
 
 <h2>Add composer</h2>
 <div class="topform">
-<%= form_for([:admin, Composer.new]) do |f| %>
-  <%= f.text_field :name %>
-  <button>Create</button>
-<% end %>
+  <turbo-frame id="modal-contents">
+    <%= flash[:error] %>
+    <%= form_for([:admin, Composer.new]) do |f| %>
+      <%= f.text_field :name %>
+      <%= hidden_field_tag :return_to, params[:return_to] %>
+      <button>Create</button>
+    <% end %>
+  </turbo-frame>
 </div>
 
 <h2>Edit existing composers</h2>

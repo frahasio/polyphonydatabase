@@ -18,6 +18,10 @@
         (comp = i.object.composition).present? ? options_for_select([[comp.text, comp.id]], selected: comp.id) : [],
         {},
         class: "composition" %>
+
+      <%= link_to "Add new composition",
+        url_for(page: params[:page], new_composition: true),
+        data: { turbo: true, turbo_frame: "modal", turbo_action: "advance" } %>
     </div>
 
     <div class="clefs large">
