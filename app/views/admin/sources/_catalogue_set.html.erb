@@ -21,12 +21,8 @@
     </div>
 
     <div class="clefs large">
-      <% i.object.display_clefs.each do |clef| %>
-        <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", clef, size: 3 %>
-      <% end %>
-
-      <% (8 - (i.object.display_clefs.count % 8)).times do %>
-        <%= text_field_tag "source[inclusions_attributes][#{i.index}][display_clefs][]", nil, size: 3 %>
+      <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
+        <%= ci.text_field :display %>
       <% end %>
     </div>
     <div class="notes"><%= i.text_area :notes %></div>

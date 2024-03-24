@@ -103,7 +103,8 @@ CREATE TABLE public.clef_combinations (
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
     clef_ids integer[] DEFAULT '{}'::integer[],
-    sorting character varying
+    sorting character varying,
+    display character varying NOT NULL
 );
 
 
@@ -136,6 +137,42 @@ CREATE TABLE public.clef_combinations_voicings (
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL
 );
+
+
+--
+-- Name: clef_inclusions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clef_inclusions (
+    id bigint NOT NULL,
+    clef character varying NOT NULL,
+    inclusion_id bigint NOT NULL,
+    missing boolean DEFAULT false NOT NULL,
+    incomplete boolean DEFAULT false NOT NULL,
+    optional boolean DEFAULT false NOT NULL,
+    transitions_to character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clef_inclusions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clef_inclusions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clef_inclusions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clef_inclusions_id_seq OWNED BY public.clef_inclusions.id;
 
 
 --
@@ -785,6 +822,13 @@ ALTER TABLE ONLY public.clef_combinations ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
+-- Name: clef_inclusions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions ALTER COLUMN id SET DEFAULT nextval('public.clef_inclusions_id_seq'::regclass);
+
+
+--
 -- Name: clefs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -925,6 +969,14 @@ ALTER TABLE ONLY public.attributions
 
 ALTER TABLE ONLY public.clef_combinations
     ADD CONSTRAINT clef_combinations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clef_inclusions clef_inclusions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions
+    ADD CONSTRAINT clef_inclusions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1079,6 +1131,13 @@ CREATE INDEX index_attributions_on_inclusion_id ON public.attributions USING btr
 
 
 --
+-- Name: index_clef_combinations_on_display; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clef_combinations_on_display ON public.clef_combinations USING btree (display);
+
+
+--
 -- Name: index_clef_combinations_voicings_on_clef_combination_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1090,6 +1149,27 @@ CREATE INDEX index_clef_combinations_voicings_on_clef_combination_id ON public.c
 --
 
 CREATE INDEX index_clef_combinations_voicings_on_voicing_id ON public.clef_combinations_voicings USING btree (voicing_id);
+
+
+--
+-- Name: index_clef_inclusions_on_clef; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_clef ON public.clef_inclusions USING btree (clef);
+
+
+--
+-- Name: index_clef_inclusions_on_clef_and_inclusion_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_clef_and_inclusion_id ON public.clef_inclusions USING btree (clef, inclusion_id);
+
+
+--
+-- Name: index_clef_inclusions_on_inclusion_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_inclusion_id ON public.clef_inclusions USING btree (inclusion_id);
 
 
 --
@@ -1261,12 +1341,22 @@ CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
 
 
 --
+-- Name: clef_inclusions fk_rails_69625a4135; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions
+    ADD CONSTRAINT fk_rails_69625a4135 FOREIGN KEY (inclusion_id) REFERENCES public.inclusions(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240323204748'),
+('20240321193327'),
 ('20240211130206'),
 ('20230514115400'),
 ('20230505092834'),

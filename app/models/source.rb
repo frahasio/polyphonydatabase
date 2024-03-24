@@ -89,6 +89,6 @@ private
   end
 
   def unfilled?(attrs)
-    attrs.dig(:composition_attributes, :title_attributes, :text).blank?
+    attrs.dig(:composition_id).blank?
   end
 end

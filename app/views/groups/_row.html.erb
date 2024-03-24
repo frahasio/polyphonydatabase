@@ -87,8 +87,8 @@
           </td>
           <td class="clefs">
             <% if inclusion.clef_combination %>
-              <% notes_and_classes(inclusion).each do |(note, classes)| %>
-                <%= image_tag "clefs/#{note}.png", alt: note, class: classes %>
+              <% clefs_and_classes(inclusion).each do |(clefs, classes)| %>
+                <%= image_tag "clefs/#{clefs}.png", alt: clefs, class: classes %>
               <% end %>
             <% end %>
           </td>

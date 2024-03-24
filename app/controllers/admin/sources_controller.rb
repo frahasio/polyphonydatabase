@@ -1,7 +1,6 @@
 module Admin
   class SourcesController < AdminControllerBase
-    def index
-    end
+    def index; end
 
     def edit
       @source = Source.find(params[:id])
@@ -14,7 +13,7 @@ module Admin
       @composition_types = CompositionType.order(:name).pluck(:name, :id)
 
       @inclusions = @source.inclusions
-        .includes({composition: [:composition_type, :title]}, :attributions, :clef_combination)
+        .includes(:attributions, :clef_inclusions, composition: [:title, :composers])
         .order(:order)
         .to_a
 
@@ -23,9 +22,9 @@ module Admin
         .per(40)
 
       @inclusions.each do |i|
-        i.attributions.build
-
         i.composition ||= Composition.new(title: Title.new)
+        i.attributions.build
+        (8 - i.clef_inclusions.size).times { i.clef_inclusions.build }
       end
 
       if @inclusions.last_page? || @inclusions.total_pages == 0
@@ -35,18 +34,19 @@ module Admin
         num_blank_rows = [40, (20 - @inclusions.count)].max
 
         @blank_inclusions = (1...num_blank_rows).map do |n|
-          inclusion = @source.inclusions.build(order: last_order + n + 1)
-          inclusion.composition = Composition.new(title: Title.new)
-          inclusion.attributions.build
-          inclusion
+          @source.inclusions.build(order: last_order + n + 1).tap do |inclusion|
+            inclusion.composition = Composition.new(title: Title.new)
+            inclusion.attributions.build
+            8.times { inclusion.clef_inclusions.build }
+          end
         end
       end
     end
 
     def create
-      source = Source.create!(source_params)
+      source = Source.new(source_params)
 
-      unless source.persisted?
+      unless source.save
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
@@ -56,11 +56,7 @@ module Admin
     def update
       source = Source.find(params[:id])
 
-      source.assign_attributes(source_params)
-
-      check_changed_titles(source)
-
-      unless SourceCompositionIncluder.call(source) && source.save
+      unless source.update(source_params)
         flash[:error] = source.errors.full_messages.to_sentence
       end
 
@@ -91,37 +87,20 @@ module Admin
         scribe_ids: [],
         inclusions_attributes: [
           :id,
+          :composition_id,
           :notes,
           :order,
-          display_clefs: [],
           attributions_attributes: [
             :id,
             :refers_to_id,
             :text,
           ],
-          composition_attributes: [
+          clef_inclusions_attributes: [
             :id,
-            :composition_type_id,
-            :even_odd,
-            :tone,
-            title_attributes: [
-              :id,
-              :language,
-              :text,
-            ]
-          ]
+            :display,
+          ],
         ],
       )
-    end
-
-    def check_changed_titles(source)
-      source.inclusions.each do |inclusion|
-        if inclusion.composition.title.text_changed?
-          new_comp = inclusion.composition.dup
-          new_comp.title = Title.find_or_initialize_by(text: inclusion.composition.title.text)
-          inclusion.composition = new_comp
-        end
-      end
     end
   end
 end
