@@ -7,7 +7,7 @@ class Inclusion < ApplicationRecord
   has_many :clef_inclusions, dependent: :destroy, inverse_of: :inclusion
 
   accepts_nested_attributes_for :attributions, reject_if: :all_blank
-  accepts_nested_attributes_for :clef_inclusions, reject_if: :all_blank
+  accepts_nested_attributes_for :clef_inclusions, reject_if: :all_blank, allow_destroy: true
 
   before_validation :set_clef_combination
 

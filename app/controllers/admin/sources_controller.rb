@@ -100,6 +100,7 @@ module Admin
           clef_inclusions_attributes: [
             :id,
             :display,
+            :_destroy,
           ],
         ],
       )

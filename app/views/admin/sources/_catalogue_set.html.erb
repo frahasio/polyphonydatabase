@@ -26,7 +26,10 @@
 
     <div class="clefs large">
       <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
-        <%= ci.text_field :display %>
+        <span data-controller="clef">
+          <%= ci.text_field :display, data: { action: "keyup->clef#change" } %>
+          <%= ci.hidden_field :_destroy, value: false, data: { "clef-target": "delete" } %>
+        </span>
       <% end %>
     </div>
     <div class="notes"><%= i.text_area :notes %></div>
