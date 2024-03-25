@@ -40,7 +40,8 @@ FactoryBot.define do
     source { association(:source, **source_options) }
 
     trait :with_voicing do
-      clef_combination { association(:clef_combination, :with_voicing) }
+      clef_inclusions { [association(:clef_inclusion)] }
+      clef_combination { association(:clef_combination, :with_voicing, display: clef_inclusions.pluck(:clef).join) }
     end
   end
 end
