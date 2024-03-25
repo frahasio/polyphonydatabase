@@ -2,6 +2,8 @@ class AddDisplayToClefCombination < ActiveRecord::Migration[7.1]
   def change
     add_column :clef_combinations, :display, :string
 
+    ClefCombination.reset_column_information
+
     reversible do |dir|
       dir.up do
         ClefCombination.find_each do |cc|

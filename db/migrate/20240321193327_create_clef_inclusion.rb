@@ -1,4 +1,9 @@
 class CreateClefInclusion < ActiveRecord::Migration[7.1]
+  class Clef < ApplicationRecord; end
+  class ClefCombination < ApplicationRecord
+    attr_accessor :display
+  end
+
   def change
     create_table :clef_inclusions do |t|
       t.string :clef, null: false
