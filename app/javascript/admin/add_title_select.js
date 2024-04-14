@@ -4,7 +4,8 @@ export default function addTitleSelect() {
       ajax: {
         url: "/admin/titles",
         dataType: "json"
-      }
+      },
+      tags: true,
     })
 
     if (select.hasClass("composition-list-title")) {

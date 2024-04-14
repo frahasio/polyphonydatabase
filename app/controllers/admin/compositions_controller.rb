@@ -48,10 +48,31 @@ class Admin::CompositionsController < Admin::AdminControllerBase
   # JSON API for the source catalogue form to find or create a compositions.
   # Takes all the unique parameters of a composition and returns an ID.
   def find_or_create
+    title_id = if composition_params[:title_id] =~ /\A\d+\z/
+      composition_params[:title_id].to_i
+    else
+      Title.find_or_create_by!(text: composition_params[:title_id]).id
+    end
+
+    composer_ids = Array(composition_params[:composer_ids]).map do |composer_id|
+      next if composer_id.blank?
+
+      if composer_id =~ /\A\d+\z/
+        composer_id.to_i
+      else
+        Composer.find_or_create_by!(name: composer_id).id
+      end
+    end.compact.sort
+
     composition = Composition.find_by(
-      composer_id_list: composition_params[:composer_ids].map(&:to_i).sort || [],
-      **composition_params.except(:composer_ids),
-    ) || Composition.create!(composition_params)
+      title_id:,
+      composer_id_list: composer_ids,
+      **composition_params.except(:title_id, :composer_ids),
+    ) || Composition.create!(
+      title_id:,
+      composer_ids:,
+      **composition_params.except(:title_id, :composer_ids),
+    )
 
     render json: { id: composition.id }
   end
