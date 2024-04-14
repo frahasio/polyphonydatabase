@@ -1,5 +1,5 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
-  <div class="inclusion body-row">
+  <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
     <div class="order tiny"><%= i.text_field :order %></div>
     <div class="attributed-to">
       <ul class="composer">
@@ -13,15 +13,48 @@
       <span class="another-att-trigger">+</span>
     </div>
 
-    <div class="composition large">
-      <%= i.select :composition_id,
-        (comp = i.object.composition).present? ? options_for_select([[comp.text, comp.id]], selected: comp.id) : [],
-        {},
-        class: "composition" %>
+    <div class="composition large gap-2"
+      data-controller="composition"
+      data-action="
+        focusout->composition#focusout
+        focusin->composition#focusin">
+      <select class="title w-full h-1"
+        data-composition-target="titleId"
+        data-placeholder="<%= "Title" unless (title = i.object.composition&.title).present? %>">
+        <% if title %>
+          <option value="<%= title.id %>" selected="true"><%= title.text %></option>
+        <% end %>
+      </select>
+      <select class="composers w-full h-1"
+        data-composition-target="composerIds"
+        multiple="true"
+        data-placeholder="<%= "Composers" unless (composers = i.object.composition&.composers).present? %>">
+        <% if composers %>
+          <% composers.each do |composer| %>
+            <option value="<%= composer.id %>" selected="true"><%= composer.name %></option>
+          <% end %>
+        <% end %>
+      </select>
+      <div class="w-full">
+        <select class="w-44 h-1" data-composition-target="typeId">
+          <option value="">Type..</option>
+          <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
+        </select>
+        <select class="h-1 w-36" data-composition-target="tone">
+          <option value="">Tone..</option>
+          <%= options_for_select(Composition::TONES.invert, selected: i.object.composition&.tone) %>
+        </select>
 
-      <%= link_to "Add new composition",
-        url_for(page: params[:page], new_composition: true),
-        data: { turbo: true, turbo_frame: "modal", turbo_action: "advance" } %>
+        <select class="h-1 w-32" data-composition-target="evenOdd">
+          <option value="">Even/odd..</option>
+          <%= options_for_select(Composition::EVEN_ODD.invert) %>
+        </select>
+
+        <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
+          data: { "composition-target": "numberOfVoices" }, class: "h-1 w-8" %>
+
+        <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
+      </div>
     </div>
 
     <div class="clefs large">

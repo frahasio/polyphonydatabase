@@ -1,6 +1,10 @@
 Rails.application.routes.draw do
   namespace :admin do
     resources :compositions do
+      collection do
+        post "/find-or-create", to: "compositions#find_or_create"
+      end
+
       member do
         get :confirm_delete
       end

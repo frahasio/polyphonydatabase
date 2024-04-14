@@ -19,3 +19,6 @@
 *.dump
 profile.html
 .envrc
+
+/app/assets/builds/*
+!/app/assets/builds/.keep

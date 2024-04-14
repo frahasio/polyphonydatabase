@@ -7,11 +7,14 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       }
 
       format.json {
-        titles = Title.search(params[:q])
-        compositions = Composition
-          .where(title_id: titles.select(:id))
-          .left_outer_joins(:title, :composers, :composition_type)
-          .order("titles.text, composers.name, composition_types.name")
+        compositions = if params[:q].present?
+          Composition
+            .where(title_id: Title.search(params[:q]))
+            .left_outer_joins(:title, :composers, :composition_type)
+            .order("titles.text, composers.name, composition_types.name")
+        else
+          Composition.none
+        end
 
         render json: {
           results: compositions.map { |c| { id: c.id, text: c.text } },
@@ -40,6 +43,17 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     end
 
     redirect_to return_to || admin_compositions_path(title_id: composition.title_id)
+  end
+
+  # JSON API for the source catalogue form to find or create a compositions.
+  # Takes all the unique parameters of a composition and returns an ID.
+  def find_or_create
+    composition = Composition.find_by(
+      composer_id_list: composition_params[:composer_ids].map(&:to_i).sort || [],
+      **composition_params.except(:composer_ids),
+    ) || Composition.create!(composition_params)
+
+    render json: { id: composition.id }
   end
 
   def edit

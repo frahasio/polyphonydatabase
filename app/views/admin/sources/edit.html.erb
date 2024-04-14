@@ -1,20 +1,3 @@
-<turbo-frame id="modal">
-  <% if new_composition? %>
-    <div class="modal">
-      <turbo-frame id="modal-contents">
-        <h2>Add a composition</h2>
-        <%= render "admin/compositions/form",
-          return_to: url_for(page: params[:page], new_composition: false),
-          downstream_return_to: url_for(page: params[:page], new_composition: true) %>
-        <%= link_to "Cancel", url_for(page: params[:page]),
-          data: { turbo_action: "advance", turbo_frame: "modal" } %>
-      </turbo-frame>
-    </div>
-  <% else %>
-    <turbo-frame id="modal-contents"></turbo-frame>
-  <% end %>
-</turbo-frame>
-
 <h1>Cataloguing</h1>
 
 <div class="topform">

@@ -30,8 +30,6 @@ class Composition < ApplicationRecord
   enum tone: TONES.keys
   enum even_odd: EVEN_ODD.keys
 
-  accepts_nested_attributes_for :title
-
   before_validation :ensure_group
 
   before_validation do
