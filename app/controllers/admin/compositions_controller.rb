@@ -51,7 +51,10 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     title_id = if composition_params[:title_id] =~ /\A\d+\z/
       composition_params[:title_id].to_i
     else
-      Title.find_or_create_by!(text: composition_params[:title_id]).id if composition_params[:title_id].present?
+      Title.find_or_create_by!(
+        text: composition_params[:title_id],
+        language: composition_params[:title_language].presence,
+      ).id if composition_params[:title_id].present?
     end
 
     composer_ids = Array(composition_params[:composer_ids]).map do |composer_id|
@@ -64,7 +67,9 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       end
     end.compact.sort
 
-    other_params = composition_params.except(:title_id, :composer_ids).transform_values(&:presence)
+    other_params = composition_params
+      .except(:title_id, :title_language, :composer_ids)
+      .transform_values(&:presence)
 
     if all_blank?(title_id, composer_ids, other_params)
       render json: { id: nil }
@@ -111,6 +116,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       :even_odd,
       :number_of_voices,
       :title_id,
+      :title_language,
       :tone,
       composer_ids: [],
     )

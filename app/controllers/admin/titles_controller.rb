@@ -17,7 +17,7 @@ module Admin
 
         format.json {
           titles = Title.search(params[:q]).order(:text)
-          titles.where(language: params[:language]) if params[:language].present?
+          titles = titles.where(language: params[:language]) if params[:language].present?
 
           render json: {
             results: titles.select(:id, :text).map {|t| { id: t.id, text: t.text } },

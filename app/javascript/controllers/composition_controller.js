@@ -7,6 +7,7 @@ export default class extends Controller {
     "evenOdd",
     "numberOfVoices",
     "titleId",
+    "titleLanguage",
     "tone",
     "typeId"
   ]
@@ -32,6 +33,7 @@ export default class extends Controller {
 
     const compositionData = {
       title_id: this.titleIdTarget.value,
+      title_language: this.titleLanguageTarget.value,
       composer_ids: selectedComposerIds,
       composition_type_id: this.typeIdTarget.value,
       tone: this.toneTarget.value,
