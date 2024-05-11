@@ -24,7 +24,6 @@ export default class extends Controller {
   }
 
   keydown(event) {
-    console.log(event.keyCode)
     return event.keyCode != 13;
   }
 
@@ -52,8 +51,12 @@ export default class extends Controller {
     })
     .then(response => {
       if (response.ok) {
-        response.json().then(data => { this.compositionIdTarget.value = data.id })
-        this.showSuccess.bind(this)()
+        response.json().then(data => {
+          if (data.id) {
+            this.compositionIdTarget.value = data.id
+            this.showSuccess.bind(this)()
+          }
+        })
       } else {
         this.showError.bind(this)()
       }

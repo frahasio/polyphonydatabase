@@ -1,6 +1,6 @@
 class Composition < ApplicationRecord
-  belongs_to :title, inverse_of: :compositions
-  belongs_to :group
+  belongs_to :title, inverse_of: :compositions, optional: true
+  belongs_to :group, inverse_of: :compositions
   has_many :inclusions, inverse_of: :composition
   has_and_belongs_to_many :composers
   belongs_to :composition_type, inverse_of: :compositions, optional: true

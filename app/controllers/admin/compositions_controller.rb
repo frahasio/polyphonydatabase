@@ -51,7 +51,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     title_id = if composition_params[:title_id] =~ /\A\d+\z/
       composition_params[:title_id].to_i
     else
-      Title.find_or_create_by!(text: composition_params[:title_id]).id
+      Title.find_or_create_by!(text: composition_params[:title_id]).id if composition_params[:title_id].present?
     end
 
     composer_ids = Array(composition_params[:composer_ids]).map do |composer_id|
@@ -60,21 +60,20 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       if composer_id =~ /\A\d+\z/
         composer_id.to_i
       else
-        Composer.find_or_create_by!(name: composer_id).id
+        Composer.find_or_create_by!(name: composer_id).id if composer_id.present?
       end
     end.compact.sort
 
-    composition = Composition.find_by(
-      title_id:,
-      composer_id_list: composer_ids,
-      **composition_params.except(:title_id, :composer_ids),
-    ) || Composition.create!(
-      title_id:,
-      composer_ids:,
-      **composition_params.except(:title_id, :composer_ids),
-    )
+    other_params = composition_params.except(:title_id, :composer_ids).transform_values(&:presence)
 
-    render json: { id: composition.id }
+    if all_blank?(title_id, composer_ids, other_params)
+      render json: { id: nil }
+    else
+      composition = Composition.find_by(title_id:, composer_id_list: composer_ids, **other_params) ||
+        Composition.create!(title_id:, composer_ids:, **other_params)
+
+      render json: { id: composition.id }
+    end
   end
 
   def edit
@@ -115,5 +114,9 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       :tone,
       composer_ids: [],
     )
+  end
+
+  def all_blank?(title_id, composer_ids, other_params)
+    title_id.blank? && composer_ids.blank? && other_params.values.all?(&:blank?)
   end
 end
