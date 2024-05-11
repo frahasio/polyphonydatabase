@@ -6,8 +6,6 @@ export default class extends Controller {
   change(e) {
     e.preventDefault()
 
-    if (e.target.value === "") {
-      this.deleteTarget.value = true
-    }
+    this.deleteTarget.value = (e.target.value === "")
   }
 }
