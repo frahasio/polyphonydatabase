@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static targets = [
-    "composerIds",
+    "composerId",
     "compositionId",
     "evenOdd",
     "numberOfVoices",
@@ -28,8 +28,7 @@ export default class extends Controller {
   }
 
   submit() {
-    const selectedComposerIds = Array.from(this.composerIdsTarget.selectedOptions)
-      .map(({ value }) => value);
+    const selectedComposerIds = this.composerIdTargets.map(composerId => composerId.value).filter(id => id !== "")
 
     const compositionData = {
       title_id: this.titleIdTarget.value,
@@ -67,18 +66,22 @@ export default class extends Controller {
   }
 
   showSuccess() {
-    this.flashBorder(this.element, "green")
+    this.element.querySelectorAll(".col").forEach((col) => {
+      this.flashBorder(col, "green")
+    })
   }
 
   showError() {
-    this.flashBorder(this.element, "red")
+    this.element.querySelectorAll(".col").forEach((col) => {
+      this.flashBorder(col, "red")
+    })
   }
 
   flashBorder(element, color) {
     element.style.boxShadow = `inset 0 0 0 2px ${color}`;
-    element.style.transition = "box-shadow 1000ms";
+    element.style.transition = "box-shadow 500ms";
     setTimeout(() => {
       element.style.boxShadow = "";
-    }, 1000);
+    }, 500);
   }
 }

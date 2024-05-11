@@ -26,8 +26,8 @@
     <% @titles.each do |title| %>
       <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
         <div class="body-row">
-          <div><%= f.text_area :text %></div>
-          <div>
+          <div class="col"><%= f.text_area :text %></div>
+          <div class="col">
             <%= f.select :function_ids,
               function_options,
               {},
@@ -37,7 +37,7 @@
               }
             %>
           </div>
-          <div class="tiny"><%= title.inclusions_count %></div>
+          <div class="col tiny"><%= title.inclusions_count %></div>
         </div>
       <% end %>
     <% end %>

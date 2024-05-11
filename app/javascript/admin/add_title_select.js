@@ -3,7 +3,15 @@ export default function addTitleSelect() {
     var select = $("select.title").select2({
       ajax: {
         url: "/admin/titles",
-        dataType: "json"
+        dataType: "json",
+        data: function (params) {
+          var select = this[0]
+
+          return {
+            q: params.term,
+            language: select.dataset.language,
+          }
+        },
       },
       tags: true,
     })

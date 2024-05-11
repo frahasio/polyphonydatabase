@@ -140,7 +140,7 @@ hr {
 }
 
 .header-row>div,
-.body-row>div {
+.body-row .col {
   background-color: lightgrey;
   margin: 1px;
   padding: 5px;
@@ -153,12 +153,12 @@ hr {
 }
 
 .header-row>div.tiny,
-.body-row>div.tiny {
+.body-row .tiny {
   flex: 1;
 }
 
 .header-row>div.large,
-.body-row>div.large {
+.body-row .large {
   flex: 6;
 }
 
@@ -172,7 +172,7 @@ hr {
     display: block;
   }
 
-  .body-row>div {
+  .body-row .col {
     min-width: 100%;
     max-width: 100%;
     margin: 0;

@@ -1,63 +1,59 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
-    <div class="order tiny"><%= i.text_field :order %></div>
-    <div class="attributed-to">
-      <ul class="composer">
-        <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
-          <li>
-            <%= a.text_field :text %>
-            <%= a.select :refers_to_id, composer_list, include_blank: true %>
-          </li>
-        <% end %>
-      </ul>
-      <span class="another-att-trigger">+</span>
-    </div>
-
-    <div class="composition large gap-2"
-      data-controller="composition"
-      data-action="
-        focusout->composition#focusout
-        focusin->composition#focusin">
-      <select class="title w-full h-1"
-        data-composition-target="titleId"
-        data-placeholder="<%= "Title" unless (title = i.object.composition&.title).present? %>">
-        <% if title %>
-          <option value="<%= title.id %>" selected="true"><%= title.text %></option>
-        <% end %>
-      </select>
-      <select class="composers w-full h-1"
-        data-composition-target="composerIds"
-        multiple="true"
-        data-placeholder="<%= "Composers" unless (composers = i.object.composition&.composers).present? %>">
-        <% if composers %>
-          <% composers.each do |composer| %>
-            <option value="<%= composer.id %>" selected="true"><%= composer.name %></option>
+    <div class="col order tiny"><%= i.text_field :order %></div>
+    <div class="flex" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
+      <div class="col attributed-to">
+        <ul class="composer">
+          <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
+            <li>
+              <%= a.text_field :text %>
+              <%= a.select :refers_to_id, composer_list, { include_blank: true }, data: { "composition-target": "composerId" } %>
+            </li>
           <% end %>
-        <% end %>
-      </select>
-      <div class="w-full">
-        <select class="w-44 h-1" data-composition-target="typeId">
+        </ul>
+        <span class="another-att-trigger">+</span>
+      </div>
+
+      <div class="col title w-28 flex-col" data-controller="title">
+        <% title = i.object.composition&.title %>
+        <%= select_tag :language, options_for_select(Title.languages.keys, title.language), prompt: "Language..",
+          data: { "title-target": "languageSelect", action: "change->title#changeLanguage" } %>
+        <select class="title" data-composition-target="titleId" data-title-target="titleSelect"
+          data-language="<%= title.language %>"
+          data-placeholder="<%= "Title" unless title.present? %>">
+          <% if title %>
+            <option value="<%= title.id %>" selected="true"><%= title.text %></option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="col type w-14">
+        <select data-composition-target="typeId">
           <option value="">Type..</option>
           <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
         </select>
-        <select class="h-1 w-36" data-composition-target="tone">
+      </div>
+      <div class="col tone tiny">
+        <select data-composition-target="tone">
           <option value="">Tone..</option>
           <%= options_for_select(Composition::TONES.invert, selected: i.object.composition&.tone) %>
         </select>
-
-        <select class="h-1 w-32" data-composition-target="evenOdd">
+      </div>
+      <div class="col even-odd tiny">
+        <select data-composition-target="evenOdd">
           <option value="">Even/odd..</option>
           <%= options_for_select(Composition::EVEN_ODD.invert) %>
         </select>
-
+      </div>
+      <div class="col tiny w-3">
         <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
-          data: { "composition-target": "numberOfVoices" }, class: "h-1 w-8" %>
+          data: { "composition-target": "numberOfVoices" } %>
 
         <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
       </div>
     </div>
 
-    <div class="clefs large">
+    <div class="col clefs large">
       <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
         <span data-controller="clef">
           <%= ci.text_field :display, data: { action: "keyup->clef#change" } %>
@@ -65,8 +61,8 @@
         </span>
       <% end %>
     </div>
-    <div class="notes"><%= i.text_area :notes %></div>
-    <div class="delete tiny">
+    <div class="col notes"><%= i.text_area :notes %></div>
+    <div class="col delete tiny">
       <% if i.object.persisted? %>
         <%= link_to "✖", admin_inclusion_path(i.object), method: :delete, data: { turbo_confirm: "Are you sure?" } %>
       <% end %>
