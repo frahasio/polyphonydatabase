@@ -6,7 +6,7 @@ module Admin
           @titles = Title
             .includes(:functions)
             .select("titles.*, count(inclusions.id) as inclusions_count")
-              .joins(compositions: :inclusions)
+              .left_outer_joins(compositions: :inclusions)
               .group("titles.id")
             .order(:text)
             .page(params[:page])
