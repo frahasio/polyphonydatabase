@@ -61,6 +61,26 @@ a:hover {
   cursor: pointer;
 }
 
+.tooltip {
+    position:relative;
+}
+.tooltip .tooltip-text {
+    visibility:hidden;
+    position:absolute;
+    top:100%;
+    left:0;
+    display:block;
+    background-color:#fff;
+    border:1px solid black;
+    color:#000;
+    font-size:0.9em;
+    padding:10px;
+    z-index: 2;
+    box-shadow: 0 0 5px 5px rgba(0,0,0,0.1);
+}
+.tooltip:hover .tooltip-text {
+    visibility:visible;
+}
 li {
   list-style: none;
 }
@@ -156,12 +176,44 @@ hr {
 .body-row .tiny {
   flex: 1;
 }
-
-.header-row>div.large,
-.body-row .large {
-  flex: 6;
+.header-row > div.small,
+.body-row > div.small {
+    flex:2;
 }
-
+.header-row > div.large,
+.body-row > div.large {
+    flex:6;
+}
+.inclusion.body-row > div.order {
+    order:1;
+}
+.inclusion.body-row > div.attributed-to {
+    order:2;
+}
+.inclusion.body-row > div.title {
+    order:3;
+}
+.inclusion.body-row > div.language {
+    order:4;
+}
+.inclusion.body-row > div.type {
+    order:5;
+}
+.inclusion.body-row > div.clefs {
+    order:6;
+}
+.inclusion.body-row > div.tone {
+    order:7;
+}
+.inclusion.body-row > div.even-odd {
+    order:8;
+}
+.inclusion.body-row > div.notes {
+    order:9;
+}
+.inclusion.body-row > div.delete {
+    order:10;
+}
 @media screen and (max-width:850px) {
   .body-row {
     flex-wrap: wrap;
@@ -490,34 +542,42 @@ td.clefs {
   min-width: 280px;
   max-width: 280px;
 }
-
-img.clef-image {
-  height: 60px;
-  max-height: 60px;
-  min-height: 60px;
-  border-top: 1px solid transparent;
-  border-bottom: 1px solid transparent;
-  display: inline-block;
-  float: left;
+.clef-image {
+    height:60px;
+    max-height:60px;
+    min-height:60px;
+    border-top:1px solid transparent;
+    border-bottom:1px solid transparent;
+    display:inline-block;
+    float:left;
 }
-
-img.clef-image.missing {
-  border: 1px solid darkred;
+.clef-image img {
+    height:100%;
+    width:auto;
 }
-
-img.clef-image.optional {
-  opacity: 0.3;
+.clef-image.missing {
+    border:1px solid darkred;
+    background-color:#8b000024;
 }
-
-img.clef-image.incomplete {
-  border: 1px solid green;
+.clef-image.incomplete {
+    border:1px solid green;
+    background-color:#00800014;
 }
-
-img.clef-image.missing+img.clef-image.missing,
-img.clef-image.incomplete+img.clef-image.incomplete {
-  border-left: none;
+.clef-image.missing+.clef-image.missing,
+.clef-image.incomplete+.clef-image.incomplete,
+.clef-image.missing+.clef-image.incomplete,
+.clef-image.incomplete+.clef-image.missing {
+    border-left:none;
 }
-
+.clef-image.missing:has(+ .clef-image.missing),
+.clef-image.incomplete:has(+ .clef-image.incomplete),
+.clef-image.missing:has(+ .clef-image.incomplete),
+.clef-image.incomplete:has(+ .clef-image.missing) {
+    border-right:none;
+}
+.clef-image.optional img {
+    opacity:0.3;
+}
 td a img {
   max-height: 18px;
   min-height: 18px;
