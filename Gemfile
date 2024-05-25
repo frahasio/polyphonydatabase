@@ -21,7 +21,6 @@ gem "kaminari", "~> 1.2"
 gem "importmap-rails", "~> 1.2"
 gem "sprockets-rails", "~> 3.4"
 gem "stimulus-rails", "~> 1.3"
-gem "tailwindcss-rails", "~> 2.3"
 
 gem "ruby-progressbar", "~> 1.13"
 

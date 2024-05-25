@@ -1,7 +1,7 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
     <div class="col order tiny"><%= i.text_field :order %></div>
-    <div class="flex" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
+    <div data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
       <div class="col attributed-to">
         <ul class="composer">
           <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
@@ -14,7 +14,7 @@
         <span class="another-att-trigger">+</span>
       </div>
 
-      <div class="col title w-28 flex-col" data-controller="title">
+      <div class="col title" data-controller="title">
         <% title = i.object.composition&.title %>
         <%= select_tag :language, options_for_select(Title.languages.keys, title&.language), prompt: "Language..",
           data: { "composition-target": "titleLanguage", "title-target": "languageSelect", action: "change->title#changeLanguage" } %>
@@ -27,7 +27,7 @@
         </select>
       </div>
 
-      <div class="col type w-14">
+      <div class="col type">
         <select data-composition-target="typeId">
           <option value="">Type..</option>
           <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
@@ -45,7 +45,7 @@
           <%= options_for_select(Composition::EVEN_ODD.invert) %>
         </select>
       </div>
-      <div class="col tiny w-3">
+      <div class="col tiny">
         <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
           data: { "composition-target": "numberOfVoices" } %>
 
