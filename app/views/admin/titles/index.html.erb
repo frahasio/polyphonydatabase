@@ -5,6 +5,7 @@
     <%= flash[:error] %>
     <%= form_for [:admin, Title.new] do |f| %>
       <p><%= f.text_field :text, label: "New title" %></p>
+      <p><%= f.select :language, Title::LANGUAGES, include_blank: true %></p>
       <%= hidden_field_tag :return_to, params[:return_to] %>
 
       <button>Create</button>
@@ -18,6 +19,7 @@
   <div class="titles-editor">
     <div class="header-row">
       <div>Title</div>
+      <div>Language</div>
       <div>Function</div>
       <div class="tiny"># inclusions</div>
     </div>
@@ -27,6 +29,7 @@
       <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
         <div class="body-row">
           <div class="col"><%= f.text_area :text %></div>
+          <div class="col tiny"><%= f.select :language, Title::LANGUAGES, include_blank: true %></div>
           <div class="col">
             <%= f.select :function_ids,
               function_options,

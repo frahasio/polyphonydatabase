@@ -38,8 +38,8 @@ module Admin
     end
 
     def update_all
-      titles_to_update.each do |id, title_params|
-        update_title(id, title_params)
+      titles_to_update.each do |id, update_params|
+        update_title(id, update_params)
       end
 
       redirect_to admin_titles_path(page: params[:page])
@@ -50,19 +50,21 @@ module Admin
     def title_params
       params.require(:title).permit(
         :text,
+        :language,
       )
     end
 
-    def update_title(id, title_params)
+    def update_title(id, update_params)
       title = Title.find_by(id: id)
       return unless title
 
-      title_params = title_params.permit(
+      update_params = update_params.permit(
         :text,
+        :language,
         function_ids: [],
       )
 
-      title.assign_attributes(title_params)
+      title.assign_attributes(update_params)
 
       other_functions = []
       other_compositions = []
