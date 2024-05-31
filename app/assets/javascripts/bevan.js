@@ -19,7 +19,7 @@ $( document ).ready(function(){
 		console.log(rowIndex);
 	    	var inputsToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input');
 		$('.body-row').eq(rowIndex).find('.clefs input').each(function(i,e) {
-			if (e.val().indexOf("(") !== -1 && e.target.val().indexOf(")") !== -1) {
+			if ($(e).val().indexOf("(") !== -1 && $(e).val().indexOf(")") !== -1) {
 				tally = tally + 1;
 			};
 		});
