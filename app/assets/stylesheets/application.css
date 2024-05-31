@@ -189,6 +189,13 @@ hr {
 }
 .inclusion.body-row > div.composition {
     order:2;
+    display:grid;
+    grid-template-rows:auto;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+}
+.inclusion.body-row > div.composition > *:nth-of-type(1),
+.inclusion.body-row > div.composition > *:nth-of-type(1) {
+    grid-column:1 / span 2;
 }
 .inclusion.body-row > div.clefs {
     order:3;
@@ -198,12 +205,6 @@ hr {
 }
 .inclusion.body-row > div.delete {
     order:5;
-}
-.inclusion.body-row > div.composition .sub-row {
-    display: flex;
-    width: 100%;
-    justify-content:space-between;
-    align-items:flex-start;
 }
 .inclusion.body-row > div.composition .voice-count {
     display:none;
