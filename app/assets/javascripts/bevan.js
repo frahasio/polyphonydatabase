@@ -15,18 +15,17 @@ $( document ).ready(function(){
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
 	$('.clefs input').on('change', function(e){
-		let row_to_update = $(e.target).parentsUntil('.body-row'),
-		    inputs_to_update = $(row_to_update).find('.voice-count input'),
-		    tally = 0;
-		console.log(row_to_update);
-		console.log(inputs_to_update);
-		$(row_to_update).find('.clefs input').each(function(i,e) {
+		console.log('hi');
+	    	var rowIndex = $(this).closest('.body-row').index('.body-row');
+		console.log(rowIndex);
+	    	var inputsToUpdate = $('.body-row')[rowIndex].find('.voice-count input');
+		$('.body-row')[rowIndex].find('.clefs input').each(function(i,e) {
 			if (e.val().indexOf("(") !== -1 && e.target.val().indexOf(")") !== -1) {
 				tally = tally + 1;
 			};
 		});
 		console.log(tally);
-		inputs_to_update.val(tally);
+		inputToUpdate.val(tally);
 	});
 });
 
