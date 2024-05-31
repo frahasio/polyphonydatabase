@@ -23,8 +23,8 @@ $( document ).ready(function(){
 		row_to_update.find('.clefs input').each(function(i,e) {
 			if (e.val().indexOf("(") !== -1 && e.target.val().indexOf(")") !== -1) {
 				tally = tally + 1;
-			}
-		}
+			};
+		});
 		console.log(tally);
 		inputs_to_update.val(tally);
 	});
