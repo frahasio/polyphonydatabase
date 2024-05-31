@@ -45,7 +45,7 @@
           <%= options_for_select(Composition::EVEN_ODD.invert) %>
         </select>
       </div>
-      <div class="col tiny">
+      <div class="col voice-count tiny">
         <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
           data: { "composition-target": "numberOfVoices" } %>
 
