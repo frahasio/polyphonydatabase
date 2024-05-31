@@ -174,7 +174,7 @@ hr {
 
 .header-row>div.tiny,
 .body-row .tiny {
-  flex: 1;
+   flex: 1;
 }
 .header-row > div.small,
 .body-row > div.small {
@@ -187,32 +187,26 @@ hr {
 .inclusion.body-row > div.order {
     order:1;
 }
-.inclusion.body-row > div.attributed-to {
+.inclusion.body-row > div.composition {
     order:2;
 }
-.inclusion.body-row > div.title {
+.inclusion.body-row > div.clefs {
     order:3;
 }
-.inclusion.body-row > div.language {
+.inclusion.body-row > div.notes {
     order:4;
 }
-.inclusion.body-row > div.type {
+.inclusion.body-row > div.delete {
     order:5;
 }
-.inclusion.body-row > div.clefs {
-    order:6;
+.inclusion.body-row > div.composition .sub-row {
+    display: flex;
+    width: 100%;
+    justify-content:space-between;
+    align-items:flex-start;
 }
-.inclusion.body-row > div.tone {
-    order:7;
-}
-.inclusion.body-row > div.even-odd {
-    order:8;
-}
-.inclusion.body-row > div.notes {
-    order:9;
-}
-.inclusion.body-row > div.delete {
-    order:10;
+.inclusion.body-row > div.composition .voice-count {
+    display:none;
 }
 @media screen and (max-width:850px) {
   .body-row {
