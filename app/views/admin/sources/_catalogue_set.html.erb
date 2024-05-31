@@ -2,54 +2,58 @@
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
     <div class="col order tiny"><%= i.text_field :order %></div>
     <div data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
-      <div class="col attributed-to">
-        <ul class="composer">
-          <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
-            <li>
-              <%= a.text_field :text %>
-              <%= a.select :refers_to_id, composer_list, { include_blank: true }, data: { "composition-target": "composerId" } %>
-            </li>
-          <% end %>
-        </ul>
-        <span class="another-att-trigger">+</span>
+      <div class="sub-row">
+        <div class="col attributed-to">
+          <ul class="composer">
+            <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
+              <li>
+                <%= a.text_field :text %>
+                <%= a.select :refers_to_id, composer_list, { include_blank: true }, data: { "composition-target": "composerId" } %>
+              </li>
+            <% end %>
+          </ul>
+          <span class="another-att-trigger">+</span>
+        </div>
+  
+        <div class="col title" data-controller="title">
+          <% title = i.object.composition&.title %>
+          <%= select_tag :language, options_for_select(Title.languages.keys, title&.language), prompt: "Language..",
+            data: { "composition-target": "titleLanguage", "title-target": "languageSelect", action: "change->title#changeLanguage" } %>
+          <select class="title" data-composition-target="titleId" data-title-target="titleSelect"
+            data-language="<%= title&.language %>"
+            data-placeholder="<%= "Title" unless title.present? %>">
+            <% if title %>
+              <option value="<%= title.id %>" selected="true"><%= title.text %></option>
+            <% end %>
+          </select>
+        </div>
       </div>
 
-      <div class="col title" data-controller="title">
-        <% title = i.object.composition&.title %>
-        <%= select_tag :language, options_for_select(Title.languages.keys, title&.language), prompt: "Language..",
-          data: { "composition-target": "titleLanguage", "title-target": "languageSelect", action: "change->title#changeLanguage" } %>
-        <select class="title" data-composition-target="titleId" data-title-target="titleSelect"
-          data-language="<%= title&.language %>"
-          data-placeholder="<%= "Title" unless title.present? %>">
-          <% if title %>
-            <option value="<%= title.id %>" selected="true"><%= title.text %></option>
-          <% end %>
-        </select>
-      </div>
-
-      <div class="col type">
-        <select data-composition-target="typeId">
-          <option value="">Type..</option>
-          <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
-        </select>
-      </div>
-      <div class="col tone tiny">
-        <select data-composition-target="tone">
-          <option value="">Tone..</option>
-          <%= options_for_select(Composition::TONES.invert, selected: i.object.composition&.tone) %>
-        </select>
-      </div>
-      <div class="col even-odd tiny">
-        <select data-composition-target="evenOdd">
-          <option value="">Even/odd..</option>
-          <%= options_for_select(Composition::EVEN_ODD.invert) %>
-        </select>
-      </div>
-      <div class="col voice-count tiny">
-        <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
-          data: { "composition-target": "numberOfVoices" } %>
-
-        <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
+      <div class="sub-row">
+        <div class="col type">
+          <select data-composition-target="typeId">
+            <option value="">Type..</option>
+            <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
+          </select>
+        </div>
+        <div class="col tone tiny">
+          <select data-composition-target="tone">
+            <option value="">Tone..</option>
+            <%= options_for_select(Composition::TONES.invert, selected: i.object.composition&.tone) %>
+          </select>
+        </div>
+        <div class="col even-odd tiny">
+          <select data-composition-target="evenOdd">
+            <option value="">Even/odd..</option>
+            <%= options_for_select(Composition::EVEN_ODD.invert) %>
+          </select>
+        </div>
+        <div class="col voice-count tiny">
+          <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
+            data: { "composition-target": "numberOfVoices" } %>
+  
+          <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
+        </div>
       </div>
     </div>
 
