@@ -12,6 +12,24 @@ $( document ).ready(function(){
 	})
 });
 
+// Autoupdate voice count input as clefs are changed
+$( document ).ready(function(){
+	$('.clefs input').on('change', function(e){
+		let row_to_update = $(this).parentsUntil('.inclusion.body-row').find('voice-count input'),
+		    inputs_to_update = row_to_update.find('voice-count input'),
+		    tally = 0;
+		console.log(row_to_update);
+		console.log(inputs_to_update);
+		row_to_update.find('.clefs input').each(function(i,e) {
+			if (e.val().indexOf("(") !== -1 && e.target.val().indexOf(")") !== -1) {
+				tally = tally + 1;
+			}
+		}
+		console.log(tally);
+		inputs_to_update.val(tally);
+	});
+});
+
 // Toggle menu with burger button
 $( document ).ready(function(){
 	$('.burger').click(function(){
