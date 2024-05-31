@@ -15,8 +15,8 @@ $( document ).ready(function(){
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
 	$('.clefs input').on('change', function(e){
-		let row_to_update = $(this).parentsUntil('.inclusion.body-row').find('voice-count input'),
-		    inputs_to_update = row_to_update.find('voice-count input'),
+		let row_to_update = $(e.target).parentsUntil('.inclusion.body-row'),
+		    inputs_to_update = row_to_update.find('.voice-count input'),
 		    tally = 0;
 		console.log(row_to_update);
 		console.log(inputs_to_update);
