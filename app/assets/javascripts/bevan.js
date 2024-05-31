@@ -16,8 +16,9 @@ $( document ).ready(function(){
 $( document ).ready(function(){
 	$('.clefs input').on('change', function(e){
 	    	var rowIndex = $(this).closest('.body-row').index('.body-row');
-		console.log(rowIndex);
+	    	var tally = 0;
 	    	var inputsToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input');
+		console.log(rowIndex);
 		$('.body-row').eq(rowIndex).find('.clefs input').each(function(i,e) {
 			if ($(e).val().indexOf("(") !== -1 && $(e).val().indexOf(")") !== -1) {
 				tally = tally + 1;
