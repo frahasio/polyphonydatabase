@@ -197,7 +197,7 @@ hr {
     grid-column:1 / span 2;
 }
 .inclusion.body-row > div.composition > *:nth-of-type(2) {
-    grid-column:1 / span 3;
+    grid-column:3 / span 3;
 }
 .inclusion.body-row > div.clefs {
     order:3;
