@@ -2,7 +2,7 @@
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
     <div class="col order tiny"><%= i.text_field :order %></div>
     <div class="composition" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
-      <div class="sub-row">
+
         <div class="col attributed-to">
           <ul class="composer">
             <%= i.fields_for(:attributions, builder: ActionView::Helpers::FormBuilder) do |a| %>
@@ -27,9 +27,7 @@
             <% end %>
           </select>
         </div>
-      </div>
 
-      <div class="sub-row">
         <div class="col type">
           <select data-composition-target="typeId">
             <option value="">Type..</option>
@@ -54,7 +52,7 @@
   
           <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
         </div>
-      </div>
+
     </div>
 
     <div class="col clefs large">
