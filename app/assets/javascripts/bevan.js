@@ -19,7 +19,7 @@ $( document ).ready(function(){
 	    	var tally = 0;
 	    	var inputsToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input');
 		console.log(rowIndex);
-		$('.body-row').eq(rowIndex).find('.clefs input').each(function(i,e) {
+		$('.body-row').eq(rowIndex).find('.clefs').children('input').each(function(i,e) {
 			if (!$(e).val() ||$(e).val().indexOf("(") !== -1 || $(e).val().indexOf(")") !== -1 || $(e).val().indexOf("bc") !== -1 || $(e).val().indexOf("lut") !== -1 || $(e).val().indexOf("org") !== -1) {
 				// do nothing
 			} else {
