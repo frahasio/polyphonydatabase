@@ -1,21 +1,45 @@
 module Admin
   class TitlesController < AdminControllerBase
     def index
-      @titles = Title
-        .includes(:functions)
-        .select("titles.*, count(inclusions.id) as inclusions_count")
-          .joins(compositions: :inclusions)
-          .group("titles.id")
-        .order(:text)
-        .page(params[:page])
-        .per(50)
+      respond_to do |format|
+        format.html {
+          @titles = Title
+            .includes(:functions)
+            .select("titles.*, count(inclusions.id) as inclusions_count")
+              .left_outer_joins(compositions: :inclusions)
+              .group("titles.id")
+            .order(:text)
+            .page(params[:page])
+            .per(50)
 
-      @functions = Function.order(:name)
+          @functions = Function.order(:name)
+        }
+
+        format.json {
+          titles = Title.search(params[:q]).order(:text)
+          titles = titles.where(language: params[:language]) if params[:language].present?
+
+          render json: {
+            results: titles.select(:id, :text).map {|t| { id: t.id, text: t.text } },
+            pagination: {
+              more: false,
+            }
+          }
+        }
+      end
+    end
+
+    def create
+      unless (title = Title.new(title_params)).save
+        flash[:error] = title.errors.full_messages.to_sentence
+      end
+
+      redirect_to params[:return_to].presence || admin_titles_path(page: params[:page])
     end
 
     def update_all
-      titles_to_update.each do |id, title_params|
-        update_title(id, title_params)
+      titles_to_update.each do |id, update_params|
+        update_title(id, update_params)
       end
 
       redirect_to admin_titles_path(page: params[:page])
@@ -23,16 +47,24 @@ module Admin
 
     private
 
-    def update_title(id, title_params)
+    def title_params
+      params.require(:title).permit(
+        :text,
+        :language,
+      )
+    end
+
+    def update_title(id, update_params)
       title = Title.find_by(id: id)
       return unless title
 
-      title_params = title_params.permit(
+      update_params = update_params.permit(
         :text,
+        :language,
         function_ids: [],
       )
 
-      title.assign_attributes(title_params)
+      title.assign_attributes(update_params)
 
       other_functions = []
       other_compositions = []

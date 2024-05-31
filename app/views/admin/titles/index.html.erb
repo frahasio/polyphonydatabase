@@ -1,36 +1,49 @@
 <h1>Edit titles</h1>
 
+<div class="topform">
+  <turbo-frame id="modal-contents">
+    <%= flash[:error] %>
+    <%= form_for [:admin, Title.new] do |f| %>
+      <p><%= f.text_field :text, label: "New title" %></p>
+      <p><%= f.select :language, Title::LANGUAGES, include_blank: true %></p>
+      <%= hidden_field_tag :return_to, params[:return_to] %>
+
+      <button>Create</button>
+    <% end %>
+  </turbo-frame>
+</div>
+
 <%= paginate @titles %>
 
 <%= form_tag update_all_admin_titles_path(page: params[:page]) do %>
   <div class="titles-editor">
-    
-      <div class="header-row">
-        <div>Title</div>
-        <div>Function</div>
-        <div class="tiny"># inclusions</div>
-      </div>
+    <div class="header-row">
+      <div>Title</div>
+      <div>Language</div>
+      <div>Function</div>
+      <div class="tiny"># inclusions</div>
+    </div>
 
-      <% function_options = @functions.map {|f| [f.name, f.id] } %>
-      <% @titles.each do |title| %>
-        <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
-          <div class="body-row">
-            <div><%= f.text_area :text %></div>
-            <div>
-              <%= f.select :function_ids,
-                function_options,
-                {},
-                {
-                  class: "select2",
-                  multiple: true
-                }
-              %>
-            </div>
-            <div class="tiny"><%= title.inclusions_count %></div>
+    <% function_options = @functions.map {|f| [f.name, f.id] } %>
+    <% @titles.each do |title| %>
+      <%= fields_for("titles[]", title, builder: ActionView::Helpers::FormBuilder) do |f| %>
+        <div class="body-row">
+          <div class="col"><%= f.text_area :text %></div>
+          <div class="col tiny"><%= f.select :language, Title::LANGUAGES, include_blank: true %></div>
+          <div class="col">
+            <%= f.select :function_ids,
+              function_options,
+              {},
+              {
+                class: "select2",
+                multiple: true
+              }
+            %>
           </div>
-        <% end %>
+          <div class="col tiny"><%= title.inclusions_count %></div>
+        </div>
       <% end %>
-    
+    <% end %>
   </div>
 
   <%= paginate @titles %>

@@ -103,7 +103,8 @@ CREATE TABLE public.clef_combinations (
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
     clef_ids integer[] DEFAULT '{}'::integer[],
-    sorting character varying
+    sorting character varying,
+    display character varying NOT NULL
 );
 
 
@@ -136,6 +137,42 @@ CREATE TABLE public.clef_combinations_voicings (
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL
 );
+
+
+--
+-- Name: clef_inclusions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clef_inclusions (
+    id bigint NOT NULL,
+    clef character varying NOT NULL,
+    inclusion_id bigint NOT NULL,
+    missing boolean DEFAULT false NOT NULL,
+    incomplete boolean DEFAULT false NOT NULL,
+    optional boolean DEFAULT false NOT NULL,
+    transitions_to character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: clef_inclusions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clef_inclusions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clef_inclusions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clef_inclusions_id_seq OWNED BY public.clef_inclusions.id;
 
 
 --
@@ -265,7 +302,8 @@ CREATE TABLE public.compositions (
     updated_at timestamp without time zone NOT NULL,
     composition_type_id bigint,
     tone integer,
-    even_odd integer
+    even_odd integer,
+    composer_id_list integer[]
 );
 
 
@@ -784,6 +822,13 @@ ALTER TABLE ONLY public.clef_combinations ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
+-- Name: clef_inclusions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions ALTER COLUMN id SET DEFAULT nextval('public.clef_inclusions_id_seq'::regclass);
+
+
+--
 -- Name: clefs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -924,6 +969,14 @@ ALTER TABLE ONLY public.attributions
 
 ALTER TABLE ONLY public.clef_combinations
     ADD CONSTRAINT clef_combinations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clef_inclusions clef_inclusions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions
+    ADD CONSTRAINT clef_inclusions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1078,6 +1131,13 @@ CREATE INDEX index_attributions_on_inclusion_id ON public.attributions USING btr
 
 
 --
+-- Name: index_clef_combinations_on_display; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clef_combinations_on_display ON public.clef_combinations USING btree (display);
+
+
+--
 -- Name: index_clef_combinations_voicings_on_clef_combination_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1089,6 +1149,27 @@ CREATE INDEX index_clef_combinations_voicings_on_clef_combination_id ON public.c
 --
 
 CREATE INDEX index_clef_combinations_voicings_on_voicing_id ON public.clef_combinations_voicings USING btree (voicing_id);
+
+
+--
+-- Name: index_clef_inclusions_on_clef; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_clef ON public.clef_inclusions USING btree (clef);
+
+
+--
+-- Name: index_clef_inclusions_on_clef_and_inclusion_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_clef_and_inclusion_id ON public.clef_inclusions USING btree (clef, inclusion_id);
+
+
+--
+-- Name: index_clef_inclusions_on_inclusion_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clef_inclusions_on_inclusion_id ON public.clef_inclusions USING btree (inclusion_id);
 
 
 --
@@ -1106,6 +1187,13 @@ CREATE INDEX index_composers_compositions_on_composer_id_and_composition_id ON p
 
 
 --
+-- Name: index_compositions_on_composer_id_list; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_compositions_on_composer_id_list ON public.compositions USING gin (composer_id_list);
+
+
+--
 -- Name: index_compositions_on_composition_type_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1120,6 +1208,13 @@ CREATE INDEX index_compositions_on_group_id ON public.compositions USING btree (
 
 
 --
+-- Name: index_compositions_on_number_of_voices; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_compositions_on_number_of_voices ON public.compositions USING btree (number_of_voices);
+
+
+--
 -- Name: index_compositions_on_number_of_voices_and_title_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1131,6 +1226,13 @@ CREATE INDEX index_compositions_on_number_of_voices_and_title_id ON public.compo
 --
 
 CREATE INDEX index_compositions_on_title_id ON public.compositions USING btree (title_id);
+
+
+--
+-- Name: index_compositions_on_unique_fields; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_compositions_on_unique_fields ON public.compositions USING btree (composer_id_list, composition_type_id, even_odd, number_of_voices, title_id, tone);
 
 
 --
@@ -1239,39 +1341,49 @@ CREATE INDEX search_vector_index ON public.recordings USING gin (search_vector);
 
 
 --
+-- Name: clef_inclusions fk_rails_69625a4135; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clef_inclusions
+    ADD CONSTRAINT fk_rails_69625a4135 FOREIGN KEY (inclusion_id) REFERENCES public.inclusions(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20170317194007'),
-('20170708111404'),
-('20170708201857'),
-('20170709115805'),
-('20170709123723'),
-('20170713192222'),
-('20170722110438'),
-('20170726133540'),
-('20170827061854'),
-('20180303151137'),
-('20180303154615'),
-('20180305122652'),
-('20180310200940'),
-('20180310204933'),
-('20180325125112'),
-('20180331135428'),
-('20180402152125'),
-('20180402172029'),
-('20180403134448'),
-('20180407115406'),
-('20180408131628'),
-('20180415144208'),
-('20180415150714'),
-('20180430120112'),
-('20180512153825'),
-('20180617135201'),
+('20240323204748'),
+('20240321193327'),
+('20240211130206'),
+('20230514115400'),
 ('20230505092834'),
-('20230514115400');
-
+('20180617135201'),
+('20180512153825'),
+('20180430120112'),
+('20180415150714'),
+('20180415144208'),
+('20180408131628'),
+('20180407115406'),
+('20180403134448'),
+('20180402172029'),
+('20180402152125'),
+('20180331135428'),
+('20180325125112'),
+('20180310204933'),
+('20180310200940'),
+('20180305122652'),
+('20180303154615'),
+('20180303151137'),
+('20170827061854'),
+('20170726133540'),
+('20170722110438'),
+('20170713192222'),
+('20170709123723'),
+('20170709115805'),
+('20170708201857'),
+('20170708111404'),
+('20170317194007');
 

@@ -3,14 +3,27 @@ module Admin
     def new
     end
 
-    def create
-      composer = Composer.create(composer_params)
+    def index
+      respond_to do |format|
+        format.json {
+          composers = Composer.search(params[:q]).order(:name)
 
-      unless composer.persisted?
+          render json: {
+            results: composers.select(:id, :name).map {|c| { id: c.id, text: c.name } },
+            pagination: {
+              more: false,
+            },
+          }
+        }
+      end
+    end
+
+    def create
+      unless (composer = Composer.new(composer_params)).save
         flash[:error] = composer.errors.full_messages.to_sentence
       end
 
-      redirect_to new_admin_composer_path
+      redirect_to params[:return_to] || new_admin_composer_path
     end
 
     def edit

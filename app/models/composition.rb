@@ -1,6 +1,6 @@
 class Composition < ApplicationRecord
-  belongs_to :title, inverse_of: :compositions
-  belongs_to :group
+  belongs_to :title, inverse_of: :compositions, optional: true
+  belongs_to :group, inverse_of: :compositions
   has_many :inclusions, inverse_of: :composition
   has_and_belongs_to_many :composers
   belongs_to :composition_type, inverse_of: :compositions, optional: true
@@ -30,9 +30,19 @@ class Composition < ApplicationRecord
   enum tone: TONES.keys
   enum even_odd: EVEN_ODD.keys
 
-  accepts_nested_attributes_for :title
+  before_validation :ensure_group
 
-  before_validation :ensure_group, :look_up_title
+  before_validation do
+    self.composer_id_list = composer_ids.sort
+  end
+
+  validates :title_id, uniqueness: { scope: %i[
+    composer_id_list
+    composition_type_id
+    even_odd
+    number_of_voices
+    tone
+  ] }
 
   def delete_if_empty(inclusion_to_ignore)
     if inclusions.empty? || inclusions == [inclusion_to_ignore]
@@ -41,17 +51,20 @@ class Composition < ApplicationRecord
     end
   end
 
+  def text
+    [
+      title.text,
+      composers.pluck(:name).join(', '),
+      composition_type&.name,
+      TONES[tone],
+      EVEN_ODD[even_odd],
+      ("#{number_of_voices} #{"voice".pluralize(number_of_voices)}" if number_of_voices),
+    ].compact_blank.join(' - ')
+  end
+
   private
 
   def ensure_group
     self.group ||= Group.new(display_title: title&.text)
-  end
-
-  def look_up_title
-    return if title.persisted?
-
-    if (existing_title = Title.find_by(text: self.title.text))
-      self.title = existing_title
-    end
   end
 end

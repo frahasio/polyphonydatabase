@@ -65,13 +65,12 @@
       <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
         <tr>
           <% source = inclusion.source %>
-          <% source_name = "#{truncate(source.title, length: 40, :escape => false)} (#{source.code})" %>
           <td class="source-name">
               <% if source.url.present? %>
                 <% if source.title.present? && source.title.length > 40 %>
                   <span class="tooltip">
                 <% end %>
-                    <%= link_to source_name, source.url, target: "_blank" %>
+                    <%= link_to source.short_name_and_code, source.url, target: "_blank" %>
                 <% if source.title.present? && source.title.length > 40 %>
                     <span class="tooltip-text"><%= "#{source.title}" %></span>
                   </span>
@@ -80,7 +79,7 @@
                 <% if source.title.present? && source.title.length > 40 %>
                   <span class="tooltip">
                 <% end %>
-                    <%= source_name %>
+                    <%= source.short_name_and_code %>
                 <% if source.title.present? && source.title.length > 40 %>
                     <span class="tooltip-text"><%= "#{source.title}" %></span>
                   </span>
@@ -102,8 +101,8 @@
           </td>
           <td class="clefs">
             <% if inclusion.clef_combination %>
-              <% notes_and_classes(inclusion).each do |(note, classes)| %>
-                <span class="<%= classes %>"><%= image_tag "clefs/#{note}.png", alt: note %></span>
+              <% clefs_and_classes(inclusion).each do |(clefs, classes)| %>
+                <span class="<%= classes %>"><%= image_tag "clefs/#{clefs}.png", alt: clefs %></span>
               <% end %>
             <% end %>
           </td>

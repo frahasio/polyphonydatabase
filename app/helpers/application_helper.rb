@@ -11,40 +11,26 @@ module ApplicationHelper
     file.close
   end
 
-  def note_for_image(clef, inclusion)
-    [clef.note, inclusion.transitions_to[clef.id.to_s]].compact.join
-  end
-
-  def notes_and_classes(inclusion)
-    both_ids = inclusion.both_clef_ids.to_a.dup
-    incomplete_ids = inclusion.incomplete_clef_ids.to_a.dup
-    missing_ids = inclusion.missing_clef_ids.to_a.dup
-
-    inclusion.clef_combination.sorted_clefs.map do |clef|
+  def clefs_and_classes(inclusion)
+    inclusion.clef_inclusions.sort_by(&:sort_value).map do |ci|
       [
-        note_for_image(clef, inclusion),
-        classes_for_image(clef, inclusion, both_ids, incomplete_ids, missing_ids)
+        clefs_for_image(ci),
+        classes_for_image(ci),
       ]
     end
   end
 
-  def classes_for_image(clef, inclusion, both_ids, incomplete_ids, missing_ids)
-    classes = ["clef-image"]
+  def clefs_for_image(ci)
+    [ci.clef, *ci.transitions_to].compact_blank.join
+  end
 
-    classes << "optional" if clef.optional?
-
-    if both_ids.include?(clef.id)
-      classes += ["missing", "incomplete"]
-      both_ids.delete_at(both_ids.index(clef.id))
-    elsif incomplete_ids.include?(clef.id)
-      classes << "incomplete"
-      incomplete_ids.delete_at(incomplete_ids.index(clef.id))
-    elsif missing_ids.include?(clef.id)
-      classes << "missing"
-      missing_ids.delete_at(missing_ids.index(clef.id))
-    end
-
-    classes.join(" ")
+  def classes_for_image(ci)
+    [
+      "clef-image",
+      ("optional" if ci.optional?),
+      ("missing" if ci.missing?),
+      ("incomplete" if ci.incomplete?)
+    ].compact.join(" ")
   end
 
   def anon_composer

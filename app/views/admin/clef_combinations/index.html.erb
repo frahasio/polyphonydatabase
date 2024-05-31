@@ -13,13 +13,13 @@
     <tbody>
       <% @clef_combinations.each do |combo| %>
         <tr>
-          <td><%= combo.sorted_clefs.map{|c| c.optional? ? "(#{c.note})" : c.note}.join %></td>
+          <td><%= combo.display %></td>
 
           <td>
             <%= fields_for "clef_combinations[]", combo do |f| %>
               <%= f.select :voicings,
                 options_for_select(
-                  Voicing.order(:text).map {|v| [v.text, v.id] },
+                  @voicings.map {|v| [v.text, v.id] },
                   combo.voicings.map(&:id),
                 ),
                 {},

@@ -1,4 +1,4 @@
-class Recording < ActiveRecord::Base
+class Recording < ApplicationRecord
   belongs_to :group
   belongs_to :performer, optional: true
 

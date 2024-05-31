@@ -1,4 +1,4 @@
-class Source < ActiveRecord::Base
+class Source < ApplicationRecord
   self.inheritance_column = :_type_disabled
 
   validates :code, presence: true, uniqueness: true
@@ -64,6 +64,14 @@ class Source < ActiveRecord::Base
     update_location_and_pubscribe
   end
 
+  def short_name_and_code
+    "#{short_name} (#{code})"
+  end
+
+  def short_name
+    title.truncate(40)
+  end
+
 private
 
   def update_dates_string
@@ -81,6 +89,6 @@ private
   end
 
   def unfilled?(attrs)
-    attrs.dig(:composition_attributes, :title_attributes, :text).blank?
+    attrs.dig(:composition_id).blank?
   end
 end

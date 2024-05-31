@@ -2,9 +2,12 @@ module Admin
   class ClefCombinationsController < AdminControllerBase
     def index
       @clef_combinations = ClefCombination
-        .order(:sorting)
+        .includes(:inclusions, :voicings)
+        .order(:display)
         .page(params[:page])
         .per(50)
+
+      @voicings = Voicing.order(:text)
     end
 
     def match

@@ -3,7 +3,7 @@
 
   <% group.compositions.each_with_index do |composition, index| %>
     <div class="body-row">
-      <div class="title">
+      <div class="col title">
         <%= composition.title.text %>
         <% if group.multiple? %>
           <% if index == 0 %>
@@ -16,7 +16,7 @@
           <% end %>
         <% end %>
       </div>
-      <div class="composers">
+      <div class="col composers">
         <% composition.composers.each do |composer| %>
           <div class="composer">
             <div class="name"><%= composer&.name %></div>
@@ -27,12 +27,12 @@
           </div>
         <% end %>
       </div>
-      <div class="minimum-voices tiny">
+      <div class="col minimum-voices tiny">
         <% if index == 0 %>
           <%= composition.number_of_voices %>
         <% end %>
       </div>
-      <div class="sources">
+      <div class="col sources">
         <table>
           <% composition.inclusions.map(&:source).sort_by(&:code).each do |source| %>
             <tr>
@@ -41,7 +41,7 @@
           <% end %>
         </table>
       </div>
-      <div>
+      <div class="col">
         <% if index == 0 %>
           <%= f.fields_for(:recordings, builder: ActionView::Helpers::FormBuilder) do |r| %>
             <div class="recording-upload">
@@ -51,7 +51,7 @@
           <% end %>
         <% end %>
       </div>
-      <div class="tiny">
+      <div class="col tiny">
         <% if index == 0 %>
           <button>Save</button>
         <% end %>
