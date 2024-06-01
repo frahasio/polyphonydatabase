@@ -1,9 +1,13 @@
 <% headings_partial ||= "headings" %>
 <% row_partial ||= "row" %>
 
-  <table class="sortable">
-    <%= render headings_partial %>
-    <% @groups.each do |group| %>
-      <%= render row_partial, group: group %>
-    <% end %>
+  <table class="sortable" data-sortable>
+    <thead>
+      <%= render headings_partial %>
+    </thead>
+    <tbody>
+      <% @groups.each do |group| %>
+        <%= render row_partial, group: group %>
+      <% end %>
+    </tbody>
   </table>
