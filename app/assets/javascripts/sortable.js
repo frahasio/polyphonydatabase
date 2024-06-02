@@ -1,4 +1,4 @@
-(function() {
+sortable = function() {
   var SELECTOR, addEventListener, clickEvents, numberRegExp, sortable, touchDevice, trimRegExp;
 
   SELECTOR = 'table[data-sortable]';
@@ -8,12 +8,6 @@
   trimRegExp = /^\s+|\s+$/g;
 
   clickEvents = ['click'];
-
-  touchDevice = 'ontouchstart' in document.documentElement;
-
-  if (touchDevice) {
-    clickEvents.push('touchstart');
-  }
 
   addEventListener = function(el, event, handler) {
     if (el.addEventListener != null) {
@@ -233,4 +227,6 @@
     window.Sortable = sortable;
   }
 
-}).call(this);
+};
+
+$(function () { sortable(this) });
