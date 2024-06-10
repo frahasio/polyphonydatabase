@@ -212,6 +212,10 @@ hr {
 .inclusion.body-row > div.composition .title #language {
     display:none;
 }
+.inclusion.body-row > div.composition .col.title .select2,
+.inclusion.body-row > div.composition .col.title .select2-selection{
+  height:64px;
+}
 @media screen and (max-width:850px) {
   .body-row {
     flex-wrap: wrap;
