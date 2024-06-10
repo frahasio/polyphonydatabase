@@ -1,8 +1,6 @@
 export default function addTitleSelect() {
   $(document).ready(function () {
     var select = $("select.title").select2({
-      multiple: true,
-      maximumSelectionSize: 1,
       ajax: {
         url: "/admin/titles",
         dataType: "json",
