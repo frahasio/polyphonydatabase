@@ -55,8 +55,9 @@ $(document).keydown(
 	    var sib = $(':focus').siblings('input').length;
 	    var par = $(':focus').closest('.body-row').index('.body-row');
 	    var prevpar = $('.body-row').eq(par - 1).find('.clefs').children('input').length;
-		if ($(':focus').parent().hasClass('clefs')) {
+		if ($(':focus').parent().parent().hasClass('clefs')) {
 			if (e.keyCode == 38) {  //MOVE UP
+				console.log('move up (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				if (mov < 8) {
 					if (prevpar > 32) {
 						mov = mov + 32;
@@ -76,6 +77,7 @@ $(document).keydown(
 				$('.body-row').eq(par - 1).find('.clefs').children().eq(mov).focus();
 			}
 			if (e.keyCode == 40) {    //MOVE DOWN
+				console.log('move down (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				if (sib > 31) {
 					if (mov > 31) {
 						mov = mov - 32;
@@ -107,19 +109,22 @@ $(document).keydown(
 				}
 				$('.body-row').eq(par + 1).find('.clefs').children().eq(mov).focus();
 			}
-		} else if ($(':focus').parent().hasClass('title')) {
+		} else if ($(':focus').parent().parent().hasClass('title')) {
 			if (e.keyCode == 38) {  //MOVE UP
+				console.log('move up (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				$('.body-row').eq(par - 1).find('.title').children('textarea').focus();
 			}
 			if (e.keyCode == 40) {  //MOVE DOWN
+				console.log('move down (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				$('.body-row').eq(par + 1).find('.title').children('textarea').focus();
 			}
-		} else if ($(':focus').parent().hasClass('notes')) {
-
+		} else if ($(':focus').parent().parent().hasClass('notes')) {
 			if (e.keyCode == 38) {  //MOVE UP
+				console.log('move up (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				$('.body-row').eq(par - 1).find('.notes').children('textarea').focus();
 			}
 			if (e.keyCode == 40) {  //MOVE DOWN
+				console.log('move down (' + mov + '|' + sib + '|' + par + '|' + prevpar + ')');
 				$('.body-row').eq(par + 1).find('.notes').children('textarea').focus();
 			}
 		}
