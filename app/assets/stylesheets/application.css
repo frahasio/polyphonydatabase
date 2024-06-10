@@ -208,7 +208,8 @@ hr {
 .inclusion.body-row > div.delete {
     order:5;
 }
-.inclusion.body-row > div.composition .voice-count {
+.inclusion.body-row > div.composition .voice-count,
+.inclusion.body-row > div.composition .title #language {
     display:none;
 }
 @media screen and (max-width:850px) {
@@ -456,7 +457,7 @@ form.admin option {
 }
 
 span.select2 {
-  max-width: 40vw;
+  max-width: 100%;
 }
 
 @media screen and (max-width:550px) {
