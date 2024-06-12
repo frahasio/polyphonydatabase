@@ -7,7 +7,9 @@
     </thead>
     <tbody>
       <% @groups.each do |group| %>
-        <%= render row_partial, group: group %>
+        <% if group.compositions.any? { |composition| composition.inclusions.count > 0 } %>
+          <%= render row_partial, group: group %>
+        <% end %>
       <% end %>
     </tbody>
   </table>
