@@ -14,7 +14,7 @@
           </ul>
           <span class="another-att-trigger">+</span>
         </div>
-  
+
         <div class="col title" data-controller="title">
           <% title = i.object.composition&.title %>
           <%= select_tag :language, options_for_select(Title.languages.keys, title&.language), prompt: "Language..",
@@ -49,7 +49,7 @@
         <div class="col voice-count tiny">
           <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
             data: { "composition-target": "numberOfVoices" } %>
-  
+
           <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
         </div>
 
@@ -66,7 +66,7 @@
     <div class="col notes"><%= i.text_area :notes %></div>
     <div class="col delete tiny">
       <% if i.object.persisted? %>
-        <%= link_to "✖", admin_inclusion_path(i.object), method: :delete, data: { turbo_confirm: "Are you sure?" } %>
+        <%= link_to "✖", admin_inclusion_path(i.object), data: { turbo: true, turbo_method: :delete, turbo_confirm: "Are you sure?" } %>
       <% end %>
     </div>
   </div>
