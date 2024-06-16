@@ -17,15 +17,11 @@
 
         <div class="col title" data-controller="title">
           <% title = i.object.composition&.title %>
-          <%= select_tag :language, options_for_select(Title.languages.keys, title&.language), prompt: "Language..",
-            data: { "composition-target": "titleLanguage", "title-target": "languageSelect", action: "change->title#changeLanguage" } %>
-          <select class="title" data-composition-target="titleId" data-title-target="titleSelect"
-            data-language="<%= title&.language %>"
-            data-placeholder="<%= "Title" unless title.present? %>">
-            <% if title %>
-              <option value="<%= title.id %>" selected="true"><%= title.text %></option>
-            <% end %>
-          </select>
+          <div data-controller="autocomplete" data-autocomplete-url-value="/admin/titles?autocomplete=true" role="combobox">
+            <%= text_field_tag :title, title&.text, data: { "autocomplete-target": "input" }, placeholder: "Title" %>
+            <input type="hidden" data-composition-target="titleId" data-autocomplete-target="hidden" />
+            <ul class="list-group" data-autocomplete-target="results"></ul>
+          </div>
         </div>
 
         <div class="col type">
