@@ -4,6 +4,9 @@ $( document ).ready(function(){
 		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	});
+	$('.autofill-type').click(function(){
+		$('.col.type select').val($('.col.type:first-of-type select').val());
+	});
 });
 
 // Autoupdate voice count input as clefs are changed
