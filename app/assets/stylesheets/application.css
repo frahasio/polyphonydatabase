@@ -156,11 +156,11 @@ hr {
 
 .cataloguing .header-row,
 .cataloguing .body-row {
-	  display: grid;
+    display: grid;
     grid-template-columns: 100px 3fr 1fr 100px;
 }
 .cataloguing .body-row .composition {
-	  display: grid;
+    display: grid;
     grid-template-rows: auto;
     grid-template-columns: 3fr 1fr 1fr 1fr 3fr;
 }
