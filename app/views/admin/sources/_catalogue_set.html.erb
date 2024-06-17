@@ -1,7 +1,7 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
-    <div class="col order tiny"><%= i.text_field :order %></div>
-    <div class="col composition large" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
+    <div class="col order"><%= i.text_field :order %></div>
+    <div class="col composition" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
 
         <div class="col attributed-to">
           <ul class="composer">
@@ -30,37 +30,38 @@
             <%= options_from_collection_for_select(CompositionType.all, :id, :name, i.object.composition&.composition_type_id) %>
           </select>
         </div>
-        <div class="col tone tiny">
+        <div class="col tone">
           <select data-composition-target="tone">
             <option value="">Tone..</option>
             <%= options_for_select(Composition::TONES.invert, selected: i.object.composition&.tone) %>
           </select>
         </div>
-        <div class="col even-odd tiny">
+        <div class="col even-odd">
           <select data-composition-target="evenOdd">
             <option value="">Even/odd..</option>
             <%= options_for_select(Composition::EVEN_ODD.invert) %>
           </select>
         </div>
-        <div class="col voice-count tiny">
+        <div class="col voice-count">
           <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
             data: { "composition-target": "numberOfVoices" } %>
 
           <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
         </div>
 
+        <div class="col clefs">
+          <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
+            <span data-controller="clef">
+              <%= ci.text_field :display, data: { action: "keyup->clef#change" } %>
+              <%= ci.hidden_field :_destroy, value: false, data: { "clef-target": "delete" } %>
+            </span>
+          <% end %>
+        </div>
+
     </div>
 
-    <div class="col clefs large">
-      <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
-        <span data-controller="clef">
-          <%= ci.text_field :display, data: { action: "keyup->clef#change" } %>
-          <%= ci.hidden_field :_destroy, value: false, data: { "clef-target": "delete" } %>
-        </span>
-      <% end %>
-    </div>
     <div class="col notes"><%= i.text_area :notes %></div>
-    <div class="col delete tiny">
+    <div class="col delete">
       <% if i.object.persisted? %>
         <%= link_to "✖", admin_inclusion_path(i.object), data: { turbo: true, turbo_method: :delete, turbo_confirm: "Are you sure?" } %>
       <% end %>
