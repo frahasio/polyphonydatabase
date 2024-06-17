@@ -63,11 +63,10 @@
   <%= paginate @inclusions %>
   <div class="cataloguing">
     <div class="header-row">
-      <div class="order tiny">Order</div>
-      <div class="composition large">Composition details  <a class="autofill-composers">autofill attrib/composer</a>  <a class="autofill-type">type</a>  <a class="autofill-evenodd">even/odd</a></div>
-      <div class="clefs large">Clefs</div>
+      <div class="order">Order</div>
+      <div class="composition large">Composition &amp; clefs <a class="autofill-composers">autofill attrib/composer</a>  <a class="autofill-type">type</a>  <a class="autofill-evenodd">even/odd</a></div>
       <div class="notes">Notes</div>
-      <div class="delete tiny">Delete</div>
+      <div class="delete">Delete</div>
     </div>
 
     <% composer_list = Composer.order(:name).map {|c| [c.name, c.id] } %>
