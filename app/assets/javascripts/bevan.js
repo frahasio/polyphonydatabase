@@ -8,11 +8,11 @@ $( document ).ready(function(){
 
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
-	$('.clefs input').on('change', function(e){
+	$('.clefs input').on('change keydown', function(e){
 	    	var rowIndex = $(this).closest('.body-row').index('.body-row');
 	    	var tally = 0;
 	    	var inputsToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input');
-		var compositionDiv = $('.body-row').eq(rowIndex).find('.composition');
+		var compositionDiv = $('.body-row').eq(rowIndex).find('.col.composition');
 		console.log(rowIndex);
 		$('.body-row').eq(rowIndex).find('.clefs input').each(function(i,e) {
 			console.log($(e).val());
@@ -25,7 +25,7 @@ $( document ).ready(function(){
 		});
 		console.log(tally);
 		inputsToUpdate.val(tally);
-		compositionDiv.trigger('focusout');
+		inputsToUpdate.trigger('focusout');
 	});
 });
 
