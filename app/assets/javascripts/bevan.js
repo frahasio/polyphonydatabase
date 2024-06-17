@@ -2,12 +2,15 @@
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
 		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
+		console.log($('ul.composer:first-of-type li:first-child select option:selected').val());
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select option:selected').val());
 	});
 	$('.autofill-type').click(function(){
+		console.log($('.col.type:first-of-type select option:selected').val());
 		$('.col.type select').val($('.col.type:first-of-type select option:selected').val());
 	});
 	$('.autofill-evenodd').click(function(){
+		console.log($('.col.even-odd:first-of-type select option:selected').val());
 		$('.col.even-odd select').val($('.col.even-odd:first-of-type select option:selected').val());
 	});
 });
