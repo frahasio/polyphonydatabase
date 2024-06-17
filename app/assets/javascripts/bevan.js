@@ -12,6 +12,7 @@ $( document ).ready(function(){
 	    	var rowIndex = $(this).closest('.body-row').index('.body-row');
 	    	var tally = 0;
 	    	var inputsToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input');
+	    	var compDiv = $('.body-row').eq(rowIndex).find('.col.composition');
 		$('.body-row').eq(rowIndex).find('.clefs input').each(function(i,e) {
 			if (!$(e).val() || $(e).attr('type') == 'hidden' || $(e).val().indexOf("(") !== -1 || $(e).val().indexOf(")") !== -1 || $(e).val().indexOf("bc") !== -1 || $(e).val().indexOf("lut") !== -1 || $(e).val().indexOf("org") !== -1) {
 				// do nothing
@@ -20,7 +21,7 @@ $( document ).ready(function(){
 			};
 		});
 		inputsToUpdate.val(tally);
-		inputsToUpdate.trigger('focusout');
+		compDiv.trigger('focusout');
 	});
 });
 
