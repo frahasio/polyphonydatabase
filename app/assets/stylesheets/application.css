@@ -181,6 +181,7 @@ hr {
 .cataloguing .body-row .composition .title {
     grid-column: 2 / span 3;
     grid-row: 1;
+    position:relative;
 }
 .cataloguing .body-row .composition .type {
     grid-column: 2;
