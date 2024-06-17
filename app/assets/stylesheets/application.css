@@ -214,8 +214,12 @@ hr {
 .inclusion.body-row .col.title .list-group {
   position:absolute;
   background-color:#fff;
+  border:1px solid black;
+  width:100%;
+}
+.inclusion.body-row .col.title .list-group li {
+  border-bottom:1px solid #cecece;
   padding:4px;
-  border:1px solid black
 }
 .inclusion.body-row .col.title .list-group li:hover {
   background-color:#91b9dc;
