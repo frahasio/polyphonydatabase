@@ -208,13 +208,18 @@ hr {
 .inclusion.body-row > div.delete {
     order:5;
 }
-.inclusion.body-row > div.composition .voice-count,
-.inclusion.body-row > div.composition .title #language {
+.inclusion.body-row > div.composition .voice-count {
     display:none;
 }
-.inclusion.body-row > div.composition .col.title .select2,
-.inclusion.body-row > div.composition .col.title .select2-selection{
-  height:64px;
+.inclusion.body-row .col.title .list-group {
+  position:absolute;
+  background-color:#fff;
+  padding:4px;
+  border:1px solid black
+}
+.inclusion.body-row .col.title .list-group li:hover {
+  background-color:#91b9dc;
+  cursor:pointer;
 }
 @media screen and (max-width:850px) {
   .body-row {
