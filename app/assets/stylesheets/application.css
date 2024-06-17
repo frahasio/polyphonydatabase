@@ -153,7 +153,17 @@ hr {
 }
 
 /* ===================== Admin tables as rows of grids ======================= */
-
+.header-row>div,
+.body-row .col {
+  background-color: lightgrey;
+  margin: 1px;
+  padding: 5px;
+  flex: 3;
+}
+.header-row>div {
+  color: white;
+  background-color: #104e8b;
+}
 .cataloguing .header-row,
 .cataloguing .body-row {
     display: grid;
@@ -190,6 +200,22 @@ hr {
 }
 .cataloguing .body-row .composition .voice-count {
     display:none;
+}
+.cataloguing .body-row .title .list-group {
+  position:absolute;
+  top:32px;
+  left:0;
+  background-color:#fff;
+  border:1px solid black;
+  width:100%;
+}
+.cataloguing .body-row .title .list-group li {
+  border-bottom:1px solid #cecece;
+  padding:4px;
+}
+.cataloguing .body-row .title .list-group li:hover {
+  background-color:#91b9dc;
+  cursor:pointer;
 }
 
 div table {
