@@ -12,6 +12,12 @@ module Admin
             .page(params[:page])
             .per(50)
 
+          if params[:autocomplete] == "true"
+            @titles = @titles.search(params[:q])
+            render partial: "autocomplete_results", layout: false
+            return
+          end
+
           @functions = Function.order(:name)
         }
 
