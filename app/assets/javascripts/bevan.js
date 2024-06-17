@@ -96,5 +96,6 @@ $(document).keydown(
 			}
 			$('.body-row').eq(row + 1).find('.clefs').children().eq(inp).children('input[type=text]').focus();
 		}
+	}
     }
 );
