@@ -5,9 +5,11 @@ $( document ).ready(function(){
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	});
 	$('.autofill-type').click(function(){
+		console.log($('.col.type:first-of-type select').val());
 		$('.col.type select').val($('.col.type:first-of-type select').val());
 	});
 	$('.autofill-evenodd').click(function(){
+		console.log($('.col.even-odd:first-of-type select').val());
 		$('.col.even-odd select').val($('.col.even-odd:first-of-type select').val());
 	});
 });
