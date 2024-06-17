@@ -14,7 +14,6 @@
           </ul>
           <span class="another-att-trigger">+</span>
         </div>
-
         <div class="col title" data-controller="title">
           <% title = i.object.composition&.title %>
           <div data-controller="autocomplete" data-autocomplete-url-value="/admin/titles?autocomplete=true" role="combobox">
@@ -23,7 +22,6 @@
             <ul class="list-group" data-autocomplete-target="results"></ul>
           </div>
         </div>
-
         <div class="col type">
           <select data-composition-target="typeId">
             <option value="">Type..</option>
@@ -45,10 +43,7 @@
         <div class="col voice-count">
           <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
             data: { "composition-target": "numberOfVoices" } %>
-
-          <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
         </div>
-
         <div class="col clefs">
           <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
             <span data-controller="clef">
@@ -57,6 +52,8 @@
             </span>
           <% end %>
         </div>
+
+        <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
 
     </div>
 
