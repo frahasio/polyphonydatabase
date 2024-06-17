@@ -1,17 +1,18 @@
 // Autofill composers with values in first inclusion row
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
+		console.log($('ul.composer:first-of-type li:first-child input').val());
 		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
-		console.log($('ul.composer:first-of-type li:first-child select option:selected').val());
-		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select option:selected').val());
+		console.log($('ul.composer:first-of-type li:first-child select').val());
+		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	});
 	$('.autofill-type').click(function(){
-		console.log($('.col.type:first-of-type select option:selected').val());
-		$('.col.type select').val($('.col.type:first-of-type select option:selected').val());
+		console.log($('div.col.type:first-of-type select').val());
+		$('div.col.type select').val($('div.col.type:first-of-type select').val());
 	});
 	$('.autofill-evenodd').click(function(){
-		console.log($('.col.even-odd:first-of-type select option:selected').val());
-		$('.col.even-odd select').val($('.col.even-odd:first-of-type select option:selected').val());
+		console.log($('div.col.even-odd:first-of-type select').val());
+		$('div.col.even-odd select').val($('div.col.even-odd:first-of-type select').val());
 	});
 });
 
