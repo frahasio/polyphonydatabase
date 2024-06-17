@@ -7,6 +7,9 @@ $( document ).ready(function(){
 	$('.autofill-type').click(function(){
 		$('.col.type select').val($('.col.type:first-of-type select').val());
 	});
+	$('.autofill-evenodd').click(function(){
+		$('.col.even-odd select').val($('.col.even-odd:first-of-type select').val());
+	});
 });
 
 // Autoupdate voice count input as clefs are changed
