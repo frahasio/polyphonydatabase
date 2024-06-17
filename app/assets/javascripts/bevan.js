@@ -44,7 +44,7 @@ $(document).keydown(
 		var inp = $(':focus').parent().index();
 		var sib = $(':focus').parent().siblings().length;
 		var row = $(':focus').closest('.body-row').index('.body-row');
-		var prevrow = $('.body-row').eq(par - 1).find('.clefs').children('input').length;
+		var prevrow = $('.body-row').eq(row - 1).find('.clefs').children('input').length;
 		if (e.keyCode == 38) {  //MOVE UP
 			if (inp < 8) {
 				if (prevrow > 32) {
