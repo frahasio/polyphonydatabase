@@ -211,8 +211,13 @@ hr {
 .inclusion.body-row > div.composition .voice-count {
     display:none;
 }
+.inclusion.body-row .col.title > div {
+  position:relative;
+}
 .inclusion.body-row .col.title .list-group {
   position:absolute;
+  top:32px;
+  left:0;
   background-color:#fff;
   border:1px solid black;
   width:100%;
