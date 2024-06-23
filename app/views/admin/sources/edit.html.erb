@@ -9,7 +9,13 @@
 
 <hr>
 
-<%= form_for([:admin, @source], url: admin_source_path(@source, page: params[:page])) do |f| %>
+<%= form_for([:admin, @source], url: admin_source_path(@source, page: params[:page]),
+  html: {
+    data: {
+      controller: "source",
+      action: "composition:saveComplete->source#saveComplete submit->source#submit",
+    }
+  }) do |f| %>
   <div class="basics">
       <div class="label"><%= f.text_field :code %></div>
       <div class="label"><%= f.text_area :title %></div>

@@ -52,18 +52,22 @@ export default class extends Controller {
     })
     .then(response => {
       if (response.ok) {
-        response.json().then(data => {
-          if (data.id) {
-            this.compositionIdTarget.value = data.id
-            this.showSuccess.bind(this)()
-          }
-        })
+        return response.json()
       } else {
-        this.showError.bind(this)()
+        throw new Error("Network response was not ok")
+      }
+    })
+    .then(data => {
+      if (data.id) {
+        this.compositionIdTarget.value = data.id
+        this.showSuccess.bind(this)()
       }
     })
     .catch(() => {
       this.showError.bind(this)()
+    })
+    .finally(() => {
+      this.dispatch("saveComplete")
     })
   }
 

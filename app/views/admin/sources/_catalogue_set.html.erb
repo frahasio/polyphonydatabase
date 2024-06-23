@@ -1,7 +1,8 @@
 <%= f.fields_for(:inclusions, inclusions, builder: ActionView::Helpers::FormBuilder) do |i| %>
   <div class="inclusion body-row" id="<%= dom_id(i.object) if i.object.persisted? %>">
     <div class="col order"><%= i.text_field :order %></div>
-    <div class="col composition" data-controller="composition" data-action="focusout->composition#focusout focusin->composition#focusin">
+    <div class="col composition" data-controller="composition"
+      data-action="focusin->composition#focusin focusout->composition#focusout focusout->source#markSaveInProgress">
 
         <div class="col attributed-to">
           <ul class="composer">
