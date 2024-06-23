@@ -37,7 +37,7 @@
         <div class="col even-odd">
           <select data-composition-target="evenOdd">
             <option value="">Even/odd..</option>
-            <%= options_for_select(Composition::EVEN_ODD.invert) %>
+            <%= options_for_select(Composition::EVEN_ODD.invert, selected: i.object.composition&.even_odd) %>
           </select>
         </div>
         <div class="col voice-count">
