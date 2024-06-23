@@ -18,7 +18,7 @@
           <% title = i.object.composition&.title %>
           <div data-controller="autocomplete" data-autocomplete-url-value="/admin/titles?autocomplete=true" role="combobox">
             <%= text_field_tag :title, title&.text, data: { "autocomplete-target": "input" }, placeholder: "Title" %>
-            <input type="hidden" data-composition-target="titleId" data-autocomplete-target="hidden" />
+            <input type="hidden" data-composition-target="titleId" data-autocomplete-target="hidden" value="<%= title&.id %>" />
             <ul class="list-group" data-autocomplete-target="results"></ul>
           </div>
         </div>
