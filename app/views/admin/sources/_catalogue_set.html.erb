@@ -17,7 +17,7 @@
         <div class="col title" data-controller="title">
           <% title = i.object.composition&.title %>
           <div data-controller="autocomplete" data-autocomplete-url-value="/admin/titles?autocomplete=true" role="combobox">
-            <%= text_field_tag :title, title&.text, data: { "autocomplete-target": "input" }, placeholder: "Title" %>
+            <%= text_field_tag :title, title&.text, data: { "autocomplete-target": "input", "composition-target": "titleText" }, placeholder: "Title", id: "" %>
             <input type="hidden" data-composition-target="titleId" data-autocomplete-target="hidden" value="<%= title&.id %>" />
             <ul class="list-group" data-autocomplete-target="results"></ul>
           </div>
@@ -43,7 +43,6 @@
         <div class="col voice-count">
           <%= text_field_tag :number_of_voices, i.object.composition&.number_of_voices,
             data: { "composition-target": "numberOfVoices" } %>
-          <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
         </div>
         <div class="col clefs">
           <%= i.fields_for(:clef_inclusions, i.object.clef_inclusions.to_a.sort_by(&:sort_value), builder: ActionView::Helpers::FormBuilder) do |ci| %>
@@ -53,7 +52,7 @@
             </span>
           <% end %>
         </div>
-
+        <%= i.hidden_field :composition_id, data: { "composition-target": "compositionId" } %>
     </div>
 
     <div class="col notes"><%= i.text_area :notes %></div>
