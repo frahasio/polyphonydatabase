@@ -7,6 +7,7 @@ export default class extends Controller {
     "evenOdd",
     "numberOfVoices",
     "titleId",
+    "titleText",
     "tone",
     "typeId"
   ]
@@ -32,6 +33,7 @@ export default class extends Controller {
 
     const compositionData = {
       title_id: this.titleIdTarget.value,
+      title_text: this.titleTextTarget.value,
       composer_ids: selectedComposerIds,
       composition_type_id: this.typeIdTarget.value,
       tone: this.toneTarget.value,
@@ -50,18 +52,22 @@ export default class extends Controller {
     })
     .then(response => {
       if (response.ok) {
-        response.json().then(data => {
-          if (data.id) {
-            this.compositionIdTarget.value = data.id
-            this.showSuccess.bind(this)()
-          }
-        })
+        return response.json()
       } else {
-        this.showError.bind(this)()
+        throw new Error("Network response was not ok")
+      }
+    })
+    .then(data => {
+      if (data.id) {
+        this.compositionIdTarget.value = data.id
+        this.showSuccess.bind(this)()
       }
     })
     .catch(() => {
       this.showError.bind(this)()
+    })
+    .finally(() => {
+      this.dispatch("saveComplete")
     })
   }
 

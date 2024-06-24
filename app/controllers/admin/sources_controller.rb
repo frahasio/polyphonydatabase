@@ -24,7 +24,7 @@ module Admin
       @inclusions.each do |i|
         i.composition ||= Composition.new(title: Title.new)
         i.attributions.build
-        (8 - i.clef_inclusions.size).times { i.clef_inclusions.build }
+        (8 - (i.clef_inclusions.size % 8)).times { i.clef_inclusions.build }
       end
 
       if @inclusions.last_page? || @inclusions.total_pages == 0

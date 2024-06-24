@@ -52,9 +52,9 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       composition_params[:title_id].to_i
     else
       Title.find_or_create_by!(
-        text: composition_params[:title_id],
+        text: composition_params[:title_text],
         language: composition_params[:title_language].presence,
-      ).id if composition_params[:title_id].present?
+      ).id if composition_params[:title_text].present?
     end
 
     composer_ids = Array(composition_params[:composer_ids]).map do |composer_id|
@@ -68,7 +68,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     end.compact.sort
 
     other_params = composition_params
-      .except(:title_id, :title_language, :composer_ids)
+      .except(:title_id, :title_text, :title_language, :composer_ids)
       .transform_values(&:presence)
 
     if all_blank?(title_id, composer_ids, other_params)
@@ -117,6 +117,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       :number_of_voices,
       :title_id,
       :title_language,
+      :title_text,
       :tone,
       composer_ids: [],
     )
