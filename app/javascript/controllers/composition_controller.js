@@ -62,7 +62,7 @@ export default class extends Controller {
     })
     .then(data => {
       if (data.id) {
-        this.compositionIdTarget.value = data.id;
+        this.compositionIdTarget.value = data.id
         this.showSuccess.bind(this)()
       }
     })
