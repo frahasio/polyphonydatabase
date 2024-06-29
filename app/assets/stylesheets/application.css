@@ -138,6 +138,10 @@ input[type=submit] {
   cursor: pointer;
 }
 
+.select2 button {
+  min-width: initial;
+}
+
 button:hover,
 input[type=submit]:hover {
   background-color: #2e6ca9;
