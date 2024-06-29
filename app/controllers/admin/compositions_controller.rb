@@ -50,11 +50,8 @@ class Admin::CompositionsController < Admin::AdminControllerBase
   def find_or_create
     title_id = if composition_params[:title_id] =~ /\A\d+\z/
       composition_params[:title_id].to_i
-    else
-      Title.find_or_create_by!(
-        text: composition_params[:title_text],
-        language: composition_params[:title_language].presence,
-      ).id if composition_params[:title_text].present?
+    elsif composition_params[:title_text].present?
+      Title.find_or_create_by!(text: composition_params[:title_text]).id
     end
 
     composer_ids = Array(composition_params[:composer_ids]).map do |composer_id|
