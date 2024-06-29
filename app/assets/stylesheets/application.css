@@ -153,8 +153,8 @@ hr {
 }
 
 /* ===================== Admin tables as rows of grids ======================= */
-.header-row.grouping,
-.body-row.grouping {
+.adminwrapper .header-row,
+.adminwrapper .body-row {
   display:grid;
 }
 .header-row>div,
