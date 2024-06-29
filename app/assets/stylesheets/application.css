@@ -153,6 +153,10 @@ hr {
 }
 
 /* ===================== Admin tables as rows of grids ======================= */
+.header-row.grouping,
+.body-row.grouping {
+  display:grid;
+}
 .header-row>div,
 .body-row .col {
   background-color: lightgrey;
@@ -164,9 +168,12 @@ hr {
   color: white;
   background-color: #104e8b;
 }
+.grouping .header-row,
+.grouping .body-row {
+  grid-template-columns: 100px 5fr 3fr 1fr 3fr;
+}
 .cataloguing .header-row,
 .cataloguing .body-row {
-  display: grid;
   grid-template-columns: 100px 3fr 1fr 100px;
 }
 .cataloguing .body-row .composition {
