@@ -74,7 +74,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
       composition = Composition.find_by(title_id:, composer_id_list: composer_ids, **other_params) ||
         Composition.create!(title_id:, composer_ids:, **other_params)
 
-      render json: { id: composition.id }
+      render json: { id: composition.id, titleidcheck: title_id }
     end
   end
 
