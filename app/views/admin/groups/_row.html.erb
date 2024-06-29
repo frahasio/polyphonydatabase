@@ -1,5 +1,5 @@
 <% group.compositions.each_with_index do |composition, index| %>
-  <div class="body-row <% if group.multiple? %><%= 'first-' if index.zero? %>in-group<% end %>">
+  <div class="body-row grouping <% if group.multiple? %><%= 'first-' if index.zero? %>in-group<% end %>">
     <div class="col tiny">
       <% if index.zero? %>
         <%= check_box_tag "groups[]", group.id %>
