@@ -1,12 +1,16 @@
 <h1>Composition grouping</h1>
 
-<%= render "groups/filters", search_path: admin_groups_path %>
-<%= form_tag merge_admin_groups_path(request.query_parameters) do %>
-  <%= render "groups/table" %>
+<div class="grouping">
 
-  <span class="save-button">
-    <label>Display title: <%= text_field_tag :display_title %></label>
-    <p>(Will use the first composition's title if left blank)</p>
-    <button>Group</button>
-  </span>
+  <%= render "groups/filters", search_path: admin_groups_path %>
+  <%= form_tag merge_admin_groups_path(request.query_parameters) do %>
+    <%= render "groups/table" %>
+  
+    <span class="save-button">
+      <label>Display title: <%= text_field_tag :display_title %></label>
+      <p>(Will use the first composition's title if left blank)</p>
+      <button>Group</button>
+    </span>
+
+</div>
 <% end %>
