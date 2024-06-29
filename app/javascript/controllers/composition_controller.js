@@ -41,6 +41,8 @@ export default class extends Controller {
       even_odd: this.evenOddTarget.value,
     }
 
+    console.log(compositionData);
+
     fetch("/admin/compositions/find-or-create", {
       method: "POST",
       headers: {
@@ -52,6 +54,7 @@ export default class extends Controller {
     })
     .then(response => {
       if (response.ok) {
+        console.log(response.json());
         return response.json()
       } else {
         throw new Error("Network response was not ok")
