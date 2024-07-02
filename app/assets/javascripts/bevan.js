@@ -4,6 +4,15 @@ $( document ).ready(function(){
 		$('ul.composer li:first-child input').val($('ul.composer:first-of-type li:first-child input').val());
 		$('ul.composer li:first-child select').val($('ul.composer:first-of-type li:first-child select').val());
 	});
+	$('.autofill-type').click(function(){
+		$('.cataloguing .body-row .composition .col.type select').val($('.cataloguing .body-row:first-of-type .composition .col.type select').val());
+	});
+	$('.autofill-tone').click(function(){
+		$('.cataloguing .body-row .composition .col.tone select').val($('.cataloguing .body-row:first-of-type .composition .col.tone select').val());
+	});
+	$('.autofill-even-odd').click(function(){
+		$('.cataloguing .body-row .composition .col.even-odd select').val($('.cataloguing .body-row:first-of-type .composition .col.even-odd select').val());
+	});
 });
 
 // Autoupdate voice count input as clefs are changed
