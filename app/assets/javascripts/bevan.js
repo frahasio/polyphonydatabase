@@ -1,36 +1,23 @@
 // Autofill composers with values in first inclusion row
 $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
-		$('.composition').each(function() {
-			$(this).find('ul.composer li:first-child input').val($('ul.composer:first li:first-child input').val());
-			$(this).find('ul.composer li:first-child select').val($('ul.composer:first li:first-child select').val());
-			$(this).trigger('focusout');
-		});
+		$('ul.composer li:first-child input').val($('ul.composer:first li:first-child input').val());
+		$('ul.composer li:first-child select').val($('ul.composer:first li:first-child select').val());
 	});
 	$('.autofill-type').click(function(){
-		$('.composition').each(function() {
-			$(this).find('.col.type select').val($('.col.type:first select').val());
-			$(this).trigger('focusout');
-		});
+		$('.col.type select').val($('.col.type:first select').val());
 	});
 	$('.autofill-tone').click(function(){
-		$('.composition').each(function() {
-			$(this).find('.col.tone select').val($('.col.tone:first select').val());
-			$(this).trigger('focusout');
-		});
+		$('.col.tone select').val($('.col.tone:first select').val());
 	});
 	$('.autofill-even-odd').click(function(){
-		$('.composition').each(function() {
-			$(this).find('.col.even-odd select').val($('.col.even-odd:first select').val());
-			$(this).trigger('focusout');
-		});
+		$('.col.even-odd select').val($('.col.even-odd:first select').val());
 	});
 });
 
 // Hide the autofill box when clicking away
 $( document ).ready(function(){
-	$('input[name="title"]').blur(function(){
-		console.log('blur');
+	$('input[name="title"]').on('focusout blur', function(){
 		$(this).siblings('ul').attr('hidden',true);
 	});
 });
