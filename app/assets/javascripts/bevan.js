@@ -19,6 +19,14 @@ $( document ).ready(function(){
 	});
 });
 
+// Hide the autofill box when clicking away
+$( document ).ready(function(){
+	$('.composition').blur(function(){
+		console.log('blur');
+		$('ul.list-group').attr("hidden",true);
+	)};
+)};
+
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
 	$('.clefs input').on('change focus', function(e){
