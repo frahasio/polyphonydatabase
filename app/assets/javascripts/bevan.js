@@ -3,15 +3,19 @@ $( document ).ready(function(){
 	$('.autofill-composers').click(function(){
 		$('ul.composer li:first-child input').val($('ul.composer:first li:first-child input').val());
 		$('ul.composer li:first-child select').val($('ul.composer:first li:first-child select').val());
+		$('.cataloguing .body-row .composition').trigger('focusout');
 	});
 	$('.autofill-type').click(function(){
 		$('.cataloguing .body-row .composition .col.type select').val($('.cataloguing .body-row:first .composition .col.type select').val());
+		$('.cataloguing .body-row .composition').trigger('focusout');
 	});
 	$('.autofill-tone').click(function(){
 		$('.cataloguing .body-row .composition .col.tone select').val($('.cataloguing .body-row:first .composition .col.tone select').val());
+		$('.cataloguing .body-row .composition').trigger('focusout');
 	});
 	$('.autofill-even-odd').click(function(){
 		$('.cataloguing .body-row .composition .col.even-odd select').val($('.cataloguing .body-row:first .composition .col.even-odd select').val());
+		$('.cataloguing .body-row .composition').trigger('focusout');
 	});
 });
 
