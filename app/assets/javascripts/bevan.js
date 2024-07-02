@@ -8,7 +8,7 @@ $( document ).ready(function(){
 
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
-	$('.clefs input').on('change', function(e){
+	$('.clefs input').on('change focus', function(e){
 	    	var rowIndex = $(this).closest('.body-row').index('.body-row');
 	    	var tally = 0;
 	    	var inputToUpdate = $('.body-row').eq(rowIndex).find('.voice-count input[data-composition-target="numberOfVoices"]');
@@ -19,6 +19,7 @@ $( document ).ready(function(){
 				tally = tally + 1;
 			};
 		});
+		console.log(tally);
 		inputToUpdate.val(tally);
 	});
 });
