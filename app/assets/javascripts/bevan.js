@@ -32,8 +32,8 @@ $( document ).ready(function(){
 	$('.composition').blur(function(){
 		console.log('blur');
 		$('ul.list-group').attr("hidden",true);
-	)};
-)};
+	});
+});
 
 // Autoupdate voice count input as clefs are changed
 $( document ).ready(function(){
