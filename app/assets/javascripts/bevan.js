@@ -29,9 +29,9 @@ $( document ).ready(function(){
 
 // Hide the autofill box when clicking away
 $( document ).ready(function(){
-	$('.composition').blur(function(){
+	$('input[name="title"]').blur(function(){
 		console.log('blur');
-		$('ul.list-group').attr("hidden",true);
+		$(this).siblings('ul').attr('hidden',true);
 	});
 });
 
