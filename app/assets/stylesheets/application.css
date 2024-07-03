@@ -253,6 +253,13 @@ div table td {
   min-width: auto;
 }
 
+@media screen and (max-width:600px) {
+  .adminwrapper .header-row,
+  .adminwrapper .body-row {
+    grid-template-columns:1fr !important;
+  }
+}
+
 /* ======================= Admin menu ==================== */
 .nav>* {
   display: block;
