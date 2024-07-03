@@ -253,7 +253,7 @@ div table td {
   min-width: auto;
 }
 
-@media screen and (max-width:600px) {
+@media screen and (max-width:960px) {
   .adminwrapper .header-row,
   .adminwrapper .body-row {
     grid-template-columns:1fr !important;
