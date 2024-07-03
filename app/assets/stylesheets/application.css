@@ -180,7 +180,7 @@ hr {
 .edition-uploads .body-row,
 .recording-links .header-row,
 .recording-links .body-row {
-  grid-template-columns: 5fr 2fr 60px 140px 3fr 100px;
+  grid-template-columns: 3fr 2fr 60px 140px 3fr 100px;
 }
 .cataloguing .header-row,
 .cataloguing .body-row {
