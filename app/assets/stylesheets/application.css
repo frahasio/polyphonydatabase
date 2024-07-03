@@ -176,10 +176,10 @@ hr {
 .grouping .body-row {
   grid-template-columns: 100px 5fr 3fr 1fr 3fr;
 }
-.edition-upload .header-row,
-.edition-upload .body-row,
-.recording-link .header-row,
-.recording-link .body-row {
+.edition-uploads .header-row,
+.edition-uploads .body-row,
+.recording-links .header-row,
+.recording-links .body-row {
   grid-template-columns: 5fr 2fr 60px 140px 3fr 100px;
 }
 .cataloguing .header-row,
