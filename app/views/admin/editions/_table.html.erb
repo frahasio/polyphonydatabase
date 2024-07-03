@@ -1,7 +1,7 @@
 <% headings_partial ||= "headings" %>
 <% row_partial ||= "row" %>
 
-  <div>
+  <div class="edition-upload">
     <%= render headings_partial %>
     <% @groups.each do |group| %>
       <%= render row_partial, group: group %>
