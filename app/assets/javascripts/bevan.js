@@ -32,8 +32,8 @@ $( document ).ready(function(){
 			} else {
 				tally = tally + 1;
 			};
-			colourClefs(this);
 		});
+		colourClefs(this);
 		console.log(tally);
 		$(this).closest('.body-row').find('.voice-count input').val(tally);
 	});
