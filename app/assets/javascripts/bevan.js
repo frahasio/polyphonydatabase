@@ -80,9 +80,13 @@ $( document ).ready(function(){
 $(document).keydown(
     function(e) {
 	if ($(':focus').parent().parent().hasClass('clefs')) {
-		var inp_index = $(':focus').parent().siblings().length;
+		var inp_index = $(':focus').parent().index();
 		var siblings_count = $(':focus').closest('.body-row').find('.clefs').children().length;
-		var in_reverse = 16 - inp_index;
+		var single_row_index = inp_index;
+		do {
+			single_row_index = single_row_index - 16;
+		} while (single_row_index > 16);
+		var in_reverse = 16 - single_row_index;
 		var this_row = $(':focus').closest('.body-row').index('.body-row');
 		if (e.keyCode == 38) {  // MOVE UP
 			if (inp_index < 16) {
@@ -95,11 +99,8 @@ $(document).keydown(
 			if (siblings_count > (inp_index + 16)) {
 				$('.body-row').eq(this_row).find('.clefs > *:nth-child(' + (inp_index + 16) + ')').children('input[type=text]').focus();
 			} else {
-				var i = inp_index;
-				do {i = i - 16;} while (i > 16);
-				$('.body-row').eq(this_row + 1).find('.clefs > *:nth-child(' + i + ')').children('input[type=text]').focus();
+				$('.body-row').eq(this_row + 1).find('.clefs > *:nth-child(' + single_row_index + ')').children('input[type=text]').focus();
 			}
-			$('.body-row').eq(row + 1).find('.clefs').children().eq(inp).children('input[type=text]').focus();
 		}
 	}
     }
