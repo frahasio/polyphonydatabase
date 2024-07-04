@@ -80,11 +80,11 @@ $( document ).ready(function(){
 $(document).keydown(
     function(e) {
 	if ($(':focus').parent().parent().hasClass('clefs')) {
-		var inp = $(':focus').parent().index();
-		var sib = $(':focus').parent().siblings().length;
+		var inp = $(':focus').parent().index() / 2;
+		var sib = ($(':focus').parent().siblings().length - 1) / 2;
 		var row = $(':focus').closest('.body-row').index('.body-row');
-		var prevrow = $('.body-row').eq(row - 1).find('.clefs').children('input').length;
-		if (e.keyCode == 38) {  //MOVE UP
+		var prevrow = $('.body-row').eq(row - 1).find('.clefs').children('input[type=text]').length;
+		if (e.keyCode == 38) {  // MOVE UP
 			if (inp < 8) {
 				if (prevrow > 32) {
 					row = row + 32;
@@ -103,7 +103,7 @@ $(document).keydown(
 			}
 			$('.body-row').eq(row - 1).find('.clefs').children().eq(inp).children('input[type=text]').focus();
 		}
-		if (e.keyCode == 40) {    //MOVE DOWN
+		if (e.keyCode == 40) {    // MOVE DOWN
 			if (sib > 31) {
 				if (inp > 31) {
 					inp = inp - 32;
