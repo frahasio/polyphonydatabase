@@ -49,7 +49,12 @@ function colourClefs(e) {
 		$(e).css('background-color','#5cd9ff78');
 	} else if ($(e).val().indexOf("/") !== -1) {
 		$(e).css('background-color','#a1afb378');
-	}		
+	} else if !$(e).val() {
+		$(e).css('background-color','#ffffff');
+	} else {
+		$(e).css('background-color','#ffffff');
+		$(e).css('border','1px solid #737373');
+	}
 }	
 $( document ).ready(function(){
 	$('.clefs input').each(function(i,e) {
