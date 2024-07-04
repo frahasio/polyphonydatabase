@@ -88,6 +88,7 @@ $(document).keydown(
 		} while (single_row_index > 16);
 		var in_reverse = 16 - single_row_index;
 		var this_row = $(':focus').closest('.body-row').index('.body-row');
+		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
 		if (e.keyCode == 38) {  // MOVE UP
 			if (inp_index < 16) {
 				$('.body-row').eq(this_row - 1).find('.clefs > *:nth-last-child(' + in_reverse + ')').children('input[type=text]').focus();
