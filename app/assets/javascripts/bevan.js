@@ -83,9 +83,9 @@ $(document).keydown(
 		var inp_index = $(':focus').closest('.body-row').find('.clefs input[type=text]').index($(':focus'));
 		var siblings_count = $(':focus').closest('.body-row').find('.clefs input[type=text]').length;
 		var single_row_index = inp_index;
-		do {
+		while (single_row_index >=8) {
 			single_row_index = single_row_index - 8;
-		} while (single_row_index >= 8);
+		};
 		var in_reverse = 8 - single_row_index;
 		var this_row = $(':focus').closest('.body-row').index('.body-row');
 		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
