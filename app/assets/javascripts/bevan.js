@@ -91,16 +91,16 @@ $(document).keydown(
 		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
 		if (e.keyCode == 38) {  // MOVE UP
 			if (inp_index < 8) {
-				$('.body-row').eq(this_row - 1).find('.clefs > *:nth-last-child(' + in_reverse + ')').children('input[type=text]').focus();
+				$('.body-row').eq(this_row - 1).find('.clefs input[type=text]:nth-last-of-type(' + in_reverse + ')').focus();
 			} else {
-				$('.body-row').eq(this_row).find('.clefs > *:nth-child(' + (inp_index - 8) + ')').children('input[type=text]').focus();
+				$('.body-row').eq(this_row).find('.clefs input[type=text]:nth-of-type(' + (inp_index - 8) + ')').focus();
 			}
 		}
 		if (e.keyCode == 40) {    // MOVE DOWN
 			if (siblings_count > (inp_index + 8)) {
-				$('.body-row').eq(this_row).find('.clefs > *:nth-child(' + (inp_index + 8) + ')').children('input[type=text]').focus();
+				$('.body-row').eq(this_row).find('.clefs input[type=text]:nth-of-type(' + (inp_index + 8) + ')').focus();
 			} else {
-				$('.body-row').eq(this_row + 1).find('.clefs > *:nth-child(' + single_row_index + ')').children('input[type=text]').focus();
+				$('.body-row').eq(this_row + 1).find('.clefs input[type=text]:nth-of-type(' single_row_index ')').focus();
 			}
 		}
 	}
