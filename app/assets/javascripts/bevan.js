@@ -54,7 +54,7 @@ function colourClefs(e) {
 $( document ).ready(function(){
 	$('.clefs input').each(function(i,e) {
 		colourClefs(e);
-	};
+	});
 });
 
 // Toggle menu with burger button
