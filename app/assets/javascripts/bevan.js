@@ -91,16 +91,16 @@ $(document).keydown(
 		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
 		if (e.keyCode == 38) {  // MOVE UP
 			if (inp_index < 8) {
-				$('.body-row').eq(this_row - 1).find('.clefs input[type=text]:nth-last-of-type(' + in_reverse + ')').focus();
+				$('.body-row').eq(this_row - 1).find('.clefs > span:nth-last-of-type(' + in_reverse + ')').find('input[type=text]').focus();
 			} else {
-				$('.body-row').eq(this_row).find('.clefs input[type=text]:nth-of-type(' + (inp_index - 8) + ')').focus();
+				$('.body-row').eq(this_row).find('.clefs > span:nth-of-type(' + (inp_index - 8) + ')').find('input[type=text]').focus();
 			}
 		}
-		if (e.keyCode == 40) {    // MOVE DOWN
+		if (e.keyCode == 40) {  // MOVE DOWN
 			if (siblings_count > (inp_index + 8)) {
-				$('.body-row').eq(this_row).find('.clefs input[type=text]:nth-of-type(' + (inp_index + 8) + ')').focus();
+				$('.body-row').eq(this_row).find('.clefs > span:nth-of-type(' + (inp_index + 8) + ')').find('input[type=text]').focus();
 			} else {
-				$('.body-row').eq(this_row + 1).find('.clefs input[type=text]:nth-of-type(' + single_row_index + ')').focus();
+				$('.body-row').eq(this_row + 1).find('.clefs > span:nth-of-type(' + single_row_index + ')').find('input[type=text]').focus();
 			}
 		}
 	}
