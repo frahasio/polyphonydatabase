@@ -86,7 +86,7 @@ $(document).keydown(
 		while (single_row_index > 8) {
 			single_row_index = single_row_index - 8;
 		};
-		var in_reverse = 8 - single_row_index;
+		var in_reverse = 9 - single_row_index;
 		var this_row = $(':focus').closest('.body-row').index('.body-row');
 		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
 		if (e.keyCode == 38) {  // MOVE UP
