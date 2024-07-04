@@ -80,7 +80,7 @@ $( document ).ready(function(){
 $(document).keydown(
     function(e) {
 	if ($(':focus').parent().parent().hasClass('clefs')) {
-		var inp_index = $(':focus').parent().index();
+		var inp_index = $(':focus').closest('.body-row').find('.clefs input[type=text]').index($(':focus'));
 		var siblings_count = $(':focus').closest('.body-row').find('.clefs').children().length;
 		var single_row_index = inp_index;
 		do {
