@@ -80,24 +80,24 @@ $( document ).ready(function(){
 $(document).keydown(
     function(e) {
 	if ($(':focus').parent().parent().hasClass('clefs')) {
-		var inp_index = $(':focus').closest('.body-row').find('.clefs input[type=text]').index($(':focus'));
+		var inp_index = $(':focus').closest('.body-row').find('.clefs input[type=text]').index($(':focus')) + 1;
 		var siblings_count = $(':focus').closest('.body-row').find('.clefs input[type=text]').length;
 		var single_row_index = inp_index;
-		while (single_row_index >=8) {
+		while (single_row_index > 8) {
 			single_row_index = single_row_index - 8;
 		};
 		var in_reverse = 8 - single_row_index;
 		var this_row = $(':focus').closest('.body-row').index('.body-row');
 		console.log(inp_index + ' | ' + siblings_count + ' | ' + single_row_index + ' | ' + in_reverse + ' | ' + this_row);
 		if (e.keyCode == 38) {  // MOVE UP
-			if (inp_index < 8) {
+			if (inp_index <= 8) {
 				$('.body-row').eq(this_row - 1).find('.clefs > span:nth-last-of-type(' + in_reverse + ')').find('input[type=text]').focus();
 			} else {
 				$('.body-row').eq(this_row).find('.clefs > span:nth-of-type(' + (inp_index - 8) + ')').find('input[type=text]').focus();
 			}
 		}
 		if (e.keyCode == 40) {  // MOVE DOWN
-			if (siblings_count > (inp_index + 8)) {
+			if (siblings_count >= (inp_index + 8)) {
 				$('.body-row').eq(this_row).find('.clefs > span:nth-of-type(' + (inp_index + 8) + ')').find('input[type=text]').focus();
 			} else {
 				$('.body-row').eq(this_row + 1).find('.clefs > span:nth-of-type(' + single_row_index + ')').find('input[type=text]').focus();
