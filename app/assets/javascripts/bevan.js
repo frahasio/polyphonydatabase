@@ -100,7 +100,7 @@ $(document).keydown(
 			if (siblings_count > (inp_index + 8)) {
 				$('.body-row').eq(this_row).find('.clefs input[type=text]:nth-of-type(' + (inp_index + 8) + ')').focus();
 			} else {
-				$('.body-row').eq(this_row + 1).find('.clefs input[type=text]:nth-of-type(' single_row_index ')').focus();
+				$('.body-row').eq(this_row + 1).find('.clefs input[type=text]:nth-of-type(' + single_row_index + ')').focus();
 			}
 		}
 	}
