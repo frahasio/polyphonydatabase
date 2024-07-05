@@ -45,8 +45,8 @@ function colourClefs(e) {
 		$(e).css('background-color','#ff8b797d');
 	} else if ($(e).val().indexOf("{") !== -1) {
 		$(e).css('background-color','#4ff5317d');
-	} else if ($(e).val().indexOf("/") !== -1) {
-		$(e).css('background-color','#5cd9ff78');
+	} else if ($(e).val().indexOf("(") !== -1) {
+		$(e).css('background-color','#edebeb');
 	} else if ($(e).val().indexOf("/") !== -1) {
 		$(e).css('background-color','#ffffff');
 		$(e).css('border','1px solid #46c6eb');
