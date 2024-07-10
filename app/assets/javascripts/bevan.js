@@ -17,8 +17,12 @@ $( document ).ready(function(){
 
 // Hide the autofill box when clicking away
 $( document ).ready(function(){
-	$('input[name="title"]').on('focusout blur', function(){
-		$(this).siblings('ul').attr('hidden',true);
+	$('input[name="title"]').on('focusout blur', function(e){
+		if (e.target.classList.contains('list-group') || e.target.classList.contains('list-group-item')) {
+		        // do nothing, autocomplete takes over
+		} else {
+			$(this).siblings('ul').attr('hidden',true);
+		}
 	});
 });
 
