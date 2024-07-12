@@ -9,6 +9,7 @@ class Composer < ApplicationRecord
   validate :years_are_valid
 
   ANON_NAME = "Anon".freeze
+  ANON_ID = 23
 
   def self.anon
     find_or_initialize_by(name: ANON_NAME)

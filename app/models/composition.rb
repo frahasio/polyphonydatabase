@@ -42,7 +42,11 @@ class Composition < ApplicationRecord
     even_odd
     number_of_voices
     tone
-  ] }
+  ] }, unless: :anon?
+
+  def anon?
+    composer_id_list == [Composer::ANON_ID]
+  end
 
   def delete_if_empty(inclusion_to_ignore)
     if inclusions.empty? || inclusions == [inclusion_to_ignore]

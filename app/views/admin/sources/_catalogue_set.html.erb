@@ -3,6 +3,7 @@
     <div class="col order"><%= i.text_field :order %></div>
     <div class="col composition" data-controller="composition"
       data-action="focusin->composition#focusin focusout->composition#focusout focusout->source#markSaveInProgress">
+        <input type="hidden" data-composition-target="inclusionId" data-autocomplete-target="hidden" value="<%= i.object&.id %>" />
 
         <div class="col attributed-to">
           <ul class="composer">
