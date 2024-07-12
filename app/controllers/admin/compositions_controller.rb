@@ -65,19 +65,26 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     end.compact.sort
 
     other_params = composition_params
-      .except(:title_id, :title_text, :title_language, :composer_ids)
+      .except(:title_id, :title_text, :title_language, :composer_ids, :inclusion_id)
       .transform_values(&:presence)
 
     if all_blank?(title_id, composer_ids, other_params)
       render json: { id: nil }
     else
-      composition = Composition.find_by(title_id:, composer_id_list: composer_ids, **other_params) ||
-        Composition.create!(title_id:, composer_ids:, **other_params)
+      composition = if composer_ids == [Composer::ANON_ID] && (inclusion_id = composition_params[:inclusion_id]).present?
+        Composition
+          .where(id: Inclusion.find(inclusion_id).composition_id)
+          .find_by(title_id:, composer_id_list: composer_ids, **other_params)
+      else
+        Composition.find_by(title_id:, composer_id_list: composer_ids, **other_params)
+      end
+
+      composition ||= Composition.create!(title_id:, composer_ids:, **other_params)
 
       render json: { id: composition.id, titleidcheck: title_id }
     end
   end
-
+# 113122
   def edit
     @composition = Composition.find(params[:id])
   end
@@ -111,6 +118,7 @@ class Admin::CompositionsController < Admin::AdminControllerBase
     params.require(:composition).permit(
       :composition_type_id,
       :even_odd,
+      :inclusion_id,
       :number_of_voices,
       :title_id,
       :title_language,
