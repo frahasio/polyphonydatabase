@@ -27,7 +27,6 @@ $( document ).ready(function(){
 			};
 		});
 		colourClefs(this);
-		console.log(tally);
 		$(this).closest('.body-row').find('.voice-count input').val(tally);
 	});
 });
@@ -36,9 +35,10 @@ $( document ).ready(function(){
 function colourClefs(e) {
 	let validClefs = ['g1','g2','g3','g4','g5','c1','c2','c3','c4','c5','f1','f2','f3','f4','f5','d1','d2','d3','d4','d5','y1','y2','y3','y4','y5','x1','x2','x3','x4','x5','lut','bc','org'];
 	let strippedClef = $(e).val().replace(/\(|\)|\[|\]|\{|\}/g,'').split('/')[0];
-	console.log(validClefs);
-	console.log(strippedClef);
-	if ($(e).val().indexOf("[") !== -1) {
+	if ($.inArray(strippedClef, validClefs) == -1) {
+		$(e).css('background-color','#ffffff');
+		$(e).css('border','1px solid red');
+	} else if ($(e).val().indexOf("[") !== -1) {
 		$(e).css('background-color','#ff8b797d');
 	} else if ($(e).val().indexOf("{") !== -1) {
 		$(e).css('background-color','#4ff5317d');
@@ -56,7 +56,7 @@ function colourClefs(e) {
 	}
 }	
 $( document ).ready(function(){
-	$('.clefs input').each(function(i,e) {
+	$('.clefs input:not([type=hidden])').each(function(i,e) {
 		colourClefs(e);
 	});
 });
