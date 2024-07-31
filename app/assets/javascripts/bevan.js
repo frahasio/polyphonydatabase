@@ -34,7 +34,7 @@ $( document ).ready(function(){
 // Colour code clef inputs
 function colourClefs(e) {
 	let validClefs = ['g1','g2','g3','g4','g5','c1','c2','c3','c4','c5','f1','f2','f3','f4','f5','d1','d2','d3','d4','d5','y1','y2','y3','y4','y5','x1','x2','x3','x4','x5','lut','bc','org'];
-	let strippedClef = $(e).val().replace(/\(|\)|\[|\]|\{|\}/g,'').split('/')[0];
+	let strippedClef = $(e).val().replace('(','').replace(')','').replace('[','').replace(']','').replace('{','').replace('}','').split('/')[0];
 	if (!$(e).val()) {
 		$(e).css('background-color','#ffffff');
 		$(e).css('border','none');
