@@ -46,7 +46,7 @@ function colourClefs(e) {
 	} else if (!$(e).val()) {
 		$(e).css('background-color','#ffffff');
 		$(e).css('border','none');
-	} else if (($(e).val().length > 2 && $(e).val().indexOf("/") == -1 && $(e).val().indexOf("[") == -1 && $(e).val().indexOf("(") == -1 || $(e).val().indexOf(" ") !== -1)) {
+	} else if (($(e).val().length > 2 && $(e).val().indexOf("/") == -1 && $(e).val().indexOf("[") == -1 && $(e).val().indexOf("{") == -1 && $(e).val().indexOf("(") == -1 || $(e).val().indexOf(" ") !== -1)) {
 		$(e).css('background-color','#ffffff');
 		$(e).css('border','1px solid red');
 	} else {
