@@ -45,6 +45,10 @@ function colourClefs(e) {
 		$(e).css('border','1px solid #46c6eb');
 	} else if (!$(e).val()) {
 		$(e).css('background-color','#ffffff');
+		$(e).css('border','none');
+	} else if (($(e).val().length > 2 && $(e).val().indexOf("/") == -1 && $(e).val().indexOf("[") == -1 && $(e).val().indexOf("(") == -1 || $(e).val().indexOf(" ") !== -1)) {
+		$(e).css('background-color','#ffffff');
+		$(e).css('border','1px solid red');
 	} else {
 		$(e).css('background-color','#ffffff');
 		$(e).css('border','1px solid #737373');
