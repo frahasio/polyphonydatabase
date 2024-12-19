@@ -62,7 +62,7 @@
   <td><%= group.compositions.first.number_of_voices %></td>
   <td>
     <table>
-      <% group.compositions.flat_map(&:inclusions).sort_by {|i| i.from_year || 0}.each do |inclusion| %>
+      <% group.compositions.flat_map(&:inclusions).sort_by {|i| [i.from_year || 0, i.position || 0]}.each do |inclusion| %>
         <tr>
           <% source = inclusion.source %>
           <td class="source-name">
