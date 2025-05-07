@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.get('/composers', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 12;
+    const limit = parseInt(req.query.limit as string) || 25;
     const letter = (req.query.letter as string) || '';
     const skip = (page - 1) * limit;
 

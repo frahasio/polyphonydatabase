@@ -131,8 +131,26 @@
     <script>
         let currentPage = 1;
         let currentLetter = '';
-        const limit = 12;
+        const limit = 25;
         let totalPages = 0;
+
+        // Function to update URL with current state
+        function updateURL() {
+            const params = new URLSearchParams();
+            if (currentPage > 1) params.set('page', currentPage.toString());
+            if (currentLetter) params.set('letter', currentLetter);
+            const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+            window.history.pushState({}, '', newURL);
+        }
+
+        // Function to get initial state from URL
+        function getInitialState() {
+            const params = new URLSearchParams(window.location.search);
+            const page = params.get('page');
+            const letter = params.get('letter');
+            if (page) currentPage = parseInt(page);
+            if (letter) currentLetter = letter.toUpperCase();
+        }
 
         function formatYearRange(composer) {
             const fromYear = composer.fromYear ? `${composer.fromYearAnnotation || ''}${composer.fromYear}` : '';
@@ -164,6 +182,7 @@
                     const firstLetter = data.composers[0].name.charAt(0).toUpperCase();
                     updateLetterFilter(firstLetter);
                 }
+                updateURL();
             } catch (error) {
                 console.error('Error:', error);
                 const composersList = document.getElementById('composersList');
@@ -277,6 +296,7 @@
                 // If a letter is selected, find the page where it begins
                 if (letter) {
                     try {
+                        // Get total count of composers before this letter
                         const response = await fetch(`/composers?letter=${letter}&limit=1`);
                         if (!response.ok) throw new Error('Failed to fetch composer page');
                         const data = await response.json();
@@ -323,8 +343,18 @@
             }
         });
 
-        // Load composers when the page loads
-        document.addEventListener('DOMContentLoaded', fetchComposers);
+        // Initialize from URL parameters
+        document.addEventListener('DOMContentLoaded', () => {
+            getInitialState();
+            // Set initial letter filter state
+            if (currentLetter) {
+                const letterButton = document.querySelector(`.letter-filter .btn[data-letter="${currentLetter}"]`);
+                if (letterButton) {
+                    letterButton.classList.add('active');
+                }
+            }
+            fetchComposers();
+        });
     </script>
 </body>
 </html> 
