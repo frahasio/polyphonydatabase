@@ -9,6 +9,30 @@ app.use(express.json());
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Get all composers (minimal data for list view)
+app.get('/composers', async (req: Request, res: Response) => {
+  try {
+    const composers = await prisma.composer.findMany({
+      select: {
+        id: true,
+        name: true,
+        fromYear: true,
+        toYear: true,
+        fromYearAnnotation: true,
+        imageUrl: true,
+        _count: {
+          select: {
+            compositions: true
+          }
+        }
+      }
+    });
+    res.json(composers);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch composers' });
+  }
+});
+
 // Get a single composer by ID
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
