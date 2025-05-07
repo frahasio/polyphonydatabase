@@ -8,30 +8,27 @@ app.use(express.json());
 // Get all composers
 app.get('/composers', async (req: Request, res: Response) => {
   try {
-    const composers = await prisma.composer.findMany({
-      include: {
-        compositions: {
-          select: {
-            composerId: true,
-            compositionId: true,
-            composition: {
-              select: {
-                id: true,
-                numberOfVoices: true,
-                groupId: true,
-                titleId: true,
-                compositionTypeId: true,
-                tone: true,
-                evenOdd: true,
-                composerIdList: true,
-                createdAt: true,
-                updatedAt: true
+    // First get all composer IDs
+    const composerIds = await prisma.composer.findMany({
+      select: { id: true }
+    });
+
+    // Then fetch each composer with their compositions
+    const composers = await Promise.all(
+      composerIds.map(async ({ id }) => {
+        return prisma.composer.findUnique({
+          where: { id },
+          include: {
+            compositions: {
+              include: {
+                composition: true
               }
             }
           }
-        }
-      }
-    });
+        });
+      })
+    );
+
     res.json(composers);
   } catch (error) {
     console.error('Error fetching composers:', error);
