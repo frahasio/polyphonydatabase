@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Composer {
+  id                Int       @id @default(autoincrement())
+  name              String?
+  fromYear          Int?
+  toYear            Int?
+  fromYearAnnotation String?
+  toYearAnnotation  String?
+  birthplace1       String?
+  birthplace2       String?
+  deathplace1       String?
+  deathplace2       String?
+  imageUrl          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  compositions      ComposerComposition[]
+  searchVector      Unsupported("tsvector")?
+
+  @@map("composers")
+}
+
+model ComposerComposition {
+  composerId    Int
+  compositionId Int
+  composer      Composer    @relation(fields: [composerId], references: [id])
+  composition   Composition @relation(fields: [compositionId], references: [id])
+
+  @@id([composerId, compositionId])
+  @@map("composers_compositions")
+}
+
+model Composition {
+  id                Int       @id @default(autoincrement())
+  numberOfVoices    Int?
+  groupId           Int?
+  titleId           Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  compositionTypeId Int?
+  tone              Int?
+  evenOdd           Int?
+  composerIdList    Int[]
+  composers         ComposerComposition[]
+
+  @@map("compositions")
+} 
