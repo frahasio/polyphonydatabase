@@ -12,18 +12,17 @@ datasource db {
 
 model Composer {
   id                Int                  @id @default(autoincrement())
-  name              String
-  fromYear          Int?
-  toYear            Int?
+  name              String?
+  fromYear          Int?                 @map("from_year")
+  toYear            Int?                 @map("to_year")
   fromYearAnnotation String?             @map("from_year_annotation")
   toYearAnnotation  String?             @map("to_year_annotation")
-  displayYears      String?             @map("display_years")
-  birthplace1       String?
-  birthplace2       String?
-  deathplace1       String?
-  deathplace2       String?
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  birthplace1       String?             @map("birthplace_1")
+  birthplace2       String?             @map("birthplace_2")
+  deathplace1       String?             @map("deathplace_1")
+  deathplace2       String?             @map("deathplace_2")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
   compositions      ComposerComposition[]
   searchVector      Unsupported("tsvector")? @map("search_vector")
 
