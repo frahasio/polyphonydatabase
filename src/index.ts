@@ -5,41 +5,6 @@ const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
 
-// Get all composers
-app.get('/composers', async (req: Request, res: Response) => {
-  try {
-    // Get all composers
-    const composers = await prisma.composer.findMany();
-
-    // Get all composer-composition relationships
-    const composerCompositions = await prisma.composerComposition.findMany({
-      include: {
-        composition: true
-      }
-    });
-
-    // Combine the data
-    const composersWithCompositions = composers.map(composer => ({
-      ...composer,
-      compositions: composerCompositions
-        .filter(cc => cc.composerId === composer.id)
-        .map(cc => ({
-          composerId: cc.composerId,
-          compositionId: cc.compositionId,
-          composition: cc.composition
-        }))
-    }));
-
-    res.json(composersWithCompositions);
-  } catch (error) {
-    console.error('Error fetching composers:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch composers',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
 // Get a single composer by ID
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
