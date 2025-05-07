@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import path from 'path';
 
 const prisma = new PrismaClient();
@@ -12,22 +12,52 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Get all composers (minimal data for list view)
 app.get('/composers', async (req: Request, res: Response) => {
   try {
-    const composers = await prisma.composer.findMany({
-      select: {
-        id: true,
-        name: true,
-        fromYear: true,
-        toYear: true,
-        fromYearAnnotation: true,
-        imageUrl: true,
-        _count: {
-          select: {
-            compositions: true
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 12;
+    const search = (req.query.search as string) || '';
+    const skip = (page - 1) * limit;
+
+    const where = search ? {
+      name: {
+        startsWith: search,
+        mode: Prisma.QueryMode.insensitive
+      }
+    } : {};
+
+    const [composers, total] = await Promise.all([
+      prisma.composer.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          fromYear: true,
+          toYear: true,
+          fromYearAnnotation: true,
+          imageUrl: true,
+          _count: {
+            select: {
+              compositions: true
+            }
           }
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          name: 'asc'
         }
+      }),
+      prisma.composer.count({ where })
+    ]);
+
+    res.json({
+      composers,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
+        limit
       }
     });
-    res.json(composers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch composers' });
   }
@@ -51,6 +81,7 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
     }
     res.json(composer);
   } catch (error) {
+    console.error('Error fetching composer:', error);
     res.status(500).json({ error: 'Failed to fetch composer' });
   }
 });

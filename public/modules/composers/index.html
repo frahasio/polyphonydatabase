@@ -5,64 +5,148 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Composers - Polyphony Database</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <style>
         .composer-card {
+            height: 100%;
             transition: transform 0.2s;
         }
         .composer-card:hover {
             transform: translateY(-5px);
         }
         .composer-image {
-            width: 100%;
             height: 200px;
             object-fit: cover;
-            border-radius: 8px 8px 0 0;
+        }
+        .search-container {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: white;
+            padding: 1rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .pagination-container {
+            position: sticky;
+            bottom: 0;
+            z-index: 1000;
+            background: white;
+            padding: 1rem 0;
+            border-top: 1px solid #dee2e6;
         }
     </style>
 </head>
 <body>
-    <div class="container py-5">
+    <div class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Composers</h1>
-            <div>
-                <a href="/modules/composers/new.html" class="btn btn-success me-2">Create New Composer</a>
-                <a href="/" class="btn btn-outline-secondary">Back to Home</a>
+            <a href="/" class="btn btn-outline-secondary">
+                <i class="bi bi-house"></i> Home
+            </a>
+        </div>
+
+        <div class="search-container mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search composers...">
+                        <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="btn-group" role="group" id="letterFilter">
+                        <button type="button" class="btn btn-outline-secondary active" data-letter="">All</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="A">A</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="B">B</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="C">C</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="D">D</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="E">E</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="F">F</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="G">G</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="H">H</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="I">I</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="J">J</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="K">K</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="L">L</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="M">M</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="N">N</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="O">O</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="P">P</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="Q">Q</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="R">R</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="S">S</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="T">T</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="U">U</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="V">V</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="W">W</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="X">X</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="Y">Y</button>
+                        <button type="button" class="btn btn-outline-secondary" data-letter="Z">Z</button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="row g-4" id="composersList">
-            <!-- Composers will be populated here -->
+            <!-- Composers will be loaded here -->
+        </div>
+
+        <div class="pagination-container mt-4">
+            <nav aria-label="Composer pagination">
+                <ul class="pagination justify-content-center" id="pagination">
+                    <!-- Pagination will be loaded here -->
+                </ul>
+            </nav>
         </div>
     </div>
 
     <script>
+        let currentPage = 1;
+        let currentSearch = '';
+        let currentLetter = '';
+        const limit = 12;
+
         async function fetchComposers() {
             try {
-                const response = await fetch('/composers');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch composers');
-                }
-                const composers = await response.json();
-                displayComposers(composers);
+                const response = await fetch(`/composers?page=${currentPage}&limit=${limit}&search=${currentSearch}`);
+                if (!response.ok) throw new Error('Failed to fetch composers');
+                const data = await response.json();
+                displayComposers(data.composers);
+                updatePagination(data.pagination);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to fetch composers');
+                document.getElementById('composersList').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            Failed to fetch composers. Please try again later.
+                        </div>
+                    </div>
+                `;
             }
         }
 
         function displayComposers(composers) {
             const container = document.getElementById('composersList');
-            container.innerHTML = '';
+            if (composers.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            No composers found matching your search criteria.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
 
-            composers.forEach(composer => {
-                const card = document.createElement('div');
-                card.className = 'col-md-4';
-                card.innerHTML = `
-                    <div class="card composer-card h-100">
+            container.innerHTML = composers.map(composer => `
+                <div class="col-md-4 col-lg-3">
+                    <div class="card composer-card">
                         ${composer.imageUrl ? 
-                            `<img src="${composer.imageUrl}" alt="${composer.name}" class="composer-image">` :
-                            `<div class="composer-image bg-light d-flex align-items-center justify-content-center">
-                                <span class="text-muted">No image available</span>
+                            `<img src="${composer.imageUrl}" class="card-img-top composer-image" alt="${composer.name}">` :
+                            `<div class="card-img-top composer-image bg-light d-flex align-items-center justify-content-center">
+                                <i class="bi bi-person" style="font-size: 4rem;"></i>
                             </div>`
                         }
                         <div class="card-body">
@@ -73,18 +157,107 @@
                             </p>
                             <p class="card-text">
                                 <small class="text-muted">
-                                    ${composer._count.compositions} compositions
+                                    ${composer._count.compositions} composition${composer._count.compositions !== 1 ? 's' : ''}
                                 </small>
                             </p>
-                            <a href="/modules/composers/edit.html?id=${composer.id}" class="btn btn-primary">Edit Composer</a>
+                            <a href="/modules/composers/editor.html?id=${composer.id}" class="btn btn-primary">
+                                Edit Composer
+                            </a>
                         </div>
                     </div>
-                `;
-                container.appendChild(card);
+                </div>
+            `).join('');
+        }
+
+        function updatePagination(pagination) {
+            const container = document.getElementById('pagination');
+            const { total, pages, currentPage } = pagination;
+            
+            let html = '';
+            
+            // Previous button
+            html += `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                </li>
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= pages; i++) {
+                if (
+                    i === 1 || // First page
+                    i === pages || // Last page
+                    (i >= currentPage - 2 && i <= currentPage + 2) // Pages around current
+                ) {
+                    html += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" data-page="${i}">${i}</a>
+                        </li>
+                    `;
+                } else if (
+                    i === currentPage - 3 || // Before current range
+                    i === currentPage + 3 // After current range
+                ) {
+                    html += `
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    `;
+                }
+            }
+
+            // Next button
+            html += `
+                <li class="page-item ${currentPage === pages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+                </li>
+            `;
+
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.page-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = parseInt(e.target.dataset.page);
+                    if (page && page !== currentPage) {
+                        currentPage = page;
+                        fetchComposers();
+                    }
+                });
             });
         }
 
-        // Load composers when page loads
+        // Search functionality
+        document.getElementById('searchButton').addEventListener('click', () => {
+            currentSearch = document.getElementById('searchInput').value;
+            currentPage = 1;
+            fetchComposers();
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentSearch = e.target.value;
+                currentPage = 1;
+                fetchComposers();
+            }
+        });
+
+        // Letter filter functionality
+        document.getElementById('letterFilter').addEventListener('click', (e) => {
+            if (e.target.matches('button')) {
+                document.querySelectorAll('#letterFilter button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                e.target.classList.add('active');
+                currentLetter = e.target.dataset.letter;
+                currentSearch = currentLetter;
+                currentPage = 1;
+                fetchComposers();
+            }
+        });
+
+        // Initial load
         fetchComposers();
     </script>
 </body>
