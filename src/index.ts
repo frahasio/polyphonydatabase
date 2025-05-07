@@ -12,29 +12,16 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Get all composers (minimal data for list view)
 app.get('/composers', async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 25;
     const letter = (req.query.letter as string) || '';
 
-    // Get total count of all composers
-    const totalComposers = await prisma.composer.count();
-
-    // If a letter is specified, find the position of the first composer with that letter
-    let skip = (page - 1) * limit;
-    if (letter) {
-      const composersBeforeLetter = await prisma.composer.count({
-        where: {
-          name: {
-            lt: letter,
-            mode: Prisma.QueryMode.insensitive
-          }
-        }
-      });
-      skip = Math.floor(composersBeforeLetter / limit) * limit;
-    }
-
-    // Get the page of composers
+    // Get composers filtered by letter
     const composers = await prisma.composer.findMany({
+      where: letter ? {
+        name: {
+          startsWith: letter,
+          mode: Prisma.QueryMode.insensitive
+        }
+      } : undefined,
       select: {
         id: true,
         name: true,
@@ -47,25 +34,12 @@ app.get('/composers', async (req: Request, res: Response) => {
         deathplace1: true,
         deathplace2: true
       },
-      skip,
-      take: limit,
       orderBy: {
         name: 'asc'
       }
     });
 
-    // Calculate total pages
-    const totalPages = Math.ceil(totalComposers / limit);
-
-    res.json({
-      composers,
-      pagination: {
-        total: totalComposers,
-        pages: totalPages,
-        currentPage: Math.floor(skip / limit) + 1,
-        limit
-      }
-    });
+    res.json({ composers });
   } catch (error) {
     console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Failed to fetch composers' });
