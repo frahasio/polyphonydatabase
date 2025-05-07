@@ -159,6 +159,29 @@ app.post('/composers', async (req: Request, res: Response) => {
   }
 });
 
+// Delete a composer
+app.delete('/composers/:id', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid composer ID' });
+    }
+
+    await prisma.composer.delete({
+      where: { id }
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting composer:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({ error: 'Composer not found' });
+      }
+    }
+    res.status(500).json({ error: 'Failed to delete composer' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
