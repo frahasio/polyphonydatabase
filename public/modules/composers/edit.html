@@ -104,11 +104,23 @@
         async function fetchComposer() {
             try {
                 const response = await fetch(`/composers/${composerId}`);
-                if (!response.ok) throw new Error('Failed to fetch composer');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to fetch composer');
+                }
                 const composer = await response.json();
+                if (!composer || !composer.id) {
+                    throw new Error('Invalid composer data');
+                }
                 populateForm(composer);
             } catch (error) {
                 console.error('Error:', error);
+                const form = document.getElementById('composerForm');
+                form.innerHTML = `
+                    <div class="alert alert-danger">
+                        Failed to load composer data. Please try refreshing the page.
+                    </div>
+                `;
             }
         }
 
@@ -142,11 +154,14 @@
                     body: JSON.stringify(data)
                 });
 
-                if (!response.ok) throw new Error('Failed to update composer');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to update composer');
+                }
                 window.location.href = 'index.html';
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to update composer. Please try again.');
+                alert(error.message || 'Failed to update composer. Please try again.');
             }
         });
 

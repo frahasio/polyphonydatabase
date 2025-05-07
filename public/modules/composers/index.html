@@ -97,11 +97,25 @@
         async function fetchComposers() {
             try {
                 const response = await fetch('/composers');
-                if (!response.ok) throw new Error('Failed to fetch composers');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to fetch composers');
+                }
                 const data = await response.json();
+                if (!data.composers) {
+                    throw new Error('Invalid response format');
+                }
                 displayComposers(data.composers);
             } catch (error) {
                 console.error('Error:', error);
+                const composersList = document.getElementById('composersList');
+                composersList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            Failed to load composers. Please try refreshing the page.
+                        </td>
+                    </tr>
+                `;
             }
         }
 
