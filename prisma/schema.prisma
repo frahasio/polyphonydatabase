@@ -52,7 +52,6 @@ model Composition {
   evenOdd           Int?                @map("even_odd")
   composerIdList    Int[]               @map("composer_id_list")
   composers         ComposerComposition[]
-  editors           EditorComposition[]
   scribes           ScribeComposition[]
   publishers        PublisherComposition[]
   performers        PerformerComposition[]
@@ -66,20 +65,9 @@ model Editor {
   dateOfBirth       DateTime?            @map("date_of_birth")
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  compositions      EditorComposition[]
   searchVector      Unsupported("tsvector")? @map("search_vector")
 
   @@map("editors")
-}
-
-model EditorComposition {
-  id            Int         @id @default(autoincrement())
-  editor        Editor      @relation(fields: [editorId], references: [id])
-  editorId      Int         @map("editor_id")
-  composition   Composition @relation(fields: [compositionId], references: [id])
-  compositionId Int         @map("composition_id")
-
-  @@map("editor_compositions")
 }
 
 model Scribe {
