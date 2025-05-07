@@ -14,12 +14,12 @@ app.get('/composers', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 12;
-    const search = (req.query.search as string) || '';
+    const letter = (req.query.letter as string) || '';
     const skip = (page - 1) * limit;
 
-    const where = search ? {
+    const where = letter ? {
       name: {
-        startsWith: search,
+        startsWith: letter,
         mode: Prisma.QueryMode.insensitive
       }
     } : {};

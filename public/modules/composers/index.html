@@ -47,6 +47,16 @@
             white-space: nowrap;
             color: #666;
         }
+        .letter-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        .letter-filter .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
@@ -58,6 +68,38 @@
 
         <div class="card">
             <div class="card-body">
+                <div class="mb-3">
+                    <div class="letter-filter">
+                        <button class="btn btn-outline-secondary active" data-letter="">All</button>
+                        <button class="btn btn-outline-secondary" data-letter="A">A</button>
+                        <button class="btn btn-outline-secondary" data-letter="B">B</button>
+                        <button class="btn btn-outline-secondary" data-letter="C">C</button>
+                        <button class="btn btn-outline-secondary" data-letter="D">D</button>
+                        <button class="btn btn-outline-secondary" data-letter="E">E</button>
+                        <button class="btn btn-outline-secondary" data-letter="F">F</button>
+                        <button class="btn btn-outline-secondary" data-letter="G">G</button>
+                        <button class="btn btn-outline-secondary" data-letter="H">H</button>
+                        <button class="btn btn-outline-secondary" data-letter="I">I</button>
+                        <button class="btn btn-outline-secondary" data-letter="J">J</button>
+                        <button class="btn btn-outline-secondary" data-letter="K">K</button>
+                        <button class="btn btn-outline-secondary" data-letter="L">L</button>
+                        <button class="btn btn-outline-secondary" data-letter="M">M</button>
+                        <button class="btn btn-outline-secondary" data-letter="N">N</button>
+                        <button class="btn btn-outline-secondary" data-letter="O">O</button>
+                        <button class="btn btn-outline-secondary" data-letter="P">P</button>
+                        <button class="btn btn-outline-secondary" data-letter="Q">Q</button>
+                        <button class="btn btn-outline-secondary" data-letter="R">R</button>
+                        <button class="btn btn-outline-secondary" data-letter="S">S</button>
+                        <button class="btn btn-outline-secondary" data-letter="T">T</button>
+                        <button class="btn btn-outline-secondary" data-letter="U">U</button>
+                        <button class="btn btn-outline-secondary" data-letter="V">V</button>
+                        <button class="btn btn-outline-secondary" data-letter="W">W</button>
+                        <button class="btn btn-outline-secondary" data-letter="X">X</button>
+                        <button class="btn btn-outline-secondary" data-letter="Y">Y</button>
+                        <button class="btn btn-outline-secondary" data-letter="Z">Z</button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -74,13 +116,20 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="pagination-container">
+                    <nav aria-label="Composer pagination">
+                        <ul class="pagination justify-content-center" id="pagination">
+                            <!-- Pagination will be populated here -->
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         let currentPage = 1;
-        let currentSearch = '';
         let currentLetter = '';
         const limit = 12;
 
@@ -96,7 +145,7 @@
 
         async function fetchComposers() {
             try {
-                const response = await fetch('/composers');
+                const response = await fetch(`/composers?page=${currentPage}&limit=${limit}&letter=${currentLetter}`);
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || 'Failed to fetch composers');
@@ -106,6 +155,7 @@
                     throw new Error('Invalid response format');
                 }
                 displayComposers(data.composers);
+                updatePagination(data.pagination);
             } catch (error) {
                 console.error('Error:', error);
                 const composersList = document.getElementById('composersList');
@@ -133,6 +183,75 @@
                 </tr>
             `).join('');
         }
+
+        function updatePagination(pagination) {
+            const paginationElement = document.getElementById('pagination');
+            const { total, pages, currentPage } = pagination;
+
+            let html = '';
+            
+            // Previous button
+            html += `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                </li>
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= pages; i++) {
+                if (
+                    i === 1 || // First page
+                    i === pages || // Last page
+                    (i >= currentPage - 2 && i <= currentPage + 2) // Pages around current
+                ) {
+                    html += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" data-page="${i}">${i}</a>
+                        </li>
+                    `;
+                } else if (
+                    (i === currentPage - 3 && currentPage > 4) || // Before current range
+                    (i === currentPage + 3 && currentPage < pages - 3) // After current range
+                ) {
+                    html += `
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    `;
+                }
+            }
+
+            // Next button
+            html += `
+                <li class="page-item ${currentPage === pages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+                </li>
+            `;
+
+            paginationElement.innerHTML = html;
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.letter-filter .btn').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.letter-filter .btn').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentLetter = button.dataset.letter;
+                currentPage = 1;
+                fetchComposers();
+            });
+        });
+
+        document.getElementById('pagination').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (e.target.classList.contains('page-link')) {
+                const page = parseInt(e.target.dataset.page);
+                if (!isNaN(page)) {
+                    currentPage = page;
+                    fetchComposers();
+                }
+            }
+        });
 
         // Load composers when the page loads
         document.addEventListener('DOMContentLoaded', fetchComposers);
