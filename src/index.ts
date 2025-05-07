@@ -8,28 +8,29 @@ app.use(express.json());
 // Get all composers
 app.get('/composers', async (req: Request, res: Response) => {
   try {
-    // First get all composer IDs
-    const composerIds = await prisma.composer.findMany({
-      select: { id: true }
+    // Get all composers
+    const composers = await prisma.composer.findMany();
+
+    // Get all composer-composition relationships
+    const composerCompositions = await prisma.composerComposition.findMany({
+      include: {
+        composition: true
+      }
     });
 
-    // Then fetch each composer with their compositions
-    const composers = await Promise.all(
-      composerIds.map(async ({ id }) => {
-        return prisma.composer.findUnique({
-          where: { id },
-          include: {
-            compositions: {
-              include: {
-                composition: true
-              }
-            }
-          }
-        });
-      })
-    );
+    // Combine the data
+    const composersWithCompositions = composers.map(composer => ({
+      ...composer,
+      compositions: composerCompositions
+        .filter(cc => cc.composerId === composer.id)
+        .map(cc => ({
+          composerId: cc.composerId,
+          compositionId: cc.compositionId,
+          composition: cc.composition
+        }))
+    }));
 
-    res.json(composers);
+    res.json(composersWithCompositions);
   } catch (error) {
     console.error('Error fetching composers:', error);
     res.status(500).json({ 
