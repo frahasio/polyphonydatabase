@@ -11,8 +11,23 @@ app.get('/composers', async (req: Request, res: Response) => {
     const composers = await prisma.composer.findMany({
       include: {
         compositions: {
-          include: {
-            composition: true
+          select: {
+            composerId: true,
+            compositionId: true,
+            composition: {
+              select: {
+                id: true,
+                numberOfVoices: true,
+                groupId: true,
+                titleId: true,
+                compositionTypeId: true,
+                tone: true,
+                evenOdd: true,
+                composerIdList: true,
+                createdAt: true,
+                updatedAt: true
+              }
+            }
           }
         }
       }
