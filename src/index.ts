@@ -24,7 +24,11 @@ app.get('/composers', async (req: Request, res: Response) => {
       }
     } : {};
 
-    const [composers, total] = await Promise.all([
+    // Get total count of all composers for pagination
+    const totalComposers = await prisma.composer.count();
+
+    // Get filtered composers
+    const [composers, filteredCount] = await Promise.all([
       prisma.composer.findMany({
         where,
         select: {
@@ -51,8 +55,9 @@ app.get('/composers', async (req: Request, res: Response) => {
     res.json({
       composers,
       pagination: {
-        total,
-        pages: Math.ceil(total / limit),
+        total: totalComposers, // Total number of all composers
+        filtered: filteredCount, // Number of composers matching the filter
+        pages: Math.ceil(totalComposers / limit), // Total pages based on all composers
         currentPage: page,
         limit
       }

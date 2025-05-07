@@ -132,6 +132,7 @@
         let currentPage = 1;
         let currentLetter = '';
         const limit = 12;
+        let totalPages = 0;
 
         function formatYearRange(composer) {
             const fromYear = composer.fromYear ? `${composer.fromYearAnnotation || ''}${composer.fromYear}` : '';
@@ -155,6 +156,7 @@
                     throw new Error('Invalid response format');
                 }
                 displayComposers(data.composers);
+                totalPages = data.pagination.pages;
                 updatePagination(data.pagination);
             } catch (error) {
                 console.error('Error:', error);
@@ -252,11 +254,33 @@
 
         // Event Listeners
         document.querySelectorAll('.letter-filter .btn').forEach(button => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
                 document.querySelectorAll('.letter-filter .btn').forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
                 currentLetter = button.dataset.letter;
-                currentPage = 1; // Reset to first page when changing letter
+                
+                // If a letter is selected, find the page where it begins
+                if (currentLetter) {
+                    try {
+                        const response = await fetch(`/composers?letter=${currentLetter}&limit=1`);
+                        if (!response.ok) throw new Error('Failed to fetch composer page');
+                        const data = await response.json();
+                        if (data.composers && data.composers.length > 0) {
+                            // Calculate which page this composer would be on in the full list
+                            const response = await fetch(`/composers?limit=${limit}`);
+                            const fullData = await response.json();
+                            const totalComposers = fullData.pagination.total;
+                            const composerIndex = totalComposers - data.pagination.total;
+                            currentPage = Math.floor(composerIndex / limit) + 1;
+                        }
+                    } catch (error) {
+                        console.error('Error finding letter page:', error);
+                        currentPage = 1;
+                    }
+                } else {
+                    currentPage = 1;
+                }
+                
                 fetchComposers();
             });
         });
