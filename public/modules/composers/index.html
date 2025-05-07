@@ -86,7 +86,6 @@
             <div class="card-body">
                 <div class="mb-3">
                     <div class="letter-filter">
-                        <button class="btn btn-outline-secondary active" data-letter="">All</button>
                         <button class="btn btn-outline-secondary" data-letter="A">A</button>
                         <button class="btn btn-outline-secondary" data-letter="B">B</button>
                         <button class="btn btn-outline-secondary" data-letter="C">C</button>
@@ -137,12 +136,12 @@
     </div>
 
     <script>
-        let currentLetter = '';
+        let currentLetter = 'A';  // Default to A
 
         // Function to update URL with current state
         function updateURL() {
             const params = new URLSearchParams();
-            if (currentLetter) params.set('letter', currentLetter);
+            if (currentLetter !== 'A') params.set('letter', currentLetter);
             const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
             window.history.pushState({}, '', newURL);
         }
@@ -153,10 +152,11 @@
             const letter = params.get('letter');
             if (letter) {
                 currentLetter = letter.toUpperCase();
-                const letterButton = document.querySelector(`.letter-filter .btn[data-letter="${currentLetter}"]`);
-                if (letterButton) {
-                    letterButton.classList.add('active');
-                }
+            }
+            // Set the active state for the current letter button
+            const letterButton = document.querySelector(`.letter-filter .btn[data-letter="${currentLetter}"]`);
+            if (letterButton) {
+                letterButton.classList.add('active');
             }
         }
 
