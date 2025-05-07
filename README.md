@@ -1,24 +1,37 @@
-# README
+# Polyphony Database Node.js API
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+A Node.js rewrite of the Polyphony Database application, providing a RESTful API for managing musical data.
 
-Things you may want to cover:
+## Setup
 
-* Ruby version
+1. Install dependencies:
+```bash
+npm install
+```
 
-* System dependencies
+2. Set up environment variables:
+Create a `.env` file with:
+```
+DATABASE_URL=your_database_url
+```
 
-* Configuration
+3. Run the development server:
+```bash
+node server.js
+```
 
-* Database creation
+## Deployment
 
-* Database initialization
+The application is deployed on Heroku. To deploy:
 
-* How to run the test suite
+```bash
+git push heroku main
+```
 
-* Services (job queues, cache servers, search engines, etc.)
+## API Endpoints
 
-* Deployment instructions
+(To be documented as endpoints are implemented)
 
-* ...
+## Database
+
+PostgreSQL database hosted on Heroku.
