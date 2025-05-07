@@ -52,12 +52,15 @@ app.get('/composers', async (req: Request, res: Response) => {
       prisma.composer.count({ where })
     ]);
 
+    // Calculate total pages based on all composers
+    const totalPages = Math.ceil(totalComposers / limit);
+
     res.json({
       composers,
       pagination: {
-        total: totalComposers, // Total number of all composers
-        filtered: filteredCount, // Number of composers matching the filter
-        pages: Math.ceil(totalComposers / limit), // Total pages based on all composers
+        total: totalComposers,
+        filtered: filteredCount,
+        pages: totalPages,
         currentPage: page,
         limit
       }

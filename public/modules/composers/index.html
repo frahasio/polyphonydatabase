@@ -174,7 +174,7 @@
                     throw new Error('Invalid response format');
                 }
                 displayComposers(data.composers);
-                totalPages = data.pagination.pages;
+                totalPages = Math.ceil(data.pagination.total / limit);
                 updatePagination(data.pagination);
                 
                 // Update letter filter based on first composer on the page
@@ -213,7 +213,8 @@
 
         function updatePagination(pagination) {
             const paginationElement = document.getElementById('pagination');
-            const { total, pages, currentPage } = pagination;
+            const { total } = pagination;
+            const pages = Math.ceil(total / limit);
 
             let html = '';
             
@@ -296,18 +297,18 @@
                 // If a letter is selected, find the page where it begins
                 if (letter) {
                     try {
-                        // Get total count of composers before this letter
-                        const response = await fetch(`/composers?letter=${letter}&limit=1`);
-                        if (!response.ok) throw new Error('Failed to fetch composer page');
-                        const data = await response.json();
-                        if (data.composers && data.composers.length > 0) {
-                            // Calculate which page this composer would be on in the full list
-                            const response = await fetch(`/composers?limit=${limit}`);
-                            const fullData = await response.json();
-                            const totalComposers = fullData.pagination.total;
-                            const composerIndex = totalComposers - data.pagination.total;
-                            currentPage = Math.floor(composerIndex / limit) + 1;
-                        }
+                        // First get the total count of all composers
+                        const totalResponse = await fetch(`/composers?limit=${limit}`);
+                        const totalData = await totalResponse.json();
+                        const totalComposers = totalData.pagination.total;
+
+                        // Then get the count of composers before this letter
+                        const beforeResponse = await fetch(`/composers?letter=${letter}&limit=1`);
+                        const beforeData = await beforeResponse.json();
+                        const composersBeforeLetter = totalComposers - beforeData.pagination.total;
+
+                        // Calculate the page number
+                        currentPage = Math.floor(composersBeforeLetter / limit) + 1;
                     } catch (error) {
                         console.error('Error finding letter page:', error);
                         currentPage = 1;
