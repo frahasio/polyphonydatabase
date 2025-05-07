@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Composer - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .composer-form {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .compositions-list {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="composer-form">
+            <h2 class="mb-4">Edit Composer</h2>
+            <form id="composerForm">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="name">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fromYear">From Year</label>
+                            <input type="number" class="form-control" id="fromYear" name="fromYear">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="toYear">To Year</label>
+                            <input type="number" class="form-control" id="toYear" name="toYear">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="fromYearAnnotation">From Year Annotation</label>
+                            <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="toYearAnnotation">To Year Annotation</label>
+                            <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="birthplace1">Birthplace 1</label>
+                            <input type="text" class="form-control" id="birthplace1" name="birthplace1">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="birthplace2">Birthplace 2</label>
+                            <input type="text" class="form-control" id="birthplace2" name="birthplace2">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="deathplace1">Deathplace 1</label>
+                            <input type="text" class="form-control" id="deathplace1" name="deathplace1">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="deathplace2">Deathplace 2</label>
+                            <input type="text" class="form-control" id="deathplace2" name="deathplace2">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="imageUrl">Image URL</label>
+                    <input type="url" class="form-control" id="imageUrl" name="imageUrl">
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="/modules/composers" class="btn btn-secondary">Back to Composers</a>
+                </div>
+            </form>
+
+            <div class="compositions-list">
+                <h3>Compositions</h3>
+                <div id="compositionsList" class="list-group">
+                    <!-- Compositions will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get composer ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const composerId = urlParams.get('id');
+
+        if (!composerId) {
+            alert('No composer ID provided');
+            window.location.href = '/modules/composers';
+        }
+
+        // Fetch composer data
+        async function fetchComposer() {
+            try {
+                const response = await fetch(`/composers/${composerId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch composer');
+                }
+                const composer = await response.json();
+                populateForm(composer);
+                populateCompositions(composer.compositions);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch composer data');
+            }
+        }
+
+        // Populate form with composer data
+        function populateForm(composer) {
+            document.getElementById('name').value = composer.name || '';
+            document.getElementById('fromYear').value = composer.fromYear || '';
+            document.getElementById('toYear').value = composer.toYear || '';
+            document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
+            document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
+            document.getElementById('birthplace1').value = composer.birthplace1 || '';
+            document.getElementById('birthplace2').value = composer.birthplace2 || '';
+            document.getElementById('deathplace1').value = composer.deathplace1 || '';
+            document.getElementById('deathplace2').value = composer.deathplace2 || '';
+            document.getElementById('imageUrl').value = composer.imageUrl || '';
+        }
+
+        // Populate compositions list
+        function populateCompositions(compositions) {
+            const list = document.getElementById('compositionsList');
+            list.innerHTML = '';
+            
+            compositions.forEach(comp => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.textContent = comp.composition.title;
+                list.appendChild(item);
+            });
+        }
+
+        // Handle form submission
+        document.getElementById('composerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('name').value,
+                fromYear: document.getElementById('fromYear').value,
+                toYear: document.getElementById('toYear').value,
+                fromYearAnnotation: document.getElementById('fromYearAnnotation').value,
+                toYearAnnotation: document.getElementById('toYearAnnotation').value,
+                birthplace1: document.getElementById('birthplace1').value,
+                birthplace2: document.getElementById('birthplace2').value,
+                deathplace1: document.getElementById('deathplace1').value,
+                deathplace2: document.getElementById('deathplace2').value,
+                imageUrl: document.getElementById('imageUrl').value
+            };
+
+            try {
+                const response = await fetch(`/composers/${composerId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update composer');
+                }
+
+                alert('Composer updated successfully');
+                window.location.href = '/modules/composers';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update composer');
+            }
+        });
+
+        // Load composer data when page loads
+        fetchComposer();
+    </script>
+</body>
+</html> 

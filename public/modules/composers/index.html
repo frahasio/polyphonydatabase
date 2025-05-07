@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composers - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .composer-card {
+            transition: transform 0.2s;
+        }
+        .composer-card:hover {
+            transform: translateY(-5px);
+        }
+        .composer-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px 8px 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Composers</h1>
+            <div>
+                <a href="/modules/composers/new.html" class="btn btn-success me-2">Create New Composer</a>
+                <a href="/" class="btn btn-outline-secondary">Back to Home</a>
+            </div>
+        </div>
+
+        <div class="row g-4" id="composersList">
+            <!-- Composers will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        async function fetchComposers() {
+            try {
+                const response = await fetch('/composers');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch composers');
+                }
+                const composers = await response.json();
+                displayComposers(composers);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch composers');
+            }
+        }
+
+        function displayComposers(composers) {
+            const container = document.getElementById('composersList');
+            container.innerHTML = '';
+
+            composers.forEach(composer => {
+                const card = document.createElement('div');
+                card.className = 'col-md-4';
+                card.innerHTML = `
+                    <div class="card composer-card h-100">
+                        ${composer.imageUrl ? 
+                            `<img src="${composer.imageUrl}" alt="${composer.name}" class="composer-image">` :
+                            `<div class="composer-image bg-light d-flex align-items-center justify-content-center">
+                                <span class="text-muted">No image available</span>
+                            </div>`
+                        }
+                        <div class="card-body">
+                            <h5 class="card-title">${composer.name}</h5>
+                            <p class="card-text">
+                                ${composer.fromYear ? composer.fromYear : '?'} - ${composer.toYear ? composer.toYear : '?'}
+                                ${composer.fromYearAnnotation ? ` (${composer.fromYearAnnotation})` : ''}
+                            </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    ${composer.compositions ? composer.compositions.length : 0} compositions
+                                </small>
+                            </p>
+                            <a href="/modules/composers/edit.html?id=${composer.id}" class="btn btn-primary">Edit Composer</a>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Load composers when page loads
+        fetchComposers();
+    </script>
+</body>
+</html> 
