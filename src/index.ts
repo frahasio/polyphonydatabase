@@ -58,6 +58,7 @@ app.get('/composers', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Failed to fetch composers' });
   }
 });
@@ -66,7 +67,19 @@ app.get('/composers', async (req: Request, res: Response) => {
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
     const composer = await prisma.composer.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { id: parseInt(req.params.id) },
+      select: {
+        id: true,
+        name: true,
+        fromYear: true,
+        toYear: true,
+        fromYearAnnotation: true,
+        toYearAnnotation: true,
+        birthplace1: true,
+        birthplace2: true,
+        deathplace1: true,
+        deathplace2: true
+      }
     });
     if (!composer) {
       return res.status(404).json({ error: 'Composer not found' });
@@ -81,22 +94,25 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
 // Update a composer
 app.put('/composers/:id', async (req: Request, res: Response) => {
   try {
+    const { fromYear, toYear, ...rest } = req.body;
+    
     const composer = await prisma.composer.update({
       where: { id: parseInt(req.params.id) },
       data: {
-        name: req.body.name,
-        fromYear: req.body.fromYear,
-        toYear: req.body.toYear,
-        fromYearAnnotation: req.body.fromYearAnnotation,
-        toYearAnnotation: req.body.toYearAnnotation,
-        birthplace1: req.body.birthplace1,
-        birthplace2: req.body.birthplace2,
-        deathplace1: req.body.deathplace1,
-        deathplace2: req.body.deathplace2
+        name: rest.name,
+        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
+        toYear: toYear ? parseInt(toYear.toString()) : null,
+        fromYearAnnotation: rest.fromYearAnnotation || null,
+        toYearAnnotation: rest.toYearAnnotation || null,
+        birthplace1: rest.birthplace1 || null,
+        birthplace2: rest.birthplace2 || null,
+        deathplace1: rest.deathplace1 || null,
+        deathplace2: rest.deathplace2 || null
       }
     });
     res.json(composer);
   } catch (error) {
+    console.error('Error updating composer:', error);
     res.status(500).json({ error: 'Failed to update composer' });
   }
 });
@@ -104,21 +120,24 @@ app.put('/composers/:id', async (req: Request, res: Response) => {
 // Create a new composer
 app.post('/composers', async (req: Request, res: Response) => {
   try {
+    const { fromYear, toYear, ...rest } = req.body;
+    
     const composer = await prisma.composer.create({
       data: {
-        name: req.body.name,
-        fromYear: req.body.fromYear,
-        toYear: req.body.toYear,
-        fromYearAnnotation: req.body.fromYearAnnotation,
-        toYearAnnotation: req.body.toYearAnnotation,
-        birthplace1: req.body.birthplace1,
-        birthplace2: req.body.birthplace2,
-        deathplace1: req.body.deathplace1,
-        deathplace2: req.body.deathplace2
+        name: rest.name,
+        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
+        toYear: toYear ? parseInt(toYear.toString()) : null,
+        fromYearAnnotation: rest.fromYearAnnotation || null,
+        toYearAnnotation: rest.toYearAnnotation || null,
+        birthplace1: rest.birthplace1 || null,
+        birthplace2: rest.birthplace2 || null,
+        deathplace1: rest.deathplace1 || null,
+        deathplace2: rest.deathplace2 || null
       }
     });
     res.status(201).json(composer);
   } catch (error) {
+    console.error('Error creating composer:', error);
     res.status(500).json({ error: 'Failed to create composer' });
   }
 });
