@@ -52,9 +52,6 @@ model Composition {
   evenOdd           Int?                @map("even_odd")
   composerIdList    Int[]               @map("composer_id_list")
   composers         ComposerComposition[]
-  scribes           ScribeComposition[]
-  publishers        PublisherComposition[]
-  performers        PerformerComposition[]
 
   @@map("compositions")
 }
@@ -72,85 +69,30 @@ model Editor {
 
 model Scribe {
   id                Int                  @id @default(autoincrement())
-  name              String
-  fromYear          Int?                 @map("from_year")
-  toYear            Int?                 @map("to_year")
-  fromYearAnnotation String?             @map("from_year_annotation")
-  toYearAnnotation  String?             @map("to_year_annotation")
-  birthplace1       String?             @map("birthplace_1")
-  birthplace2       String?             @map("birthplace_2")
-  deathplace1       String?             @map("deathplace_1")
-  deathplace2       String?             @map("deathplace_2")
+  name              String?
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  compositions      ScribeComposition[]
   searchVector      Unsupported("tsvector")? @map("search_vector")
 
   @@map("scribes")
 }
 
-model ScribeComposition {
-  id            Int         @id @default(autoincrement())
-  scribe        Scribe      @relation(fields: [scribeId], references: [id])
-  scribeId      Int         @map("scribe_id")
-  composition   Composition @relation(fields: [compositionId], references: [id])
-  compositionId Int         @map("composition_id")
-
-  @@map("scribe_compositions")
-}
-
 model Publisher {
   id                Int                  @id @default(autoincrement())
-  name              String
-  fromYear          Int?                 @map("from_year")
-  toYear            Int?                 @map("to_year")
-  fromYearAnnotation String?             @map("from_year_annotation")
-  toYearAnnotation  String?             @map("to_year_annotation")
-  location1         String?             @map("location_1")
-  location2         String?             @map("location_2")
+  name              String?
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  compositions      PublisherComposition[]
   searchVector      Unsupported("tsvector")? @map("search_vector")
 
   @@map("publishers")
 }
 
-model PublisherComposition {
-  id            Int         @id @default(autoincrement())
-  publisher     Publisher   @relation(fields: [publisherId], references: [id])
-  publisherId   Int         @map("publisher_id")
-  composition   Composition @relation(fields: [compositionId], references: [id])
-  compositionId Int         @map("composition_id")
-
-  @@map("publisher_compositions")
-}
-
 model Performer {
   id                Int                  @id @default(autoincrement())
-  name              String
-  fromYear          Int?                 @map("from_year")
-  toYear            Int?                 @map("to_year")
-  fromYearAnnotation String?             @map("from_year_annotation")
-  toYearAnnotation  String?             @map("to_year_annotation")
-  birthplace1       String?             @map("birthplace_1")
-  birthplace2       String?             @map("birthplace_2")
-  deathplace1       String?             @map("deathplace_1")
-  deathplace2       String?             @map("deathplace_2")
+  name              String?
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  compositions      PerformerComposition[]
   searchVector      Unsupported("tsvector")? @map("search_vector")
 
   @@map("performers")
-}
-
-model PerformerComposition {
-  id            Int         @id @default(autoincrement())
-  performer     Performer   @relation(fields: [performerId], references: [id])
-  performerId   Int         @map("performer_id")
-  composition   Composition @relation(fields: [compositionId], references: [id])
-  compositionId Int         @map("composition_id")
-
-  @@map("performer_compositions")
 } 
