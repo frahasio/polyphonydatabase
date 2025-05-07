@@ -57,6 +57,22 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
         }
+        .letter-filter .btn.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .letter-filter .btn.partial {
+            background-color: #e9ecef;
+            border-color: #0d6efd;
+            color: #0d6efd;
+        }
+        .first-of-letter {
+            background-color: #f8f9fa;
+            border-top: 2px solid #0d6efd;
+        }
+        .first-of-letter td {
+            padding-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -138,7 +154,6 @@
         function updateURL() {
             const params = new URLSearchParams();
             if (currentPage > 1) params.set('page', currentPage.toString());
-            if (currentLetter) params.set('letter', currentLetter);
             const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
             window.history.pushState({}, '', newURL);
         }
@@ -147,9 +162,7 @@
         function getInitialState() {
             const params = new URLSearchParams(window.location.search);
             const page = params.get('page');
-            const letter = params.get('letter');
             if (page) currentPage = parseInt(page);
-            if (letter) currentLetter = letter.toUpperCase();
         }
 
         function formatYearRange(composer) {
@@ -177,12 +190,7 @@
                 totalPages = data.pagination.pages;
                 currentPage = data.pagination.currentPage;
                 updatePagination(data.pagination);
-                
-                // Update letter filter based on first composer on the page
-                if (data.composers.length > 0) {
-                    const firstLetter = data.composers[0].name.charAt(0).toUpperCase();
-                    updateLetterFilter(firstLetter);
-                }
+                updateLetterFilter(data.composers);
                 updateURL();
             } catch (error) {
                 console.error('Error:', error);
@@ -199,17 +207,27 @@
 
         function displayComposers(composers) {
             const composersList = document.getElementById('composersList');
-            composersList.innerHTML = composers.map(composer => `
-                <tr>
-                    <td>${composer.name}</td>
-                    <td class="year-range">${formatYearRange(composer)}</td>
-                    <td>${[composer.birthplace1, composer.birthplace2].filter(Boolean).join(', ') || ''}</td>
-                    <td>${[composer.deathplace1, composer.deathplace2].filter(Boolean).join(', ') || ''}</td>
-                    <td>
-                        <a href="edit.html?id=${composer.id}" class="btn btn-sm btn-outline-primary">Edit</a>
-                    </td>
-                </tr>
-            `).join('');
+            let currentFirstLetter = '';
+            
+            composersList.innerHTML = composers.map(composer => {
+                const firstLetter = composer.name.charAt(0).toUpperCase();
+                const isFirstOfLetter = firstLetter !== currentFirstLetter;
+                if (isFirstOfLetter) {
+                    currentFirstLetter = firstLetter;
+                }
+                
+                return `
+                    <tr class="${isFirstOfLetter ? 'first-of-letter' : ''}">
+                        <td>${composer.name}</td>
+                        <td class="year-range">${formatYearRange(composer)}</td>
+                        <td>${[composer.birthplace1, composer.birthplace2].filter(Boolean).join(', ') || ''}</td>
+                        <td>${[composer.deathplace1, composer.deathplace2].filter(Boolean).join(', ') || ''}</td>
+                        <td>
+                            <a href="edit.html?id=${composer.id}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function updatePagination(pagination) {
@@ -279,21 +297,36 @@
             paginationElement.innerHTML = html;
         }
 
-        function updateLetterFilter(letter) {
+        function updateLetterFilter(composers) {
+            // Get unique first letters from the current page
+            const letters = [...new Set(composers.map(c => c.name.charAt(0).toUpperCase()))];
+            
+            // Update button states
             document.querySelectorAll('.letter-filter .btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.letter === letter) {
-                    btn.classList.add('active');
+                const letter = btn.dataset.letter;
+                btn.classList.remove('active', 'partial');
+                
+                if (letter === '') {
+                    // "All" button
+                    if (letters.length === 0) {
+                        btn.classList.add('active');
+                    }
+                } else if (letters.includes(letter)) {
+                    // If this letter appears on the page
+                    if (letters.length === 1) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.add('partial');
+                    }
                 }
             });
-            currentLetter = letter;
         }
 
         // Event Listeners
         document.querySelectorAll('.letter-filter .btn').forEach(button => {
             button.addEventListener('click', () => {
                 const letter = button.dataset.letter;
-                updateLetterFilter(letter);
+                currentLetter = letter;
                 fetchComposers();
             });
         });
@@ -312,13 +345,6 @@
         // Initialize from URL parameters
         document.addEventListener('DOMContentLoaded', () => {
             getInitialState();
-            // Set initial letter filter state
-            if (currentLetter) {
-                const letterButton = document.querySelector(`.letter-filter .btn[data-letter="${currentLetter}"]`);
-                if (letterButton) {
-                    letterButton.classList.add('active');
-                }
-            }
             fetchComposers();
         });
     </script>
