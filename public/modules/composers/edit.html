@@ -13,12 +13,6 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        .compositions-list {
-            margin-top: 2rem;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-        }
         .form-group {
             margin-bottom: 1rem;
         }
@@ -105,13 +99,6 @@
                     <a href="/modules/composers" class="btn btn-secondary">Back to Composers</a>
                 </div>
             </form>
-
-            <div class="compositions-list">
-                <h3>Compositions</h3>
-                <div id="compositionsList" class="list-group">
-                    <!-- Compositions will be populated here -->
-                </div>
-            </div>
         </div>
     </div>
 
@@ -134,10 +121,10 @@
                 }
                 const composer = await response.json();
                 populateForm(composer);
-                populateCompositions(composer.compositions);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to fetch composer data');
+                // Don't show alert, just log the error
+                // The form will remain empty if there's an error
             }
         }
 
@@ -153,19 +140,6 @@
             document.getElementById('deathplace1').value = composer.deathplace1 || '';
             document.getElementById('deathplace2').value = composer.deathplace2 || '';
             document.getElementById('imageUrl').value = composer.imageUrl || '';
-        }
-
-        // Populate compositions list
-        function populateCompositions(compositions) {
-            const list = document.getElementById('compositionsList');
-            list.innerHTML = '';
-            
-            compositions.forEach(comp => {
-                const item = document.createElement('div');
-                item.className = 'list-group-item';
-                item.textContent = comp.composition.title;
-                list.appendChild(item);
-            });
         }
 
         // Handle form submission
