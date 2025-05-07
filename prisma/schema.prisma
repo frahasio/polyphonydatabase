@@ -49,7 +49,7 @@ model Composition {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   compositionTypeId Int?      @map("composition_type_id")
   tone              Int?
-  evenOdd           Int?
+  evenOdd           Int?      @map("even_odd")
   composerIdList    Int[]     @map("composer_id_list")
   composers         ComposerComposition[]
 
