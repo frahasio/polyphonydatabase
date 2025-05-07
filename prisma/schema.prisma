@@ -31,8 +31,8 @@ model Composer {
 }
 
 model ComposerComposition {
-  composerId    Int
-  compositionId Int
+  composerId    Int         @map("composer_id")
+  compositionId Int         @map("composition_id")
   composer      Composer    @relation(fields: [composerId], references: [id])
   composition   Composition @relation(fields: [compositionId], references: [id])
 
@@ -42,15 +42,15 @@ model ComposerComposition {
 
 model Composition {
   id                Int       @id @default(autoincrement())
-  numberOfVoices    Int?
-  groupId           Int?
-  titleId           Int?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  compositionTypeId Int?
+  numberOfVoices    Int?      @map("number_of_voices")
+  groupId           Int?      @map("group_id")
+  titleId           Int?      @map("title_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  compositionTypeId Int?      @map("composition_type_id")
   tone              Int?
   evenOdd           Int?
-  composerIdList    Int[]
+  composerIdList    Int[]     @map("composer_id_list")
   composers         ComposerComposition[]
 
   @@map("compositions")
