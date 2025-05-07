@@ -155,11 +155,6 @@
                                 ${composer.fromYear ? composer.fromYear : '?'} - ${composer.toYear ? composer.toYear : '?'}
                                 ${composer.fromYearAnnotation ? ` (${composer.fromYearAnnotation})` : ''}
                             </p>
-                            <p class="card-text">
-                                <small class="text-muted">
-                                    ${composer._count.compositions} composition${composer._count.compositions !== 1 ? 's' : ''}
-                                </small>
-                            </p>
                             <a href="/modules/composers/edit.html?id=${composer.id}" class="btn btn-primary">
                                 Edit Composer
                             </a>

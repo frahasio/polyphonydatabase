@@ -33,12 +33,7 @@ app.get('/composers', async (req: Request, res: Response) => {
           fromYear: true,
           toYear: true,
           fromYearAnnotation: true,
-          imageUrl: true,
-          _count: {
-            select: {
-              compositions: true
-            }
-          }
+          imageUrl: true
         },
         skip,
         take: limit,
@@ -67,25 +62,7 @@ app.get('/composers', async (req: Request, res: Response) => {
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
     const composer = await prisma.composer.findUnique({
-      where: { id: parseInt(req.params.id) },
-      include: {
-        compositions: {
-          include: {
-            composition: {
-              select: {
-                id: true,
-                titleId: true,
-                numberOfVoices: true,
-                groupId: true,
-                compositionTypeId: true,
-                tone: true,
-                evenOdd: true,
-                composerIdList: true
-              }
-            }
-          }
-        }
-      }
+      where: { id: parseInt(req.params.id) }
     });
     if (!composer) {
       return res.status(404).json({ error: 'Composer not found' });
