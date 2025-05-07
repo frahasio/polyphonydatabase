@@ -174,7 +174,8 @@
                     throw new Error('Invalid response format');
                 }
                 displayComposers(data.composers);
-                totalPages = Math.ceil(data.pagination.total / limit);
+                totalPages = data.pagination.pages;
+                currentPage = data.pagination.currentPage;
                 updatePagination(data.pagination);
                 
                 // Update letter filter based on first composer on the page
@@ -290,55 +291,19 @@
 
         // Event Listeners
         document.querySelectorAll('.letter-filter .btn').forEach(button => {
-            button.addEventListener('click', async () => {
+            button.addEventListener('click', () => {
                 const letter = button.dataset.letter;
                 updateLetterFilter(letter);
-                
-                // If a letter is selected, find the page where it begins
-                if (letter) {
-                    try {
-                        // First get the total count of all composers
-                        const totalResponse = await fetch(`/composers?limit=${limit}`);
-                        const totalData = await totalResponse.json();
-                        const totalComposers = totalData.pagination.total;
-
-                        // Then get the count of composers before this letter
-                        const beforeResponse = await fetch(`/composers?letter=${letter}&limit=1`);
-                        const beforeData = await beforeResponse.json();
-                        const composersBeforeLetter = totalComposers - beforeData.pagination.total;
-
-                        // Calculate the page number
-                        currentPage = Math.floor(composersBeforeLetter / limit) + 1;
-                    } catch (error) {
-                        console.error('Error finding letter page:', error);
-                        currentPage = 1;
-                    }
-                } else {
-                    currentPage = 1;
-                }
-                
                 fetchComposers();
             });
         });
 
-        document.getElementById('pagination').addEventListener('click', async (e) => {
+        document.getElementById('pagination').addEventListener('click', (e) => {
             e.preventDefault();
             if (e.target.classList.contains('page-link') && !e.target.parentElement.classList.contains('disabled')) {
                 const page = parseInt(e.target.dataset.page);
                 if (!isNaN(page)) {
                     currentPage = page;
-                    // When changing pages, we need to determine which letter we're on
-                    try {
-                        const response = await fetch(`/composers?page=${page}&limit=${limit}`);
-                        if (!response.ok) throw new Error('Failed to fetch composers');
-                        const data = await response.json();
-                        if (data.composers && data.composers.length > 0) {
-                            const firstLetter = data.composers[0].name.charAt(0).toUpperCase();
-                            updateLetterFilter(firstLetter);
-                        }
-                    } catch (error) {
-                        console.error('Error updating letter filter:', error);
-                    }
                     fetchComposers();
                 }
             }

@@ -15,53 +15,54 @@ app.get('/composers', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 25;
     const letter = (req.query.letter as string) || '';
-    const skip = (page - 1) * limit;
 
-    const where = letter ? {
-      name: {
-        startsWith: letter,
-        mode: Prisma.QueryMode.insensitive
-      }
-    } : {};
-
-    // Get total count of all composers for pagination
+    // Get total count of all composers
     const totalComposers = await prisma.composer.count();
 
-    // Get filtered composers
-    const [composers, filteredCount] = await Promise.all([
-      prisma.composer.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          fromYear: true,
-          toYear: true,
-          fromYearAnnotation: true,
-          toYearAnnotation: true,
-          birthplace1: true,
-          birthplace2: true,
-          deathplace1: true,
-          deathplace2: true
-        },
-        skip,
-        take: limit,
-        orderBy: {
-          name: 'asc'
+    // If a letter is specified, find the position of the first composer with that letter
+    let skip = (page - 1) * limit;
+    if (letter) {
+      const composersBeforeLetter = await prisma.composer.count({
+        where: {
+          name: {
+            lt: letter,
+            mode: Prisma.QueryMode.insensitive
+          }
         }
-      }),
-      prisma.composer.count({ where })
-    ]);
+      });
+      skip = Math.floor(composersBeforeLetter / limit) * limit;
+    }
 
-    // Calculate total pages based on all composers
+    // Get the page of composers
+    const composers = await prisma.composer.findMany({
+      select: {
+        id: true,
+        name: true,
+        fromYear: true,
+        toYear: true,
+        fromYearAnnotation: true,
+        toYearAnnotation: true,
+        birthplace1: true,
+        birthplace2: true,
+        deathplace1: true,
+        deathplace2: true
+      },
+      skip,
+      take: limit,
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    // Calculate total pages
     const totalPages = Math.ceil(totalComposers / limit);
 
     res.json({
       composers,
       pagination: {
         total: totalComposers,
-        filtered: filteredCount,
         pages: totalPages,
-        currentPage: page,
+        currentPage: Math.floor(skip / limit) + 1,
         limit
       }
     });
