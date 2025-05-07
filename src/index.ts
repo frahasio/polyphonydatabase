@@ -165,6 +165,111 @@ app.delete('/composers/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /editors - List all editors
+app.get('/editors', async (req, res) => {
+    try {
+        const editors = await prisma.editor.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        res.json({ editors });
+    } catch (error) {
+        console.error('Error fetching editors:', error);
+        res.status(500).json({ error: 'Failed to fetch editors' });
+    }
+});
+
+// GET /editors/:id - Get a single editor
+app.get('/editors/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid editor ID' });
+        }
+
+        const editor = await prisma.editor.findUnique({
+            where: { id }
+        });
+
+        if (!editor) {
+            return res.status(404).json({ error: 'Editor not found' });
+        }
+
+        res.json(editor);
+    } catch (error) {
+        console.error('Error fetching editor:', error);
+        res.status(500).json({ error: 'Failed to fetch editor' });
+    }
+});
+
+// PUT /editors/:id - Update an editor
+app.put('/editors/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid editor ID' });
+        }
+
+        const editor = await prisma.editor.update({
+            where: { id },
+            data: {
+                name: req.body.name,
+                dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null
+            }
+        });
+        res.json(editor);
+    } catch (error) {
+        console.error('Error updating editor:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Editor not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to update editor' });
+    }
+});
+
+// POST /editors - Create a new editor
+app.post('/editors', async (req, res) => {
+    try {
+        const editor = await prisma.editor.create({
+            data: {
+                name: req.body.name,
+                dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null
+            }
+        });
+        res.status(201).json(editor);
+    } catch (error) {
+        console.error('Error creating editor:', error);
+        res.status(500).json({ error: 'Failed to create editor' });
+    }
+});
+
+// DELETE /editors/:id - Delete an editor
+app.delete('/editors/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid editor ID' });
+        }
+
+        await prisma.editor.delete({
+            where: { id }
+        });
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting editor:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Editor not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to delete editor' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
