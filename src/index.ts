@@ -19,7 +19,11 @@ app.get('/composers', async (req: Request, res: Response) => {
     });
     res.json(composers);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch composers' });
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch composers',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
