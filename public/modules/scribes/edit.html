@@ -3,32 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Editor - Polyphony Database</title>
+    <title>Edit Scribe - Polyphony Database</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Edit Editor</h1>
+            <h1>Edit Scribe</h1>
             <a href="index.html" class="btn btn-outline-secondary">Back to List</a>
         </div>
 
         <div class="card">
             <div class="card-body">
-                <form id="editorForm">
+                <form id="scribeForm">
                     <div class="mb-3">
                         <label for="name" class="form-label">Name</label>
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="dateOfBirth" class="form-label">Date of Birth</label>
-                        <input type="date" class="form-control" id="dateOfBirth" name="dateOfBirth">
-                    </div>
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
-                        <button type="button" class="btn btn-danger" id="deleteButton">Delete Editor</button>
+                        <button type="button" class="btn btn-danger" id="deleteButton">Delete Scribe</button>
                     </div>
                 </form>
             </div>
@@ -36,48 +31,43 @@
     </div>
 
     <script>
-        let editorId = null;
+        let scribeId = null;
 
-        // Get editor ID from URL
+        // Get scribe ID from URL
         const urlParams = new URLSearchParams(window.location.search);
-        editorId = urlParams.get('id');
+        scribeId = urlParams.get('id');
 
-        if (!editorId) {
+        if (!scribeId) {
             window.location.href = 'index.html';
         }
 
-        // Fetch editor data
-        async function fetchEditor() {
+        // Fetch scribe data
+        async function fetchScribe() {
             try {
-                const response = await fetch(`/editors/${editorId}`);
+                const response = await fetch(`/scribes/${scribeId}`);
                 if (!response.ok) {
-                    throw new Error('Failed to fetch editor');
+                    throw new Error('Failed to fetch scribe');
                 }
-                const editor = await response.json();
+                const scribe = await response.json();
                 
                 // Populate form
-                document.getElementById('name').value = editor.name || '';
-                if (editor.dateOfBirth) {
-                    const date = new Date(editor.dateOfBirth);
-                    document.getElementById('dateOfBirth').value = date.toISOString().split('T')[0];
-                }
+                document.getElementById('name').value = scribe.name || '';
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load editor data. Please try again.');
+                alert('Failed to load scribe data. Please try again.');
             }
         }
 
         // Handle form submission
-        document.getElementById('editorForm').addEventListener('submit', async (e) => {
+        document.getElementById('scribeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = {
-                name: document.getElementById('name').value,
-                dateOfBirth: document.getElementById('dateOfBirth').value || null
+                name: document.getElementById('name').value
             };
 
             try {
-                const response = await fetch(`/editors/${editorId}`, {
+                const response = await fetch(`/scribes/${scribeId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -86,40 +76,40 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to update editor');
+                    throw new Error('Failed to update scribe');
                 }
 
                 window.location.href = 'index.html';
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to update editor. Please try again.');
+                alert('Failed to update scribe. Please try again.');
             }
         });
 
         // Handle delete
         document.getElementById('deleteButton').addEventListener('click', async () => {
-            if (!confirm('Are you sure you want to delete this editor?')) {
+            if (!confirm('Are you sure you want to delete this scribe?')) {
                 return;
             }
 
             try {
-                const response = await fetch(`/editors/${editorId}`, {
+                const response = await fetch(`/scribes/${scribeId}`, {
                     method: 'DELETE'
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to delete editor');
+                    throw new Error('Failed to delete scribe');
                 }
 
                 window.location.href = 'index.html';
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to delete editor. Please try again.');
+                alert('Failed to delete scribe. Please try again.');
             }
         });
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', fetchEditor);
+        document.addEventListener('DOMContentLoaded', fetchScribe);
     </script>
 </body>
 </html> 

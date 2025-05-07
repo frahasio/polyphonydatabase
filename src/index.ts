@@ -270,6 +270,315 @@ app.delete('/editors/:id', async (req, res) => {
     }
 });
 
+// GET /scribes - List all scribes
+app.get('/scribes', async (req, res) => {
+    try {
+        const scribes = await prisma.scribe.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        res.json({ scribes });
+    } catch (error) {
+        console.error('Error fetching scribes:', error);
+        res.status(500).json({ error: 'Failed to fetch scribes' });
+    }
+});
+
+// GET /scribes/:id - Get a single scribe
+app.get('/scribes/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid scribe ID' });
+        }
+
+        const scribe = await prisma.scribe.findUnique({
+            where: { id }
+        });
+
+        if (!scribe) {
+            return res.status(404).json({ error: 'Scribe not found' });
+        }
+
+        res.json(scribe);
+    } catch (error) {
+        console.error('Error fetching scribe:', error);
+        res.status(500).json({ error: 'Failed to fetch scribe' });
+    }
+});
+
+// PUT /scribes/:id - Update a scribe
+app.put('/scribes/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid scribe ID' });
+        }
+
+        const scribe = await prisma.scribe.update({
+            where: { id },
+            data: {
+                name: req.body.name
+            }
+        });
+        res.json(scribe);
+    } catch (error) {
+        console.error('Error updating scribe:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Scribe not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to update scribe' });
+    }
+});
+
+// POST /scribes - Create a new scribe
+app.post('/scribes', async (req, res) => {
+    try {
+        const scribe = await prisma.scribe.create({
+            data: {
+                name: req.body.name
+            }
+        });
+        res.status(201).json(scribe);
+    } catch (error) {
+        console.error('Error creating scribe:', error);
+        res.status(500).json({ error: 'Failed to create scribe' });
+    }
+});
+
+// DELETE /scribes/:id - Delete a scribe
+app.delete('/scribes/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid scribe ID' });
+        }
+
+        await prisma.scribe.delete({
+            where: { id }
+        });
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting scribe:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Scribe not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to delete scribe' });
+    }
+});
+
+// GET /publishers - List all publishers
+app.get('/publishers', async (req, res) => {
+    try {
+        const publishers = await prisma.publisher.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        res.json({ publishers });
+    } catch (error) {
+        console.error('Error fetching publishers:', error);
+        res.status(500).json({ error: 'Failed to fetch publishers' });
+    }
+});
+
+// GET /publishers/:id - Get a single publisher
+app.get('/publishers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid publisher ID' });
+        }
+
+        const publisher = await prisma.publisher.findUnique({
+            where: { id }
+        });
+
+        if (!publisher) {
+            return res.status(404).json({ error: 'Publisher not found' });
+        }
+
+        res.json(publisher);
+    } catch (error) {
+        console.error('Error fetching publisher:', error);
+        res.status(500).json({ error: 'Failed to fetch publisher' });
+    }
+});
+
+// PUT /publishers/:id - Update a publisher
+app.put('/publishers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid publisher ID' });
+        }
+
+        const publisher = await prisma.publisher.update({
+            where: { id },
+            data: {
+                name: req.body.name
+            }
+        });
+        res.json(publisher);
+    } catch (error) {
+        console.error('Error updating publisher:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Publisher not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to update publisher' });
+    }
+});
+
+// POST /publishers - Create a new publisher
+app.post('/publishers', async (req, res) => {
+    try {
+        const publisher = await prisma.publisher.create({
+            data: {
+                name: req.body.name
+            }
+        });
+        res.status(201).json(publisher);
+    } catch (error) {
+        console.error('Error creating publisher:', error);
+        res.status(500).json({ error: 'Failed to create publisher' });
+    }
+});
+
+// DELETE /publishers/:id - Delete a publisher
+app.delete('/publishers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid publisher ID' });
+        }
+
+        await prisma.publisher.delete({
+            where: { id }
+        });
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting publisher:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Publisher not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to delete publisher' });
+    }
+});
+
+// GET /performers - List all performers
+app.get('/performers', async (req, res) => {
+    try {
+        const performers = await prisma.performer.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        res.json({ performers });
+    } catch (error) {
+        console.error('Error fetching performers:', error);
+        res.status(500).json({ error: 'Failed to fetch performers' });
+    }
+});
+
+// GET /performers/:id - Get a single performer
+app.get('/performers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid performer ID' });
+        }
+
+        const performer = await prisma.performer.findUnique({
+            where: { id }
+        });
+
+        if (!performer) {
+            return res.status(404).json({ error: 'Performer not found' });
+        }
+
+        res.json(performer);
+    } catch (error) {
+        console.error('Error fetching performer:', error);
+        res.status(500).json({ error: 'Failed to fetch performer' });
+    }
+});
+
+// PUT /performers/:id - Update a performer
+app.put('/performers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid performer ID' });
+        }
+
+        const performer = await prisma.performer.update({
+            where: { id },
+            data: {
+                name: req.body.name
+            }
+        });
+        res.json(performer);
+    } catch (error) {
+        console.error('Error updating performer:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Performer not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to update performer' });
+    }
+});
+
+// POST /performers - Create a new performer
+app.post('/performers', async (req, res) => {
+    try {
+        const performer = await prisma.performer.create({
+            data: {
+                name: req.body.name
+            }
+        });
+        res.status(201).json(performer);
+    } catch (error) {
+        console.error('Error creating performer:', error);
+        res.status(500).json({ error: 'Failed to create performer' });
+    }
+});
+
+// DELETE /performers/:id - Delete a performer
+app.delete('/performers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'Invalid performer ID' });
+        }
+
+        await prisma.performer.delete({
+            where: { id }
+        });
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting performer:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2025') {
+                return res.status(404).json({ error: 'Performer not found' });
+            }
+        }
+        res.status(500).json({ error: 'Failed to delete performer' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
