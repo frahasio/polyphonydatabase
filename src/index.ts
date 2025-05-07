@@ -111,7 +111,7 @@ app.put('/composers/:id', async (req: Request, res: Response) => {
     let toYearAnnotation = rest.toYearAnnotation;
 
     if (displayYears) {
-      const [fromPart, toPart] = displayYears.split('–').map(part => part.trim());
+      const [fromPart, toPart] = displayYears.split('–').map((part: string) => part.trim());
       
       if (fromPart) {
         const from = parseYearString(fromPart);
@@ -164,7 +164,7 @@ app.post('/composers', async (req: Request, res: Response) => {
     let toYearAnnotation = rest.toYearAnnotation;
 
     if (displayYears) {
-      const [fromPart, toPart] = displayYears.split('–').map(part => part.trim());
+      const [fromPart, toPart] = displayYears.split('–').map((part: string) => part.trim());
       
       if (fromPart) {
         const from = parseYearString(fromPart);
