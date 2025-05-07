@@ -33,11 +33,27 @@
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="displayYears" class="form-label">Years</label>
-                        <input type="text" class="form-control" id="displayYears" name="displayYears" 
-                               placeholder="e.g., c.1500–1550 or fl.1520">
-                        <div class="form-text">Enter years in format: [prefix]year–[prefix]year (e.g., c.1500–1550 or fl.1520)</div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">From Year</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" 
+                                       placeholder="e.g., c." style="width: 80px" maxlength="10">
+                                <input type="number" class="form-control" id="fromYear" name="fromYear" 
+                                       placeholder="Year">
+                            </div>
+                            <div class="form-text">Optional prefix (c., fl., etc) + year</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">To Year</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" 
+                                       placeholder="e.g., c." style="width: 80px" maxlength="10">
+                                <input type="number" class="form-control" id="toYear" name="toYear" 
+                                       placeholder="Year">
+                            </div>
+                            <div class="form-text">Optional prefix (c., fl., etc) + year</div>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -98,7 +114,10 @@
 
         function populateForm(composer) {
             document.getElementById('name').value = composer.name || '';
-            document.getElementById('displayYears').value = composer.displayYears || '';
+            document.getElementById('fromYear').value = composer.fromYear || '';
+            document.getElementById('toYear').value = composer.toYear || '';
+            document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
+            document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
             document.getElementById('birthplace1').value = composer.birthplace1 || '';
             document.getElementById('birthplace2').value = composer.birthplace2 || '';
             document.getElementById('deathplace1').value = composer.deathplace1 || '';
@@ -109,6 +128,10 @@
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
+
+            // Convert year strings to numbers or null
+            data.fromYear = data.fromYear ? parseInt(data.fromYear) : null;
+            data.toYear = data.toYear ? parseInt(data.toYear) : null;
 
             try {
                 const response = await fetch(`/composers/${composerId}`, {

@@ -11,17 +11,17 @@ datasource db {
 }
 
 model Composer {
-  id                Int       @id @default(autoincrement())
-  name              String?
-  fromYear          Int?      @map("from_year")
-  toYear            Int?      @map("to_year")
-  fromYearAnnotation String?  @map("from_year_annotation")
-  toYearAnnotation  String?   @map("to_year_annotation")
-  displayYears      String?   @map("display_years")  // Full year string for display
-  birthplace1       String?   @map("birthplace_1")
-  birthplace2       String?   @map("birthplace_2")
-  deathplace1       String?   @map("deathplace_1")
-  deathplace2       String?   @map("deathplace_2")
+  id                Int                  @id @default(autoincrement())
+  name              String
+  fromYear          Int?
+  toYear            Int?
+  fromYearAnnotation String?             @map("from_year_annotation")
+  toYearAnnotation  String?             @map("to_year_annotation")
+  displayYears      String?             @map("display_years")
+  birthplace1       String?
+  birthplace2       String?
+  deathplace1       String?
+  deathplace2       String?
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   compositions      ComposerComposition[]
@@ -31,26 +31,27 @@ model Composer {
 }
 
 model ComposerComposition {
-  composerId    Int         @map("composer_id")
-  compositionId Int         @map("composition_id")
+  id            Int         @id @default(autoincrement())
   composer      Composer    @relation(fields: [composerId], references: [id])
+  composerId    Int         @map("composer_id")
   composition   Composition @relation(fields: [compositionId], references: [id])
+  compositionId Int         @map("composition_id")
 
-  @@id([composerId, compositionId])
-  @@map("composers_compositions")
+  @@map("composer_compositions")
 }
 
 model Composition {
-  id                Int       @id @default(autoincrement())
-  numberOfVoices    Int?      @map("number_of_voices")
-  groupId           Int?      @map("group_id")
-  titleId           Int?      @map("title_id")
+  id                Int                  @id @default(autoincrement())
+  numberOfVoices    Int?                @map("number_of_voices")
+  groupId           Int?                @map("group_id")
+  titleId           Int?                @map("title_id")
+  title             String
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
-  compositionTypeId Int?      @map("composition_type_id")
+  compositionTypeId Int?                @map("composition_type_id")
   tone              Int?
-  evenOdd           Int?      @map("even_odd")
-  composerIdList    Int[]     @map("composer_id_list")
+  evenOdd           Int?                @map("even_odd")
+  composerIdList    Int[]               @map("composer_id_list")
   composers         ComposerComposition[]
 
   @@map("compositions")

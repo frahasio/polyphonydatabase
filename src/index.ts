@@ -9,30 +9,6 @@ app.use(express.json());
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Helper function to parse year string into components
-function parseYearString(yearString: string): { year: number | null; annotation: string | null } {
-  // Remove any non-numeric characters from the start
-  const numericMatch = yearString.match(/\d+/);
-  if (!numericMatch) return { year: null, annotation: yearString || null };
-  
-  const year = parseInt(numericMatch[0]);
-  const annotation = yearString.replace(numericMatch[0], '').trim() || null;
-  return { year, annotation };
-}
-
-// Helper function to format years for display
-function formatDisplayYears(fromYear: number | null, toYear: number | null, fromAnnotation: string | null, toAnnotation: string | null): string {
-  if (!fromYear && !toYear) return '';
-  
-  const from = fromYear ? `${fromAnnotation || ''}${fromYear}` : '';
-  const to = toYear ? `${toAnnotation || ''}${toYear}` : '';
-  
-  if (from && to) return `${from}–${to}`;
-  if (from) return from;
-  if (to) return to;
-  return '';
-}
-
 // Get all composers (minimal data for list view)
 app.get('/composers', async (req: Request, res: Response) => {
   try {
@@ -58,7 +34,10 @@ app.get('/composers', async (req: Request, res: Response) => {
           toYear: true,
           fromYearAnnotation: true,
           toYearAnnotation: true,
-          displayYears: true
+          birthplace1: true,
+          birthplace2: true,
+          deathplace1: true,
+          deathplace2: true
         },
         skip,
         take: limit,
@@ -102,48 +81,18 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
 // Update a composer
 app.put('/composers/:id', async (req: Request, res: Response) => {
   try {
-    const { displayYears, ...rest } = req.body;
-    
-    // Parse the display years string if provided
-    let fromYear = rest.fromYear;
-    let toYear = rest.toYear;
-    let fromYearAnnotation = rest.fromYearAnnotation;
-    let toYearAnnotation = rest.toYearAnnotation;
-
-    if (displayYears) {
-      const [fromPart, toPart] = displayYears.split('–').map((part: string) => part.trim());
-      
-      if (fromPart) {
-        const from = parseYearString(fromPart);
-        fromYear = from.year;
-        fromYearAnnotation = from.annotation;
-      }
-      
-      if (toPart) {
-        const to = parseYearString(toPart);
-        toYear = to.year;
-        toYearAnnotation = to.annotation;
-      }
-    }
-
     const composer = await prisma.composer.update({
       where: { id: parseInt(req.params.id) },
       data: {
-        name: rest.name,
-        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-        toYear: toYear ? parseInt(toYear.toString()) : null,
-        fromYearAnnotation,
-        toYearAnnotation,
-        displayYears: formatDisplayYears(
-          fromYear ? parseInt(fromYear.toString()) : null,
-          toYear ? parseInt(toYear.toString()) : null,
-          fromYearAnnotation,
-          toYearAnnotation
-        ),
-        birthplace1: rest.birthplace1,
-        birthplace2: rest.birthplace2,
-        deathplace1: rest.deathplace1,
-        deathplace2: rest.deathplace2
+        name: req.body.name,
+        fromYear: req.body.fromYear,
+        toYear: req.body.toYear,
+        fromYearAnnotation: req.body.fromYearAnnotation,
+        toYearAnnotation: req.body.toYearAnnotation,
+        birthplace1: req.body.birthplace1,
+        birthplace2: req.body.birthplace2,
+        deathplace1: req.body.deathplace1,
+        deathplace2: req.body.deathplace2
       }
     });
     res.json(composer);
@@ -155,47 +104,17 @@ app.put('/composers/:id', async (req: Request, res: Response) => {
 // Create a new composer
 app.post('/composers', async (req: Request, res: Response) => {
   try {
-    const { displayYears, ...rest } = req.body;
-    
-    // Parse the display years string if provided
-    let fromYear = rest.fromYear;
-    let toYear = rest.toYear;
-    let fromYearAnnotation = rest.fromYearAnnotation;
-    let toYearAnnotation = rest.toYearAnnotation;
-
-    if (displayYears) {
-      const [fromPart, toPart] = displayYears.split('–').map((part: string) => part.trim());
-      
-      if (fromPart) {
-        const from = parseYearString(fromPart);
-        fromYear = from.year;
-        fromYearAnnotation = from.annotation;
-      }
-      
-      if (toPart) {
-        const to = parseYearString(toPart);
-        toYear = to.year;
-        toYearAnnotation = to.annotation;
-      }
-    }
-
     const composer = await prisma.composer.create({
       data: {
-        name: rest.name,
-        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-        toYear: toYear ? parseInt(toYear.toString()) : null,
-        fromYearAnnotation,
-        toYearAnnotation,
-        displayYears: formatDisplayYears(
-          fromYear ? parseInt(fromYear.toString()) : null,
-          toYear ? parseInt(toYear.toString()) : null,
-          fromYearAnnotation,
-          toYearAnnotation
-        ),
-        birthplace1: rest.birthplace1,
-        birthplace2: rest.birthplace2,
-        deathplace1: rest.deathplace1,
-        deathplace2: rest.deathplace2
+        name: req.body.name,
+        fromYear: req.body.fromYear,
+        toYear: req.body.toYear,
+        fromYearAnnotation: req.body.fromYearAnnotation,
+        toYearAnnotation: req.body.toYearAnnotation,
+        birthplace1: req.body.birthplace1,
+        birthplace2: req.body.birthplace2,
+        deathplace1: req.body.deathplace1,
+        deathplace2: req.body.deathplace2
       }
     });
     res.status(201).json(composer);

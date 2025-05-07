@@ -45,6 +45,7 @@
         }
         .year-range {
             white-space: nowrap;
+            color: #666;
         }
     </style>
 </head>
@@ -83,6 +84,16 @@
         let currentLetter = '';
         const limit = 12;
 
+        function formatYearRange(composer) {
+            const fromYear = composer.fromYear ? `${composer.fromYearAnnotation || ''}${composer.fromYear}` : '';
+            const toYear = composer.toYear ? `${composer.toYearAnnotation || ''}${composer.toYear}` : '';
+            
+            if (fromYear && toYear) return `${fromYear}–${toYear}`;
+            if (fromYear) return fromYear;
+            if (toYear) return toYear;
+            return '';
+        }
+
         async function fetchComposers() {
             try {
                 const response = await fetch('/composers');
@@ -99,7 +110,7 @@
             composersList.innerHTML = composers.map(composer => `
                 <tr>
                     <td>${composer.name}</td>
-                    <td class="year-range">${composer.displayYears || ''}</td>
+                    <td class="year-range">${formatYearRange(composer)}</td>
                     <td>${[composer.birthplace1, composer.birthplace2].filter(Boolean).join(', ') || ''}</td>
                     <td>${[composer.deathplace1, composer.deathplace2].filter(Boolean).join(', ') || ''}</td>
                     <td>
