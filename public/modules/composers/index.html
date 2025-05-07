@@ -158,6 +158,12 @@
                 displayComposers(data.composers);
                 totalPages = data.pagination.pages;
                 updatePagination(data.pagination);
+                
+                // Update letter filter based on first composer on the page
+                if (data.composers.length > 0) {
+                    const firstLetter = data.composers[0].name.charAt(0).toUpperCase();
+                    updateLetterFilter(firstLetter);
+                }
             } catch (error) {
                 console.error('Error:', error);
                 const composersList = document.getElementById('composersList');
@@ -252,17 +258,26 @@
             paginationElement.innerHTML = html;
         }
 
+        function updateLetterFilter(letter) {
+            document.querySelectorAll('.letter-filter .btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.letter === letter) {
+                    btn.classList.add('active');
+                }
+            });
+            currentLetter = letter;
+        }
+
         // Event Listeners
         document.querySelectorAll('.letter-filter .btn').forEach(button => {
             button.addEventListener('click', async () => {
-                document.querySelectorAll('.letter-filter .btn').forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                currentLetter = button.dataset.letter;
+                const letter = button.dataset.letter;
+                updateLetterFilter(letter);
                 
                 // If a letter is selected, find the page where it begins
-                if (currentLetter) {
+                if (letter) {
                     try {
-                        const response = await fetch(`/composers?letter=${currentLetter}&limit=1`);
+                        const response = await fetch(`/composers?letter=${letter}&limit=1`);
                         if (!response.ok) throw new Error('Failed to fetch composer page');
                         const data = await response.json();
                         if (data.composers && data.composers.length > 0) {
@@ -285,12 +300,24 @@
             });
         });
 
-        document.getElementById('pagination').addEventListener('click', (e) => {
+        document.getElementById('pagination').addEventListener('click', async (e) => {
             e.preventDefault();
             if (e.target.classList.contains('page-link') && !e.target.parentElement.classList.contains('disabled')) {
                 const page = parseInt(e.target.dataset.page);
                 if (!isNaN(page)) {
                     currentPage = page;
+                    // When changing pages, we need to determine which letter we're on
+                    try {
+                        const response = await fetch(`/composers?page=${page}&limit=${limit}`);
+                        if (!response.ok) throw new Error('Failed to fetch composers');
+                        const data = await response.json();
+                        if (data.composers && data.composers.length > 0) {
+                            const firstLetter = data.composers[0].name.charAt(0).toUpperCase();
+                            updateLetterFilter(firstLetter);
+                        }
+                    } catch (error) {
+                        console.error('Error updating letter filter:', error);
+                    }
                     fetchComposers();
                 }
             }
