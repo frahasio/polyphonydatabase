@@ -66,8 +66,13 @@ app.get('/composers', async (req: Request, res: Response) => {
 // Get a single composer by ID
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid composer ID' });
+    }
+
     const composer = await prisma.composer.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -81,9 +86,11 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
         deathplace2: true
       }
     });
+
     if (!composer) {
       return res.status(404).json({ error: 'Composer not found' });
     }
+
     res.json(composer);
   } catch (error) {
     console.error('Error fetching composer:', error);
@@ -94,10 +101,15 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
 // Update a composer
 app.put('/composers/:id', async (req: Request, res: Response) => {
   try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid composer ID' });
+    }
+
     const { fromYear, toYear, ...rest } = req.body;
     
     const composer = await prisma.composer.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data: {
         name: rest.name,
         fromYear: fromYear ? parseInt(fromYear.toString()) : null,
@@ -113,6 +125,11 @@ app.put('/composers/:id', async (req: Request, res: Response) => {
     res.json(composer);
   } catch (error) {
     console.error('Error updating composer:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({ error: 'Composer not found' });
+      }
+    }
     res.status(500).json({ error: 'Failed to update composer' });
   }
 });
