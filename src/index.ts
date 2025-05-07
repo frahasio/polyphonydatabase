@@ -12,7 +12,18 @@ app.get('/composers', async (req: Request, res: Response) => {
       include: {
         compositions: {
           include: {
-            composition: true
+            composition: {
+              select: {
+                id: true,
+                numberOfVoices: true,
+                groupId: true,
+                titleId: true,
+                compositionTypeId: true,
+                tone: true,
+                evenOdd: true,
+                composerIdList: true
+              }
+            }
           }
         }
       }
