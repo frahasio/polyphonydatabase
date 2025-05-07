@@ -197,28 +197,47 @@
                 </li>
             `;
 
-            // Page numbers
-            for (let i = 1; i <= pages; i++) {
-                if (
-                    i === 1 || // First page
-                    i === pages || // Last page
-                    (i >= currentPage - 2 && i <= currentPage + 2) // Pages around current
-                ) {
-                    html += `
-                        <li class="page-item ${i === currentPage ? 'active' : ''}">
-                            <a class="page-link" href="#" data-page="${i}">${i}</a>
-                        </li>
-                    `;
-                } else if (
-                    (i === currentPage - 3 && currentPage > 4) || // Before current range
-                    (i === currentPage + 3 && currentPage < pages - 3) // After current range
-                ) {
-                    html += `
-                        <li class="page-item disabled">
-                            <span class="page-link">...</span>
-                        </li>
-                    `;
-                }
+            // Always show first page
+            html += `
+                <li class="page-item ${currentPage === 1 ? 'active' : ''}">
+                    <a class="page-link" href="#" data-page="1">1</a>
+                </li>
+            `;
+
+            // Show ellipsis if needed before current range
+            if (currentPage > 3) {
+                html += `
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                `;
+            }
+
+            // Show pages around current page
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(pages - 1, currentPage + 1); i++) {
+                html += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `;
+            }
+
+            // Show ellipsis if needed after current range
+            if (currentPage < pages - 2) {
+                html += `
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                `;
+            }
+
+            // Always show last page if there is more than one page
+            if (pages > 1) {
+                html += `
+                    <li class="page-item ${currentPage === pages ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${pages}">${pages}</a>
+                    </li>
+                `;
             }
 
             // Next button
@@ -237,14 +256,14 @@
                 document.querySelectorAll('.letter-filter .btn').forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
                 currentLetter = button.dataset.letter;
-                currentPage = 1;
+                currentPage = 1; // Reset to first page when changing letter
                 fetchComposers();
             });
         });
 
         document.getElementById('pagination').addEventListener('click', (e) => {
             e.preventDefault();
-            if (e.target.classList.contains('page-link')) {
+            if (e.target.classList.contains('page-link') && !e.target.parentElement.classList.contains('disabled')) {
                 const page = parseInt(e.target.dataset.page);
                 if (!isNaN(page)) {
                     currentPage = page;
