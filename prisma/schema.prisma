@@ -17,11 +17,11 @@ model Composer {
   toYear            Int?      @map("to_year")
   fromYearAnnotation String?  @map("from_year_annotation")
   toYearAnnotation  String?   @map("to_year_annotation")
+  displayYears      String?   @map("display_years")  // Full year string for display
   birthplace1       String?   @map("birthplace_1")
   birthplace2       String?   @map("birthplace_2")
   deathplace1       String?   @map("deathplace_1")
   deathplace2       String?   @map("deathplace_2")
-  imageUrl          String?   @map("image_url")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   compositions      ComposerComposition[]

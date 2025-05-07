@@ -19,169 +19,132 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="composer-form">
-            <h2 class="mb-4">Edit Composer</h2>
-            <form id="composerForm">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="name">Name</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="fromYear">From Year</label>
-                            <input type="number" class="form-control" id="fromYear" name="fromYear">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="toYear">To Year</label>
-                            <input type="number" class="form-control" id="toYear" name="toYear">
-                        </div>
-                    </div>
-                </div>
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Edit Composer</h1>
+            <a href="index.html" class="btn btn-outline-secondary">Back to List</a>
+        </div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="fromYearAnnotation">From Year Annotation</label>
-                            <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation">
-                        </div>
+        <div class="card">
+            <div class="card-body">
+                <form id="composerForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="toYearAnnotation">To Year Annotation</label>
-                            <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation">
-                        </div>
-                    </div>
-                </div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="birthplace1">Birthplace 1</label>
-                            <input type="text" class="form-control" id="birthplace1" name="birthplace1">
-                        </div>
+                    <div class="mb-3">
+                        <label for="displayYears" class="form-label">Years</label>
+                        <input type="text" class="form-control" id="displayYears" name="displayYears" 
+                               placeholder="e.g., c.1500–1550 or fl.1520">
+                        <div class="form-text">Enter years in format: [prefix]year–[prefix]year (e.g., c.1500–1550 or fl.1520)</div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="birthplace2">Birthplace 2</label>
-                            <input type="text" class="form-control" id="birthplace2" name="birthplace2">
-                        </div>
-                    </div>
-                </div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="deathplace1">Deathplace 1</label>
-                            <input type="text" class="form-control" id="deathplace1" name="deathplace1">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="birthplace1" class="form-label">Birthplace (City)</label>
+                                <input type="text" class="form-control" id="birthplace1" name="birthplace1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="birthplace2" class="form-label">Birthplace (Country/Region)</label>
+                                <input type="text" class="form-control" id="birthplace2" name="birthplace2">
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="deathplace2">Deathplace 2</label>
-                            <input type="text" class="form-control" id="deathplace2" name="deathplace2">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="deathplace1" class="form-label">Deathplace (City)</label>
+                                <input type="text" class="form-control" id="deathplace1" name="deathplace1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="deathplace2" class="form-label">Deathplace (Country/Region)</label>
+                                <input type="text" class="form-control" id="deathplace2" name="deathplace2">
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="imageUrl">Image URL</label>
-                    <input type="url" class="form-control" id="imageUrl" name="imageUrl">
-                </div>
-
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <a href="/modules/composers" class="btn btn-secondary">Back to Composers</a>
-                </div>
-            </form>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-danger" id="deleteButton">Delete Composer</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
-        // Get composer ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const composerId = urlParams.get('id');
-
+        const composerId = new URLSearchParams(window.location.search).get('id');
         if (!composerId) {
-            alert('No composer ID provided');
-            window.location.href = '/modules/composers';
+            window.location.href = 'index.html';
         }
 
-        // Fetch composer data
         async function fetchComposer() {
             try {
                 const response = await fetch(`/composers/${composerId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch composer');
-                }
+                if (!response.ok) throw new Error('Failed to fetch composer');
                 const composer = await response.json();
                 populateForm(composer);
             } catch (error) {
                 console.error('Error:', error);
-                // Don't show alert, just log the error
-                // The form will remain empty if there's an error
             }
         }
 
-        // Populate form with composer data
         function populateForm(composer) {
             document.getElementById('name').value = composer.name || '';
-            document.getElementById('fromYear').value = composer.fromYear || '';
-            document.getElementById('toYear').value = composer.toYear || '';
-            document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
-            document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
+            document.getElementById('displayYears').value = composer.displayYears || '';
             document.getElementById('birthplace1').value = composer.birthplace1 || '';
             document.getElementById('birthplace2').value = composer.birthplace2 || '';
             document.getElementById('deathplace1').value = composer.deathplace1 || '';
             document.getElementById('deathplace2').value = composer.deathplace2 || '';
-            document.getElementById('imageUrl').value = composer.imageUrl || '';
         }
 
-        // Handle form submission
         document.getElementById('composerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const formData = {
-                name: document.getElementById('name').value,
-                fromYear: document.getElementById('fromYear').value,
-                toYear: document.getElementById('toYear').value,
-                fromYearAnnotation: document.getElementById('fromYearAnnotation').value,
-                toYearAnnotation: document.getElementById('toYearAnnotation').value,
-                birthplace1: document.getElementById('birthplace1').value,
-                birthplace2: document.getElementById('birthplace2').value,
-                deathplace1: document.getElementById('deathplace1').value,
-                deathplace2: document.getElementById('deathplace2').value,
-                imageUrl: document.getElementById('imageUrl').value
-            };
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
 
             try {
                 const response = await fetch(`/composers/${composerId}`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(data)
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to update composer');
-                }
-
-                alert('Composer updated successfully');
-                window.location.href = '/modules/composers';
+                if (!response.ok) throw new Error('Failed to update composer');
+                window.location.href = 'index.html';
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to update composer');
+                alert('Failed to update composer. Please try again.');
             }
         });
 
-        // Load composer data when page loads
-        fetchComposer();
+        document.getElementById('deleteButton').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to delete this composer?')) return;
+
+            try {
+                const response = await fetch(`/composers/${composerId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to delete composer');
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete composer. Please try again.');
+            }
+        });
+
+        // Load composer data when the page loads
+        document.addEventListener('DOMContentLoaded', fetchComposer);
     </script>
 </body>
 </html> 
