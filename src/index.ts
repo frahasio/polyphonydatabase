@@ -625,14 +625,16 @@ app.post('/sources', async (req, res) => {
       format,
       town,
       rismLink,
-      url,
+      images,
       catalogued,
       fromYear,
       toYear,
       fromYearAnnotation,
       toYearAnnotation,
       dates,
-      locationAndPubscribe
+      locationAndPubscribe,
+      publisherIds,
+      scribeIds
     } = req.body;
 
     const source = await prisma.source.create({
@@ -643,14 +645,30 @@ app.post('/sources', async (req, res) => {
         format,
         town,
         rismLink,
-        url,
         catalogued: catalogued || false,
         fromYear: fromYear ? parseInt(fromYear.toString()) : null,
         toYear: toYear ? parseInt(toYear.toString()) : null,
         fromYearAnnotation,
         toYearAnnotation,
         dates,
-        locationAndPubscribe
+        locationAndPubscribe,
+        publishers: publisherIds ? {
+          connect: publisherIds.map((id: number) => ({ id }))
+        } : undefined,
+        scribes: scribeIds ? {
+          connect: scribeIds.map((id: number) => ({ id }))
+        } : undefined,
+        images: images ? {
+          create: images.map((img: { url: string, label?: string }) => ({
+            url: img.url,
+            label: img.label
+          }))
+        } : undefined
+      },
+      include: {
+        publishers: true,
+        scribes: true,
+        images: true
       }
     });
 
@@ -669,7 +687,24 @@ app.post('/sources', async (req, res) => {
 app.put('/sources/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { code, title, type, format, town, rismLink, url, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, locationAndPubscribe, publisherIds, scribeIds } = req.body;
+        const { 
+            code, 
+            title, 
+            type, 
+            format, 
+            town, 
+            rismLink, 
+            images,
+            catalogued, 
+            fromYear, 
+            toYear, 
+            fromYearAnnotation, 
+            toYearAnnotation, 
+            dates, 
+            locationAndPubscribe, 
+            publisherIds, 
+            scribeIds 
+        } = req.body;
         
         // First update the source
         const source = await prisma.source.update({
@@ -681,42 +716,35 @@ app.put('/sources/:id', async (req, res) => {
                 format,
                 town,
                 rismLink,
-                url,
                 catalogued,
                 fromYear,
                 toYear,
                 fromYearAnnotation,
                 toYearAnnotation,
                 dates,
-                locationAndPubscribe
-            }
-        });
-
-        // Then update the relationships if provided
-        if (publisherIds || scribeIds) {
-            await prisma.source.update({
-                where: { id: parseInt(id) },
-                data: {
-                    publishers: publisherIds ? {
-                        set: publisherIds.map((id: number) => ({ id }))
-                    } : undefined,
-                    scribes: scribeIds ? {
-                        set: scribeIds.map((id: number) => ({ id }))
-                    } : undefined
-                }
-            });
-        }
-
-        // Fetch the updated source with relationships
-        const updatedSource = await prisma.source.findUnique({
-            where: { id: parseInt(id) },
+                locationAndPubscribe,
+                publishers: publisherIds ? {
+                    set: publisherIds.map((id: number) => ({ id }))
+                } : undefined,
+                scribes: scribeIds ? {
+                    set: scribeIds.map((id: number) => ({ id }))
+                } : undefined,
+                images: images ? {
+                    deleteMany: {},
+                    create: images.map((img: { url: string, label?: string }) => ({
+                        url: img.url,
+                        label: img.label
+                    }))
+                } : undefined
+            },
             include: {
                 publishers: true,
-                scribes: true
+                scribes: true,
+                images: true
             }
         });
 
-        res.json(updatedSource);
+        res.json(source);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
             res.status(400).json({ error: 'Source code must be unique' });
@@ -749,7 +777,12 @@ app.get('/sources/:id', async (req, res) => {
         const { id } = req.params;
 
         const source = await prisma.source.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parseInt(id) },
+            include: {
+                publishers: true,
+                scribes: true,
+                images: true
+            }
         });
 
         if (!source) {

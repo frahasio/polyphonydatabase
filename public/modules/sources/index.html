@@ -40,9 +40,21 @@
         <!-- Sources List -->
         <div class="card">
             <div class="card-body">
-                <div class="list-group" id="sourcesList">
-                    <div class="text-center text-muted">Loading sources...</div>
-                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Format</th>
+                            <th>Town</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Will be populated dynamically -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -113,10 +125,6 @@
                             <label for="rismLink" class="form-label">RISM URL</label>
                             <input type="url" class="form-control" id="rismLink" name="rismLink">
                         </div>
-                        <div class="mb-3">
-                            <label for="url" class="form-label">Images URL</label>
-                            <input type="url" class="form-control" id="url" name="url">
-                        </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
                             <label class="form-check-label" for="catalogued">Catalogued</label>
@@ -136,70 +144,39 @@
         let searchTimeout;
 
         // Fetch and display sources
-        async function fetchSources(searchTerm = '') {
+        async function fetchSources() {
             try {
-                const response = await fetch(`/sources?search=${searchTerm}`);
-                const data = await response.json();
-                
-                if (data.sources && Array.isArray(data.sources)) {
-                    displaySources(data.sources);
-                } else {
-                    throw new Error('Invalid response format');
+                const response = await fetch('/sources');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sources');
                 }
+                const data = await response.json();
+                const tbody = document.querySelector('#sourcesTable tbody');
+                tbody.innerHTML = '';
+
+                data.sources.forEach(source => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${source.code}</td>
+                        <td>${source.title || ''}</td>
+                        <td>${source.type || ''}</td>
+                        <td>${source.format || ''}</td>
+                        <td>${source.town || ''}</td>
+                        <td>
+                            <a href="edit.html?id=${source.id}" class="btn btn-sm btn-outline-primary me-2">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSource(${source.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             } catch (error) {
                 console.error('Error fetching sources:', error);
-                document.getElementById('sourcesList').innerHTML = `
-                    <div class="text-center text-danger">
-                        Failed to load sources. Please try again later.
-                    </div>
-                `;
+                alert('Failed to load sources. Please try again.');
             }
-        }
-
-        // Display sources in the list
-        function displaySources(sources) {
-            const list = document.getElementById('sourcesList');
-            if (sources.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center text-muted">No sources found</div>
-                `;
-                return;
-            }
-
-            list.innerHTML = sources.map(source => `
-                <a href="edit.html?id=${source.id}" class="list-group-item list-group-item-action ${!source.catalogued ? 'list-group-item-warning' : ''}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="font-monospace fw-medium">${source.code}</span>
-                                <span class="text-muted">${getYearDisplay(source)}</span>
-                            </div>
-                            <div class="text-muted small mt-1">${truncateText(source.title, 100)}</div>
-                        </div>
-                        ${!source.catalogued ? 
-                            '<span class="badge bg-warning text-dark">Needs Cataloguing</span>' : 
-                            ''}
-                    </div>
-                </a>
-            `).join('');
-        }
-
-        // Helper function to get year display
-        function getYearDisplay(source) {
-            if (source.fromYear && source.toYear) {
-                return `${source.fromYear}-${source.toYear}`;
-            } else if (source.fromYear) {
-                return source.fromYear.toString();
-            } else if (source.toYear) {
-                return source.toYear.toString();
-            }
-            return '';
-        }
-
-        // Helper function to truncate text
-        function truncateText(text, maxLength) {
-            if (!text) return '';
-            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
         }
 
         // Handle search input
@@ -214,7 +191,7 @@
             // Only search if we have at least 2 characters
             if (searchTerm.length >= 2 || searchTerm.length === 0) {
                 searchTimeout = setTimeout(() => {
-                    fetchSources(searchTerm);
+                    fetchSources();
                 }, 300); // Debounce for 300ms
             }
         });
@@ -225,14 +202,22 @@
             fetchSources();
         });
 
-        // Save new source
-        document.getElementById('addSourceBtn').addEventListener('click', async () => {
-            const form = document.getElementById('addSourceForm');
+        // Handle form submission
+        document.getElementById('addSourceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
             const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
             
-            // Convert checkbox value to boolean
-            data.catalogued = formData.get('catalogued') === 'on';
+            // Convert form data to object
+            const data = {
+                code: formData.get('code'),
+                title: formData.get('title'),
+                type: formData.get('type'),
+                format: formData.get('format'),
+                town: formData.get('town'),
+                rismLink: formData.get('rismLink'),
+                catalogued: formData.get('catalogued') === 'on'
+            };
 
             try {
                 const response = await fetch('/sources', {
@@ -247,11 +232,7 @@
                     throw new Error('Failed to create source');
                 }
 
-                // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addSourceModal'));
-                modal.hide();
-                form.reset();
-                fetchSources();
+                window.location.reload();
             } catch (error) {
                 console.error('Error creating source:', error);
                 alert('Failed to create source. Please try again.');

@@ -93,10 +93,22 @@
                             <label for="rismLink" class="form-label">RISM URL</label>
                             <input type="url" class="form-control" id="rismLink" name="rismLink">
                         </div>
-                        <div class="col-md-6">
-                            <label for="url" class="form-label">Images URL</label>
-                            <input type="url" class="form-control" id="url" name="url">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Images</label>
+                        <div id="imageInputs">
+                            <div class="input-group mb-2">
+                                <input type="url" class="form-control" name="images[0][url]" placeholder="Image URL">
+                                <input type="text" class="form-control" name="images[0][label]" placeholder="Label (optional)">
+                                <button type="button" class="btn btn-outline-danger remove-image" style="display: none;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addImageBtn">
+                            <i class="bi bi-plus"></i> Add Another Image
+                        </button>
                     </div>
 
                     <div class="mb-3 form-check">
@@ -232,6 +244,42 @@
             }
         }
 
+        // Handle image inputs
+        let imageCount = 1;
+        const imageInputs = document.getElementById('imageInputs');
+        const addImageBtn = document.getElementById('addImageBtn');
+
+        addImageBtn.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.className = 'input-group mb-2';
+            div.innerHTML = `
+                <input type="url" class="form-control" name="images[${imageCount}][url]" placeholder="Image URL">
+                <input type="text" class="form-control" name="images[${imageCount}][label]" placeholder="Label (optional)">
+                <button type="button" class="btn btn-outline-danger remove-image">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+            imageInputs.appendChild(div);
+            imageCount++;
+
+            // Show remove buttons if there's more than one image input
+            if (imageCount > 1) {
+                document.querySelectorAll('.remove-image').forEach(btn => btn.style.display = 'block');
+            }
+        });
+
+        imageInputs.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-image')) {
+                e.target.closest('.input-group').remove();
+                imageCount--;
+                
+                // Hide remove buttons if there's only one image input left
+                if (imageCount === 1) {
+                    document.querySelectorAll('.remove-image').forEach(btn => btn.style.display = 'none');
+                }
+            }
+        });
+
         // Populate form with source data
         function populateForm(source) {
             document.getElementById('code').value = source.code || '';
@@ -240,12 +288,33 @@
             document.getElementById('format').value = source.format || '';
             document.getElementById('town').value = source.town || '';
             document.getElementById('rismLink').value = source.rismLink || '';
-            document.getElementById('url').value = source.url || '';
             document.getElementById('catalogued').checked = source.catalogued || false;
             document.getElementById('fromYear').value = source.fromYear || '';
             document.getElementById('toYear').value = source.toYear || '';
             document.getElementById('fromYearAnnotation').value = source.fromYearAnnotation || '';
             document.getElementById('toYearAnnotation').value = source.toYearAnnotation || '';
+
+            // Populate images
+            if (source.images && source.images.length > 0) {
+                // Clear existing image inputs
+                imageInputs.innerHTML = '';
+                imageCount = 0;
+
+                // Add each image
+                source.images.forEach((image, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'input-group mb-2';
+                    div.innerHTML = `
+                        <input type="url" class="form-control" name="images[${index}][url]" placeholder="Image URL" value="${image.url}">
+                        <input type="text" class="form-control" name="images[${index}][label]" placeholder="Label (optional)" value="${image.label || ''}">
+                        <button type="button" class="btn btn-outline-danger remove-image" ${index === 0 ? 'style="display: none;"' : ''}>
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    `;
+                    imageInputs.appendChild(div);
+                    imageCount++;
+                });
+            }
 
             // Set selected publishers and scribes
             if (source.publishers) {
@@ -270,16 +339,43 @@
             e.preventDefault();
             const form = e.target;
             const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
             
-            // Convert checkbox value to boolean
-            data.catalogued = formData.get('catalogued') === 'on';
+            // Convert form data to object
+            const data = {
+                code: formData.get('code'),
+                title: formData.get('title'),
+                type: formData.get('type'),
+                format: formData.get('format'),
+                town: formData.get('town'),
+                rismLink: formData.get('rismLink'),
+                catalogued: formData.get('catalogued') === 'on',
+                fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
+                toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
+                fromYearAnnotation: formData.get('fromYearAnnotation'),
+                toYearAnnotation: formData.get('toYearAnnotation'),
+                dates: formData.get('dates'),
+                locationAndPubscribe: formData.get('locationAndPubscribe'),
+                images: []
+            };
 
             // Get selected publishers and scribes
             const publishersSelect = document.getElementById('publishers');
             const scribesSelect = document.getElementById('scribes');
             data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
             data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
+
+            // Collect image data
+            const imageUrls = formData.getAll('images[0][url]');
+            const imageLabels = formData.getAll('images[0][label]');
+            
+            for (let i = 0; i < imageUrls.length; i++) {
+                if (imageUrls[i]) {
+                    data.images.push({
+                        url: imageUrls[i],
+                        label: imageLabels[i] || null
+                    });
+                }
+            }
 
             try {
                 const response = await fetch(`/sources/${sourceId}`, {
