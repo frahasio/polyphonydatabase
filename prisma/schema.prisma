@@ -107,7 +107,6 @@ model Source {
   format            String?
   town              String?
   rismLink          String?             @map("rism_link")
-  url               String?
   catalogued        Boolean             @default(false)
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
