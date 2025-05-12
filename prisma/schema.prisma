@@ -73,7 +73,7 @@ model Scribe {
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   searchVector      Unsupported("tsvector")? @map("search_vector")
-  sources           Source[]            @relation("SourceToScribe")
+  scribeSources     ScribeSource[]
 
   @@map("scribes")
 }
@@ -84,7 +84,7 @@ model Publisher {
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   searchVector      Unsupported("tsvector")? @map("search_vector")
-  sources           Source[]            @relation("SourceToPublisher")
+  publisherSources  PublisherSource[]
 
   @@map("publishers")
 }
@@ -118,8 +118,8 @@ model Source {
   searchVector      Unsupported("tsvector")? @map("search_vector")
   images            SourceImage[]
   inclusions        Inclusion[]
-  publishers        Publisher[]         @relation("SourceToPublisher")
-  scribes           Scribe[]            @relation("SourceToScribe")
+  publisherSources  PublisherSource[]
+  scribeSources     ScribeSource[]
 
   @@map("sources")
 }
@@ -155,4 +155,24 @@ model Inclusion {
   source    Source?  @relation(fields: [sourceId], references: [id])
 
   @@map("inclusions")
+}
+
+model PublisherSource {
+  publisher   Publisher @relation(fields: [publisherId], references: [id])
+  publisherId Int
+  source      Source    @relation(fields: [sourceId], references: [id])
+  sourceId    Int
+
+  @@id([publisherId, sourceId])
+  @@map("publishers_sources")
+}
+
+model ScribeSource {
+  scribe   Scribe @relation(fields: [scribeId], references: [id])
+  scribeId Int
+  source   Source @relation(fields: [sourceId], references: [id])
+  sourceId Int
+
+  @@id([scribeId, sourceId])
+  @@map("scribes_sources")
 } 
