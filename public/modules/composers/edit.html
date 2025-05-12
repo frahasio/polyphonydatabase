@@ -40,21 +40,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="birthplace1" class="form-label">Birthplace 1</label>
-                        <input type="text" class="form-control" id="birthplace1" name="birthplace1">
-                    </div>
-                    <div class="mb-3">
-                        <label for="birthplace2" class="form-label">Birthplace 2</label>
-                        <input type="text" class="form-control" id="birthplace2" name="birthplace2">
-                    </div>
-                    <div class="mb-3">
-                        <label for="deathplace1" class="form-label">Deathplace 1</label>
-                        <input type="text" class="form-control" id="deathplace1" name="deathplace1">
-                    </div>
-                    <div class="mb-3">
-                        <label for="deathplace2" class="form-label">Deathplace 2</label>
-                        <input type="text" class="form-control" id="deathplace2" name="deathplace2">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Birthplace</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="birthplace1" name="birthplace1" placeholder="City">
+                                <input type="text" class="form-control" id="birthplace2" name="birthplace2" placeholder="Country">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Deathplace</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="deathplace1" name="deathplace1" placeholder="City">
+                                <input type="text" class="form-control" id="deathplace2" name="deathplace2" placeholder="Country">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -93,7 +93,9 @@
                 document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
                 document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
                 document.getElementById('birthplace1').value = composer.birthplace1 || '';
+                document.getElementById('birthplace2').value = composer.birthplace2 || '';
                 document.getElementById('deathplace1').value = composer.deathplace1 || '';
+                document.getElementById('deathplace2').value = composer.deathplace2 || '';
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load composer data. Please try again.');
@@ -111,7 +113,9 @@
             const fromYearAnnotation = document.getElementById('fromYearAnnotation').value;
             const toYearAnnotation = document.getElementById('toYearAnnotation').value;
             const birthplace1 = document.getElementById('birthplace1').value;
+            const birthplace2 = document.getElementById('birthplace2').value;
             const deathplace1 = document.getElementById('deathplace1').value;
+            const deathplace2 = document.getElementById('deathplace2').value;
 
             try {
                 const response = await fetch(`/composers/${composerId}`, {
@@ -126,7 +130,9 @@
                         fromYearAnnotation: fromYearAnnotation || null,
                         toYearAnnotation: toYearAnnotation || null,
                         birthplace1: birthplace1 || null,
-                        deathplace1: deathplace1 || null
+                        birthplace2: birthplace2 || null,
+                        deathplace1: deathplace1 || null,
+                        deathplace2: deathplace2 || null
                     })
                 });
 
