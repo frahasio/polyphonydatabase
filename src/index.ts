@@ -616,7 +616,7 @@ app.get('/sources', async (req: Request, res: Response) => {
 });
 
 // POST /sources - Create a new source
-app.post('/sources', async (req: Request, res: Response) => {
+app.post('/sources', async (req, res) => {
   try {
     const {
       code,
@@ -632,7 +632,7 @@ app.post('/sources', async (req: Request, res: Response) => {
       fromYearAnnotation,
       toYearAnnotation,
       dates,
-      locationAndPubsubscribe
+      locationAndPubscribe
     } = req.body;
 
     const source = await prisma.source.create({
@@ -650,19 +650,18 @@ app.post('/sources', async (req: Request, res: Response) => {
         fromYearAnnotation,
         toYearAnnotation,
         dates,
-        locationAndPubsubscribe
+        locationAndPubscribe
       }
     });
 
     res.status(201).json(source);
   } catch (error) {
-    console.error('Error creating source:', error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2002') {
-        return res.status(400).json({ error: 'A source with this code already exists' });
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(400).json({ error: 'Source code must be unique' });
+    } else {
+      console.error('Error creating source:', error);
+      res.status(500).json({ error: 'Failed to create source' });
     }
-    res.status(500).json({ error: 'Failed to create source' });
   }
 });
 
@@ -670,38 +669,45 @@ app.post('/sources', async (req: Request, res: Response) => {
 app.put('/sources/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const data = req.body;
-
+        const { code, title, type, format, town, rismLink, url, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, locationAndPubscribe, publisherIds, scribeIds } = req.body;
+        
         const source = await prisma.source.update({
             where: { id: parseInt(id) },
             data: {
-                code: data.code,
-                title: data.title,
-                type: data.type,
-                format: data.format,
-                town: data.town,
-                rismLink: data.rismLink,
-                url: data.url,
-                catalogued: data.catalogued,
-                fromYear: data.fromYear ? parseInt(data.fromYear) : null,
-                toYear: data.toYear ? parseInt(data.toYear) : null,
-                fromYearAnnotation: data.fromYearAnnotation,
-                toYearAnnotation: data.toYearAnnotation,
-                dates: data.dates,
-                locationAndPubsubscribe: data.locationAndPubsubscribe
+                code,
+                title,
+                type,
+                format,
+                town,
+                rismLink,
+                url,
+                catalogued,
+                fromYear,
+                toYear,
+                fromYearAnnotation,
+                toYearAnnotation,
+                dates,
+                locationAndPubscribe,
+                publishers: {
+                    set: publisherIds?.map((id: number) => ({ id })) || []
+                },
+                scribes: {
+                    set: scribeIds?.map((id: number) => ({ id })) || []
+                }
+            },
+            include: {
+                publishers: true,
+                scribes: true
             }
         });
-
         res.json(source);
     } catch (error) {
-        console.error('Error updating source:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2002') {
-                res.status(400).json({ error: 'A source with this code already exists' });
-                return;
-            }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            res.status(400).json({ error: 'Source code must be unique' });
+        } else {
+            console.error('Error updating source:', error);
+            res.status(500).json({ error: 'Failed to update source' });
         }
-        res.status(500).json({ error: 'Failed to update source' });
     }
 });
 
