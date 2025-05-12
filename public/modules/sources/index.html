@@ -51,7 +51,7 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="sourcesTableBody">
                         <!-- Will be populated dynamically -->
                     </tbody>
                 </table>
@@ -151,7 +151,7 @@
                     throw new Error('Failed to fetch sources');
                 }
                 const data = await response.json();
-                const tbody = document.querySelector('#sourcesTable tbody');
+                const tbody = document.getElementById('sourcesTableBody');
                 tbody.innerHTML = '';
 
                 data.sources.forEach(source => {
