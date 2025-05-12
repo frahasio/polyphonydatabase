@@ -671,6 +671,7 @@ app.put('/sources/:id', async (req, res) => {
         const { id } = req.params;
         const { code, title, type, format, town, rismLink, url, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, locationAndPubscribe, publisherIds, scribeIds } = req.body;
         
+        // First update the source
         const source = await prisma.source.update({
             where: { id: parseInt(id) },
             data: {
@@ -687,20 +688,35 @@ app.put('/sources/:id', async (req, res) => {
                 fromYearAnnotation,
                 toYearAnnotation,
                 dates,
-                locationAndPubscribe,
-                publishers: {
-                    set: publisherIds?.map((id: number) => ({ id })) || []
-                },
-                scribes: {
-                    set: scribeIds?.map((id: number) => ({ id })) || []
+                locationAndPubscribe
+            }
+        });
+
+        // Then update the relationships if provided
+        if (publisherIds || scribeIds) {
+            await prisma.source.update({
+                where: { id: parseInt(id) },
+                data: {
+                    publishers: publisherIds ? {
+                        set: publisherIds.map((id: number) => ({ id }))
+                    } : undefined,
+                    scribes: scribeIds ? {
+                        set: scribeIds.map((id: number) => ({ id }))
+                    } : undefined
                 }
-            },
+            });
+        }
+
+        // Fetch the updated source with relationships
+        const updatedSource = await prisma.source.findUnique({
+            where: { id: parseInt(id) },
             include: {
                 publishers: true,
                 scribes: true
             }
         });
-        res.json(source);
+
+        res.json(updatedSource);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
             res.status(400).json({ error: 'Source code must be unique' });
