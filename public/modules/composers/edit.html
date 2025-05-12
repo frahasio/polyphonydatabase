@@ -24,14 +24,26 @@
                         <label for="name" class="form-label">Name</label>
                         <input type="text" class="form-control" id="name" name="name" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="fromYear" class="form-label">From Year</label>
-                        <input type="number" class="form-control" id="fromYear" name="fromYear">
+
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="fromYear" class="form-label">From Year</label>
+                            <input type="number" class="form-control" id="fromYear" name="fromYear">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="fromYearAnnotation" class="form-label">From Year Annotation</label>
+                            <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="e.g. c., after, before">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="toYear" class="form-label">To Year</label>
+                            <input type="number" class="form-control" id="toYear" name="toYear">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="toYearAnnotation" class="form-label">To Year Annotation</label>
+                            <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="e.g. c., after, before">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="toYear" class="form-label">To Year</label>
-                        <input type="number" class="form-control" id="toYear" name="toYear">
-                    </div>
+
                     <div class="mb-3">
                         <label for="birthplace1" class="form-label">Birthplace</label>
                         <input type="text" class="form-control" id="birthplace1" name="birthplace1">
@@ -40,6 +52,7 @@
                         <label for="deathplace1" class="form-label">Deathplace</label>
                         <input type="text" class="form-control" id="deathplace1" name="deathplace1">
                     </div>
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Save Changes
@@ -73,6 +86,8 @@
                 document.getElementById('name').value = composer.name || '';
                 document.getElementById('fromYear').value = composer.fromYear || '';
                 document.getElementById('toYear').value = composer.toYear || '';
+                document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
+                document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
                 document.getElementById('birthplace1').value = composer.birthplace1 || '';
                 document.getElementById('deathplace1').value = composer.deathplace1 || '';
             } catch (error) {
@@ -89,6 +104,8 @@
             const name = document.getElementById('name').value;
             const fromYear = document.getElementById('fromYear').value;
             const toYear = document.getElementById('toYear').value;
+            const fromYearAnnotation = document.getElementById('fromYearAnnotation').value;
+            const toYearAnnotation = document.getElementById('toYearAnnotation').value;
             const birthplace1 = document.getElementById('birthplace1').value;
             const deathplace1 = document.getElementById('deathplace1').value;
 
@@ -102,6 +119,8 @@
                         name,
                         fromYear: fromYear || null,
                         toYear: toYear || null,
+                        fromYearAnnotation: fromYearAnnotation || null,
+                        toYearAnnotation: toYearAnnotation || null,
                         birthplace1: birthplace1 || null,
                         deathplace1: deathplace1 || null
                     })

@@ -156,14 +156,26 @@
                             <label for="name" class="form-label">Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="fromYear" class="form-label">From Year</label>
-                            <input type="number" class="form-control" id="fromYear" name="fromYear">
+
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label for="fromYear" class="form-label">From Year</label>
+                                <input type="number" class="form-control" id="fromYear" name="fromYear">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="fromYearAnnotation" class="form-label">From Year Annotation</label>
+                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="e.g. c., after, before">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="toYear" class="form-label">To Year</label>
+                                <input type="number" class="form-control" id="toYear" name="toYear">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="toYearAnnotation" class="form-label">To Year Annotation</label>
+                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="e.g. c., after, before">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="toYear" class="form-label">To Year</label>
-                            <input type="number" class="form-control" id="toYear" name="toYear">
-                        </div>
+
                         <div class="mb-3">
                             <label for="birthplace1" class="form-label">Birthplace</label>
                             <input type="text" class="form-control" id="birthplace1" name="birthplace1">
@@ -176,7 +188,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveComposerButton">Save</button>
+                    <button type="button" class="btn btn-primary" id="addComposerBtn">Add Composer</button>
                 </div>
             </div>
         </div>
@@ -274,17 +286,18 @@
         }
 
         // Add new composer
-        document.getElementById('saveComposerButton').addEventListener('click', async () => {
-            const name = document.getElementById('name').value;
-            const fromYear = document.getElementById('fromYear').value;
-            const toYear = document.getElementById('toYear').value;
-            const birthplace1 = document.getElementById('birthplace1').value;
-            const deathplace1 = document.getElementById('deathplace1').value;
-
-            if (!name) {
-                alert('Please enter a name');
-                return;
-            }
+        document.getElementById('addComposerBtn').addEventListener('click', async () => {
+            const form = document.getElementById('addComposerForm');
+            const formData = new FormData(form);
+            const data = {
+                name: formData.get('name'),
+                fromYear: formData.get('fromYear') || null,
+                toYear: formData.get('toYear') || null,
+                fromYearAnnotation: formData.get('fromYearAnnotation') || null,
+                toYearAnnotation: formData.get('toYearAnnotation') || null,
+                birthplace1: formData.get('birthplace1') || null,
+                deathplace1: formData.get('deathplace1') || null
+            };
 
             try {
                 const response = await fetch('/composers', {
@@ -292,27 +305,19 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        name,
-                        fromYear: fromYear || null,
-                        toYear: toYear || null,
-                        birthplace1: birthplace1 || null,
-                        deathplace1: deathplace1 || null
-                    })
+                    body: JSON.stringify(data)
                 });
 
                 if (!response.ok) {
                     throw new Error('Failed to create composer');
                 }
 
-                // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addComposerModal'));
-                modal.hide();
-                document.getElementById('addComposerForm').reset();
-                fetchComposers();
+                const composer = await response.json();
+                alert('Composer added successfully');
+                window.location.reload();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create composer. Please try again.');
+                alert('Failed to add composer. Please try again.');
             }
         });
 
