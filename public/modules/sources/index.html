@@ -144,9 +144,9 @@
         let searchTimeout;
 
         // Fetch and display sources
-        async function fetchSources() {
+        async function fetchSources(searchTerm = '') {
             try {
-                const response = await fetch('/sources');
+                const response = await fetch(`/sources${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch sources');
                 }
@@ -188,10 +188,10 @@
                 clearTimeout(searchTimeout);
             }
 
-            // Only search if we have at least 2 characters
+            // Only search if we have at least 2 characters or empty
             if (searchTerm.length >= 2 || searchTerm.length === 0) {
                 searchTimeout = setTimeout(() => {
-                    fetchSources();
+                    fetchSources(searchTerm);
                 }, 300); // Debounce for 300ms
             }
         });
@@ -232,12 +232,38 @@
                     throw new Error('Failed to create source');
                 }
 
-                window.location.reload();
+                // Close modal and refresh list
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addSourceModal'));
+                modal.hide();
+                form.reset();
+                fetchSources();
             } catch (error) {
                 console.error('Error creating source:', error);
                 alert('Failed to create source. Please try again.');
             }
         });
+
+        // Handle delete
+        async function deleteSource(id) {
+            if (!confirm('Are you sure you want to delete this source?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/sources/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete source');
+                }
+
+                fetchSources();
+            } catch (error) {
+                console.error('Error deleting source:', error);
+                alert('Failed to delete source. Please try again.');
+            }
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
