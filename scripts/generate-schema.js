@@ -22,7 +22,10 @@ if (!fs.existsSync(path.join(__dirname, '../schemas'))) {
 
 async function generateSchema() {
     const client = new Client({
-        connectionString: DATABASE_URL
+        connectionString: DATABASE_URL,
+        ssl: {
+            rejectUnauthorized: false
+        }
     });
 
     try {
