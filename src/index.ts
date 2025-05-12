@@ -4,7 +4,10 @@ import path from 'path';
 
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Heroku
+  }
 });
 
 const app = express();
