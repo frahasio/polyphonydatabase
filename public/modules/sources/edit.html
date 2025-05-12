@@ -57,42 +57,57 @@
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="town" class="form-label">Town</label>
-                            <input type="text" class="form-control" id="town" name="town">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="type" class="form-label">Type</label>
-                            <select class="form-control" id="type" name="type">
-                                <option value="">Select Type</option>
-                                <option value="MS">MS</option>
-                                <option value="Print">Print</option>
-                                <option value="Print/MS">Print/MS</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="format" class="form-label">Format</label>
-                            <select class="form-control" id="format" name="format">
-                                <option value="">Select Format</option>
-                                <option value="Choirbook">Choirbook</option>
-                                <option value="Partbook">Partbook</option>
-                                <option value="Score">Score</option>
-                                <option value="Tablature">Tablature</option>
-                                <option value="Tablebook">Tablebook</option>
-                                <option value="Multiple_choirbooks">Multiple choirbooks</option>
-                                <option value="Choirbook/score">Choirbook/score</option>
-                                <option value="Partbook/score">Partbook/score</option>
-                                <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
-                            </select>
-                        </div>
+                    <div class="mb-3">
+                        <label for="town" class="form-label">Town</label>
+                        <input type="text" class="form-control" id="town" name="town">
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="rismLink" class="form-label">RISM URL</label>
-                            <input type="url" class="form-control" id="rismLink" name="rismLink">
-                        </div>
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-control" id="type" name="type">
+                            <option value="">Select Type</option>
+                            <option value="MS">MS</option>
+                            <option value="Print">Print</option>
+                            <option value="Print/MS">Print/MS</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="format" class="form-label">Format</label>
+                        <select class="form-control" id="format" name="format">
+                            <option value="">Select Format</option>
+                            <option value="Choirbook">Choirbook</option>
+                            <option value="Partbook">Partbook</option>
+                            <option value="Score">Score</option>
+                            <option value="Tablature">Tablature</option>
+                            <option value="Tablebook">Tablebook</option>
+                            <option value="Multiple_choirbooks">Multiple choirbooks</option>
+                            <option value="Choirbook/score">Choirbook/score</option>
+                            <option value="Partbook/score">Partbook/score</option>
+                            <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="dates" class="form-label">Dates</label>
+                        <input type="text" class="form-control" id="dates" name="dates">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rismLink" class="form-label">RISM URL</label>
+                        <input type="url" class="form-control" id="rismLink" name="rismLink">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="publishers" class="form-label">Publishers</label>
+                        <select class="form-control" id="publishers" name="publishers" multiple>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scribes" class="form-label">Scribes</label>
+                        <select class="form-control" id="scribes" name="scribes" multiple>
+                        </select>
                     </div>
 
                     <div class="mb-3">
@@ -106,8 +121,8 @@
                                 </button>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addImageBtn">
-                            <i class="bi bi-plus"></i> Add Another Image
+                        <button type="button" class="btn btn-outline-secondary" id="addImageBtn">
+                            <i class="bi bi-plus-lg"></i> Add Image
                         </button>
                     </div>
 
@@ -116,23 +131,7 @@
                         <label class="form-check-label" for="catalogued">Catalogued</label>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="publishers" class="form-label">Publishers</label>
-                            <select class="form-select" id="publishers" name="publishers" multiple>
-                                <!-- Will be populated dynamically -->
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="scribes" class="form-label">Scribes</label>
-                            <select class="form-select" id="scribes" name="scribes" multiple>
-                                <!-- Will be populated dynamically -->
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="index.html" class="btn btn-secondary">Cancel</a>
+                    <div class="text-end">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
@@ -293,6 +292,7 @@
             document.getElementById('toYear').value = source.toYear || '';
             document.getElementById('fromYearAnnotation').value = source.fromYearAnnotation || '';
             document.getElementById('toYearAnnotation').value = source.toYearAnnotation || '';
+            document.getElementById('dates').value = source.dates || '';
 
             // Populate images
             if (source.images && source.images.length > 0) {
@@ -319,18 +319,12 @@
             // Set selected publishers and scribes
             if (source.publishers) {
                 const publisherIds = source.publishers.map(p => p.id);
-                const publishersSelect = document.getElementById('publishers');
-                Array.from(publishersSelect.options).forEach(option => {
-                    option.selected = publisherIds.includes(parseInt(option.value));
-                });
+                $('#publishers').val(publisherIds).trigger('change');
             }
 
             if (source.scribes) {
                 const scribeIds = source.scribes.map(s => s.id);
-                const scribesSelect = document.getElementById('scribes');
-                Array.from(scribesSelect.options).forEach(option => {
-                    option.selected = scribeIds.includes(parseInt(option.value));
-                });
+                $('#scribes').val(scribeIds).trigger('change');
             }
         }
 
@@ -354,7 +348,6 @@
                 fromYearAnnotation: formData.get('fromYearAnnotation'),
                 toYearAnnotation: formData.get('toYearAnnotation'),
                 dates: formData.get('dates'),
-                locationAndPubscribe: formData.get('locationAndPubscribe'),
                 images: []
             };
 

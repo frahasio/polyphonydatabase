@@ -115,7 +115,6 @@ model Source {
   fromYearAnnotation String?            @map("from_year_annotation")
   toYearAnnotation  String?             @map("to_year_annotation")
   dates             String?
-  locationAndPubscribe String?        @map("location_and_pubscribe")
   searchVector      Unsupported("tsvector")? @map("search_vector")
   publishers        Publisher[]         @relation("SourcePublisher")
   scribes           Scribe[]            @relation("SourceScribe")

@@ -48,6 +48,7 @@
                             <th>Type</th>
                             <th>Format</th>
                             <th>Town</th>
+                            <th>Catalogued</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -155,12 +156,13 @@
                 
                 // Build HTML string in one go
                 const html = data.sources.map(source => `
-                    <tr>
+                    <tr class="${source.catalogued ? 'table-success' : ''}">
                         <td>${source.code}</td>
                         <td>${source.title || ''}</td>
                         <td>${source.type || ''}</td>
                         <td>${source.format || ''}</td>
                         <td>${source.town || ''}</td>
+                        <td>${source.catalogued ? '<i class="bi bi-check-circle-fill text-success"></i>' : ''}</td>
                         <td>
                             <a href="edit.html?id=${source.id}" class="btn btn-sm btn-outline-primary me-2">
                                 <i class="bi bi-pencil"></i>

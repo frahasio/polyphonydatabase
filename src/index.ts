@@ -615,72 +615,116 @@ app.get('/sources', async (req: Request, res: Response) => {
   }
 });
 
+// GET /sources/:id
+app.get('/sources/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const source = await prisma.source.findUnique({
+            where: { id: parseInt(id) },
+            include: {
+                images: true,
+                publishers: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                scribes: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            }
+        });
+
+        if (!source) {
+            res.status(404).json({ error: 'Source not found' });
+            return;
+        }
+
+        res.json(source);
+    } catch (error) {
+        console.error('Error fetching source:', error);
+        res.status(500).json({ error: 'Failed to fetch source' });
+    }
+});
+
 // POST /sources - Create a new source
 app.post('/sources', async (req, res) => {
-  try {
-    const {
-      code,
-      title,
-      type,
-      format,
-      town,
-      rismLink,
-      images,
-      catalogued,
-      fromYear,
-      toYear,
-      fromYearAnnotation,
-      toYearAnnotation,
-      dates,
-      locationAndPubscribe,
-      publisherIds,
-      scribeIds
-    } = req.body;
+    try {
+        const {
+            code,
+            title,
+            type,
+            format,
+            town,
+            rismLink,
+            images,
+            catalogued,
+            fromYear,
+            toYear,
+            fromYearAnnotation,
+            toYearAnnotation,
+            dates,
+            publisherIds,
+            scribeIds
+        } = req.body;
 
-    const source = await prisma.source.create({
-      data: {
-        code,
-        title,
-        type,
-        format,
-        town,
-        rismLink,
-        catalogued: catalogued || false,
-        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-        toYear: toYear ? parseInt(toYear.toString()) : null,
-        fromYearAnnotation,
-        toYearAnnotation,
-        dates,
-        locationAndPubscribe,
-        publishers: publisherIds ? {
-          connect: publisherIds.map((id: number) => ({ id }))
-        } : undefined,
-        scribes: scribeIds ? {
-          connect: scribeIds.map((id: number) => ({ id }))
-        } : undefined,
-        images: images ? {
-          create: images.map((img: { url: string, label?: string }) => ({
-            url: img.url,
-            label: img.label
-          }))
-        } : undefined
-      },
-      include: {
-        publishers: true,
-        scribes: true,
-        images: true
-      }
-    });
+        const source = await prisma.source.create({
+            data: {
+                code,
+                title,
+                type,
+                format,
+                town,
+                rismLink,
+                catalogued: catalogued || false,
+                fromYear: fromYear ? parseInt(fromYear.toString()) : null,
+                toYear: toYear ? parseInt(toYear.toString()) : null,
+                fromYearAnnotation,
+                toYearAnnotation,
+                dates,
+                publishers: publisherIds ? {
+                    connect: publisherIds.map((id: number) => ({ id }))
+                } : undefined,
+                scribes: scribeIds ? {
+                    connect: scribeIds.map((id: number) => ({ id }))
+                } : undefined,
+                images: images ? {
+                    create: images.map((img: { url: string, label?: string }) => ({
+                        url: img.url,
+                        label: img.label
+                    }))
+                } : undefined
+            },
+            include: {
+                publishers: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                scribes: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                images: true
+            }
+        });
 
-    res.status(201).json(source);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      res.status(400).json({ error: 'Source code must be unique' });
-    } else {
-      console.error('Error creating source:', error);
-      res.status(500).json({ error: 'Failed to create source' });
+        res.status(201).json(source);
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            res.status(400).json({ error: 'Source code must be unique' });
+        } else {
+            console.error('Error creating source:', error);
+            res.status(500).json({ error: 'Failed to create source' });
+        }
     }
-  }
 });
 
 // PUT /sources/:id
@@ -701,7 +745,6 @@ app.put('/sources/:id', async (req, res) => {
             fromYearAnnotation, 
             toYearAnnotation, 
             dates, 
-            locationAndPubscribe, 
             publisherIds, 
             scribeIds 
         } = req.body;
@@ -722,7 +765,6 @@ app.put('/sources/:id', async (req, res) => {
                 fromYearAnnotation,
                 toYearAnnotation,
                 dates,
-                locationAndPubscribe,
                 publishers: publisherIds ? {
                     set: publisherIds.map((id: number) => ({ id }))
                 } : undefined,
@@ -738,8 +780,18 @@ app.put('/sources/:id', async (req, res) => {
                 } : undefined
             },
             include: {
-                publishers: true,
-                scribes: true,
+                publishers: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                scribes: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
                 images: true
             }
         });
@@ -768,32 +820,6 @@ app.delete('/sources/:id', async (req, res) => {
     } catch (error) {
         console.error('Error deleting source:', error);
         res.status(500).json({ error: 'Failed to delete source' });
-    }
-});
-
-// GET /sources/:id
-app.get('/sources/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const source = await prisma.source.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                publishers: true,
-                scribes: true,
-                images: true
-            }
-        });
-
-        if (!source) {
-            res.status(404).json({ error: 'Source not found' });
-            return;
-        }
-
-        res.json(source);
-    } catch (error) {
-        console.error('Error fetching source:', error);
-        res.status(500).json({ error: 'Failed to fetch source' });
     }
 });
 
