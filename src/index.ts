@@ -617,194 +617,139 @@ app.get('/sources', async (req: Request, res: Response) => {
 
 // GET /sources/:id
 app.get('/sources/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const source = await prisma.source.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                images: true,
-                publishers: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                scribes: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                }
-            }
-        });
-
-        if (!source) {
-            res.status(404).json({ error: 'Source not found' });
-            return;
+  try {
+    const sourceId = parseInt(req.params.id);
+    const source = await prisma.source.findUnique({
+      where: { id: sourceId },
+      include: {
+        images: true,
+        inclusions: true,
+        publisherSources: {
+          include: {
+            publisher: true
+          }
+        },
+        scribeSources: {
+          include: {
+            scribe: true
+          }
         }
-
-        res.json(source);
-    } catch (error) {
-        console.error('Error fetching source:', error);
-        res.status(500).json({ error: 'Failed to fetch source' });
+      }
+    });
+    if (!source) {
+      return res.status(404).json({ error: 'Source not found' });
     }
+    res.json(source);
+  } catch (error) {
+    console.error('Error fetching source:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// POST /sources - Create a new source
+// POST /sources
 app.post('/sources', async (req, res) => {
-    try {
-        const {
-            code,
-            title,
-            type,
-            format,
-            town,
-            rismLink,
-            images,
-            catalogued,
-            fromYear,
-            toYear,
-            fromYearAnnotation,
-            toYearAnnotation,
-            dates,
-            publisherIds,
-            scribeIds
-        } = req.body;
-
-        const source = await prisma.source.create({
-            data: {
-                code,
-                title,
-                type,
-                format,
-                town,
-                rismLink,
-                catalogued: catalogued || false,
-                fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-                toYear: toYear ? parseInt(toYear.toString()) : null,
-                fromYearAnnotation,
-                toYearAnnotation,
-                dates,
-                publishers: publisherIds ? {
-                    connect: publisherIds.map((id: number) => ({ id }))
-                } : undefined,
-                scribes: scribeIds ? {
-                    connect: scribeIds.map((id: number) => ({ id }))
-                } : undefined,
-                images: images ? {
-                    create: images.map((img: { url: string, label?: string }) => ({
-                        url: img.url,
-                        label: img.label
-                    }))
-                } : undefined
-            },
-            include: {
-                publishers: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                scribes: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                images: true
-            }
-        });
-
-        res.status(201).json(source);
-    } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            res.status(400).json({ error: 'Source code must be unique' });
-        } else {
-            console.error('Error creating source:', error);
-            res.status(500).json({ error: 'Failed to create source' });
+  try {
+    const { code, title, type, format, town, rismLink, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, publisherIds, scribeIds } = req.body;
+    const newSource = await prisma.source.create({
+      data: {
+        code,
+        title,
+        type,
+        format,
+        town,
+        rismLink,
+        catalogued,
+        fromYear,
+        toYear,
+        fromYearAnnotation,
+        toYearAnnotation,
+        dates,
+        publisherSources: {
+          create: publisherIds.map((id: number) => ({
+            publisher: { connect: { id } }
+          }))
+        },
+        scribeSources: {
+          create: scribeIds.map((id: number) => ({
+            scribe: { connect: { id } }
+          }))
         }
-    }
+      },
+      include: {
+        images: true,
+        inclusions: true,
+        publisherSources: {
+          include: {
+            publisher: true
+          }
+        },
+        scribeSources: {
+          include: {
+            scribe: true
+          }
+        }
+      }
+    });
+    res.status(201).json(newSource);
+  } catch (error) {
+    console.error('Error creating source:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // PUT /sources/:id
 app.put('/sources/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { 
-            code, 
-            title, 
-            type, 
-            format, 
-            town, 
-            rismLink, 
-            images,
-            catalogued, 
-            fromYear, 
-            toYear, 
-            fromYearAnnotation, 
-            toYearAnnotation, 
-            dates, 
-            publisherIds, 
-            scribeIds 
-        } = req.body;
-        
-        // First update the source
-        const source = await prisma.source.update({
-            where: { id: parseInt(id) },
-            data: {
-                code,
-                title,
-                type,
-                format,
-                town,
-                rismLink,
-                catalogued,
-                fromYear,
-                toYear,
-                fromYearAnnotation,
-                toYearAnnotation,
-                dates,
-                publishers: publisherIds ? {
-                    set: publisherIds.map((id: number) => ({ id }))
-                } : undefined,
-                scribes: scribeIds ? {
-                    set: scribeIds.map((id: number) => ({ id }))
-                } : undefined,
-                images: images ? {
-                    deleteMany: {},
-                    create: images.map((img: { url: string, label?: string }) => ({
-                        url: img.url,
-                        label: img.label
-                    }))
-                } : undefined
-            },
-            include: {
-                publishers: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                scribes: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                images: true
-            }
-        });
-
-        res.json(source);
-    } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            res.status(400).json({ error: 'Source code must be unique' });
-        } else {
-            console.error('Error updating source:', error);
-            res.status(500).json({ error: 'Failed to update source' });
+  try {
+    const sourceId = parseInt(req.params.id);
+    const { code, title, type, format, town, rismLink, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, publisherIds, scribeIds } = req.body;
+    const updatedSource = await prisma.source.update({
+      where: { id: sourceId },
+      data: {
+        code,
+        title,
+        type,
+        format,
+        town,
+        rismLink,
+        catalogued,
+        fromYear,
+        toYear,
+        fromYearAnnotation,
+        toYearAnnotation,
+        dates,
+        publisherSources: {
+          deleteMany: {},
+          create: publisherIds.map((id: number) => ({
+            publisher: { connect: { id } }
+          }))
+        },
+        scribeSources: {
+          deleteMany: {},
+          create: scribeIds.map((id: number) => ({
+            scribe: { connect: { id } }
+          }))
         }
-    }
+      },
+      include: {
+        images: true,
+        inclusions: true,
+        publisherSources: {
+          include: {
+            publisher: true
+          }
+        },
+        scribeSources: {
+          include: {
+            scribe: true
+          }
+        }
+      }
+    });
+    res.json(updatedSource);
+  } catch (error) {
+    console.error('Error updating source:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // DELETE /sources/:id
