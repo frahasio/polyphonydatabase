@@ -582,8 +582,6 @@ app.delete('/performers/:id', async (req, res) => {
 // GET /sources - List all sources
 app.get('/sources', async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
     const search = (req.query.search as string) || '';
 
     // Build where clause for search
@@ -594,10 +592,7 @@ app.get('/sources', async (req: Request, res: Response) => {
       ]
     } : undefined;
 
-    // Get total count for pagination
-    const total = await prisma.source.count({ where });
-
-    // Get paginated sources
+    // Get sources
     const sources = await prisma.source.findMany({
       where,
       select: {
@@ -610,20 +605,10 @@ app.get('/sources', async (req: Request, res: Response) => {
       },
       orderBy: {
         code: 'asc'
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize
-    });
-
-    res.json({ 
-      sources,
-      pagination: {
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize)
       }
     });
+
+    res.json({ sources });
   } catch (error) {
     console.error('Error fetching sources:', error);
     res.status(500).json({ error: 'Failed to fetch sources' });
