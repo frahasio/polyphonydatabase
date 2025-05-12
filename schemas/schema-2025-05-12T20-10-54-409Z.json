@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Composer {
+  id                Int                  @id @default(autoincrement())
+  name              String?
+  fromYear          Int?                 @map("from_year")
+  toYear            Int?                 @map("to_year")
+  fromYearAnnotation String?             @map("from_year_annotation")
+  toYearAnnotation  String?             @map("to_year_annotation")
+  birthplace1       String?             @map("birthplace_1")
+  birthplace2       String?             @map("birthplace_2")
+  deathplace1       String?             @map("deathplace_1")
+  deathplace2       String?             @map("deathplace_2")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  compositions      ComposerComposition[]
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  @@map("composers")
+}
+
+model ComposerComposition {
+  id            Int         @id @default(autoincrement())
+  composer      Composer    @relation(fields: [composerId], references: [id])
+  composerId    Int         @map("composer_id")
+  composition   Composition @relation(fields: [compositionId], references: [id])
+  compositionId Int         @map("composition_id")
+
+  @@map("composer_compositions")
+}
+
+model Composition {
+  id                Int                  @id @default(autoincrement())
+  numberOfVoices    Int?                @map("number_of_voices")
+  groupId           Int?                @map("group_id")
+  titleId           Int?                @map("title_id")
+  title             String
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  compositionTypeId Int?                @map("composition_type_id")
+  tone              Int?
+  evenOdd           Int?                @map("even_odd")
+  composerIdList    Int[]               @map("composer_id_list")
+  composers         ComposerComposition[]
+
+  @@map("compositions")
+}
+
+model Editor {
+  id                Int                  @id @default(autoincrement())
+  name              String?
+  dateOfBirth       DateTime?            @map("date_of_birth")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  @@map("editors")
+}
+
+model Scribe {
+  id                Int                  @id @default(autoincrement())
+  name              String?
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  @@map("scribes")
+}
+
+model Publisher {
+  id                Int                  @id @default(autoincrement())
+  name              String?
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  @@map("publishers")
+}
+
+model Performer {
+  id                Int                  @id @default(autoincrement())
+  name              String?
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  searchVector      Unsupported("tsvector")? @map("search_vector")
+
+  @@map("performers")
+} 
