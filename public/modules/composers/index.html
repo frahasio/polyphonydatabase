@@ -153,36 +153,40 @@
                 <div class="modal-body">
                     <form id="addComposerForm">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
+                            <label for="name" class="form-label">Name *</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
-
                         <div class="row mb-3">
-                            <div class="col-md-3">
-                                <label for="fromYear" class="form-label">From Year</label>
-                                <input type="number" class="form-control" id="fromYear" name="fromYear">
+                            <div class="col-md-6">
+                                <label class="form-label">From Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="Annotation">
+                                    <input type="number" class="form-control" id="fromYear" name="fromYear" placeholder="Year">
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="fromYearAnnotation" class="form-label">From Year Annotation</label>
-                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="e.g. c., after, before">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="toYear" class="form-label">To Year</label>
-                                <input type="number" class="form-control" id="toYear" name="toYear">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="toYearAnnotation" class="form-label">To Year Annotation</label>
-                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="e.g. c., after, before">
+                            <div class="col-md-6">
+                                <label class="form-label">To Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="Annotation">
+                                    <input type="number" class="form-control" id="toYear" name="toYear" placeholder="Year">
+                                </div>
                             </div>
                         </div>
-
                         <div class="mb-3">
-                            <label for="birthplace1" class="form-label">Birthplace</label>
+                            <label for="birthplace1" class="form-label">Birthplace 1</label>
                             <input type="text" class="form-control" id="birthplace1" name="birthplace1">
                         </div>
                         <div class="mb-3">
-                            <label for="deathplace1" class="form-label">Deathplace</label>
+                            <label for="birthplace2" class="form-label">Birthplace 2</label>
+                            <input type="text" class="form-control" id="birthplace2" name="birthplace2">
+                        </div>
+                        <div class="mb-3">
+                            <label for="deathplace1" class="form-label">Deathplace 1</label>
                             <input type="text" class="form-control" id="deathplace1" name="deathplace1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="deathplace2" class="form-label">Deathplace 2</label>
+                            <input type="text" class="form-control" id="deathplace2" name="deathplace2">
                         </div>
                     </form>
                 </div>

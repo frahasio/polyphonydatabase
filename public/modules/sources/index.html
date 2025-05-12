@@ -61,55 +61,65 @@
                             <label for="code" class="form-label">Code *</label>
                             <input type="text" class="form-control" id="code" name="code" required>
                         </div>
-
                         <div class="mb-3">
                             <label for="title" class="form-label">Title</label>
-                            <textarea class="form-control" id="title" name="title" rows="2"></textarea>
+                            <input type="text" class="form-control" id="title" name="title">
                         </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <label for="fromYear" class="form-label">From Year</label>
-                                <input type="number" class="form-control" id="fromYear" name="fromYear">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="fromYearAnnotation" class="form-label">From Year Annotation</label>
-                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="e.g. c., after, before">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="toYear" class="form-label">To Year</label>
-                                <input type="number" class="form-control" id="toYear" name="toYear">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="toYearAnnotation" class="form-label">To Year Annotation</label>
-                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="e.g. c., after, before">
-                            </div>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label for="town" class="form-label">Town</label>
-                                <input type="text" class="form-control" id="town" name="town">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="type" class="form-label">Type</label>
-                                <input type="text" class="form-control" id="type" name="type">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="format" class="form-label">Format</label>
-                                <input type="text" class="form-control" id="format" name="format">
-                            </div>
-                        </div>
-
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="rismLink" class="form-label">RISM URL</label>
-                                <input type="url" class="form-control" id="rismLink" name="rismLink">
+                                <label class="form-label">From Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="Annotation">
+                                    <input type="number" class="form-control" id="fromYear" name="fromYear" placeholder="Year">
+                                </div>
                             </div>
                             <div class="col-md-6">
-                                <label for="url" class="form-label">Images URL</label>
-                                <input type="url" class="form-control" id="url" name="url">
+                                <label class="form-label">To Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="Annotation">
+                                    <input type="number" class="form-control" id="toYear" name="toYear" placeholder="Year">
+                                </div>
                             </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="town" class="form-label">Town</label>
+                            <input type="text" class="form-control" id="town" name="town">
+                        </div>
+                        <div class="mb-3">
+                            <label for="type" class="form-label">Type</label>
+                            <select class="form-control" id="type" name="type">
+                                <option value="">Select Type</option>
+                                <option value="MS">MS</option>
+                                <option value="Print">Print</option>
+                                <option value="Print/MS">Print/MS</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="format" class="form-label">Format</label>
+                            <select class="form-control" id="format" name="format">
+                                <option value="">Select Format</option>
+                                <option value="Choirbook">Choirbook</option>
+                                <option value="Partbook">Partbook</option>
+                                <option value="Score">Score</option>
+                                <option value="Tablature">Tablature</option>
+                                <option value="Tablebook">Tablebook</option>
+                                <option value="Multiple_choirbooks">Multiple choirbooks</option>
+                                <option value="Choirbook/score">Choirbook/score</option>
+                                <option value="Partbook/score">Partbook/score</option>
+                                <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="rismLink" class="form-label">RISM URL</label>
+                            <input type="url" class="form-control" id="rismLink" name="rismLink">
+                        </div>
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Images URL</label>
+                            <input type="url" class="form-control" id="url" name="url">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
+                            <label class="form-check-label" for="catalogued">Catalogued</label>
                         </div>
                     </form>
                 </div>
