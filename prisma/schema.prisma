@@ -73,7 +73,7 @@ model Scribe {
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   searchVector      Unsupported("tsvector")? @map("search_vector")
-  sources           Source[]            @relation("SourceScribe")
+  sources           Source[]            @relation("SourceToScribe")
 
   @@map("scribes")
 }
@@ -84,7 +84,7 @@ model Publisher {
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   searchVector      Unsupported("tsvector")? @map("search_vector")
-  sources           Source[]            @relation("SourcePublisher")
+  sources           Source[]            @relation("SourceToPublisher")
 
   @@map("publishers")
 }
@@ -107,6 +107,7 @@ model Source {
   format            String?
   town              String?
   rismLink          String?             @map("rism_link")
+  url               String?
   catalogued        Boolean             @default(false)
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
@@ -116,9 +117,10 @@ model Source {
   toYearAnnotation  String?             @map("to_year_annotation")
   dates             String?
   searchVector      Unsupported("tsvector")? @map("search_vector")
-  publishers        Publisher[]         @relation("SourcePublisher")
-  scribes           Scribe[]            @relation("SourceScribe")
   images            SourceImage[]
+  inclusions        Inclusion[]
+  publishers        Publisher[]         @relation("SourceToPublisher")
+  scribes           Scribe[]            @relation("SourceToScribe")
 
   @@map("sources")
 }
@@ -133,4 +135,25 @@ model SourceImage {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("source_images")
+}
+
+model Inclusion {
+  id        Int      @id @default(autoincrement())
+  sourceId  Int?     @map("source_id")
+  notes     String?
+  order     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  position  Int?
+  compositionId Int? @map("composition_id")
+  missingClefIds Int[] @default([]) @map("missing_clef_ids")
+  incompleteClefIds Int[] @default([]) @map("incomplete_clef_ids")
+  clefCombinationId Int? @map("clef_combination_id")
+  transitionsTo Json? @map("transitions_to")
+  bothClefIds Int[] @default([]) @map("both_clef_ids")
+
+  // Relations
+  source    Source?  @relation(fields: [sourceId], references: [id])
+
+  @@map("inclusions")
 } 
