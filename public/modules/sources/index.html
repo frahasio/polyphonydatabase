@@ -49,7 +49,7 @@
 
     <!-- Add Source Modal -->
     <div class="modal fade" id="addSourceModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add New Source</h5>
@@ -57,21 +57,76 @@
                 </div>
                 <div class="modal-body">
                     <form id="addSourceForm">
-                        <div class="mb-3">
-                            <label for="code" class="form-label">Code</label>
-                            <input type="text" class="form-control" id="code" name="code" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="code" class="form-label">Code *</label>
+                                <input type="text" class="form-control" id="code" name="code" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="type" class="form-label">Type</label>
+                                <input type="text" class="form-control" id="type" name="type">
+                            </div>
                         </div>
+
                         <div class="mb-3">
                             <label for="title" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="title" name="title" required>
+                            <textarea class="form-control" id="title" name="title" rows="2"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label for="fromYear" class="form-label">From Year</label>
-                            <input type="number" class="form-control" id="fromYear" name="fromYear">
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="format" class="form-label">Format</label>
+                                <input type="text" class="form-control" id="format" name="format">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="town" class="form-label">Town</label>
+                                <input type="text" class="form-control" id="town" name="town">
+                            </div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="fromYear" class="form-label">From Year</label>
+                                <input type="number" class="form-control" id="fromYear" name="fromYear">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="fromYearAnnotation" class="form-label">From Year Annotation</label>
+                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="e.g. c., after, before">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="toYear" class="form-label">To Year</label>
+                                <input type="number" class="form-control" id="toYear" name="toYear">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="toYearAnnotation" class="form-label">To Year Annotation</label>
+                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="e.g. c., after, before">
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label for="toYear" class="form-label">To Year</label>
-                            <input type="number" class="form-control" id="toYear" name="toYear">
+                            <label for="dates" class="form-label">Dates</label>
+                            <input type="text" class="form-control" id="dates" name="dates" placeholder="e.g. c.1580–after 1623">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="locationAndPubscribe" class="form-label">Location and Publication Details</label>
+                            <input type="text" class="form-control" id="locationAndPubscribe" name="locationAndPubscribe">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="rismLink" class="form-label">RISM Link</label>
+                                <input type="url" class="form-control" id="rismLink" name="rismLink">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="url" class="form-label">URL</label>
+                                <input type="url" class="form-control" id="url" name="url">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
+                            <label class="form-check-label" for="catalogued">Catalogued</label>
                         </div>
                     </form>
                 </div>
@@ -175,6 +230,39 @@
         document.getElementById('clearFilter').addEventListener('click', () => {
             document.getElementById('filterInput').value = '';
             fetchSources();
+        });
+
+        // Save new source
+        document.getElementById('saveSourceButton').addEventListener('click', async () => {
+            const form = document.getElementById('addSourceForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert checkbox value to boolean
+            data.catalogued = formData.get('catalogued') === 'on';
+
+            try {
+                const response = await fetch('/sources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create source');
+                }
+
+                // Close modal and refresh list
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addSourceModal'));
+                modal.hide();
+                form.reset();
+                fetchSources();
+            } catch (error) {
+                console.error('Error creating source:', error);
+                alert('Failed to create source. Please try again.');
+            }
         });
 
         // Initialize
