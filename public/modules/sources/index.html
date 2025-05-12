@@ -163,8 +163,6 @@
                             <div class="d-flex align-items-center gap-3">
                                 <span class="font-monospace fw-medium">${source.code}</span>
                                 <span class="text-muted">${getYearDisplay(source)}</span>
-                                ${getSourceTypeIcon(source.type)}
-                                ${getSourceFormatIcon(source.format)}
                             </div>
                             <div class="text-muted small mt-1">${truncateText(source.title, 100)}</div>
                         </div>
@@ -192,36 +190,6 @@
         function truncateText(text, maxLength) {
             if (!text) return '';
             return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-        }
-
-        // Helper function to get source type icon
-        function getSourceTypeIcon(type) {
-            if (!type) return '';
-            
-            const typeIcons = {
-                'MS': '<i class="bi bi-journal-text text-primary" title="Manuscript"></i>',
-                'Printed': '<i class="bi bi-printer text-success" title="Printed"></i>',
-                'Facsimile': '<i class="bi bi-file-earmark-copy text-info" title="Facsimile"></i>',
-                'Microfilm': '<i class="bi bi-film text-secondary" title="Microfilm"></i>',
-                'Digital': '<i class="bi bi-file-earmark-binary text-warning" title="Digital"></i>'
-            };
-            
-            return typeIcons[type] || `<span class="badge bg-secondary">${type}</span>`;
-        }
-
-        // Helper function to get source format icon
-        function getSourceFormatIcon(format) {
-            if (!format) return '';
-            
-            const formatIcons = {
-                'Partbook': '<i class="bi bi-book text-primary" title="Partbook"></i>',
-                'Choirbook': '<i class="bi bi-book-half text-success" title="Choirbook"></i>',
-                'Score': '<i class="bi bi-music-note-list text-info" title="Score"></i>',
-                'Tablebook': '<i class="bi bi-table text-warning" title="Tablebook"></i>',
-                'Tablature': '<i class="bi bi-grid-3x3 text-danger" title="Tablature"></i>'
-            };
-            
-            return formatIcons[format] || `<span class="badge bg-secondary">${format}</span>`;
         }
 
         // Handle search input
