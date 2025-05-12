@@ -632,7 +632,7 @@ app.post('/sources', async (req, res) => {
       fromYearAnnotation,
       toYearAnnotation,
       dates,
-      locationAndPubscribe
+      locationAndPubsubscribe
     } = req.body;
 
     const source = await prisma.source.create({
@@ -650,7 +650,7 @@ app.post('/sources', async (req, res) => {
         fromYearAnnotation,
         toYearAnnotation,
         dates,
-        locationAndPubscribe
+        locationAndPubsubscribe
       }
     });
 
@@ -669,7 +669,7 @@ app.post('/sources', async (req, res) => {
 app.put('/sources/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { code, title, type, format, town, rismLink, url, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, locationAndPubscribe, publisherIds, scribeIds } = req.body;
+        const { code, title, type, format, town, rismLink, url, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, locationAndPubsubscribe, publisherIds, scribeIds } = req.body;
         
         // First update the source
         const source = await prisma.source.update({
@@ -688,7 +688,7 @@ app.put('/sources/:id', async (req, res) => {
                 fromYearAnnotation,
                 toYearAnnotation,
                 dates,
-                locationAndPubscribe
+                locationAndPubsubscribe
             }
         });
 
