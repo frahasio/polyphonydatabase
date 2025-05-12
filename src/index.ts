@@ -579,6 +579,30 @@ app.delete('/performers/:id', async (req, res) => {
     }
 });
 
+// GET /sources - List all sources
+app.get('/sources', async (req: Request, res: Response) => {
+  try {
+    const sources = await prisma.source.findMany({
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        fromYear: true,
+        toYear: true,
+        catalogued: true
+      },
+      orderBy: {
+        code: 'asc'
+      }
+    });
+
+    res.json({ sources });
+  } catch (error) {
+    console.error('Error fetching sources:', error);
+    res.status(500).json({ error: 'Failed to fetch sources' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

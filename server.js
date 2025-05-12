@@ -22,9 +22,6 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
-// Serve static files from public directory
-app.use(express.static('public'));
-
 // Basic route to test server
 app.get('/', (req, res) => {
   res.send('Polyphony Database Node.js API is running');
@@ -65,21 +62,6 @@ app.get('/schema', async (req, res) => {
   } catch (err) {
     console.error('Error fetching schema:', err);
     res.status(500).json({ error: 'Error fetching database schema' });
-  }
-});
-
-// Route to get all sources
-app.get('/sources', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, code, title, from_year, to_year, catalogued
-      FROM sources
-      ORDER BY code
-    `);
-    res.json({ sources: result.rows });
-  } catch (err) {
-    console.error('Error fetching sources:', err);
-    res.status(500).json({ error: 'Error fetching sources' });
   }
 });
 
