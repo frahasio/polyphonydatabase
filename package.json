@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.20",
+    "@types/pg": "^8.15.1",
     "prisma": "^5.22.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"

@@ -1,8 +1,12 @@
 import express, { Request, Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Pool } from 'pg';
 import path from 'path';
 
-const prisma = new PrismaClient();
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
 const app = express();
 app.use(express.json());
 
@@ -15,31 +19,15 @@ app.get('/composers', async (req: Request, res: Response) => {
     const letter = (req.query.letter as string) || '';
 
     // Get composers filtered by letter
-    const composers = await prisma.composer.findMany({
-      where: letter ? {
-        name: {
-          startsWith: letter,
-          mode: Prisma.QueryMode.insensitive
-        }
-      } : undefined,
-      select: {
-        id: true,
-        name: true,
-        fromYear: true,
-        toYear: true,
-        fromYearAnnotation: true,
-        toYearAnnotation: true,
-        birthplace1: true,
-        birthplace2: true,
-        deathplace1: true,
-        deathplace2: true
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    const composers = await pool.query(
+      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, birthplace1, birthplace2, deathplace1, deathplace2
+       FROM composers
+       WHERE name ILIKE $1 OR name ILIKE $2
+       ORDER BY name ASC`,
+      [letter, letter.toLowerCase()]
+    );
 
-    res.json({ composers });
+    res.json({ composers: composers.rows });
   } catch (error) {
     console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Failed to fetch composers' });
@@ -54,27 +42,18 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid composer ID' });
     }
 
-    const composer = await prisma.composer.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        fromYear: true,
-        toYear: true,
-        fromYearAnnotation: true,
-        toYearAnnotation: true,
-        birthplace1: true,
-        birthplace2: true,
-        deathplace1: true,
-        deathplace2: true
-      }
-    });
+    const composer = await pool.query(
+      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, birthplace1, birthplace2, deathplace1, deathplace2
+       FROM composers
+       WHERE id = $1`,
+      [id]
+    );
 
-    if (!composer) {
+    if (composer.rows.length === 0) {
       return res.status(404).json({ error: 'Composer not found' });
     }
 
-    res.json(composer);
+    res.json(composer.rows[0]);
   } catch (error) {
     console.error('Error fetching composer:', error);
     res.status(500).json({ error: 'Failed to fetch composer' });
@@ -91,28 +70,29 @@ app.put('/composers/:id', async (req: Request, res: Response) => {
 
     const { fromYear, toYear, ...rest } = req.body;
     
-    const composer = await prisma.composer.update({
-      where: { id },
-      data: {
-        name: rest.name,
-        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-        toYear: toYear ? parseInt(toYear.toString()) : null,
-        fromYearAnnotation: rest.fromYearAnnotation || null,
-        toYearAnnotation: rest.toYearAnnotation || null,
-        birthplace1: rest.birthplace1 || null,
-        birthplace2: rest.birthplace2 || null,
-        deathplace1: rest.deathplace1 || null,
-        deathplace2: rest.deathplace2 || null
-      }
-    });
-    res.json(composer);
+    const composer = await pool.query(
+      `UPDATE composers SET
+        name = $1,
+        from_year = $2,
+        to_year = $3,
+        from_year_annotation = $4,
+        to_year_annotation = $5,
+        birthplace1 = $6,
+        birthplace2 = $7,
+        deathplace1 = $8,
+        deathplace2 = $9
+      WHERE id = $10
+      RETURNING id, name, from_year, to_year, from_year_annotation, to_year_annotation, birthplace1, birthplace2, deathplace1, deathplace2`,
+      [rest.name, fromYear ? parseInt(fromYear.toString()) : null, toYear ? parseInt(toYear.toString()) : null, rest.fromYearAnnotation || null, rest.toYearAnnotation || null, rest.birthplace1 || null, rest.birthplace2 || null, rest.deathplace1 || null, rest.deathplace2 || null, id]
+    );
+
+    if (composer.rows.length === 0) {
+      return res.status(404).json({ error: 'Composer not found' });
+    }
+
+    res.json(composer.rows[0]);
   } catch (error) {
     console.error('Error updating composer:', error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Composer not found' });
-      }
-    }
     res.status(500).json({ error: 'Failed to update composer' });
   }
 });
@@ -122,20 +102,16 @@ app.post('/composers', async (req: Request, res: Response) => {
   try {
     const { fromYear, toYear, ...rest } = req.body;
     
-    const composer = await prisma.composer.create({
-      data: {
-        name: rest.name,
-        fromYear: fromYear ? parseInt(fromYear.toString()) : null,
-        toYear: toYear ? parseInt(toYear.toString()) : null,
-        fromYearAnnotation: rest.fromYearAnnotation || null,
-        toYearAnnotation: rest.toYearAnnotation || null,
-        birthplace1: rest.birthplace1 || null,
-        birthplace2: rest.birthplace2 || null,
-        deathplace1: rest.deathplace1 || null,
-        deathplace2: rest.deathplace2 || null
-      }
-    });
-    res.status(201).json(composer);
+    const composer = await pool.query(
+      `INSERT INTO composers (
+        name, from_year, to_year, from_year_annotation, to_year_annotation,
+        birthplace1, birthplace2, deathplace1, deathplace2
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, name, from_year, to_year, from_year_annotation, to_year_annotation,
+                birthplace1, birthplace2, deathplace1, deathplace2`,
+      [rest.name, fromYear ? parseInt(fromYear.toString()) : null, toYear ? parseInt(toYear.toString()) : null, rest.fromYearAnnotation || null, rest.toYearAnnotation || null, rest.birthplace1 || null, rest.birthplace2 || null, rest.deathplace1 || null, rest.deathplace2 || null]
+    );
+    res.status(201).json(composer.rows[0]);
   } catch (error) {
     console.error('Error creating composer:', error);
     res.status(500).json({ error: 'Failed to create composer' });
@@ -150,17 +126,10 @@ app.delete('/composers/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid composer ID' });
     }
 
-    await prisma.composer.delete({
-      where: { id }
-    });
+    await pool.query('DELETE FROM composers WHERE id = $1', [id]);
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting composer:', error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return res.status(404).json({ error: 'Composer not found' });
-      }
-    }
     res.status(500).json({ error: 'Failed to delete composer' });
   }
 });
@@ -168,13 +137,13 @@ app.delete('/composers/:id', async (req: Request, res: Response) => {
 // GET /editors - List all editors
 app.get('/editors', async (req, res) => {
     try {
-        const editors = await prisma.editor.findMany({
-            orderBy: {
-                name: 'asc'
-            }
-        });
+        const editors = await pool.query(
+            `SELECT id, name
+             FROM editors
+             ORDER BY name ASC`
+        );
 
-        res.json({ editors });
+        res.json({ editors: editors.rows });
     } catch (error) {
         console.error('Error fetching editors:', error);
         res.status(500).json({ error: 'Failed to fetch editors' });
@@ -189,15 +158,18 @@ app.get('/editors/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid editor ID' });
         }
 
-        const editor = await prisma.editor.findUnique({
-            where: { id }
-        });
+        const editor = await pool.query(
+            `SELECT id, name
+             FROM editors
+             WHERE id = $1`,
+            [id]
+        );
 
-        if (!editor) {
+        if (editor.rows.length === 0) {
             return res.status(404).json({ error: 'Editor not found' });
         }
 
-        res.json(editor);
+        res.json(editor.rows[0]);
     } catch (error) {
         console.error('Error fetching editor:', error);
         res.status(500).json({ error: 'Failed to fetch editor' });
@@ -212,21 +184,17 @@ app.put('/editors/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid editor ID' });
         }
 
-        const editor = await prisma.editor.update({
-            where: { id },
-            data: {
-                name: req.body.name,
-                dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null
-            }
-        });
-        res.json(editor);
+        const editor = await pool.query(
+            `UPDATE editors SET
+              name = $1,
+              date_of_birth = $2
+            WHERE id = $3
+            RETURNING id, name, date_of_birth`,
+            [req.body.name, req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null, id]
+        );
+        res.json(editor.rows[0]);
     } catch (error) {
         console.error('Error updating editor:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Editor not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to update editor' });
     }
 });
@@ -234,13 +202,14 @@ app.put('/editors/:id', async (req, res) => {
 // POST /editors - Create a new editor
 app.post('/editors', async (req, res) => {
     try {
-        const editor = await prisma.editor.create({
-            data: {
-                name: req.body.name,
-                dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null
-            }
-        });
-        res.status(201).json(editor);
+        const editor = await pool.query(
+            `INSERT INTO editors (
+              name, date_of_birth
+            ) VALUES ($1, $2)
+            RETURNING id, name, date_of_birth`,
+            [req.body.name, req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null]
+        );
+        res.status(201).json(editor.rows[0]);
     } catch (error) {
         console.error('Error creating editor:', error);
         res.status(500).json({ error: 'Failed to create editor' });
@@ -255,17 +224,10 @@ app.delete('/editors/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid editor ID' });
         }
 
-        await prisma.editor.delete({
-            where: { id }
-        });
+        await pool.query('DELETE FROM editors WHERE id = $1', [id]);
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting editor:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Editor not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to delete editor' });
     }
 });
@@ -273,13 +235,13 @@ app.delete('/editors/:id', async (req, res) => {
 // GET /scribes - List all scribes
 app.get('/scribes', async (req, res) => {
     try {
-        const scribes = await prisma.scribe.findMany({
-            orderBy: {
-                name: 'asc'
-            }
-        });
+        const scribes = await pool.query(
+            `SELECT id, name
+             FROM scribes
+             ORDER BY name ASC`
+        );
 
-        res.json({ scribes });
+        res.json({ scribes: scribes.rows });
     } catch (error) {
         console.error('Error fetching scribes:', error);
         res.status(500).json({ error: 'Failed to fetch scribes' });
@@ -294,15 +256,18 @@ app.get('/scribes/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid scribe ID' });
         }
 
-        const scribe = await prisma.scribe.findUnique({
-            where: { id }
-        });
+        const scribe = await pool.query(
+            `SELECT id, name
+             FROM scribes
+             WHERE id = $1`,
+            [id]
+        );
 
-        if (!scribe) {
+        if (scribe.rows.length === 0) {
             return res.status(404).json({ error: 'Scribe not found' });
         }
 
-        res.json(scribe);
+        res.json(scribe.rows[0]);
     } catch (error) {
         console.error('Error fetching scribe:', error);
         res.status(500).json({ error: 'Failed to fetch scribe' });
@@ -317,20 +282,16 @@ app.put('/scribes/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid scribe ID' });
         }
 
-        const scribe = await prisma.scribe.update({
-            where: { id },
-            data: {
-                name: req.body.name
-            }
-        });
-        res.json(scribe);
+        const scribe = await pool.query(
+            `UPDATE scribes SET
+              name = $1
+            WHERE id = $2
+            RETURNING id, name`,
+            [req.body.name, id]
+        );
+        res.json(scribe.rows[0]);
     } catch (error) {
         console.error('Error updating scribe:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Scribe not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to update scribe' });
     }
 });
@@ -338,12 +299,14 @@ app.put('/scribes/:id', async (req, res) => {
 // POST /scribes - Create a new scribe
 app.post('/scribes', async (req, res) => {
     try {
-        const scribe = await prisma.scribe.create({
-            data: {
-                name: req.body.name
-            }
-        });
-        res.status(201).json(scribe);
+        const scribe = await pool.query(
+            `INSERT INTO scribes (
+              name
+            ) VALUES ($1)
+            RETURNING id, name`,
+            [req.body.name]
+        );
+        res.status(201).json(scribe.rows[0]);
     } catch (error) {
         console.error('Error creating scribe:', error);
         res.status(500).json({ error: 'Failed to create scribe' });
@@ -358,17 +321,10 @@ app.delete('/scribes/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid scribe ID' });
         }
 
-        await prisma.scribe.delete({
-            where: { id }
-        });
+        await pool.query('DELETE FROM scribes WHERE id = $1', [id]);
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting scribe:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Scribe not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to delete scribe' });
     }
 });
@@ -376,13 +332,13 @@ app.delete('/scribes/:id', async (req, res) => {
 // GET /publishers - List all publishers
 app.get('/publishers', async (req, res) => {
     try {
-        const publishers = await prisma.publisher.findMany({
-            orderBy: {
-                name: 'asc'
-            }
-        });
+        const publishers = await pool.query(
+            `SELECT id, name
+             FROM publishers
+             ORDER BY name ASC`
+        );
 
-        res.json({ publishers });
+        res.json({ publishers: publishers.rows });
     } catch (error) {
         console.error('Error fetching publishers:', error);
         res.status(500).json({ error: 'Failed to fetch publishers' });
@@ -397,15 +353,18 @@ app.get('/publishers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid publisher ID' });
         }
 
-        const publisher = await prisma.publisher.findUnique({
-            where: { id }
-        });
+        const publisher = await pool.query(
+            `SELECT id, name
+             FROM publishers
+             WHERE id = $1`,
+            [id]
+        );
 
-        if (!publisher) {
+        if (publisher.rows.length === 0) {
             return res.status(404).json({ error: 'Publisher not found' });
         }
 
-        res.json(publisher);
+        res.json(publisher.rows[0]);
     } catch (error) {
         console.error('Error fetching publisher:', error);
         res.status(500).json({ error: 'Failed to fetch publisher' });
@@ -420,20 +379,16 @@ app.put('/publishers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid publisher ID' });
         }
 
-        const publisher = await prisma.publisher.update({
-            where: { id },
-            data: {
-                name: req.body.name
-            }
-        });
-        res.json(publisher);
+        const publisher = await pool.query(
+            `UPDATE publishers SET
+              name = $1
+            WHERE id = $2
+            RETURNING id, name`,
+            [req.body.name, id]
+        );
+        res.json(publisher.rows[0]);
     } catch (error) {
         console.error('Error updating publisher:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Publisher not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to update publisher' });
     }
 });
@@ -441,12 +396,14 @@ app.put('/publishers/:id', async (req, res) => {
 // POST /publishers - Create a new publisher
 app.post('/publishers', async (req, res) => {
     try {
-        const publisher = await prisma.publisher.create({
-            data: {
-                name: req.body.name
-            }
-        });
-        res.status(201).json(publisher);
+        const publisher = await pool.query(
+            `INSERT INTO publishers (
+              name
+            ) VALUES ($1)
+            RETURNING id, name`,
+            [req.body.name]
+        );
+        res.status(201).json(publisher.rows[0]);
     } catch (error) {
         console.error('Error creating publisher:', error);
         res.status(500).json({ error: 'Failed to create publisher' });
@@ -461,17 +418,10 @@ app.delete('/publishers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid publisher ID' });
         }
 
-        await prisma.publisher.delete({
-            where: { id }
-        });
+        await pool.query('DELETE FROM publishers WHERE id = $1', [id]);
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting publisher:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Publisher not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to delete publisher' });
     }
 });
@@ -479,13 +429,13 @@ app.delete('/publishers/:id', async (req, res) => {
 // GET /performers - List all performers
 app.get('/performers', async (req, res) => {
     try {
-        const performers = await prisma.performer.findMany({
-            orderBy: {
-                name: 'asc'
-            }
-        });
+        const performers = await pool.query(
+            `SELECT id, name
+             FROM performers
+             ORDER BY name ASC`
+        );
 
-        res.json({ performers });
+        res.json({ performers: performers.rows });
     } catch (error) {
         console.error('Error fetching performers:', error);
         res.status(500).json({ error: 'Failed to fetch performers' });
@@ -500,15 +450,18 @@ app.get('/performers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid performer ID' });
         }
 
-        const performer = await prisma.performer.findUnique({
-            where: { id }
-        });
+        const performer = await pool.query(
+            `SELECT id, name
+             FROM performers
+             WHERE id = $1`,
+            [id]
+        );
 
-        if (!performer) {
+        if (performer.rows.length === 0) {
             return res.status(404).json({ error: 'Performer not found' });
         }
 
-        res.json(performer);
+        res.json(performer.rows[0]);
     } catch (error) {
         console.error('Error fetching performer:', error);
         res.status(500).json({ error: 'Failed to fetch performer' });
@@ -523,20 +476,16 @@ app.put('/performers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid performer ID' });
         }
 
-        const performer = await prisma.performer.update({
-            where: { id },
-            data: {
-                name: req.body.name
-            }
-        });
-        res.json(performer);
+        const performer = await pool.query(
+            `UPDATE performers SET
+              name = $1
+            WHERE id = $2
+            RETURNING id, name`,
+            [req.body.name, id]
+        );
+        res.json(performer.rows[0]);
     } catch (error) {
         console.error('Error updating performer:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Performer not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to update performer' });
     }
 });
@@ -544,12 +493,14 @@ app.put('/performers/:id', async (req, res) => {
 // POST /performers - Create a new performer
 app.post('/performers', async (req, res) => {
     try {
-        const performer = await prisma.performer.create({
-            data: {
-                name: req.body.name
-            }
-        });
-        res.status(201).json(performer);
+        const performer = await pool.query(
+            `INSERT INTO performers (
+              name
+            ) VALUES ($1)
+            RETURNING id, name`,
+            [req.body.name]
+        );
+        res.status(201).json(performer.rows[0]);
     } catch (error) {
         console.error('Error creating performer:', error);
         res.status(500).json({ error: 'Failed to create performer' });
@@ -564,17 +515,10 @@ app.delete('/performers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid performer ID' });
         }
 
-        await prisma.performer.delete({
-            where: { id }
-        });
+        await pool.query('DELETE FROM performers WHERE id = $1', [id]);
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting performer:', error);
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Performer not found' });
-            }
-        }
         res.status(500).json({ error: 'Failed to delete performer' });
     }
 });
@@ -583,32 +527,23 @@ app.delete('/performers/:id', async (req, res) => {
 app.get('/sources', async (req: Request, res: Response) => {
   try {
     const search = (req.query.search as string) || '';
+    let query = `
+      SELECT id, code, title, from_year, to_year, catalogued
+      FROM sources
+    `;
+    const params: any[] = [];
 
-    // Build where clause for search
-    const where = search ? {
-      OR: [
-        { code: { contains: search, mode: Prisma.QueryMode.insensitive } },
-        { title: { contains: search, mode: Prisma.QueryMode.insensitive } }
-      ]
-    } : undefined;
+    if (search) {
+      query += `
+        WHERE code ILIKE $1 OR title ILIKE $1
+      `;
+      params.push(`%${search}%`);
+    }
 
-    // Get sources
-    const sources = await prisma.source.findMany({
-      where,
-      select: {
-        id: true,
-        code: true,
-        title: true,
-        fromYear: true,
-        toYear: true,
-        catalogued: true
-      },
-      orderBy: {
-        code: 'asc'
-      }
-    });
+    query += ` ORDER BY code ASC`;
 
-    res.json({ sources });
+    const result = await pool.query(query, params);
+    res.json({ sources: result.rows });
   } catch (error) {
     console.error('Error fetching sources:', error);
     res.status(500).json({ error: 'Failed to fetch sources' });
@@ -619,26 +554,53 @@ app.get('/sources', async (req: Request, res: Response) => {
 app.get('/sources/:id', async (req, res) => {
   try {
     const sourceId = parseInt(req.params.id);
-    const source = await prisma.source.findUnique({
-      where: { id: sourceId },
-      include: {
-        images: true,
-        inclusions: true,
-        publisherSources: {
-          include: {
-            publisher: true
-          }
-        },
-        scribeSources: {
-          include: {
-            scribe: true
-          }
-        }
-      }
-    });
-    if (!source) {
+    
+    // Get source details
+    const sourceResult = await pool.query(
+      `SELECT * FROM sources WHERE id = $1`,
+      [sourceId]
+    );
+
+    if (sourceResult.rows.length === 0) {
       return res.status(404).json({ error: 'Source not found' });
     }
+
+    const source = sourceResult.rows[0];
+
+    // Get images
+    const imagesResult = await pool.query(
+      `SELECT * FROM source_images WHERE source_id = $1`,
+      [sourceId]
+    );
+    source.images = imagesResult.rows;
+
+    // Get inclusions
+    const inclusionsResult = await pool.query(
+      `SELECT * FROM inclusions WHERE source_id = $1`,
+      [sourceId]
+    );
+    source.inclusions = inclusionsResult.rows;
+
+    // Get publishers
+    const publishersResult = await pool.query(
+      `SELECT p.* 
+       FROM publishers p
+       JOIN publishers_sources ps ON p.id = ps.publisher_id
+       WHERE ps.source_id = $1`,
+      [sourceId]
+    );
+    source.publishers = publishersResult.rows;
+
+    // Get scribes
+    const scribesResult = await pool.query(
+      `SELECT s.* 
+       FROM scribes s
+       JOIN scribes_sources ss ON s.id = ss.scribe_id
+       WHERE ss.source_id = $1`,
+      [sourceId]
+    );
+    source.scribes = scribesResult.rows;
+
     res.json(source);
   } catch (error) {
     console.error('Error fetching source:', error);
@@ -648,124 +610,209 @@ app.get('/sources/:id', async (req, res) => {
 
 // POST /sources
 app.post('/sources', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { code, title, type, format, town, rismLink, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, publisherIds, scribeIds } = req.body;
-    const newSource = await prisma.source.create({
-      data: {
-        code,
-        title,
-        type,
-        format,
-        town,
-        rismLink,
-        catalogued,
-        fromYear,
-        toYear,
-        fromYearAnnotation,
-        toYearAnnotation,
-        dates,
-        publisherSources: {
-          create: publisherIds.map((id: number) => ({
-            publisher: { connect: { id } }
-          }))
-        },
-        scribeSources: {
-          create: scribeIds.map((id: number) => ({
-            scribe: { connect: { id } }
-          }))
-        }
-      },
-      include: {
-        images: true,
-        inclusions: true,
-        publisherSources: {
-          include: {
-            publisher: true
-          }
-        },
-        scribeSources: {
-          include: {
-            scribe: true
-          }
-        }
-      }
-    });
-    res.status(201).json(newSource);
+    await client.query('BEGIN');
+
+    const {
+      code, title, type, format, town, rismLink, catalogued,
+      fromYear, toYear, fromYearAnnotation, toYearAnnotation,
+      dates, publisherIds, scribeIds
+    } = req.body;
+
+    // Insert source
+    const sourceResult = await client.query(
+      `INSERT INTO sources (
+        code, title, type, format, town, rism_link, catalogued,
+        from_year, to_year, from_year_annotation, to_year_annotation,
+        dates
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *`,
+      [code, title, type, format, town, rismLink, catalogued,
+       fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates]
+    );
+
+    const source = sourceResult.rows[0];
+
+    // Insert publisher relationships
+    if (publisherIds && publisherIds.length > 0) {
+      const publisherValues = publisherIds.map((id: number) => 
+        `(${source.id}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO publishers_sources (source_id, publisher_id)
+         VALUES ${publisherValues}`
+      );
+    }
+
+    // Insert scribe relationships
+    if (scribeIds && scribeIds.length > 0) {
+      const scribeValues = scribeIds.map((id: number) => 
+        `(${source.id}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO scribes_sources (source_id, scribe_id)
+         VALUES ${scribeValues}`
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Fetch the complete source with relationships
+    const completeSource = await client.query(
+      `SELECT s.*, 
+              json_agg(DISTINCT p.*) as publishers,
+              json_agg(DISTINCT sc.*) as scribes
+       FROM sources s
+       LEFT JOIN publishers_sources ps ON s.id = ps.source_id
+       LEFT JOIN publishers p ON ps.publisher_id = p.id
+       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
+       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
+       WHERE s.id = $1
+       GROUP BY s.id`,
+      [source.id]
+    );
+
+    res.status(201).json(completeSource.rows[0]);
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error creating source:', error);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
 // PUT /sources/:id
 app.put('/sources/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     const sourceId = parseInt(req.params.id);
-    const { code, title, type, format, town, rismLink, catalogued, fromYear, toYear, fromYearAnnotation, toYearAnnotation, dates, publisherIds, scribeIds } = req.body;
-    const updatedSource = await prisma.source.update({
-      where: { id: sourceId },
-      data: {
-        code,
-        title,
-        type,
-        format,
-        town,
-        rismLink,
-        catalogued,
-        fromYear,
-        toYear,
-        fromYearAnnotation,
-        toYearAnnotation,
-        dates,
-        publisherSources: {
-          deleteMany: {},
-          create: publisherIds.map((id: number) => ({
-            publisher: { connect: { id } }
-          }))
-        },
-        scribeSources: {
-          deleteMany: {},
-          create: scribeIds.map((id: number) => ({
-            scribe: { connect: { id } }
-          }))
-        }
-      },
-      include: {
-        images: true,
-        inclusions: true,
-        publisherSources: {
-          include: {
-            publisher: true
-          }
-        },
-        scribeSources: {
-          include: {
-            scribe: true
-          }
-        }
-      }
-    });
-    res.json(updatedSource);
+    const {
+      code, title, type, format, town, rismLink, catalogued,
+      fromYear, toYear, fromYearAnnotation, toYearAnnotation,
+      dates, publisherIds, scribeIds
+    } = req.body;
+
+    // Update source
+    const sourceResult = await client.query(
+      `UPDATE sources SET
+        code = $1, title = $2, type = $3, format = $4,
+        town = $5, rism_link = $6, catalogued = $7,
+        from_year = $8, to_year = $9,
+        from_year_annotation = $10, to_year_annotation = $11,
+        dates = $12
+      WHERE id = $13
+      RETURNING *`,
+      [code, title, type, format, town, rismLink, catalogued,
+       fromYear, toYear, fromYearAnnotation, toYearAnnotation,
+       dates, sourceId]
+    );
+
+    if (sourceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Source not found' });
+    }
+
+    // Update publisher relationships
+    await client.query(
+      'DELETE FROM publishers_sources WHERE source_id = $1',
+      [sourceId]
+    );
+
+    if (publisherIds && publisherIds.length > 0) {
+      const publisherValues = publisherIds.map((id: number) => 
+        `(${sourceId}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO publishers_sources (source_id, publisher_id)
+         VALUES ${publisherValues}`
+      );
+    }
+
+    // Update scribe relationships
+    await client.query(
+      'DELETE FROM scribes_sources WHERE source_id = $1',
+      [sourceId]
+    );
+
+    if (scribeIds && scribeIds.length > 0) {
+      const scribeValues = scribeIds.map((id: number) => 
+        `(${sourceId}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO scribes_sources (source_id, scribe_id)
+         VALUES ${scribeValues}`
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Fetch the complete updated source
+    const completeSource = await client.query(
+      `SELECT s.*, 
+              json_agg(DISTINCT p.*) as publishers,
+              json_agg(DISTINCT sc.*) as scribes
+       FROM sources s
+       LEFT JOIN publishers_sources ps ON s.id = ps.source_id
+       LEFT JOIN publishers p ON ps.publisher_id = p.id
+       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
+       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
+       WHERE s.id = $1
+       GROUP BY s.id`,
+      [sourceId]
+    );
+
+    res.json(completeSource.rows[0]);
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error updating source:', error);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
 // DELETE /sources/:id
 app.delete('/sources/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        await prisma.source.delete({
-            where: { id: parseInt(id) }
-        });
+    const sourceId = parseInt(req.params.id);
 
-        res.status(204).send();
-    } catch (error) {
-        console.error('Error deleting source:', error);
-        res.status(500).json({ error: 'Failed to delete source' });
+    // Delete related records first
+    await client.query('DELETE FROM publishers_sources WHERE source_id = $1', [sourceId]);
+    await client.query('DELETE FROM scribes_sources WHERE source_id = $1', [sourceId]);
+    await client.query('DELETE FROM source_images WHERE source_id = $1', [sourceId]);
+    await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
+
+    // Delete the source
+    const result = await client.query(
+      'DELETE FROM sources WHERE id = $1 RETURNING id',
+      [sourceId]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Source not found' });
     }
+
+    await client.query('COMMIT');
+    res.status(204).send();
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting source:', error);
+    res.status(500).json({ error: 'Failed to delete source' });
+  } finally {
+    client.release();
+  }
 });
 
 const PORT = process.env.PORT || 3000;
