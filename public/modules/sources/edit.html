@@ -623,11 +623,21 @@
 
         // Function to sort clefs by pitch
         function sortClefs(clefArray) {
-            return clefArray.sort((a, b) => {
+            if (!clefArray) return [];
+            
+            // First, ensure we have a copy of the array
+            const clefsToSort = [...clefArray];
+            
+            // Sort based on the exact order in the clefs array
+            return clefsToSort.sort((a, b) => {
                 const aIndex = clefs.indexOf(a.clef);
                 const bIndex = clefs.indexOf(b.clef);
-                if (aIndex === -1) return 1;  // Invalid clefs go to the end
+                
+                // If either clef is not in our defined list, put it at the end
+                if (aIndex === -1) return 1;
                 if (bIndex === -1) return -1;
+                
+                // Otherwise, sort by their position in our defined list
                 return aIndex - bIndex;
             });
         }
@@ -696,7 +706,12 @@
                         };
                     },
                     processResults: function(data) {
-                        return data;
+                        return {
+                            results: data.composers.map(composer => ({
+                                id: composer.name,  // Use name as id for searching
+                                text: composer.name
+                            }))
+                        };
                     },
                     cache: true
                 }
@@ -718,7 +733,12 @@
                         };
                     },
                     processResults: function(data) {
-                        return data;
+                        return {
+                            results: data.titles.map(title => ({
+                                id: title.text,
+                                text: title.text
+                            }))
+                        };
                     },
                     cache: true
                 }
@@ -728,6 +748,10 @@
         // Function to create a new inclusion row
         function createInclusionRow(inclusion = null) {
             const row = document.createElement('tr');
+            
+            // Sort clefs before any formatting
+            const sortedClefs = inclusion?.clefs ? sortClefs(inclusion.clefs) : [];
+            
             row.innerHTML = `
                 <td>
                     <input type="number" class="form-control form-control-sm" name="order" value="${inclusion?.order || ''}">
@@ -754,13 +778,13 @@
                     <div class="composer-container">
                         <select class="form-control form-control-sm composer-select" name="composer">
                             <option value="">Select composer</option>
-                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${composers.find(c => c.id === inclusion.composer_ids[0])?.name || ''}</option>` : ''}
+                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${inclusion.composer_ids[0]}</option>` : ''}
                         </select>
                         <div class="additional-composers">
                             ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
                                 <select class="form-control form-control-sm composer-select mt-1" name="composer">
                                     <option value="">Select composer</option>
-                                    <option value="${id}" selected>${composers.find(c => c.id === id)?.name || ''}</option>
+                                    <option value="${id}" selected>${id}</option>
                                 </select>
                             `).join('')}
                         </div>
@@ -798,15 +822,20 @@
                 </td>
                 <td>
                     <div class="clef-grid">
-                        ${Array(8).fill(0).map((_, i) => `
-                            <input type="text" class="form-control form-control-sm clef-input" 
-                                   name="clef" value="${inclusion?.clefs?.[i] ? 
-                                   formatClef(inclusion.clefs[i].clef, 
-                                            inclusion.clefs[i].optional,
-                                            inclusion.clefs[i].missing,
-                                            inclusion.clefs[i].incomplete,
-                                            inclusion.clefs[i].transitions_to) : ''}">
-                        `).join('')}
+                        ${Array(8).fill(0).map((_, i) => {
+                            const clef = sortedClefs[i];
+                            const formattedClef = clef ? formatClef(
+                                clef.clef,
+                                clef.optional,
+                                clef.missing,
+                                clef.incomplete,
+                                clef.transitions_to
+                            ) : '';
+                            return `
+                                <input type="text" class="form-control form-control-sm clef-input" 
+                                       name="clef" value="${formattedClef}">
+                            `;
+                        }).join('')}
                     </div>
                     <button type="button" class="btn btn-link btn-sm add-clef-row">
                         <i class="bi bi-plus-lg"></i> Add row
@@ -816,7 +845,6 @@
                     <input type="text" class="form-control form-control-sm" name="position" 
                            value="${inclusion?.position || ''}" 
                            placeholder="e.g. f.1r, f.2v, p.1">
-                    <small class="form-text text-muted">Enter folio or page numbers</small>
                 </td>
                 <td>
                     <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
@@ -900,13 +928,13 @@
         // Handle additional clef rows
         document.addEventListener('click', (e) => {
             if (e.target.closest('.add-clef-row')) {
-                const container = e.target.closest('.clef-grid');
+                const container = e.target.closest('td');
                 const newRow = document.createElement('div');
-                newRow.className = 'clef-row mt-2';
+                newRow.className = 'clef-grid mt-2';
                 newRow.innerHTML = Array(8).fill(0).map(() => `
                     <input type="text" class="form-control form-control-sm clef-input" name="clef">
                 `).join('');
-                container.appendChild(newRow);
+                container.insertBefore(newRow, e.target);
             }
         });
 
@@ -925,7 +953,7 @@
                     .map(input => parseClef(input.value))
                     .filter(clef => clef.clef); // Only include non-empty clefs
 
-                // Sort clefs by pitch
+                // Sort clefs by pitch before saving
                 const sortedClefs = sortClefs(clefs);
 
                 return {
