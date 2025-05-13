@@ -608,11 +608,17 @@ app.get('/sources/:id', async (req, res) => {
     );
     source.images = imagesResult.rows;
 
-    // Get inclusions with new JSONB columns
+    // Get inclusions with composer names
     const inclusionsResult = await pool.query(
-      `SELECT id, source_id, notes, "order", created_at, updated_at, position, composition_id,
-              clefs, attribution_texts, composer_ids
-       FROM inclusions WHERE source_id = $1`,
+      `SELECT i.id, i.source_id, i.notes, i."order", i.created_at, i.updated_at, i.position, i.composition_id,
+              i.clefs, i.attribution_texts, i.composer_ids,
+              ARRAY(
+                SELECT c.name 
+                FROM composers c 
+                WHERE c.id = ANY(i.composer_ids)
+                ORDER BY array_position(i.composer_ids, c.id)
+              ) as composer_names
+       FROM inclusions i WHERE i.source_id = $1`,
       [sourceId]
     );
     source.inclusions = inclusionsResult.rows;

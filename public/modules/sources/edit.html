@@ -707,9 +707,9 @@
                     },
                     processResults: function(data) {
                         return {
-                            results: data.composers.map(composer => ({
-                                id: composer.name,  // Use name as id for searching
-                                text: composer.name
+                            results: data.results.map(composer => ({
+                                id: composer.id,
+                                text: composer.text
                             }))
                         };
                     },
@@ -734,8 +734,8 @@
                     },
                     processResults: function(data) {
                         return {
-                            results: data.titles.map(title => ({
-                                id: title.text,
+                            results: data.results.map(title => ({
+                                id: title.id,
                                 text: title.text
                             }))
                         };
@@ -778,13 +778,13 @@
                     <div class="composer-container">
                         <select class="form-control form-control-sm composer-select" name="composer">
                             <option value="">Select composer</option>
-                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${inclusion.composer_ids[0]}</option>` : ''}
+                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${inclusion.composer_names?.[0] || ''}</option>` : ''}
                         </select>
                         <div class="additional-composers">
                             ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
                                 <select class="form-control form-control-sm composer-select mt-1" name="composer">
                                     <option value="">Select composer</option>
-                                    <option value="${id}" selected>${id}</option>
+                                    <option value="${id}" selected>${inclusion.composer_names?.[i + 1] || ''}</option>
                                 </select>
                             `).join('')}
                         </div>
