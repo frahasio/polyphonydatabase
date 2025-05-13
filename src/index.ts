@@ -864,8 +864,8 @@ app.get('/titles', async (req: Request, res: Response) => {
   try {
     const search = (req.query.search as string) || '';
     let query = `
-      SELECT DISTINCT text
-      FROM compositions
+      SELECT id, text
+      FROM titles
       WHERE text ILIKE $1
       ORDER BY text ASC
       LIMIT 10
@@ -880,19 +880,61 @@ app.get('/titles', async (req: Request, res: Response) => {
   }
 });
 
+// GET /titles/match - Get title ID from text
+app.get('/titles/match', async (req: Request, res: Response) => {
+  try {
+    const search = (req.query.text as string) || '';
+    if (!search) {
+      return res.json({ id: null });
+    }
+
+    const result = await pool.query(
+      `SELECT id, text
+       FROM titles
+       WHERE text = $1
+       LIMIT 1`,
+      [search]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ id: null });
+    }
+
+    res.json({ id: result.rows[0].id });
+  } catch (error) {
+    console.error('Error matching title:', error);
+    res.status(500).json({ error: 'Failed to match title' });
+  }
+});
+
 // GET /composition-types - Get all composition types
 app.get('/composition-types', async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT DISTINCT type
-      FROM compositions
-      WHERE type IS NOT NULL
-      ORDER BY type ASC
+      SELECT id, name
+      FROM composition_types
+      ORDER BY name ASC
     `);
-    res.json({ types: result.rows.map(row => row.type) });
+    res.json({ types: result.rows });
   } catch (error) {
     console.error('Error fetching composition types:', error);
     res.status(500).json({ error: 'Failed to fetch composition types' });
+  }
+});
+
+// GET /compositions - Get all compositions
+app.get('/compositions', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT c.*, ct.name as type_name
+      FROM compositions c
+      LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+      ORDER BY c.title ASC
+    `);
+    res.json({ compositions: result.rows });
+  } catch (error) {
+    console.error('Error fetching compositions:', error);
+    res.status(500).json({ error: 'Failed to fetch compositions' });
   }
 });
 
@@ -901,10 +943,10 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
   try {
     const {
       composer_ids,
-      title,
-      type,
-      tone,
-      even_odd,
+      title_id,
+      type_id,
+      tone_index,
+      even_odd_index,
       clefs
     } = req.body;
 
@@ -920,20 +962,20 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
       SELECT c.*, cm.match_count
       FROM compositions c
       JOIN composer_matches cm ON c.id = cm.id
-      WHERE c.text = $2
-        AND c.type = $3
-        AND ($4::text IS NULL OR c.tone = $4)
-        AND ($5::text IS NULL OR c.even_odd = $5)
+      WHERE c.title_id = $2
+        AND c.composition_type_id = $3
+        AND ($4::integer IS NULL OR c.tone = $4)
+        AND ($5::integer IS NULL OR c.even_odd = $5)
       ORDER BY cm.match_count DESC, c.id ASC
       LIMIT 1
     `;
 
     const result = await pool.query(query, [
       composer_ids,
-      title,
-      type,
-      tone || null,
-      even_odd || null
+      title_id,
+      type_id,
+      tone_index || null,
+      even_odd_index || null
     ]);
 
     if (result.rows.length > 0) {
