@@ -617,8 +617,8 @@ app.get('/sources/:id', async (req, res) => {
                 ELSE ARRAY(
                   SELECT c.name 
                   FROM composers c 
-                  WHERE c.id = ANY(COALESCE(i.composer_ids, ARRAY[]::integer[]))
-                  ORDER BY array_position(COALESCE(i.composer_ids, ARRAY[]::integer[]), c.id)
+                  WHERE c.id = ANY(COALESCE(i.composer_ids::integer[], ARRAY[]::integer[]))
+                  ORDER BY array_position(COALESCE(i.composer_ids::integer[], ARRAY[]::integer[]), c.id)
                 )
               END as composer_names
        FROM inclusions i WHERE i.source_id = $1`,
