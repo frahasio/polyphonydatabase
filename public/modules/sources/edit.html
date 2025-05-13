@@ -862,6 +862,7 @@
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
+                <input type="hidden" name="composition_id" value="${inclusion?.composition_id || ''}">
             `;
 
             // Initialize Select2 for the new row
@@ -1015,7 +1016,7 @@
             return Array.from(rows).map(row => {
                 const clefs = Array.from(row.querySelectorAll('.clef-input'))
                     .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef); // Only include non-empty clefs
+                    .filter(clef => clef.clef);
 
                 // Sort clefs by pitch before saving
                 const sortedClefs = sortClefs(clefs);
@@ -1026,24 +1027,26 @@
                         row.querySelector('[name="attribution"]').value,
                         ...Array.from(row.querySelectorAll('.additional-attributions [name="attribution"]'))
                             .map(input => input.value)
-                    ].filter(text => text), // Only include non-empty texts
+                    ].filter(text => text),
                     composer_ids: [
                         row.querySelector('[name="composer"]').value,
                         ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
                             .map(select => select.value)
-                    ].filter(id => id).map(id => parseInt(id)), // Only include non-empty IDs
-                    title: row.querySelector('[name="title"]').value,
-                    type: row.querySelector('[name="type"]').value,
+                    ].filter(id => id).map(id => parseInt(id)),
+                    title_id: row.querySelector('[name="title"]').value,
+                    type_id: row.querySelector('[name="type"]').value,
                     tone: row.querySelector('[name="tone"]').value,
                     even_odd: row.querySelector('[name="evenOdd"]').value,
                     clefs: sortedClefs,
                     position: row.querySelector('[name="position"]').value,
-                    notes: row.querySelector('[name="notes"]').value
+                    notes: row.querySelector('[name="notes"]').value,
+                    composition_id: row.querySelector('[name="composition_id"]').value,
+                    composition_data: row.getAttribute('data-composition') ? JSON.parse(row.getAttribute('data-composition')) : null
                 };
             });
         }
 
-        // Modify the form submission to include inclusions
+        // Modify the form submission to handle new compositions
         document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -1051,9 +1054,40 @@
             
             // Convert form data to object
             const data = {
-                // ... existing source data ...
+                code: formData.get('code'),
+                title: formData.get('title'),
+                type: formData.get('type'),
+                format: formData.get('format'),
+                town: formData.get('town'),
+                rismLink: formData.get('rismLink'),
+                catalogued: formData.get('catalogued') === 'on',
+                fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
+                toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
+                fromYearAnnotation: formData.get('fromYearAnnotation'),
+                toYearAnnotation: formData.get('toYearAnnotation'),
+                dates: formData.get('dates'),
+                images: [],
                 inclusions: collectInclusionData()
             };
+
+            // Get selected publishers and scribes
+            const publishersSelect = document.getElementById('publishers');
+            const scribesSelect = document.getElementById('scribes');
+            data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
+            data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
+
+            // Collect image data
+            const imageUrls = formData.getAll('images[0][url]');
+            const imageLabels = formData.getAll('images[0][label]');
+            
+            for (let i = 0; i < imageUrls.length; i++) {
+                if (imageUrls[i]) {
+                    data.images.push({
+                        url: imageUrls[i],
+                        label: imageLabels[i] || ''
+                    });
+                }
+            }
 
             try {
                 const response = await fetch(`/sources/${sourceId}`, {
@@ -1182,46 +1216,68 @@
         }
 
         // Function to check for matching composition
-        async function checkCompositionMatch(inclusion) {
+        async function checkCompositionMatch(row) {
             try {
-                // First get the title ID
-                const titleResponse = await fetch(`/titles/match?text=${encodeURIComponent(inclusion.title)}`);
-                if (!titleResponse.ok) {
-                    throw new Error('Failed to match title');
+                const composerIds = [
+                    row.querySelector('[name="composer"]').value,
+                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
+                        .map(select => select.value)
+                ].filter(id => id).map(id => parseInt(id));
+
+                const titleId = row.querySelector('[name="title"]').value;
+                const typeId = row.querySelector('[name="type"]').value;
+                const tone = row.querySelector('[name="tone"]').value;
+                const evenOdd = row.querySelector('[name="evenOdd"]').value;
+                const clefs = Array.from(row.querySelectorAll('.clef-input'))
+                    .map(input => parseClef(input.value))
+                    .filter(clef => clef.clef);
+
+                // Only check if we have enough data
+                if (composerIds.length > 0 && titleId && typeId) {
+                    const response = await fetch('/compositions/match', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            composer_ids: composerIds,
+                            title_id: parseInt(titleId),
+                            type_id: parseInt(typeId),
+                            tone: tone || null,
+                            even_odd: evenOdd || null,
+                            clefs: clefs
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check composition match');
+                    }
+
+                    const data = await response.json();
+                    
+                    // Store the composition data in a data attribute for later use
+                    const compositionData = {
+                        composer_ids: composerIds,
+                        title_id: parseInt(titleId),
+                        type_id: parseInt(typeId),
+                        tone: tone || null,
+                        even_odd: evenOdd || null,
+                        clefs: clefs
+                    };
+                    row.setAttribute('data-composition', JSON.stringify(compositionData));
+                    
+                    // Update the hidden composition_id field
+                    const compositionIdField = row.querySelector('[name="composition_id"]');
+                    compositionIdField.value = data.composition_id || '';
+
+                    // Update the status indicator
+                    updateCompositionStatus(row, data.status);
+                } else {
+                    updateCompositionStatus(row, 'incomplete');
                 }
-                const titleData = await titleResponse.json();
-                const titleId = titleData.id;
-
-                // Get tone index
-                const toneIndex = tones.indexOf(inclusion.tone);
-                
-                // Get even/odd index
-                const evenOddIndex = ['even', 'odd', 'both'].indexOf(inclusion.even_odd);
-
-                const response = await fetch('/compositions/match', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        composer_ids: inclusion.composer_ids,
-                        title_id: titleId,
-                        type_id: inclusion.type,
-                        tone_index: toneIndex >= 0 ? toneIndex : null,
-                        even_odd_index: evenOddIndex >= 0 ? evenOddIndex : null,
-                        clefs: inclusion.clefs
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to check composition match');
-                }
-
-                const data = await response.json();
-                return data;
             } catch (error) {
                 console.error('Error checking composition match:', error);
-                return null;
+                updateCompositionStatus(row, 'error');
             }
         }
 
@@ -1267,7 +1323,7 @@
 
             // Only check if we have enough data
             if (inclusion.composer_ids.length > 0 && inclusion.title && inclusion.type) {
-                const match = await checkCompositionMatch(inclusion);
+                const match = await checkCompositionMatch(row);
                 if (match) {
                     updateCompositionStatus(row, match.status);
                     // Store the composition ID in a hidden field
@@ -1289,7 +1345,7 @@
         function addCompositionCheckListeners(row) {
             const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
             inputs.forEach(input => {
-                input.addEventListener('input', debounce(() => {
+                input.addEventListener('change', debounce(() => {
                     checkRowComposition(row);
                 }, 500));
             });
