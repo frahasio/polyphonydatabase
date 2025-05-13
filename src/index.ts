@@ -698,7 +698,7 @@ app.put('/sources/:id', async (req, res) => {
     const {
       code, title, type, format, town, rismLink, catalogued,
       fromYear, toYear, fromYearAnnotation, toYearAnnotation,
-      dates, publisherIds, scribeIds
+      dates, publisherIds, scribeIds, images
     } = req.body;
 
     // Update source
@@ -719,6 +719,23 @@ app.put('/sources/:id', async (req, res) => {
     if (sourceResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Source not found' });
+    }
+
+    // Update images
+    await client.query(
+      'DELETE FROM source_images WHERE source_id = $1',
+      [sourceId]
+    );
+
+    if (images && images.length > 0) {
+      const imageValues = images.map((image: any) => 
+        `(${sourceId}, '${image.url}', '${image.label || ''}')`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO source_images (source_id, url, label)
+         VALUES ${imageValues}`
+      );
     }
 
     // Update publisher relationships

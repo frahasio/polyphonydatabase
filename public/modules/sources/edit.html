@@ -134,6 +134,9 @@
                     <div class="text-end">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
+                    <div class="text-end mt-2">
+                        <small class="text-muted" id="lastSaved"></small>
+                    </div>
                 </form>
             </div>
         </div>
@@ -261,7 +264,7 @@
                         const div = document.createElement('div');
                         div.className = 'input-group mb-2';
                         div.innerHTML = `
-                            <input type="url" class="form-control" name="images[${index}][url]" placeholder="Image URL" value="${image.url}">
+                            <input type="url" class="form-control" name="images[${index}][url]" placeholder="Image URL" value="${image.url || ''}">
                             <input type="text" class="form-control" name="images[${index}][label]" placeholder="Label (optional)" value="${image.label || ''}">
                             <button type="button" class="btn btn-outline-danger remove-image" ${index === 0 ? 'style="display: none;"' : ''}>
                                 <i class="bi bi-trash"></i>
@@ -361,7 +364,7 @@
                 if (imageUrls[i]) {
                     data.images.push({
                         url: imageUrls[i],
-                        label: imageLabels[i] || null
+                        label: imageLabels[i] || ''
                     });
                 }
             }
@@ -378,6 +381,24 @@
                 if (!response.ok) {
                     throw new Error('Failed to update source');
                 }
+
+                // Update last saved timestamp
+                const now = new Date();
+                document.getElementById('lastSaved').textContent = `Last saved: ${now.toLocaleString()}`;
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    Changes saved successfully
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.text-end'));
+
+                // Remove alert after 3 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
 
                 window.location.href = 'index.html';
             } catch (error) {
