@@ -608,7 +608,7 @@ app.get('/sources/:id', async (req, res) => {
     );
     source.images = imagesResult.rows;
 
-    // Get inclusions with composer names
+    // Get inclusions with composer names and title text
     const inclusionsResult = await pool.query(
       `SELECT i.id, i.source_id, i.notes, i."order", i.created_at, i.updated_at, i.position, i.composition_id,
               i.clefs, i.attribution_texts, i.composer_ids,
@@ -620,8 +620,12 @@ app.get('/sources/:id', async (req, res) => {
                   WHERE c.id = ANY(COALESCE(ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer), ARRAY[]::integer[]))
                   ORDER BY array_position(COALESCE(ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer), ARRAY[]::integer[]), c.id)
                 )
-              END as composer_names
-       FROM inclusions i WHERE i.source_id = $1`,
+              END as composer_names,
+              t.text as title_text
+       FROM inclusions i 
+       LEFT JOIN compositions c ON i.composition_id = c.id
+       LEFT JOIN titles t ON c.title_id = t.id
+       WHERE i.source_id = $1`,
       [sourceId]
     );
     source.inclusions = inclusionsResult.rows;

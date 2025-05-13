@@ -714,7 +714,8 @@
                         };
                     },
                     cache: true
-                }
+                },
+                minimumInputLength: 1
             });
 
             // Initialize title selects
@@ -746,7 +747,7 @@
         }
 
         // Function to create a new inclusion row
-        function createInclusionRow(inclusion = null) {
+        function createInclusionRow(inclusion) {
             const row = document.createElement('tr');
             
             // Sort clefs before any formatting
@@ -780,6 +781,9 @@
                             <option value="">Select composer</option>
                             ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${inclusion.composer_names?.[0] || ''}</option>` : ''}
                         </select>
+                        <button type="button" class="btn btn-link btn-sm add-composer" style="display: ${inclusion?.composer_ids?.length > 1 ? 'block' : 'none'}">
+                            <i class="bi bi-plus-lg"></i> Add another composer
+                        </button>
                         <div class="additional-composers">
                             ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
                                 <select class="form-control form-control-sm composer-select mt-1" name="composer">
@@ -793,7 +797,7 @@
                 <td>
                     <select class="form-control form-control-sm title-select" name="title">
                         <option value="">Enter or select title</option>
-                        ${inclusion?.title ? `<option value="${inclusion.title}" selected>${inclusion.title}</option>` : ''}
+                        ${inclusion?.title_text ? `<option value="${inclusion.title_text}" selected>${inclusion.title_text}</option>` : ''}
                     </select>
                 </td>
                 <td>
