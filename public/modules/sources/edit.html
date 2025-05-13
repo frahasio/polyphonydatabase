@@ -429,9 +429,6 @@
                     sortedInclusions.forEach(inclusion => {
                         const row = createInclusionRow(inclusion);
                         tbody.appendChild(row);
-                        
-                        // Check composition match for each inclusion
-                        checkRowComposition(row);
                     });
                 }
             } catch (error) {
@@ -746,6 +743,75 @@
             });
         }
 
+        // Function to check for matching composition
+        async function checkCompositionMatch(row) {
+            try {
+                const composerIds = [
+                    row.querySelector('[name="composer"]').value,
+                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
+                        .map(select => select.value)
+                ].filter(id => id).map(id => parseInt(id));
+
+                const titleId = row.querySelector('[name="title"]').value;
+                const typeId = row.querySelector('[name="type"]').value;
+                const tone = row.querySelector('[name="tone"]').value;
+                const evenOdd = row.querySelector('[name="evenOdd"]').value;
+                
+                // Calculate number of voices from non-optional clefs
+                const clefs = Array.from(row.querySelectorAll('.clef-input'))
+                    .map(input => parseClef(input.value))
+                    .filter(clef => clef.clef && !clef.optional);
+                const numberOfVoices = clefs.length;
+
+                // Only check if we have enough data
+                if (composerIds.length > 0 && titleId && typeId) {
+                    const response = await fetch('/compositions/match', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            composer_ids: composerIds,
+                            title_id: parseInt(titleId),
+                            type_id: parseInt(typeId),
+                            tone: tone || null,
+                            even_odd: evenOdd || null,
+                            number_of_voices: numberOfVoices
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check composition match');
+                    }
+
+                    const data = await response.json();
+                    
+                    // Store the composition data in a data attribute for later use
+                    const compositionData = {
+                        composer_ids: composerIds,
+                        title_id: parseInt(titleId),
+                        type_id: parseInt(typeId),
+                        tone: tone || null,
+                        even_odd: evenOdd || null,
+                        number_of_voices: numberOfVoices
+                    };
+                    row.setAttribute('data-composition', JSON.stringify(compositionData));
+                    
+                    // Update the hidden composition_id field
+                    const compositionIdField = row.querySelector('[name="composition_id"]');
+                    compositionIdField.value = data.composition_id || '';
+
+                    // Update the status indicator
+                    updateCompositionStatus(row, data.status);
+                } else {
+                    updateCompositionStatus(row, 'incomplete');
+                }
+            } catch (error) {
+                console.error('Error checking composition match:', error);
+                updateCompositionStatus(row, 'error');
+            }
+        }
+
         // Function to create a new inclusion row
         function createInclusionRow(inclusion) {
             const row = document.createElement('tr');
@@ -867,6 +933,15 @@
 
             // Initialize Select2 for the new row
             initializeSelect2();
+
+            // Add composition check listeners
+            const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
+            inputs.forEach(input => {
+                input.addEventListener('change', debounce(() => {
+                    checkCompositionMatch(row);
+                }, 500));
+            });
+
             return row;
         }
 
@@ -1215,72 +1290,6 @@
             }
         }
 
-        // Function to check for matching composition
-        async function checkCompositionMatch(row) {
-            try {
-                const composerIds = [
-                    row.querySelector('[name="composer"]').value,
-                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
-                        .map(select => select.value)
-                ].filter(id => id).map(id => parseInt(id));
-
-                const titleId = row.querySelector('[name="title"]').value;
-                const typeId = row.querySelector('[name="type"]').value;
-                const tone = row.querySelector('[name="tone"]').value;
-                const evenOdd = row.querySelector('[name="evenOdd"]').value;
-                const clefs = Array.from(row.querySelectorAll('.clef-input'))
-                    .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef);
-
-                // Only check if we have enough data
-                if (composerIds.length > 0 && titleId && typeId) {
-                    const response = await fetch('/compositions/match', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            composer_ids: composerIds,
-                            title_id: parseInt(titleId),
-                            type_id: parseInt(typeId),
-                            tone: tone || null,
-                            even_odd: evenOdd || null,
-                            clefs: clefs
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to check composition match');
-                    }
-
-                    const data = await response.json();
-                    
-                    // Store the composition data in a data attribute for later use
-                    const compositionData = {
-                        composer_ids: composerIds,
-                        title_id: parseInt(titleId),
-                        type_id: parseInt(typeId),
-                        tone: tone || null,
-                        even_odd: evenOdd || null,
-                        clefs: clefs
-                    };
-                    row.setAttribute('data-composition', JSON.stringify(compositionData));
-                    
-                    // Update the hidden composition_id field
-                    const compositionIdField = row.querySelector('[name="composition_id"]');
-                    compositionIdField.value = data.composition_id || '';
-
-                    // Update the status indicator
-                    updateCompositionStatus(row, data.status);
-                } else {
-                    updateCompositionStatus(row, 'incomplete');
-                }
-            } catch (error) {
-                console.error('Error checking composition match:', error);
-                updateCompositionStatus(row, 'error');
-            }
-        }
-
         // Function to update composition status indicator
         function updateCompositionStatus(row, status) {
             let indicator = row.querySelector('.composition-status');
@@ -1303,61 +1312,6 @@
                 indicator.innerHTML = '<i class="bi bi-question-circle-fill text-muted"></i>';
             }
         }
-
-        // Function to check composition match for a row
-        async function checkRowComposition(row) {
-            const inclusion = {
-                composer_ids: [
-                    row.querySelector('[name="composer"]').value,
-                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
-                        .map(select => select.value)
-                ].filter(id => id).map(id => parseInt(id)),
-                title: row.querySelector('[name="title"]').value,
-                type: row.querySelector('[name="type"]').value,
-                tone: row.querySelector('[name="tone"]').value,
-                even_odd: row.querySelector('[name="evenOdd"]').value,
-                clefs: Array.from(row.querySelectorAll('.clef-input'))
-                    .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef)
-            };
-
-            // Only check if we have enough data
-            if (inclusion.composer_ids.length > 0 && inclusion.title && inclusion.type) {
-                const match = await checkCompositionMatch(row);
-                if (match) {
-                    updateCompositionStatus(row, match.status);
-                    // Store the composition ID in a hidden field
-                    let hiddenField = row.querySelector('input[name="composition_id"]');
-                    if (!hiddenField) {
-                        hiddenField = document.createElement('input');
-                        hiddenField.type = 'hidden';
-                        hiddenField.name = 'composition_id';
-                        row.appendChild(hiddenField);
-                    }
-                    hiddenField.value = match.composition_id || '';
-                }
-            } else {
-                updateCompositionStatus(row, 'incomplete');
-            }
-        }
-
-        // Add debounced composition check to relevant inputs
-        function addCompositionCheckListeners(row) {
-            const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
-            inputs.forEach(input => {
-                input.addEventListener('change', debounce(() => {
-                    checkRowComposition(row);
-                }, 500));
-            });
-        }
-
-        // Modify createInclusionRow to add composition check listeners
-        const originalCreateInclusionRow = createInclusionRow;
-        createInclusionRow = function(inclusion = null) {
-            const row = originalCreateInclusionRow(inclusion);
-            addCompositionCheckListeners(row);
-            return row;
-        };
     </script>
 </body>
 </html> 
