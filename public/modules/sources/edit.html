@@ -551,7 +551,8 @@
                 fromYearAnnotation: formData.get('fromYearAnnotation'),
                 toYearAnnotation: formData.get('toYearAnnotation'),
                 dates: formData.get('dates'),
-                images: []
+                images: [],
+                inclusions: collectInclusionData()
             };
 
             // Get selected publishers and scribes
@@ -954,6 +955,9 @@
                         .map(select => select.value)
                 ].filter(id => id).map(id => parseInt(id));
 
+                // Convert array to PostgreSQL array format string
+                const composerIdsString = `{${composerIds.join(',')}}`;
+
                 const titleId = row.querySelector('[name="title"]').value;
                 const typeId = row.querySelector('[name="type"]').value;
                 const tone = row.querySelector('[name="tone"]').value;
@@ -965,7 +969,7 @@
                     .filter(clef => clef.clef && !clef.optional);
                 const numberOfVoices = clefs.length;
 
-                console.log('Composition data:', { composerIds, titleId, typeId, tone, evenOdd, numberOfVoices }); // Debug log
+                console.log('Composition data:', { composerIdsString, titleId, typeId, tone, evenOdd, numberOfVoices }); // Debug log
 
                 // Only check if we have enough data
                 if (composerIds.length > 0 && titleId && typeId) {
@@ -975,7 +979,7 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            composer_ids: composerIds,
+                            composer_ids: composerIdsString,
                             title_id: parseInt(titleId),
                             type_id: parseInt(typeId),
                             tone: tone || null,
@@ -993,7 +997,7 @@
                     
                     // Store the composition data in a data attribute for later use
                     const compositionData = {
-                        composer_ids: composerIds,
+                        composer_ids: composerIdsString,
                         title_id: parseInt(titleId),
                         type_id: parseInt(typeId),
                         tone: tone || null,
@@ -1136,85 +1140,6 @@
                 };
             });
         }
-
-        // Modify the form submission to handle new compositions
-        document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const formData = new FormData(form);
-            
-            // Convert form data to object
-            const data = {
-                code: formData.get('code'),
-                title: formData.get('title'),
-                type: formData.get('type'),
-                format: formData.get('format'),
-                town: formData.get('town'),
-                rismLink: formData.get('rismLink'),
-                catalogued: formData.get('catalogued') === 'on',
-                fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
-                toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
-                fromYearAnnotation: formData.get('fromYearAnnotation'),
-                toYearAnnotation: formData.get('toYearAnnotation'),
-                dates: formData.get('dates'),
-                images: [],
-                inclusions: collectInclusionData()
-            };
-
-            // Get selected publishers and scribes
-            const publishersSelect = document.getElementById('publishers');
-            const scribesSelect = document.getElementById('scribes');
-            data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
-            data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
-
-            // Collect image data
-            const imageUrls = formData.getAll('images[0][url]');
-            const imageLabels = formData.getAll('images[0][label]');
-            
-            for (let i = 0; i < imageUrls.length; i++) {
-                if (imageUrls[i]) {
-                    data.images.push({
-                        url: imageUrls[i],
-                        label: imageLabels[i] || ''
-                    });
-                }
-            }
-
-            try {
-                const response = await fetch(`/sources/${sourceId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update source');
-                }
-
-                // Update last saved timestamp
-                const now = new Date();
-                document.getElementById('lastSaved').textContent = `Last saved: ${now.toLocaleString()}`;
-                
-                // Show success message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
-                    Changes saved successfully
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('.card-body').appendChild(alertDiv);
-
-                // Remove alert after 3 seconds
-                setTimeout(() => {
-                    alertDiv.remove();
-                }, 3000);
-            } catch (error) {
-                console.error('Error updating source:', error);
-                alert('Failed to update source. Please try again.');
-            }
-        });
 
         // Title autocomplete functionality
         function initializeTitleAutocomplete() {
