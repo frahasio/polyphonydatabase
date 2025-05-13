@@ -1009,37 +1009,31 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
       composer_ids,
       title_id,
       type_id,
-      tone_index,
-      even_odd_index,
-      clefs
+      tone,
+      even_odd,
+      number_of_voices
     } = req.body;
 
     // Look for an exact match
     const query = `
-      WITH composer_matches AS (
-        SELECT c.id, COUNT(DISTINCT a.refers_to_id) as match_count
-        FROM compositions c
-        JOIN attributions a ON c.id = a.inclusion_id
-        WHERE a.refers_to_id = ANY($1)
-        GROUP BY c.id
-      )
-      SELECT c.*, cm.match_count
-      FROM compositions c
-      JOIN composer_matches cm ON c.id = cm.id
-      WHERE c.title_id = $2
-        AND c.composition_type_id = $3
-        AND ($4::integer IS NULL OR c.tone = $4)
-        AND ($5::integer IS NULL OR c.even_odd = $5)
-      ORDER BY cm.match_count DESC, c.id ASC
+      SELECT id
+      FROM compositions
+      WHERE title_id = $1
+        AND composition_type_id = $2
+        AND ($3::text IS NULL OR tone = $3)
+        AND ($4::text IS NULL OR even_odd = $4)
+        AND ($5::integer IS NULL OR number_of_voices = $5)
+        AND composer_id_list = $6::integer[]
       LIMIT 1
     `;
 
     const result = await pool.query(query, [
-      composer_ids,
       title_id,
       type_id,
-      tone_index || null,
-      even_odd_index || null
+      tone,
+      even_odd,
+      number_of_voices,
+      composer_ids
     ]);
 
     if (result.rows.length > 0) {
