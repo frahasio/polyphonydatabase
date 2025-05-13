@@ -612,12 +612,15 @@ app.get('/sources/:id', async (req, res) => {
     const inclusionsResult = await pool.query(
       `SELECT i.id, i.source_id, i.notes, i."order", i.created_at, i.updated_at, i.position, i.composition_id,
               i.clefs, i.attribution_texts, i.composer_ids,
-              ARRAY(
-                SELECT c.name 
-                FROM composers c 
-                WHERE c.id = ANY(i.composer_ids)
-                ORDER BY array_position(i.composer_ids, c.id)
-              ) as composer_names
+              CASE 
+                WHEN i.composer_ids IS NULL THEN ARRAY[]::text[]
+                ELSE ARRAY(
+                  SELECT c.name 
+                  FROM composers c 
+                  WHERE c.id = ANY(i.composer_ids)
+                  ORDER BY array_position(i.composer_ids, c.id)
+                )
+              END as composer_names
        FROM inclusions i WHERE i.source_id = $1`,
       [sourceId]
     );
