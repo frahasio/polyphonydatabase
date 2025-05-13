@@ -23,14 +23,29 @@ app.get('/composers', async (req: Request, res: Response) => {
 
     // Get composers filtered by letter
     const composers = await pool.query(
-      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, birthplace1, birthplace2, deathplace1, deathplace2
+      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, 
+              birthplace_1, birthplace_2, deathplace_1, deathplace_2
        FROM composers
-       WHERE name ILIKE $1 OR name ILIKE $2
+       WHERE $1 = '' OR name ILIKE $2
        ORDER BY name ASC`,
-      [letter, letter.toLowerCase()]
+      [letter, `${letter}%`]
     );
 
-    res.json({ composers: composers.rows });
+    // Transform the response to use camelCase for frontend
+    const transformedComposers = composers.rows.map(composer => ({
+      id: composer.id,
+      name: composer.name,
+      fromYear: composer.from_year,
+      toYear: composer.to_year,
+      fromYearAnnotation: composer.from_year_annotation,
+      toYearAnnotation: composer.to_year_annotation,
+      birthplace1: composer.birthplace_1,
+      birthplace2: composer.birthplace_2,
+      deathplace1: composer.deathplace_1,
+      deathplace2: composer.deathplace_2
+    }));
+
+    res.json({ composers: transformedComposers });
   } catch (error) {
     console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Failed to fetch composers' });

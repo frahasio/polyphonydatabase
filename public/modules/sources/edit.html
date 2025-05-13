@@ -348,6 +348,20 @@
             }
         }
 
+        // Fetch titles for autocomplete
+        async function fetchTitles() {
+            try {
+                const response = await fetch('/titles');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch titles');
+                }
+                const data = await response.json();
+                titles = data.titles;
+            } catch (error) {
+                console.error('Error fetching titles:', error);
+            }
+        }
+
         // Fetch source data
         async function fetchSource() {
             try {
@@ -565,14 +579,18 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            await Promise.all([
-                fetchPublishersAndScribes(),
-                fetchComposers(),
-                fetchTitles(),
-                fetchCompositionsAndTypes()
-            ]);
-            fetchSource();
-            initializeTitleAutocomplete();
+            try {
+                await Promise.all([
+                    fetchPublishersAndScribes(),
+                    fetchComposers(),
+                    fetchTitles(),
+                    fetchCompositionsAndTypes()
+                ]);
+                await fetchSource();
+                initializeTitleAutocomplete();
+            } catch (error) {
+                console.error('Error during initialization:', error);
+            }
         });
 
         // Inclusions handling
