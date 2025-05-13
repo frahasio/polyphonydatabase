@@ -12,13 +12,15 @@
         .clef-grid {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
-            gap: 0.25rem;
-            margin-bottom: 0.5rem;
+            gap: 0.125rem;
+            margin-bottom: 0.25rem;
         }
         
         .clef-input {
             text-align: center;
             font-family: monospace;
+            padding: 0.125rem;
+            font-size: 0.75rem;
         }
         
         .clef-input.is-invalid {
@@ -32,38 +34,49 @@
         
         .additional-attributions,
         .additional-composers {
-            margin-top: 0.5rem;
+            margin-top: 0.25rem;
         }
         
         .add-attribution,
         .add-clef-row {
             padding: 0;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
+            line-height: 1;
         }
         
         #inclusionsTable td {
             vertical-align: top;
-            padding: 0.5rem;
+            padding: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        #inclusionsTable th {
+            padding: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
         }
         
         #inclusionsTable .form-control-sm {
-            padding: 0.25rem 0.5rem;
+            padding: 0.125rem 0.25rem;
             font-size: 0.875rem;
+            height: calc(1.5em + 0.5rem + 2px);
         }
         
         #inclusionsTable .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
+            padding: 0.125rem 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1;
         }
 
         .title-suggestions {
-            margin-top: 0.25rem;
+            margin-top: 0.125rem;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .title-suggestions li {
-            padding: 0.5rem;
+            padding: 0.25rem;
             border-bottom: 1px solid #eee;
+            font-size: 0.875rem;
         }
 
         .title-suggestions li:last-child {
@@ -72,6 +85,51 @@
 
         .title-suggestions li:hover {
             background-color: #f8f9fa;
+        }
+
+        /* Make Select2 dropdowns more compact */
+        .select2-container--bootstrap-5 .select2-selection {
+            min-height: calc(1.5em + 0.5rem + 2px);
+            padding: 0.125rem 0.25rem;
+        }
+
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .select2-container--bootstrap-5 .select2-results__option {
+            padding: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        /* Make textareas more compact */
+        #inclusionsTable textarea {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.875rem;
+            line-height: 1.2;
+        }
+
+        /* Reduce spacing in input groups */
+        .input-group-sm > .form-control,
+        .input-group-sm > .input-group-text,
+        .input-group-sm > .btn {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        /* Make the table more compact overall */
+        .table {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Reduce spacing in the card */
+        .card-body {
+            padding: 0.5rem;
+        }
+
+        .card-header {
+            padding: 0.5rem;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -743,75 +801,6 @@
             });
         }
 
-        // Function to check for matching composition
-        async function checkCompositionMatch(row) {
-            try {
-                const composerIds = [
-                    row.querySelector('[name="composer"]').value,
-                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
-                        .map(select => select.value)
-                ].filter(id => id).map(id => parseInt(id));
-
-                const titleId = row.querySelector('[name="title"]').value;
-                const typeId = row.querySelector('[name="type"]').value;
-                const tone = row.querySelector('[name="tone"]').value;
-                const evenOdd = row.querySelector('[name="evenOdd"]').value;
-                
-                // Calculate number of voices from non-optional clefs
-                const clefs = Array.from(row.querySelectorAll('.clef-input'))
-                    .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef && !clef.optional);
-                const numberOfVoices = clefs.length;
-
-                // Only check if we have enough data
-                if (composerIds.length > 0 && titleId && typeId) {
-                    const response = await fetch('/compositions/match', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            composer_ids: composerIds,
-                            title_id: parseInt(titleId),
-                            type_id: parseInt(typeId),
-                            tone: tone || null,
-                            even_odd: evenOdd || null,
-                            number_of_voices: numberOfVoices
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to check composition match');
-                    }
-
-                    const data = await response.json();
-                    
-                    // Store the composition data in a data attribute for later use
-                    const compositionData = {
-                        composer_ids: composerIds,
-                        title_id: parseInt(titleId),
-                        type_id: parseInt(typeId),
-                        tone: tone || null,
-                        even_odd: evenOdd || null,
-                        number_of_voices: numberOfVoices
-                    };
-                    row.setAttribute('data-composition', JSON.stringify(compositionData));
-                    
-                    // Update the hidden composition_id field
-                    const compositionIdField = row.querySelector('[name="composition_id"]');
-                    compositionIdField.value = data.composition_id || '';
-
-                    // Update the status indicator
-                    updateCompositionStatus(row, data.status);
-                } else {
-                    updateCompositionStatus(row, 'incomplete');
-                }
-            } catch (error) {
-                console.error('Error checking composition match:', error);
-                updateCompositionStatus(row, 'error');
-            }
-        }
-
         // Function to create a new inclusion row
         function createInclusionRow(inclusion) {
             const row = document.createElement('tr');
@@ -934,78 +923,32 @@
             // Initialize Select2 for the new row
             initializeSelect2();
 
-            // Add composition check listeners
-            const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
-            inputs.forEach(input => {
-                input.addEventListener('change', debounce(() => {
-                    checkCompositionMatch(row);
-                }, 500));
-            });
+            // Add composition check listeners after a short delay to ensure Select2 is initialized
+            setTimeout(() => {
+                const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
+                inputs.forEach(input => {
+                    // For Select2 elements, we need to listen to the change event on the select element
+                    if (input.classList.contains('composer-select') || input.classList.contains('title-select')) {
+                        $(input).on('change', debounce(() => {
+                            checkCompositionMatch(row);
+                        }, 500));
+                    } else {
+                        // For regular inputs, listen to the input event
+                        input.addEventListener('change', debounce(() => {
+                            checkCompositionMatch(row);
+                        }, 500));
+                    }
+                });
+            }, 100);
 
             return row;
         }
 
-        // Add event listeners for inclusions table
+        // Add event listener for the Add Inclusion button
         document.getElementById('addInclusionBtn').addEventListener('click', () => {
             const tbody = document.querySelector('#inclusionsTable tbody');
             const row = createInclusionRow();
             tbody.appendChild(row);
-            // Initialize select2 for the new row after it's added to the DOM
-            setTimeout(() => {
-                // Initialize composer select
-                $(row).find('.composer-select').select2({
-                    theme: 'bootstrap-5',
-                    placeholder: 'Select composer',
-                    allowClear: true,
-                    ajax: {
-                        url: '/composers/search',
-                        dataType: 'json',
-                        delay: 250,
-                        data: function(params) {
-                            return {
-                                term: params.term
-                            };
-                        },
-                        processResults: function(data) {
-                            return {
-                                results: data.results.map(composer => ({
-                                    id: composer.id.toString(),
-                                    text: composer.text
-                                }))
-                            };
-                        },
-                        cache: true
-                    },
-                    minimumInputLength: 1
-                });
-
-                // Initialize title select
-                $(row).find('.title-select').select2({
-                    theme: 'bootstrap-5',
-                    placeholder: 'Enter or select title',
-                    allowClear: true,
-                    tags: true,  // Allow free text entry
-                    ajax: {
-                        url: '/titles',
-                        dataType: 'json',
-                        delay: 250,
-                        data: function(params) {
-                            return {
-                                term: params.term
-                            };
-                        },
-                        processResults: function(data) {
-                            return {
-                                results: data.results.map(title => ({
-                                    id: title.id.toString(),  // Convert to string for Select2
-                                    text: title.text
-                                }))
-                            };
-                        },
-                        cache: true
-                    }
-                });
-            }, 0);
         });
 
         // Handle clef input validation and formatting
