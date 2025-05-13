@@ -50,4 +50,11 @@ DROP COLUMN IF EXISTS missing_clef_ids,
 DROP COLUMN IF EXISTS incomplete_clef_ids,
 DROP COLUMN IF EXISTS transitions_to,
 DROP COLUMN IF EXISTS both_clef_ids,
-DROP COLUMN IF EXISTS clef_combination_id; 
+DROP COLUMN IF EXISTS clef_combination_id;
+
+-- Change position field type to varchar
+ALTER TABLE inclusions 
+ALTER COLUMN position TYPE varchar;
+
+-- Add comment to explain the field
+COMMENT ON COLUMN inclusions.position IS 'Folio numbers or other position indicators'; 

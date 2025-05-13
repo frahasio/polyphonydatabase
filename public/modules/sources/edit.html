@@ -626,6 +626,8 @@
             return clefArray.sort((a, b) => {
                 const aIndex = clefs.indexOf(a.clef);
                 const bIndex = clefs.indexOf(b.clef);
+                if (aIndex === -1) return 1;  // Invalid clefs go to the end
+                if (bIndex === -1) return -1;
                 return aIndex - bIndex;
             });
         }
@@ -677,6 +679,52 @@
             };
         }
 
+        // Initialize Select2 for composers and titles
+        function initializeSelect2() {
+            // Initialize composer selects
+            $('.composer-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select composer',
+                allowClear: true,
+                ajax: {
+                    url: '/composers/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return data;
+                    },
+                    cache: true
+                }
+            });
+
+            // Initialize title selects
+            $('.title-select').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Enter or select title',
+                allowClear: true,
+                tags: true,  // Allow free text entry
+                ajax: {
+                    url: '/titles',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term
+                        };
+                    },
+                    processResults: function(data) {
+                        return data;
+                    },
+                    cache: true
+                }
+            });
+        }
+
         // Function to create a new inclusion row
         function createInclusionRow(inclusion = null) {
             const row = document.createElement('tr');
@@ -704,30 +752,25 @@
                 </td>
                 <td>
                     <div class="composer-container">
-                        <select class="form-control form-control-sm" name="composer">
+                        <select class="form-control form-control-sm composer-select" name="composer">
                             <option value="">Select composer</option>
-                            ${composers.map(c => `
-                                <option value="${c.id}" ${inclusion?.composer_ids?.[0] === c.id ? 'selected' : ''}>
-                                    ${c.name}
-                                </option>
-                            `).join('')}
+                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${composers.find(c => c.id === inclusion.composer_ids[0])?.name || ''}</option>` : ''}
                         </select>
                         <div class="additional-composers">
                             ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
-                                <select class="form-control form-control-sm mt-1" name="composer">
+                                <select class="form-control form-control-sm composer-select mt-1" name="composer">
                                     <option value="">Select composer</option>
-                                    ${composers.map(c => `
-                                        <option value="${c.id}" ${id === c.id ? 'selected' : ''}>
-                                            ${c.name}
-                                        </option>
-                                    `).join('')}
+                                    <option value="${id}" selected>${composers.find(c => c.id === id)?.name || ''}</option>
                                 </select>
                             `).join('')}
                         </div>
                     </div>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="title" value="${inclusion?.title || ''}">
+                    <select class="form-control form-control-sm title-select" name="title">
+                        <option value="">Enter or select title</option>
+                        ${inclusion?.title ? `<option value="${inclusion.title}" selected>${inclusion.title}</option>` : ''}
+                    </select>
                 </td>
                 <td>
                     <select class="form-control form-control-sm" name="type">
@@ -770,7 +813,10 @@
                     </button>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="position" value="${inclusion?.position || ''}">
+                    <input type="text" class="form-control form-control-sm" name="position" 
+                           value="${inclusion?.position || ''}" 
+                           placeholder="e.g. f.1r, f.2v, p.1">
+                    <small class="form-text text-muted">Enter folio or page numbers</small>
                 </td>
                 <td>
                     <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
@@ -781,6 +827,9 @@
                     </button>
                 </td>
             `;
+
+            // Initialize Select2 for the new row
+            initializeSelect2();
             return row;
         }
 

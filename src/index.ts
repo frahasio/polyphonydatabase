@@ -19,40 +19,21 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Get all composers (minimal data for list view)
 app.get('/composers', async (req: Request, res: Response) => {
   try {
-    const letter = (req.query.letter as string) || '';
-
-    // Get composers filtered by letter
+    // Get only IDs and names for initial load
     const composers = await pool.query(
-      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, 
-              birthplace_1, birthplace_2, deathplace_1, deathplace_2
+      `SELECT id, name
        FROM composers
-       WHERE $1 = '' OR name ILIKE $2
-       ORDER BY name ASC`,
-      [letter, `${letter}%`]
+       ORDER BY name ASC`
     );
 
-    // Transform the response to use camelCase for frontend
-    const transformedComposers = composers.rows.map(composer => ({
-      id: composer.id,
-      name: composer.name,
-      fromYear: composer.from_year,
-      toYear: composer.to_year,
-      fromYearAnnotation: composer.from_year_annotation,
-      toYearAnnotation: composer.to_year_annotation,
-      birthplace1: composer.birthplace_1,
-      birthplace2: composer.birthplace_2,
-      deathplace1: composer.deathplace_1,
-      deathplace2: composer.deathplace_2
-    }));
-
-    res.json({ composers: transformedComposers });
+    res.json({ composers: composers.rows });
   } catch (error) {
     console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Failed to fetch composers' });
   }
 });
 
-// Get a single composer by ID
+// Get composer details by ID
 app.get('/composers/:id', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
@@ -61,7 +42,8 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
     }
 
     const composer = await pool.query(
-      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation, birthplace1, birthplace2, deathplace1, deathplace2
+      `SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation,
+              birthplace_1, birthplace_2, deathplace_1, deathplace_2
        FROM composers
        WHERE id = $1`,
       [id]
@@ -71,10 +53,44 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Composer not found' });
     }
 
-    res.json(composer.rows[0]);
+    // Transform to camelCase
+    const transformedComposer = {
+      id: composer.rows[0].id,
+      name: composer.rows[0].name,
+      fromYear: composer.rows[0].from_year,
+      toYear: composer.rows[0].to_year,
+      fromYearAnnotation: composer.rows[0].from_year_annotation,
+      toYearAnnotation: composer.rows[0].to_year_annotation,
+      birthplace1: composer.rows[0].birthplace_1,
+      birthplace2: composer.rows[0].birthplace_2,
+      deathplace1: composer.rows[0].deathplace_1,
+      deathplace2: composer.rows[0].deathplace_2
+    };
+
+    res.json(transformedComposer);
   } catch (error) {
     console.error('Error fetching composer:', error);
     res.status(500).json({ error: 'Failed to fetch composer' });
+  }
+});
+
+// Search composers for Select2
+app.get('/composers/search', async (req: Request, res: Response) => {
+  try {
+    const search = (req.query.term as string) || '';
+    const composers = await pool.query(
+      `SELECT id, name as text
+       FROM composers
+       WHERE name ILIKE $1
+       ORDER BY name ASC
+       LIMIT 10`,
+      [`%${search}%`]
+    );
+
+    res.json({ results: composers.rows });
+  } catch (error) {
+    console.error('Error searching composers:', error);
+    res.status(500).json({ error: 'Failed to search composers' });
   }
 });
 
@@ -874,21 +890,27 @@ app.delete('/sources/:id', async (req, res) => {
   }
 });
 
-// GET /titles - Get all titles for autocomplete
+// GET /titles - Get titles for Select2
 app.get('/titles', async (req: Request, res: Response) => {
   try {
-    const search = (req.query.search as string) || '';
-    let query = `
-      SELECT id, text
-      FROM titles
-      WHERE text ILIKE $1
-      ORDER BY text ASC
+    const search = (req.query.term as string) || '';
+    const query = `
+      SELECT DISTINCT t.id, t.text
+      FROM titles t
+      LEFT JOIN compositions c ON t.id = c.title_id
+      WHERE t.text ILIKE $1
+      ORDER BY t.text ASC
       LIMIT 10
     `;
     const params = [`%${search}%`];
 
     const result = await pool.query(query, params);
-    res.json({ titles: result.rows });
+    res.json({ 
+      results: result.rows.map(row => ({
+        id: row.id,
+        text: row.text
+      }))
+    });
   } catch (error) {
     console.error('Error fetching titles:', error);
     res.status(500).json({ error: 'Failed to fetch titles' });
