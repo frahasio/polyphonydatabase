@@ -91,7 +91,13 @@ app.get('/composers/search', async (req: Request, res: Response) => {
       [`%${search}%`]
     );
 
-    res.json({ results: composers.rows });
+    // Transform the results to ensure id is a string for select2
+    const results = composers.rows.map(composer => ({
+      id: composer.id.toString(),
+      text: composer.text
+    }));
+
+    res.json({ results });
   } catch (error) {
     console.error('Error searching composers:', error);
     res.status(500).json({ error: 'Failed to search composers' });
@@ -143,10 +149,10 @@ app.post('/composers', async (req: Request, res: Response) => {
     const composer = await pool.query(
       `INSERT INTO composers (
         name, from_year, to_year, from_year_annotation, to_year_annotation,
-        birthplace1, birthplace2, deathplace1, deathplace2
+        birthplace_1, birthplace_2, deathplace_1, deathplace_2
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, name, from_year, to_year, from_year_annotation, to_year_annotation,
-                birthplace1, birthplace2, deathplace1, deathplace2`,
+                birthplace_1, birthplace_2, deathplace_1, deathplace_2`,
       [rest.name, fromYear ? parseInt(fromYear.toString()) : null, toYear ? parseInt(toYear.toString()) : null, rest.fromYearAnnotation || null, rest.toYearAnnotation || null, rest.birthplace1 || null, rest.birthplace2 || null, rest.deathplace1 || null, rest.deathplace2 || null]
     );
     res.status(201).json(composer.rows[0]);

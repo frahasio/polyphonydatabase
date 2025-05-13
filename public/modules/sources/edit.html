@@ -736,7 +736,7 @@
                     processResults: function(data) {
                         return {
                             results: data.results.map(title => ({
-                                id: title.id,
+                                id: title.id.toString(),  // Convert to string for Select2
                                 text: title.text
                             }))
                         };
@@ -874,8 +874,62 @@
             const tbody = document.querySelector('#inclusionsTable tbody');
             const row = createInclusionRow();
             tbody.appendChild(row);
-            // Initialize select2 for the new row
-            initializeSelect2();
+            // Initialize select2 for the new row after it's added to the DOM
+            setTimeout(() => {
+                // Initialize composer select
+                $(row).find('.composer-select').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Select composer',
+                    allowClear: true,
+                    ajax: {
+                        url: '/composers/search',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                term: params.term
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data.results.map(composer => ({
+                                    id: composer.id.toString(),
+                                    text: composer.text
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 1
+                });
+
+                // Initialize title select
+                $(row).find('.title-select').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Enter or select title',
+                    allowClear: true,
+                    tags: true,  // Allow free text entry
+                    ajax: {
+                        url: '/titles',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return {
+                                term: params.term
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data.results.map(title => ({
+                                    id: title.id.toString(),  // Convert to string for Select2
+                                    text: title.text
+                                }))
+                            };
+                        },
+                        cache: true
+                    }
+                });
+            }, 0);
         });
 
         // Handle clef input validation and formatting
