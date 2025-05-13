@@ -944,6 +944,79 @@
             return row;
         }
 
+        // Function to check for matching composition
+        async function checkCompositionMatch(row) {
+            console.log('Checking composition match for row:', row); // Debug log
+            try {
+                const composerIds = [
+                    row.querySelector('[name="composer"]').value,
+                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
+                        .map(select => select.value)
+                ].filter(id => id).map(id => parseInt(id));
+
+                const titleId = row.querySelector('[name="title"]').value;
+                const typeId = row.querySelector('[name="type"]').value;
+                const tone = row.querySelector('[name="tone"]').value;
+                const evenOdd = row.querySelector('[name="evenOdd"]').value;
+                
+                // Calculate number of voices from non-optional clefs
+                const clefs = Array.from(row.querySelectorAll('.clef-input'))
+                    .map(input => parseClef(input.value))
+                    .filter(clef => clef.clef && !clef.optional);
+                const numberOfVoices = clefs.length;
+
+                console.log('Composition data:', { composerIds, titleId, typeId, tone, evenOdd, numberOfVoices }); // Debug log
+
+                // Only check if we have enough data
+                if (composerIds.length > 0 && titleId && typeId) {
+                    const response = await fetch('/compositions/match', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            composer_ids: composerIds,
+                            title_id: parseInt(titleId),
+                            type_id: parseInt(typeId),
+                            tone: tone || null,
+                            even_odd: evenOdd || null,
+                            number_of_voices: numberOfVoices
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check composition match');
+                    }
+
+                    const data = await response.json();
+                    console.log('Match response:', data); // Debug log
+                    
+                    // Store the composition data in a data attribute for later use
+                    const compositionData = {
+                        composer_ids: composerIds,
+                        title_id: parseInt(titleId),
+                        type_id: parseInt(typeId),
+                        tone: tone || null,
+                        even_odd: evenOdd || null,
+                        number_of_voices: numberOfVoices
+                    };
+                    row.setAttribute('data-composition', JSON.stringify(compositionData));
+                    
+                    // Update the hidden composition_id field
+                    const compositionIdField = row.querySelector('[name="composition_id"]');
+                    compositionIdField.value = data.composition_id || '';
+
+                    // Update the status indicator
+                    updateCompositionStatus(row, data.status);
+                } else {
+                    updateCompositionStatus(row, 'incomplete');
+                }
+            } catch (error) {
+                console.error('Error checking composition match:', error);
+                updateCompositionStatus(row, 'error');
+            }
+        }
+
         // Add event listener for the Add Inclusion button
         document.getElementById('addInclusionBtn').addEventListener('click', () => {
             const tbody = document.querySelector('#inclusionsTable tbody');
