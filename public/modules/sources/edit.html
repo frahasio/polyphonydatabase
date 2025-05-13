@@ -8,6 +8,72 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <link href="/css/styles.css" rel="stylesheet">
+    <style>
+        .clef-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .clef-input {
+            text-align: center;
+            font-family: monospace;
+        }
+        
+        .clef-input.is-invalid {
+            border-color: red !important;
+        }
+        
+        .attribution-container,
+        .composer-container {
+            position: relative;
+        }
+        
+        .additional-attributions,
+        .additional-composers {
+            margin-top: 0.5rem;
+        }
+        
+        .add-attribution,
+        .add-clef-row {
+            padding: 0;
+            font-size: 0.875rem;
+        }
+        
+        #inclusionsTable td {
+            vertical-align: top;
+            padding: 0.5rem;
+        }
+        
+        #inclusionsTable .form-control-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        #inclusionsTable .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .title-suggestions {
+            margin-top: 0.25rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .title-suggestions li {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .title-suggestions li:last-child {
+            border-bottom: none;
+        }
+
+        .title-suggestions li:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </head>
 <body>
@@ -138,6 +204,40 @@
                         <small class="text-muted" id="lastSaved"></small>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Inclusions Table -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Inclusions</h5>
+                <button type="button" class="btn btn-primary btn-sm" id="addInclusionBtn">
+                    <i class="bi bi-plus-lg"></i> Add Inclusion
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table" id="inclusionsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px">Order</th>
+                                <th>Attribution</th>
+                                <th>Composer</th>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Tone</th>
+                                <th>Even/Odd</th>
+                                <th>Clefs</th>
+                                <th>Position</th>
+                                <th>Notes</th>
+                                <th style="width: 60px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Inclusions will be added here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -285,6 +385,23 @@
                     const scribeIds = source.scribes.map(s => s.id);
                     $('#scribes').val(scribeIds).trigger('change');
                 }
+
+                // Load inclusions
+                if (source.inclusions && source.inclusions.length > 0) {
+                    const tbody = document.querySelector('#inclusionsTable tbody');
+                    tbody.innerHTML = ''; // Clear existing rows
+                    
+                    // Sort inclusions by order
+                    const sortedInclusions = [...source.inclusions].sort((a, b) => (a.order || 0) - (b.order || 0));
+                    
+                    sortedInclusions.forEach(inclusion => {
+                        const row = createInclusionRow(inclusion);
+                        tbody.appendChild(row);
+                        
+                        // Check composition match for each inclusion
+                        checkRowComposition(row);
+                    });
+                }
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load source data. Please try again.');
@@ -393,14 +510,12 @@
                     Changes saved successfully
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('.text-end'));
+                document.querySelector('.card-body').appendChild(alertDiv);
 
                 // Remove alert after 3 seconds
                 setTimeout(() => {
                     alertDiv.remove();
                 }, 3000);
-
-                window.location.href = 'index.html';
             } catch (error) {
                 console.error('Error updating source:', error);
                 alert('Failed to update source. Please try again.');
@@ -434,6 +549,589 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchPublishersAndScribes();
             fetchSource();
+        });
+
+        // Inclusions handling
+        let inclusions = [];
+        let validClefs = []; // Will be populated with the hardcoded list
+
+        // Tone and clef lists
+        const tones = [
+            'primi toni',
+            'secundi toni',
+            'tertii toni',
+            'quarti toni',
+            'quinti toni',
+            'sexti toni',
+            'septimi toni',
+            'octavi toni',
+            'noni toni',
+            'duodecimi toni',
+            'mixti toni',
+            'peregrini toni',
+            'proprii toni'
+        ];
+
+        const clefs = [
+            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28',
+            'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5',
+            'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4',
+            'x5', 'org', 'bc', 'lut'
+        ];
+
+        // Function to sort clefs by pitch
+        function sortClefs(clefArray) {
+            return clefArray.sort((a, b) => {
+                const aIndex = clefs.indexOf(a.clef);
+                const bIndex = clefs.indexOf(b.clef);
+                return aIndex - bIndex;
+            });
+        }
+
+        // Function to validate clef notation
+        function validateClef(clef) {
+            // Remove any brackets for validation
+            const cleanClef = clef.replace(/[\[\]{}()]/g, '');
+            return clefs.includes(cleanClef);
+        }
+
+        // Function to format clef for display
+        function formatClef(clef, isOptional, isMissing, isIncomplete, transitionsTo) {
+            let formatted = clef;
+            if (isOptional) formatted = `(${formatted})`;
+            if (isMissing) formatted = `[${formatted}]`;
+            if (isIncomplete) formatted = `{${formatted}}`;
+            if (transitionsTo && transitionsTo.length > 0) {
+                formatted = `${formatted}/${transitionsTo.join('/')}`;
+            }
+            return formatted;
+        }
+
+        // Function to parse clef from display format
+        function parseClef(formatted) {
+            const isOptional = formatted.includes('(') && formatted.includes(')');
+            const isMissing = formatted.includes('[') && formatted.includes(']');
+            const isIncomplete = formatted.includes('{') && formatted.includes('}');
+            const hasTransitions = formatted.includes('/');
+            
+            let clef = formatted;
+            if (isOptional) clef = clef.replace(/[()]/g, '');
+            if (isMissing) clef = clef.replace(/[\[\]]/g, '');
+            if (isIncomplete) clef = clef.replace(/[{}]/g, '');
+            
+            let transitionsTo = [];
+            if (hasTransitions) {
+                const parts = clef.split('/');
+                clef = parts[0];
+                transitionsTo = parts.slice(1);
+            }
+
+            return {
+                clef,
+                optional: isOptional,
+                missing: isMissing,
+                incomplete: isIncomplete,
+                transitions_to: transitionsTo
+            };
+        }
+
+        // Function to create a new inclusion row
+        function createInclusionRow(inclusion = null) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <input type="number" class="form-control form-control-sm" name="order" value="${inclusion?.order || ''}">
+                </td>
+                <td>
+                    <div class="attribution-container">
+                        <input type="text" class="form-control form-control-sm" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}">
+                        <button type="button" class="btn btn-link btn-sm add-attribution" style="display: ${inclusion?.attribution_texts?.length > 1 ? 'block' : 'none'}">
+                            <i class="bi bi-plus-lg"></i> Add another attribution
+                        </button>
+                        <div class="additional-attributions">
+                            ${(inclusion?.attribution_texts?.slice(1) || []).map((text, i) => `
+                                <div class="input-group input-group-sm mt-1">
+                                    <input type="text" class="form-control" name="attribution" value="${text}">
+                                    <button type="button" class="btn btn-outline-danger remove-attribution">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="composer-container">
+                        <select class="form-control form-control-sm" name="composer">
+                            <option value="">Select composer</option>
+                            ${composers.map(c => `
+                                <option value="${c.id}" ${inclusion?.composer_ids?.[0] === c.id ? 'selected' : ''}>
+                                    ${c.name}
+                                </option>
+                            `).join('')}
+                        </select>
+                        <div class="additional-composers">
+                            ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
+                                <select class="form-control form-control-sm mt-1" name="composer">
+                                    <option value="">Select composer</option>
+                                    ${composers.map(c => `
+                                        <option value="${c.id}" ${id === c.id ? 'selected' : ''}>
+                                            ${c.name}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            `).join('')}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="title" value="${inclusion?.title || ''}">
+                </td>
+                <td>
+                    <select class="form-control form-control-sm" name="type">
+                        <option value="">Select type</option>
+                        <!-- Will be populated with types from database -->
+                    </select>
+                </td>
+                <td>
+                    <select class="form-control form-control-sm" name="tone">
+                        <option value="">Select tone</option>
+                        ${tones.map(tone => `
+                            <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
+                                ${tone}
+                            </option>
+                        `).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select class="form-control form-control-sm" name="evenOdd">
+                        <option value="">Select</option>
+                        <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
+                        <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
+                        <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="clef-grid">
+                        ${Array(8).fill(0).map((_, i) => `
+                            <input type="text" class="form-control form-control-sm clef-input" 
+                                   name="clef" value="${inclusion?.clefs?.[i] ? 
+                                   formatClef(inclusion.clefs[i].clef, 
+                                            inclusion.clefs[i].optional,
+                                            inclusion.clefs[i].missing,
+                                            inclusion.clefs[i].incomplete,
+                                            inclusion.clefs[i].transitions_to) : ''}">
+                        `).join('')}
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm add-clef-row">
+                        <i class="bi bi-plus-lg"></i> Add row
+                    </button>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="position" value="${inclusion?.position || ''}">
+                </td>
+                <td>
+                    <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-inclusion">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            return row;
+        }
+
+        // Add event listeners for inclusions table
+        document.getElementById('addInclusionBtn').addEventListener('click', () => {
+            const tbody = document.querySelector('#inclusionsTable tbody');
+            const row = createInclusionRow();
+            tbody.appendChild(row);
+        });
+
+        // Handle clef input validation and formatting
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('clef-input')) {
+                const input = e.target;
+                const value = input.value;
+                const parsed = parseClef(value);
+                
+                // Validate the clef
+                if (!validateClef(parsed.clef)) {
+                    input.classList.add('is-invalid');
+                    return;
+                }
+                
+                input.classList.remove('is-invalid');
+                
+                // Apply appropriate styling based on clef properties
+                input.style.borderColor = parsed.missing ? 'orange' :
+                                        parsed.incomplete ? 'green' :
+                                        parsed.transitions_to.length > 0 ? 'blue' :
+                                        parsed.optional ? 'gray' : '';
+                
+                if (parsed.optional) {
+                    input.style.opacity = '0.5';
+                } else {
+                    input.style.opacity = '1';
+                }
+            }
+        });
+
+        // Handle additional attributions
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.add-attribution')) {
+                const container = e.target.closest('.attribution-container');
+                const additionalDiv = container.querySelector('.additional-attributions');
+                const newInput = document.createElement('div');
+                newInput.className = 'input-group input-group-sm mt-1';
+                newInput.innerHTML = `
+                    <input type="text" class="form-control" name="attribution">
+                    <button type="button" class="btn btn-outline-danger remove-attribution">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+                additionalDiv.appendChild(newInput);
+                e.target.style.display = 'none';
+            }
+            
+            if (e.target.closest('.remove-attribution')) {
+                const inputGroup = e.target.closest('.input-group');
+                inputGroup.remove();
+                const container = e.target.closest('.attribution-container');
+                const additionalDiv = container.querySelector('.additional-attributions');
+                if (additionalDiv.children.length === 0) {
+                    container.querySelector('.add-attribution').style.display = 'block';
+                }
+            }
+        });
+
+        // Handle additional clef rows
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.add-clef-row')) {
+                const container = e.target.closest('.clef-grid');
+                const newRow = document.createElement('div');
+                newRow.className = 'clef-row mt-2';
+                newRow.innerHTML = Array(8).fill(0).map(() => `
+                    <input type="text" class="form-control form-control-sm clef-input" name="clef">
+                `).join('');
+                container.appendChild(newRow);
+            }
+        });
+
+        // Handle removal of inclusions
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-inclusion')) {
+                e.target.closest('tr').remove();
+            }
+        });
+
+        // Function to collect inclusion data for saving
+        function collectInclusionData() {
+            const rows = document.querySelectorAll('#inclusionsTable tbody tr');
+            return Array.from(rows).map(row => {
+                const clefs = Array.from(row.querySelectorAll('.clef-input'))
+                    .map(input => parseClef(input.value))
+                    .filter(clef => clef.clef); // Only include non-empty clefs
+
+                // Sort clefs by pitch
+                const sortedClefs = sortClefs(clefs);
+
+                return {
+                    order: parseInt(row.querySelector('[name="order"]').value) || 0,
+                    attribution_texts: [
+                        row.querySelector('[name="attribution"]').value,
+                        ...Array.from(row.querySelectorAll('.additional-attributions [name="attribution"]'))
+                            .map(input => input.value)
+                    ].filter(text => text), // Only include non-empty texts
+                    composer_ids: [
+                        row.querySelector('[name="composer"]').value,
+                        ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
+                            .map(select => select.value)
+                    ].filter(id => id).map(id => parseInt(id)), // Only include non-empty IDs
+                    title: row.querySelector('[name="title"]').value,
+                    type: row.querySelector('[name="type"]').value,
+                    tone: row.querySelector('[name="tone"]').value,
+                    even_odd: row.querySelector('[name="evenOdd"]').value,
+                    clefs: sortedClefs,
+                    position: row.querySelector('[name="position"]').value,
+                    notes: row.querySelector('[name="notes"]').value
+                };
+            });
+        }
+
+        // Modify the form submission to include inclusions
+        document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            // Convert form data to object
+            const data = {
+                // ... existing source data ...
+                inclusions: collectInclusionData()
+            };
+
+            try {
+                const response = await fetch(`/sources/${sourceId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update source');
+                }
+
+                // Update last saved timestamp
+                const now = new Date();
+                document.getElementById('lastSaved').textContent = `Last saved: ${now.toLocaleString()}`;
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    Changes saved successfully
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.card-body').appendChild(alertDiv);
+
+                // Remove alert after 3 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+            } catch (error) {
+                console.error('Error updating source:', error);
+                alert('Failed to update source. Please try again.');
+            }
+        });
+
+        // Title autocomplete functionality
+        let titles = [];
+
+        // Fetch titles from the database
+        async function fetchTitles() {
+            try {
+                const response = await fetch('/titles');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch titles');
+                }
+                const data = await response.json();
+                titles = data.titles;
+            } catch (error) {
+                console.error('Error fetching titles:', error);
+            }
+        }
+
+        // Initialize title autocomplete
+        function initializeTitleAutocomplete() {
+            const titleInputs = document.querySelectorAll('[name="title"]');
+            titleInputs.forEach(input => {
+                input.addEventListener('input', debounce(async (e) => {
+                    const value = e.target.value.toLowerCase();
+                    if (value.length < 2) return;
+
+                    const matches = titles.filter(title => 
+                        title.text.toLowerCase().includes(value)
+                    ).slice(0, 10); // Limit to 10 suggestions
+
+                    // Remove existing suggestions
+                    const existingList = input.parentElement.querySelector('.title-suggestions');
+                    if (existingList) existingList.remove();
+
+                    if (matches.length > 0) {
+                        const list = document.createElement('ul');
+                        list.className = 'title-suggestions list-unstyled position-absolute bg-white border rounded shadow-sm';
+                        list.style.zIndex = '1000';
+                        list.style.width = '100%';
+                        list.style.maxHeight = '200px';
+                        list.style.overflowY = 'auto';
+
+                        matches.forEach(match => {
+                            const li = document.createElement('li');
+                            li.className = 'p-2 cursor-pointer';
+                            li.style.cursor = 'pointer';
+                            li.textContent = match.text;
+                            li.addEventListener('click', () => {
+                                input.value = match.text;
+                                list.remove();
+                            });
+                            list.appendChild(li);
+                        });
+
+                        input.parentElement.style.position = 'relative';
+                        input.parentElement.appendChild(list);
+                    }
+                }, 300));
+            });
+        }
+
+        // Debounce function to limit API calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Add event listener for dynamically added title inputs
+        document.addEventListener('input', (e) => {
+            if (e.target.name === 'title' && !e.target.hasAttribute('data-autocomplete-initialized')) {
+                e.target.setAttribute('data-autocomplete-initialized', 'true');
+                initializeTitleAutocomplete();
+            }
+        });
+
+        // Composition matching functionality
+        let compositions = [];
+        let compositionTypes = [];
+
+        // Fetch compositions and types
+        async function fetchCompositionsAndTypes() {
+            try {
+                const [compositionsResponse, typesResponse] = await Promise.all([
+                    fetch('/compositions'),
+                    fetch('/composition-types')
+                ]);
+
+                if (!compositionsResponse.ok || !typesResponse.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
+                const compositionsData = await compositionsResponse.json();
+                const typesData = await typesResponse.json();
+
+                compositions = compositionsData.compositions;
+                compositionTypes = typesData.types;
+            } catch (error) {
+                console.error('Error fetching compositions and types:', error);
+            }
+        }
+
+        // Function to check for matching composition
+        async function checkCompositionMatch(inclusion) {
+            try {
+                const response = await fetch('/compositions/match', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        composer_ids: inclusion.composer_ids,
+                        title: inclusion.title,
+                        type: inclusion.type,
+                        tone: inclusion.tone,
+                        even_odd: inclusion.even_odd,
+                        clefs: inclusion.clefs
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to check composition match');
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error checking composition match:', error);
+                return null;
+            }
+        }
+
+        // Function to update composition status indicator
+        function updateCompositionStatus(row, status) {
+            let indicator = row.querySelector('.composition-status');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'composition-status position-absolute';
+                indicator.style.right = '-25px';
+                indicator.style.top = '50%';
+                indicator.style.transform = 'translateY(-50%)';
+                row.querySelector('td').style.position = 'relative';
+                row.querySelector('td').appendChild(indicator);
+            }
+
+            indicator.innerHTML = '';
+            if (status === 'match') {
+                indicator.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+            } else if (status === 'new') {
+                indicator.innerHTML = '<i class="bi bi-arrow-right-circle-fill text-primary"></i>';
+            } else {
+                indicator.innerHTML = '<i class="bi bi-question-circle-fill text-muted"></i>';
+            }
+        }
+
+        // Function to check composition match for a row
+        async function checkRowComposition(row) {
+            const inclusion = {
+                composer_ids: [
+                    row.querySelector('[name="composer"]').value,
+                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
+                        .map(select => select.value)
+                ].filter(id => id).map(id => parseInt(id)),
+                title: row.querySelector('[name="title"]').value,
+                type: row.querySelector('[name="type"]').value,
+                tone: row.querySelector('[name="tone"]').value,
+                even_odd: row.querySelector('[name="evenOdd"]').value,
+                clefs: Array.from(row.querySelectorAll('.clef-input'))
+                    .map(input => parseClef(input.value))
+                    .filter(clef => clef.clef)
+            };
+
+            // Only check if we have enough data
+            if (inclusion.composer_ids.length > 0 && inclusion.title && inclusion.type) {
+                const match = await checkCompositionMatch(inclusion);
+                if (match) {
+                    updateCompositionStatus(row, match.status);
+                    // Store the composition ID in a hidden field
+                    let hiddenField = row.querySelector('input[name="composition_id"]');
+                    if (!hiddenField) {
+                        hiddenField = document.createElement('input');
+                        hiddenField.type = 'hidden';
+                        hiddenField.name = 'composition_id';
+                        row.appendChild(hiddenField);
+                    }
+                    hiddenField.value = match.composition_id || '';
+                }
+            } else {
+                updateCompositionStatus(row, 'incomplete');
+            }
+        }
+
+        // Add debounced composition check to relevant inputs
+        function addCompositionCheckListeners(row) {
+            const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
+            inputs.forEach(input => {
+                input.addEventListener('input', debounce(() => {
+                    checkRowComposition(row);
+                }, 500));
+            });
+        }
+
+        // Modify createInclusionRow to add composition check listeners
+        const originalCreateInclusionRow = createInclusionRow;
+        createInclusionRow = function(inclusion = null) {
+            const row = originalCreateInclusionRow(inclusion);
+            addCompositionCheckListeners(row);
+            return row;
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await Promise.all([
+                fetchPublishersAndScribes(),
+                fetchTitles(),
+                fetchCompositionsAndTypes()
+            ]);
+            fetchSource();
+            initializeTitleAutocomplete();
         });
     </script>
 </body>

@@ -577,9 +577,11 @@ app.get('/sources/:id', async (req, res) => {
     );
     source.images = imagesResult.rows;
 
-    // Get inclusions
+    // Get inclusions with new JSONB columns
     const inclusionsResult = await pool.query(
-      `SELECT * FROM inclusions WHERE source_id = $1`,
+      `SELECT id, source_id, notes, "order", created_at, updated_at, position, composition_id,
+              clefs, attribution_texts, composer_ids
+       FROM inclusions WHERE source_id = $1`,
       [sourceId]
     );
     source.inclusions = inclusionsResult.rows;
@@ -698,7 +700,7 @@ app.put('/sources/:id', async (req, res) => {
     const {
       code, title, type, format, town, rismLink, catalogued,
       fromYear, toYear, fromYearAnnotation, toYearAnnotation,
-      dates, publisherIds, scribeIds, images
+      dates, publisherIds, scribeIds, images, inclusions
     } = req.body;
 
     // Update source
@@ -735,6 +737,28 @@ app.put('/sources/:id', async (req, res) => {
       await client.query(
         `INSERT INTO source_images (source_id, url, label)
          VALUES ${imageValues}`
+      );
+    }
+
+    // Update inclusions
+    await client.query(
+      'DELETE FROM inclusions WHERE source_id = $1',
+      [sourceId]
+    );
+
+    if (inclusions && inclusions.length > 0) {
+      const inclusionValues = inclusions.map((inclusion: any) => 
+        `(${sourceId}, '${inclusion.notes || ''}', ${inclusion.order || 0}, ${inclusion.position || 'NULL'}, 
+         ${inclusion.composition_id || 'NULL'}, 
+         '${JSON.stringify(inclusion.clefs || [])}'::jsonb,
+         '${JSON.stringify(inclusion.attribution_texts || [])}'::jsonb,
+         '${JSON.stringify(inclusion.composer_ids || [])}'::jsonb)`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO inclusions (source_id, notes, "order", position, composition_id, 
+                                clefs, attribution_texts, composer_ids)
+         VALUES ${inclusionValues}`
       );
     }
 
@@ -832,6 +856,101 @@ app.delete('/sources/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete source' });
   } finally {
     client.release();
+  }
+});
+
+// GET /titles - Get all titles for autocomplete
+app.get('/titles', async (req: Request, res: Response) => {
+  try {
+    const search = (req.query.search as string) || '';
+    let query = `
+      SELECT DISTINCT text
+      FROM compositions
+      WHERE text ILIKE $1
+      ORDER BY text ASC
+      LIMIT 10
+    `;
+    const params = [`%${search}%`];
+
+    const result = await pool.query(query, params);
+    res.json({ titles: result.rows });
+  } catch (error) {
+    console.error('Error fetching titles:', error);
+    res.status(500).json({ error: 'Failed to fetch titles' });
+  }
+});
+
+// GET /composition-types - Get all composition types
+app.get('/composition-types', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT type
+      FROM compositions
+      WHERE type IS NOT NULL
+      ORDER BY type ASC
+    `);
+    res.json({ types: result.rows.map(row => row.type) });
+  } catch (error) {
+    console.error('Error fetching composition types:', error);
+    res.status(500).json({ error: 'Failed to fetch composition types' });
+  }
+});
+
+// POST /compositions/match - Check for matching composition
+app.post('/compositions/match', async (req: Request, res: Response) => {
+  try {
+    const {
+      composer_ids,
+      title,
+      type,
+      tone,
+      even_odd,
+      clefs
+    } = req.body;
+
+    // Look for an exact match
+    const query = `
+      WITH composer_matches AS (
+        SELECT c.id, COUNT(DISTINCT a.refers_to_id) as match_count
+        FROM compositions c
+        JOIN attributions a ON c.id = a.inclusion_id
+        WHERE a.refers_to_id = ANY($1)
+        GROUP BY c.id
+      )
+      SELECT c.*, cm.match_count
+      FROM compositions c
+      JOIN composer_matches cm ON c.id = cm.id
+      WHERE c.text = $2
+        AND c.type = $3
+        AND ($4::text IS NULL OR c.tone = $4)
+        AND ($5::text IS NULL OR c.even_odd = $5)
+      ORDER BY cm.match_count DESC, c.id ASC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [
+      composer_ids,
+      title,
+      type,
+      tone || null,
+      even_odd || null
+    ]);
+
+    if (result.rows.length > 0) {
+      // Found an exact match
+      return res.json({
+        status: 'match',
+        composition_id: result.rows[0].id
+      });
+    }
+
+    // No match found - this is a new composition
+    res.json({
+      status: 'new'
+    });
+  } catch (error) {
+    console.error('Error matching composition:', error);
+    res.status(500).json({ error: 'Failed to match composition' });
   }
 });
 
