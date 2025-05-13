@@ -78,6 +78,10 @@ app.get('/composers/:id', async (req: Request, res: Response) => {
 app.get('/composers/search', async (req: Request, res: Response) => {
   try {
     const search = (req.query.term as string) || '';
+    if (!search) {
+      return res.json({ results: [] });
+    }
+
     const composers = await pool.query(
       `SELECT id, name as text
        FROM composers
@@ -621,7 +625,11 @@ app.get('/sources/:id', async (req, res) => {
                   ORDER BY array_position(COALESCE(ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer), ARRAY[]::integer[]), c.id)
                 )
               END as composer_names,
-              t.text as title_text
+              t.id as title_id,
+              t.text as title_text,
+              c.composition_type_id as type_id,
+              c.tone,
+              c.even_odd
        FROM inclusions i 
        LEFT JOIN compositions c ON i.composition_id = c.id
        LEFT JOIN titles t ON c.title_id = t.id

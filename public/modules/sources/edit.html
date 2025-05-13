@@ -797,13 +797,17 @@
                 <td>
                     <select class="form-control form-control-sm title-select" name="title">
                         <option value="">Enter or select title</option>
-                        ${inclusion?.title_text ? `<option value="${inclusion.title_text}" selected>${inclusion.title_text}</option>` : ''}
+                        ${inclusion?.title_id ? `<option value="${inclusion.title_id}" selected>${inclusion.title_text}</option>` : ''}
                     </select>
                 </td>
                 <td>
                     <select class="form-control form-control-sm" name="type">
                         <option value="">Select type</option>
-                        <!-- Will be populated with types from database -->
+                        ${compositionTypes.map(type => `
+                            <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
+                                ${type.name}
+                            </option>
+                        `).join('')}
                     </select>
                 </td>
                 <td>
@@ -870,6 +874,8 @@
             const tbody = document.querySelector('#inclusionsTable tbody');
             const row = createInclusionRow();
             tbody.appendChild(row);
+            // Initialize select2 for the new row
+            initializeSelect2();
         });
 
         // Handle clef input validation and formatting
