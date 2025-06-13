@@ -193,6 +193,186 @@ app.get('/sources/:id', async (req, res) => {
   }
 });
 
+// Get list of composers
+app.get('/composers', async (req, res) => {
+  try {
+    const letter = req.query.letter || 'A';
+    const query = `
+      SELECT 
+        c.*,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', comp.id,
+              'title', comp.title
+            )
+          ) FILTER (WHERE comp.id IS NOT NULL),
+          '[]'
+        ) as compositions
+      FROM composers c
+      LEFT JOIN composers_compositions cc ON c.id = cc.composer_id
+      LEFT JOIN compositions comp ON cc.composition_id = comp.id
+      WHERE c.name ILIKE $1
+      GROUP BY c.id
+      ORDER BY c.name
+    `;
+
+    const result = await pool.query(query, [`${letter}%`]);
+    
+    res.json({
+      composers: result.rows.map(row => ({
+        ...row,
+        compositions: row.compositions || []
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add new composer
+app.post('/composers', async (req, res) => {
+  try {
+    const { name, fromYear, toYear, fromYearAnnotation, toYearAnnotation, birthplace1, birthplace2, deathplace1, deathplace2 } = req.body;
+
+    const query = `
+      INSERT INTO composers (
+        name, from_year, to_year, from_year_annotation, to_year_annotation,
+        birthplace1, birthplace2, deathplace1, deathplace2
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [
+      name, fromYear, toYear, fromYearAnnotation, toYearAnnotation,
+      birthplace1, birthplace2, deathplace1, deathplace2
+    ]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating composer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete composer
+app.delete('/composers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM composers WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting composer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get list of editors
+app.get('/editors', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        e.*,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', s.id,
+              'title', s.title
+            )
+          ) FILTER (WHERE s.id IS NOT NULL),
+          '[]'
+        ) as sources
+      FROM editors e
+      LEFT JOIN editors_sources es ON e.id = es.editor_id
+      LEFT JOIN sources s ON es.source_id = s.id
+      GROUP BY e.id
+      ORDER BY e.name
+    `;
+
+    const result = await pool.query(query);
+    
+    res.json({
+      editors: result.rows.map(row => ({
+        ...row,
+        sources: row.sources || []
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching editors:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add new editor
+app.post('/editors', async (req, res) => {
+  try {
+    const { name, dateOfBirth } = req.body;
+
+    const query = `
+      INSERT INTO editors (name, date_of_birth)
+      VALUES ($1, $2)
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [name, dateOfBirth]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating editor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete editor
+app.delete('/editors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM editors WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting editor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add new source
+app.post('/sources', async (req, res) => {
+  try {
+    const { code, title, type, format, town, rismLink, catalogued } = req.body;
+
+    const query = `
+      INSERT INTO sources (
+        code, title, type, format, town, rism_link, catalogued
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [
+      code, title, type, format, town, rismLink, catalogued
+    ]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating source:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete source
+app.delete('/sources/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM sources WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting source:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 }); 
