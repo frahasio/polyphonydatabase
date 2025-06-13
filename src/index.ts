@@ -783,10 +783,8 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
           town = $7,
           type = $8,
           format = $9,
-          publisher_id = $10,
-          scribe_id = $11,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $12
+      WHERE id = $10
       RETURNING id
     `;
 
@@ -800,10 +798,34 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       town,
       type,
       format,
-      publisherId || null,
-      scribeId || null,
       sourceId
     ]);
+
+    // Update publisher relationships
+    await client.query('DELETE FROM publishers_sources WHERE source_id = $1', [sourceId]);
+    if (publisherId && publisherId.length > 0) {
+      const publisherValues = publisherId.map((id: number) => 
+        `(${sourceId}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO publishers_sources (source_id, publisher_id)
+         VALUES ${publisherValues}`
+      );
+    }
+
+    // Update scribe relationships
+    await client.query('DELETE FROM scribes_sources WHERE source_id = $1', [sourceId]);
+    if (scribeId && scribeId.length > 0) {
+      const scribeValues = scribeId.map((id: number) => 
+        `(${sourceId}, ${id})`
+      ).join(',');
+      
+      await client.query(
+        `INSERT INTO scribes_sources (source_id, scribe_id)
+         VALUES ${scribeValues}`
+      );
+    }
 
     // Delete existing inclusions
     await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
