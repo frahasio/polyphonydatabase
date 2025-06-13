@@ -123,7 +123,7 @@ router.get('/:id', async (req, res) => {
     const inclusionsQuery = `
       SELECT 
         i.*,
-        c.title as composition_title,
+        c.name as composition_name,
         c.composition_type_id,
         ct.name as composition_type,
         COALESCE(
