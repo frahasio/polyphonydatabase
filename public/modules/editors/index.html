@@ -118,8 +118,12 @@
             `).join('');
         }
 
-        // Add new editor
-        document.getElementById('saveEditorButton').addEventListener('click', async () => {
+        const form = document.getElementById('addEditorForm');
+        const submitBtn = document.getElementById('saveEditorButton');
+        const modal = document.getElementById('addEditorModal');
+        let editingId = null;
+
+        submitBtn.addEventListener('click', async () => {
             const name = document.getElementById('name').value;
             const dateOfBirth = document.getElementById('dateOfBirth').value;
 
@@ -129,8 +133,11 @@
             }
 
             try {
-                const response = await fetch('/api/editors', {
-                    method: 'POST',
+                const url = editingId ? `/api/editors/${editingId}` : '/api/editors';
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -141,19 +148,57 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create editor');
+                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} editor`);
                 }
 
                 // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addEditorModal'));
-                modal.hide();
-                document.getElementById('addEditorForm').reset();
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
+                form.reset();
+                resetFormState();
                 fetchEditors();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to create editor. Please try again.');
+                console.error(`Error ${editingId ? 'updating' : 'creating'} editor:`, error);
+                alert(`Failed to ${editingId ? 'update' : 'create'} editor. Please try again.`);
             }
         });
+
+        function resetFormState() {
+            editingId = null;
+            modal.querySelector('.modal-title').textContent = 'Add New Editor';
+            submitBtn.textContent = 'Save';
+        }
+
+        // Handle edit
+        async function editEditor(id) {
+            try {
+                const response = await fetch(`/api/editors/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch editor details');
+                }
+                const data = await response.json();
+                const editor = data.editor;
+
+                // Set editing state
+                editingId = id;
+                modal.querySelector('.modal-title').textContent = 'Edit Editor';
+                submitBtn.textContent = 'Save Changes';
+
+                // Populate the form with editor data
+                document.getElementById('name').value = editor.name || '';
+                document.getElementById('dateOfBirth').value = editor.date_of_birth || '';
+
+                // Show the modal
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load editor details. Please try again.');
+            }
+        }
+
+        // Reset form state when modal is hidden
+        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete editor
         async function deleteEditor(id) {
