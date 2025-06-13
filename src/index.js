@@ -78,7 +78,7 @@ app.get('/sources/:id', async (req, res) => {
       SELECT 
         i.*,
         c.title as composition_title,
-        c.type_id,
+        c.composition_type_id,
         ct.name as composition_type,
         COALESCE(
           json_agg(
@@ -91,7 +91,7 @@ app.get('/sources/:id', async (req, res) => {
         ) as composers
       FROM inclusions i
       LEFT JOIN compositions c ON i.composition_id = c.id
-      LEFT JOIN composition_types ct ON c.type_id = ct.id
+      LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
       LEFT JOIN composers_compositions cc ON c.id = cc.composition_id
       LEFT JOIN composers comp ON cc.composer_id = comp.id
       WHERE i.source_id = $1

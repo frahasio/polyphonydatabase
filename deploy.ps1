@@ -37,22 +37,21 @@ if (-not $herokuRemote) {
 $currentBranch = git rev-parse --abbrev-ref HEAD
 Write-Host "Current branch: $currentBranch" -ForegroundColor Yellow
 
-# Push to GitHub
-Write-Host "`nPushing to GitHub..." -ForegroundColor Green
+# Stage and commit changes
+Write-Host "Staging and committing changes..."
 git add .
 git commit -m $commitMessage
+
+# Push to GitHub
+Write-Host "Pushing to GitHub..."
 git push origin $currentBranch
 
-# Push to Heroku (force push to main branch)
-Write-Host "`nPushing to Heroku..." -ForegroundColor Green
+# Push to Heroku
+Write-Host "Pushing to Heroku..."
 git push heroku $currentBranch:main --force
 
-# Show brief deployment status
-Write-Host "`nChecking deployment status..." -ForegroundColor Green
-if ($herokuAppName) {
-    heroku releases --app $herokuAppName | Select-Object -First 1
-    Write-Host "`nDeployment complete! You can check the full logs with: heroku logs --app $herokuAppName" -ForegroundColor Green
-} else {
-    heroku releases | Select-Object -First 1
-    Write-Host "`nDeployment complete! You can check the full logs with: heroku logs" -ForegroundColor Green
-} 
+# Check deployment status
+Write-Host "Checking deployment status..."
+heroku releases --app $herokuAppName | Select-Object -First 1
+
+Write-Host "`nDeployment complete! You can check the full logs with: heroku logs --app $herokuAppName" -ForegroundColor Green 
