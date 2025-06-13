@@ -46,9 +46,9 @@ git commit -m $commitMessage
 Write-Host "Pushing to GitHub..."
 git push origin $currentBranch
 
-# Push to Heroku
+# Push to Heroku (force push to main branch)
 Write-Host "Pushing to Heroku..."
-git push heroku $currentBranch:main --force
+git push heroku HEAD:main --force
 
 # Check deployment status
 Write-Host "Checking deployment status..."
