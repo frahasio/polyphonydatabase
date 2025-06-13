@@ -833,82 +833,103 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
 
     // Process inclusions and handle pending compositions
     if (inclusions && inclusions.length > 0) {
+      // Get existing inclusions
+      const existingInclusions = await client.query(
+        'SELECT id, source_id, "order", attribution_texts, composer_ids, clefs, position, notes, composition_id FROM inclusions WHERE source_id = $1',
+        [sourceId]
+      );
+
+      // Create maps for quick lookup
+      const existingMap = new Map(existingInclusions.rows.map(i => [i.order, i]));
+      const newMap = new Map(inclusions.map(i => [i.order, i]));
+
+      // Find inclusions to delete (exist in DB but not in new data)
+      const toDelete = existingInclusions.rows.filter(i => !newMap.has(i.order));
+      if (toDelete.length > 0) {
+        const deleteIds = toDelete.map(i => i.id);
+        await client.query('DELETE FROM clef_inclusions WHERE inclusion_id = ANY($1)', [deleteIds]);
+        await client.query('DELETE FROM inclusions WHERE id = ANY($1)', [deleteIds]);
+      }
+
+      // Process each inclusion
       for (const inclusion of inclusions) {
+        const existing = existingMap.get(inclusion.order);
         let compositionId = inclusion.composition_id;
 
-        // If this is a pending composition, check if it should be moved to the main table
+        // If we have composition data, try to match or create a composition
         if (inclusion.composition_data) {
-          const { title_id, composition_type_id, tone, even_odd, number_of_voices, composer_ids } = inclusion.composition_data;
+          const { composer_ids, title_id, type_id, tone, even_odd, number_of_voices } = inclusion.composition_data;
 
-          // Check if this composition already exists in the main table
-          const checkQuery = `
-            SELECT id
-            FROM compositions
-            WHERE title_id = $1
-              AND composition_type_id = $2
-              AND ($3::text IS NULL OR tone = $3)
-              AND ($4::text IS NULL OR even_odd = $4)
-              AND ($5::integer IS NULL OR number_of_voices = $5)
-              AND composer_id_list = $6::integer[]
-            LIMIT 1
-          `;
+          // First try to find an existing composition
+          const matchResult = await client.query(
+            `SELECT id FROM compositions 
+             WHERE composer_ids = $1 
+             AND title_id = $2 
+             AND type_id = $3 
+             AND (tone = $4 OR (tone IS NULL AND $4 IS NULL))
+             AND (even_odd = $5 OR (even_odd IS NULL AND $5 IS NULL))
+             AND (number_of_voices = $6 OR (number_of_voices IS NULL AND $6 IS NULL))`,
+            [composer_ids, title_id, type_id, tone, even_odd, number_of_voices]
+          );
 
-          const checkResult = await client.query(checkQuery, [
-            title_id,
-            composition_type_id,
-            tone,
-            even_odd,
-            number_of_voices,
-            composer_ids
-          ]);
-
-          if (checkResult.rows.length > 0) {
+          if (matchResult.rows.length > 0) {
             // Use existing composition
-            compositionId = checkResult.rows[0].id;
+            compositionId = matchResult.rows[0].id;
           } else {
-            // Create new composition in main table
-            const insertCompositionQuery = `
-              INSERT INTO compositions 
-              (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              RETURNING id
-            `;
-
-            const insertResult = await client.query(insertCompositionQuery, [
-              title_id,
-              composition_type_id,
-              tone,
-              even_odd,
-              number_of_voices,
-              composer_ids
-            ]);
-
-            compositionId = insertResult.rows[0].id;
+            // Create new composition
+            const newComposition = await client.query(
+              `INSERT INTO compositions 
+               (composer_ids, title_id, type_id, tone, even_odd, number_of_voices)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING id`,
+              [composer_ids, title_id, type_id, tone, even_odd, number_of_voices]
+            );
+            compositionId = newComposition.rows[0].id;
           }
         }
 
-        // Insert inclusion with the final composition_id
-        const insertInclusionQuery = `
-          INSERT INTO inclusions 
-          (source_id, "order", attribution_texts, composer_ids, title_id, type_id, 
-           tone, even_odd, clefs, position, notes, composition_id)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        `;
+        if (existing) {
+          // Update existing inclusion if changed
+          const updateInclusionQuery = `
+            UPDATE inclusions 
+            SET attribution_texts = $1,
+                composer_ids = $2,
+                clefs = $3,
+                position = $4,
+                notes = $5,
+                composition_id = $6,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $7
+          `;
 
-        await client.query(insertInclusionQuery, [
-          sourceId,
-          inclusion.order,
-          inclusion.attribution_texts,
-          inclusion.composer_ids,
-          inclusion.title_id,
-          inclusion.type_id,
-          inclusion.tone,
-          inclusion.even_odd,
-          inclusion.clefs,
-          inclusion.position,
-          inclusion.notes,
-          compositionId
-        ]);
+          await client.query(updateInclusionQuery, [
+            inclusion.attribution_texts,
+            inclusion.composer_ids,
+            inclusion.clefs,
+            inclusion.position,
+            inclusion.notes,
+            compositionId,
+            existing.id
+          ]);
+        } else {
+          // Insert new inclusion
+          const insertInclusionQuery = `
+            INSERT INTO inclusions 
+            (source_id, "order", attribution_texts, composer_ids, clefs, position, notes, composition_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `;
+
+          await client.query(insertInclusionQuery, [
+            sourceId,
+            inclusion.order,
+            inclusion.attribution_texts,
+            inclusion.composer_ids,
+            inclusion.clefs,
+            inclusion.position,
+            inclusion.notes,
+            compositionId
+          ]);
+        }
       }
     }
 

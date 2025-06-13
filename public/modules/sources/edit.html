@@ -139,66 +139,116 @@
             top: 0;
             background: white;
             z-index: 1000;
-            padding: 1rem 0;
+            padding: 1rem;
             border-bottom: 1px solid #dee2e6;
             margin-bottom: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         .inclusion-row {
             display: grid;
-            grid-template-columns: 120px 1fr 1fr 1fr 1fr 60px;
+            grid-template-columns: 100px 2fr 2fr 3fr 2fr 60px;
             gap: 0.125rem;
             padding: 0.125rem;
-            border-bottom: 1px solid #dee2e6;
             align-items: start;
         }
 
-        .inclusion-row:last-child {
-            border-bottom: none;
+        .clef-input {
+            width: 50px !important;
+            padding: 0 !important;
+            text-align: center;
+            border-radius: 0;
         }
 
-        .inclusion-cell {
+        .clef-input:first-child {
+            border-top-left-radius: 0.25rem;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .clef-input:last-child {
+            border-top-right-radius: 0.25rem;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .clef-input:focus {
+            z-index: 1;
+        }
+
+        .clef-input:not(:last-child) {
+            border-right: none;
+        }
+
+        .clef-inputs-container {
             display: flex;
-            flex-direction: column;
-            gap: 0.125rem;
+            gap: 0;
         }
 
-        .inclusion-cell label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #6c757d;
-            margin-bottom: 0;
-            line-height: 1;
+        .form-control {
+            height: calc(1.5em + 0.25rem + 2px);
+            padding: 0.125rem 0.25rem;
         }
 
-        .composition-details {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.125rem;
+        textarea.form-control {
+            min-height: 32px;
         }
 
-        .remove-inclusion {
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            display: flex;
-            align-items: center;
+        #inclusionsTable td, #inclusionsTable th {
+            padding: 0.125rem;
+        }
+
+        #inclusionsTable th:first-child {
+            width: 100px;
+        }
+
+        #inclusionsTable th:last-child {
+            width: 60px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
             justify-content: center;
-            font-size: 0.875rem;
-            line-height: 1;
+            align-items: center;
+            z-index: 9999;
         }
 
-        .remove-inclusion i {
-            margin: 0;
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            text-align: center;
         }
 
-        .clef-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
+        .progress {
+            height: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .inclusions-container {
+            height: calc(100vh - 300px); /* Adjust based on your layout */
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .inclusions-table {
+            position: relative;
+        }
+
+        .inclusion-row {
+            position: absolute;
+            width: 100%;
+            left: 0;
+            right: 0;
+        }
+
+        .inclusions-spacer {
+            height: 0;
+            visibility: hidden;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -220,6 +270,19 @@
                 <button class="btn btn-danger" id="deleteButton">
                     <i class="bi bi-trash"></i> Delete
                 </button>
+            </div>
+        </div>
+
+        <!-- Add loading overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <h5>Processing Compositions</h5>
+                <p class="text-muted mb-2">Checking and matching compositions...</p>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: 0%"></div>
+                </div>
             </div>
         </div>
 
@@ -340,11 +403,11 @@
             </button>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
+            <div class="inclusions-container" id="inclusionsContainer">
                 <table class="table mb-0" id="inclusionsTable">
                     <thead>
                         <tr>
-                            <th style="width: 120px">Order/Position</th>
+                            <th style="width: 100px">Order/Position</th>
                             <th>Attribution/Composer</th>
                             <th>Title/Details</th>
                             <th>Clefs</th>
@@ -353,7 +416,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Inclusions will be added here -->
+                        <tr class="inclusions-spacer">
+                            <td colspan="6"></td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -402,55 +467,56 @@
         $('#publishers').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select publishers',
-            allowClear: true
+            allowClear: true,
+            ajax: {
+                url: '/publishers/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        search: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.publishers.map(publisher => ({
+                            id: publisher.id,
+                            text: publisher.name
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2
         });
 
         $('#scribes').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select scribes',
-            allowClear: true
+            allowClear: true,
+            ajax: {
+                url: '/scribes/search',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        search: params.term,
+                        page: params.page || 1
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.scribes.map(scribe => ({
+                            id: scribe.id,
+                            text: scribe.name
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2
         });
-
-        // Fetch publishers and scribes
-        async function fetchPublishersAndScribes() {
-            try {
-                const [publishersResponse, scribesResponse] = await Promise.all([
-                    fetch('/publishers'),
-                    fetch('/scribes')
-                ]);
-
-                if (!publishersResponse.ok || !scribesResponse.ok) {
-                    throw new Error('Failed to fetch data');
-                }
-
-                const publishersData = await publishersResponse.json();
-                const scribesData = await scribesResponse.json();
-
-                publishers = publishersData.publishers;
-                scribes = scribesData.scribes;
-
-                // Clear existing options
-                $('#publishers').empty();
-                $('#scribes').empty();
-
-                // Add new options
-                publishers.forEach(publisher => {
-                    const option = new Option(publisher.name, publisher.id);
-                    $('#publishers').append(option);
-                });
-
-                scribes.forEach(scribe => {
-                    const option = new Option(scribe.name, scribe.id);
-                    $('#scribes').append(option);
-                });
-
-                // After populating options, fetch and populate source data
-                await fetchSource();
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                alert('Failed to load publishers and scribes. Please try again.');
-            }
-        }
 
         // Fetch composers
         async function fetchComposers() {
@@ -477,6 +543,68 @@
                 titles = data.titles;
             } catch (error) {
                 console.error('Error fetching titles:', error);
+            }
+        }
+
+        // Virtual scrolling implementation
+        let allInclusions = []; // Store all inclusions data
+        let visibleInclusions = new Map(); // Store currently rendered rows
+        const ROW_HEIGHT = 40; // Approximate height of each row
+        const BUFFER_ROWS = 5; // Number of extra rows to render above/below visible area
+
+        function initializeVirtualScroll() {
+            const container = document.getElementById('inclusionsContainer');
+            const spacer = document.querySelector('.inclusions-spacer');
+            
+            // Set initial spacer height
+            updateSpacerHeight();
+
+            // Handle scroll events
+            container.addEventListener('scroll', () => {
+                requestAnimationFrame(renderVisibleRows);
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                updateSpacerHeight();
+                renderVisibleRows();
+            });
+        }
+
+        function updateSpacerHeight() {
+            const spacer = document.querySelector('.inclusions-spacer');
+            spacer.style.height = `${allInclusions.length * ROW_HEIGHT}px`;
+        }
+
+        function renderVisibleRows() {
+            const container = document.getElementById('inclusionsContainer');
+            const scrollTop = container.scrollTop;
+            const containerHeight = container.clientHeight;
+            
+            // Calculate visible range
+            const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+            const endIndex = Math.min(
+                allInclusions.length,
+                Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_ROWS
+            );
+
+            // Remove rows that are no longer visible
+            for (const [index, row] of visibleInclusions.entries()) {
+                if (index < startIndex || index >= endIndex) {
+                    row.remove();
+                    visibleInclusions.delete(index);
+                }
+            }
+
+            // Add new visible rows
+            for (let i = startIndex; i < endIndex; i++) {
+                if (!visibleInclusions.has(i)) {
+                    const inclusion = allInclusions[i];
+                    const row = createInclusionRow(inclusion);
+                    row.style.top = `${i * ROW_HEIGHT}px`;
+                    document.querySelector('#inclusionsTable tbody').appendChild(row);
+                    visibleInclusions.set(i, row);
+                }
             }
         }
 
@@ -536,19 +664,10 @@
                     $('#scribes').val(scribeIds).trigger('change');
                 }
 
-                // Load inclusions
-                if (source.inclusions && source.inclusions.length > 0) {
-                    const tbody = document.querySelector('#inclusionsTable tbody');
-                    tbody.innerHTML = ''; // Clear existing rows
-                    
-                    // Sort inclusions by order
-                    const sortedInclusions = [...source.inclusions].sort((a, b) => (a.order || 0) - (b.order || 0));
-                    
-                    sortedInclusions.forEach(inclusion => {
-                        const row = createInclusionRow(inclusion);
-                        tbody.appendChild(row);
-                    });
-                }
+                // Store inclusions data and initialize virtual scroll
+                allInclusions = source.inclusions || [];
+                initializeVirtualScroll();
+                renderVisibleRows();
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load source data. Please try again.');
@@ -597,44 +716,54 @@
             const form = e.target;
             const formData = new FormData(form);
             
-            // Convert form data to object
-            const data = {
-                code: formData.get('code'),
-                title: formData.get('title'),
-                type: formData.get('type'),
-                format: formData.get('format'),
-                town: formData.get('town'),
-                rismLink: formData.get('rismLink'),
-                catalogued: formData.get('catalogued') === 'on',
-                fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
-                toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
-                fromYearAnnotation: formData.get('fromYearAnnotation'),
-                toYearAnnotation: formData.get('toYearAnnotation'),
-                dates: formData.get('dates'),
-                images: [],
-                inclusions: collectInclusionData()
-            };
-
-            // Get selected publishers and scribes
-            const publishersSelect = document.getElementById('publishers');
-            const scribesSelect = document.getElementById('scribes');
-            data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
-            data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
-
-            // Collect image data
-            const imageUrls = formData.getAll('images[0][url]');
-            const imageLabels = formData.getAll('images[0][label]');
-            
-            for (let i = 0; i < imageUrls.length; i++) {
-                if (imageUrls[i]) {
-                    data.images.push({
-                        url: imageUrls[i],
-                        label: imageLabels[i] || ''
-                    });
-                }
-            }
+            // Show loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const progressBar = loadingOverlay.querySelector('.progress-bar');
+            loadingOverlay.style.display = 'flex';
+            progressBar.style.width = '0%';
 
             try {
+                // Convert form data to object
+                const data = {
+                    code: formData.get('code'),
+                    title: formData.get('title'),
+                    type: formData.get('type'),
+                    format: formData.get('format'),
+                    town: formData.get('town'),
+                    rismLink: formData.get('rismLink'),
+                    catalogued: formData.get('catalogued') === 'on',
+                    fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
+                    toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
+                    fromYearAnnotation: formData.get('fromYearAnnotation'),
+                    toYearAnnotation: formData.get('toYearAnnotation'),
+                    dates: formData.get('dates'),
+                    images: [],
+                    inclusions: collectInclusionData()
+                };
+
+                // Get selected publishers and scribes
+                const publishersSelect = document.getElementById('publishers');
+                const scribesSelect = document.getElementById('scribes');
+                data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
+                data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
+
+                // Collect image data
+                const imageUrls = formData.getAll('images[0][url]');
+                const imageLabels = formData.getAll('images[0][label]');
+                
+                for (let i = 0; i < imageUrls.length; i++) {
+                    if (imageUrls[i]) {
+                        data.images.push({
+                            url: imageUrls[i],
+                            label: imageLabels[i] || ''
+                        });
+                    }
+                }
+
+                // Update progress
+                progressBar.style.width = '30%';
+
+                // Send the data to the server
                 const response = await fetch(`/sources/${sourceId}`, {
                     method: 'POST',
                     headers: {
@@ -643,9 +772,15 @@
                     body: JSON.stringify(data)
                 });
 
+                // Update progress
+                progressBar.style.width = '60%';
+
                 if (!response.ok) {
                     throw new Error('Failed to update source');
                 }
+
+                // Update progress
+                progressBar.style.width = '100%';
 
                 // Update last saved timestamp
                 const now = new Date();
@@ -664,9 +799,15 @@
                 setTimeout(() => {
                     alertDiv.remove();
                 }, 3000);
+
             } catch (error) {
                 console.error('Error updating source:', error);
                 alert('Failed to update source. Please try again.');
+            } finally {
+                // Hide loading overlay after a short delay to show 100%
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 500);
             }
         });
 
@@ -697,7 +838,6 @@
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await Promise.all([
-                    fetchPublishersAndScribes(),
                     fetchComposers(),
                     fetchTitles(),
                     fetchCompositionsAndTypes()
@@ -863,8 +1003,9 @@
         }
 
         // Function to create a new inclusion row
-        function createInclusionRow(inclusion) {
+        function createInclusionRow(inclusion = null) {
             const row = document.createElement('tr');
+            row.className = 'inclusion-row';
             
             // Sort clefs before any formatting
             const sortedClefs = inclusion?.clefs ? sortClefs(inclusion.clefs) : [];
@@ -1029,6 +1170,76 @@
                 });
             }, 100);
 
+            // Add keyboard navigation for clef inputs
+            const clefInputs = row.querySelectorAll('.clef-input');
+            clefInputs.forEach((input, index) => {
+                input.addEventListener('keydown', (e) => {
+                    const currentRow = input.closest('tr');
+                    const allRows = Array.from(document.querySelectorAll('.inclusion-row'));
+                    const currentRowIndex = allRows.indexOf(currentRow);
+                    const inputsInRow = Array.from(currentRow.querySelectorAll('.clef-input'));
+                    const currentInputIndex = inputsInRow.indexOf(input);
+
+                    // Get the current clef row (0 for first row, 1 for second row, etc.)
+                    const clefRowsInInclusion = Math.ceil(inputsInRow.length / 4); // Assuming 4 clefs per row
+                    const currentClefRow = Math.floor(currentInputIndex / 4);
+                    const positionInClefRow = currentInputIndex % 4;
+
+                    switch(e.key) {
+                        case 'ArrowRight':
+                            if (currentInputIndex < inputsInRow.length - 1) {
+                                inputsInRow[currentInputIndex + 1].focus();
+                            }
+                            break;
+                        case 'ArrowLeft':
+                            if (currentInputIndex > 0) {
+                                inputsInRow[currentInputIndex - 1].focus();
+                            }
+                            break;
+                        case 'ArrowDown':
+                            // If we're in the last clef row of current inclusion
+                            if (currentClefRow === clefRowsInInclusion - 1) {
+                                // Move to first clef row of next inclusion
+                                if (currentRowIndex < allRows.length - 1) {
+                                    const nextRow = allRows[currentRowIndex + 1];
+                                    const nextRowInputs = nextRow.querySelectorAll('.clef-input');
+                                    if (nextRowInputs[positionInClefRow]) {
+                                        nextRowInputs[positionInClefRow].focus();
+                                    }
+                                }
+                            } else {
+                                // Move to same position in next clef row of current inclusion
+                                const nextInputIndex = currentInputIndex + 4;
+                                if (nextInputIndex < inputsInRow.length) {
+                                    inputsInRow[nextInputIndex].focus();
+                                }
+                            }
+                            break;
+                        case 'ArrowUp':
+                            // If we're in the first clef row of current inclusion
+                            if (currentClefRow === 0) {
+                                // Move to last clef row of previous inclusion
+                                if (currentRowIndex > 0) {
+                                    const prevRow = allRows[currentRowIndex - 1];
+                                    const prevRowInputs = prevRow.querySelectorAll('.clef-input');
+                                    const prevRowClefRows = Math.ceil(prevRowInputs.length / 4);
+                                    const targetIndex = (prevRowClefRows - 1) * 4 + positionInClefRow;
+                                    if (prevRowInputs[targetIndex]) {
+                                        prevRowInputs[targetIndex].focus();
+                                    }
+                                }
+                            } else {
+                                // Move to same position in previous clef row of current inclusion
+                                const prevInputIndex = currentInputIndex - 4;
+                                if (prevInputIndex >= 0) {
+                                    inputsInRow[prevInputIndex].focus();
+                                }
+                            }
+                            break;
+                    }
+                });
+            });
+
             return row;
         }
 
@@ -1111,39 +1322,29 @@
 
         // Add event listener for the Add Inclusion button
         document.getElementById('addInclusionBtn').addEventListener('click', () => {
-            const tbody = document.querySelector('#inclusionsTable tbody');
-            const row = createInclusionRow();
-            tbody.appendChild(row);
+            const newInclusion = {
+                order: allInclusions.length + 1,
+                attribution_texts: [],
+                composer_ids: [],
+                clefs: [],
+                position: '',
+                notes: ''
+            };
+            
+            allInclusions.push(newInclusion);
+            updateSpacerHeight();
+            renderVisibleRows();
         });
 
         // Handle clef input validation and formatting
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('clef-input')) {
-                const input = e.target;
-                const value = input.value;
-                const parsed = parseClef(value);
-                
-                // Validate the clef
-                if (!validateClef(parsed.clef)) {
-                    input.classList.add('is-invalid');
-                    return;
-                }
-                
-                input.classList.remove('is-invalid');
-                
-                // Apply appropriate styling based on clef properties
-                input.style.borderColor = parsed.missing ? 'orange' :
-                                        parsed.incomplete ? 'green' :
-                                        parsed.transitions_to.length > 0 ? 'blue' :
-                                        parsed.optional ? 'gray' : '';
-                
-                if (parsed.optional) {
-                    input.style.opacity = '0.5';
-                } else {
-                    input.style.opacity = '1';
-                }
-            }
-        });
+        function handleClefInputChange(input) {
+            const row = input.closest('tr');
+            const clefInputs = row.querySelectorAll('.clef-input');
+            const clefs = Array.from(clefInputs).map(input => input.value).filter(Boolean);
+            
+            // Just store the clefs in the data attribute
+            row.setAttribute('data-clefs', JSON.stringify(clefs));
+        }
 
         // Handle additional attributions
         document.addEventListener('click', (e) => {
@@ -1195,37 +1396,18 @@
 
         // Function to collect inclusion data for saving
         function collectInclusionData() {
-            const rows = document.querySelectorAll('#inclusionsTable tbody tr');
-            return Array.from(rows).map(row => {
-                const clefs = Array.from(row.querySelectorAll('.clef-input'))
-                    .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef);
-
-                // Sort clefs by pitch before saving
-                const sortedClefs = sortClefs(clefs);
-
-                return {
-                    order: parseInt(row.querySelector('[name="order"]').value) || 0,
-                    attribution_texts: [
-                        row.querySelector('[name="attribution"]').value,
-                        ...Array.from(row.querySelectorAll('.additional-attributions [name="attribution"]'))
-                            .map(input => input.value)
-                    ].filter(text => text),
-                    composer_ids: [
-                        row.querySelector('[name="composer"]').value,
-                        ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
-                            .map(select => select.value)
-                    ].filter(id => id).map(id => parseInt(id)),
-                    title_id: row.querySelector('[name="title"]').value,
-                    type_id: row.querySelector('[name="type"]').value,
-                    tone: row.querySelector('[name="tone"]').value,
-                    even_odd: row.querySelector('[name="evenOdd"]').value,
-                    clefs: sortedClefs,
-                    position: row.querySelector('[name="position"]').value,
-                    notes: row.querySelector('[name="notes"]').value,
-                    composition_id: row.querySelector('[name="composition_id"]').value,
-                    composition_data: row.getAttribute('data-composition') ? JSON.parse(row.getAttribute('data-composition')) : null
-                };
+            return allInclusions.map(inclusion => {
+                const row = visibleInclusions.get(allInclusions.indexOf(inclusion));
+                if (row) {
+                    // Update the inclusion data from the visible row
+                    inclusion.attribution_texts = JSON.parse(row.getAttribute('data-attributions') || '[]');
+                    inclusion.composer_ids = JSON.parse(row.getAttribute('data-composers') || '[]');
+                    inclusion.clefs = JSON.parse(row.getAttribute('data-clefs') || '[]');
+                    inclusion.position = row.querySelector('[name="position"]').value;
+                    inclusion.notes = row.querySelector('[name="notes"]').value;
+                    inclusion.composition_data = JSON.parse(row.getAttribute('data-composition') || 'null');
+                }
+                return inclusion;
             });
         }
 
