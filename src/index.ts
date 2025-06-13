@@ -1,8 +1,19 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { Pool } from 'pg';
 import path from 'path';
+import { Request, Response } from 'express';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-// Database connection
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Initialize Express app
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Initialize PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -10,7 +21,6 @@ const pool = new Pool({
   }
 });
 
-const app = express();
 app.use(express.json());
 
 // Serve static files from the public directory
@@ -595,13 +605,26 @@ app.get('/sources', async (req: Request, res: Response) => {
 });
 
 // GET /sources/:id
-app.get('/sources/:id', async (req, res) => {
+app.get('/sources/:id', async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const sourceId = parseInt(req.params.id);
-    
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = (page - 1) * limit;
+
     // Get source details
-    const sourceResult = await pool.query(
-      `SELECT * FROM sources WHERE id = $1`,
+    const sourceResult = await client.query(
+      `SELECT s.*, 
+        COALESCE(json_agg(DISTINCT p.*) FILTER (WHERE p.id IS NOT NULL), '[]') as publishers,
+        COALESCE(json_agg(DISTINCT sc.*) FILTER (WHERE sc.id IS NOT NULL), '[]') as scribes
+       FROM sources s
+       LEFT JOIN publishers_sources ps ON s.id = ps.source_id
+       LEFT JOIN publishers p ON ps.publisher_id = p.id
+       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
+       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
+       WHERE s.id = $1
+       GROUP BY s.id`,
       [sourceId]
     );
 
@@ -611,63 +634,73 @@ app.get('/sources/:id', async (req, res) => {
 
     const source = sourceResult.rows[0];
 
-    // Get images
-    const imagesResult = await pool.query(
-      `SELECT * FROM source_images WHERE source_id = $1`,
+    // Get total count of inclusions
+    const countResult = await client.query(
+      'SELECT COUNT(*) FROM inclusions WHERE source_id = $1',
       [sourceId]
     );
-    source.images = imagesResult.rows;
+    const totalInclusions = parseInt(countResult.rows[0].count);
 
-    // Get inclusions with composer names and title text
-    const inclusionsResult = await pool.query(
-      `SELECT i.id, i.source_id, i.notes, i."order", i.created_at, i.updated_at, i.position, i.composition_id,
-              i.clefs, i.attribution_texts, i.composer_ids,
-              CASE 
-                WHEN i.composer_ids IS NULL THEN ARRAY[]::text[]
-                ELSE ARRAY(
-                  SELECT c.name 
-                  FROM composers c 
-                  WHERE c.id = ANY(COALESCE(ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer), ARRAY[]::integer[]))
-                  ORDER BY array_position(COALESCE(ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer), ARRAY[]::integer[]), c.id)
-                )
-              END as composer_names,
-              t.id as title_id,
-              t.text as title_text,
-              c.composition_type_id as type_id,
-              c.tone,
-              c.even_odd
-       FROM inclusions i 
+    // Get paginated inclusions with their related data
+    const inclusionsResult = await client.query(
+      `SELECT i.*, 
+        c.composer_ids, c.title_id, c.type_id, c.tone, c.even_odd, c.number_of_voices,
+        t.text as title_text,
+        ct.name as type_name
+       FROM inclusions i
        LEFT JOIN compositions c ON i.composition_id = c.id
        LEFT JOIN titles t ON c.title_id = t.id
-       WHERE i.source_id = $1`,
+       LEFT JOIN composition_types ct ON c.type_id = ct.id
+       WHERE i.source_id = $1
+       ORDER BY i."order"
+       LIMIT $2 OFFSET $3`,
+      [sourceId, limit, offset]
+    );
+
+    // Format inclusions data
+    const inclusions = inclusionsResult.rows.map(row => ({
+      id: row.id,
+      order: row.order,
+      attribution_texts: row.attribution_texts || [],
+      composer_ids: row.composer_ids || [],
+      clefs: row.clefs || [],
+      position: row.position,
+      notes: row.notes,
+      composition_id: row.composition_id,
+      composition_data: row.composition_id ? {
+        composer_ids: row.composer_ids,
+        title_id: row.title_id,
+        title_text: row.title_text,
+        type_id: row.type_id,
+        type_name: row.type_name,
+        tone: row.tone,
+        even_odd: row.even_odd,
+        number_of_voices: row.number_of_voices
+      } : null
+    }));
+
+    // Get images
+    const imagesResult = await client.query(
+      'SELECT * FROM source_images WHERE source_id = $1 ORDER BY "order"',
       [sourceId]
     );
-    source.inclusions = inclusionsResult.rows;
 
-    // Get publishers
-    const publishersResult = await pool.query(
-      `SELECT p.* 
-       FROM publishers p
-       JOIN publishers_sources ps ON p.id = ps.publisher_id
-       WHERE ps.source_id = $1`,
-      [sourceId]
-    );
-    source.publishers = publishersResult.rows;
-
-    // Get scribes
-    const scribesResult = await pool.query(
-      `SELECT s.* 
-       FROM scribes s
-       JOIN scribes_sources ss ON s.id = ss.scribe_id
-       WHERE ss.source_id = $1`,
-      [sourceId]
-    );
-    source.scribes = scribesResult.rows;
-
-    res.json(source);
+    res.json({
+      ...source,
+      inclusions,
+      images: imagesResult.rows,
+      pagination: {
+        total: totalInclusions,
+        page,
+        limit,
+        totalPages: Math.ceil(totalInclusions / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching source:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Failed to fetch source' });
+  } finally {
+    client.release();
   }
 });
 
@@ -768,7 +801,8 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       publisherId,
       scribeId,
       images,
-      inclusions
+      inclusions,
+      currentPage
     } = req.body;
 
     // Update source
@@ -827,16 +861,20 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       );
     }
 
-    // Delete existing clef_inclusions and inclusions
-    await client.query('DELETE FROM clef_inclusions WHERE inclusion_id IN (SELECT id FROM inclusions WHERE source_id = $1)', [sourceId]);
-    await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
-
     // Process inclusions and handle pending compositions
     if (inclusions && inclusions.length > 0) {
-      // Get existing inclusions
+      // Get existing inclusions for the current page
+      const pageSize = 50; // Match frontend ROWS_PER_PAGE
+      const offset = (currentPage - 1) * pageSize;
+      
       const existingInclusions = await client.query(
-        'SELECT id, source_id, "order", attribution_texts, composer_ids, clefs, position, notes, composition_id FROM inclusions WHERE source_id = $1',
-        [sourceId]
+        `SELECT id, source_id, "order", attribution_texts, composer_ids, clefs, position, notes, composition_id 
+         FROM inclusions 
+         WHERE source_id = $1 
+         AND "order" >= $2 
+         AND "order" < $3
+         ORDER BY "order"`,
+        [sourceId, offset + 1, offset + pageSize + 1]
       );
 
       // Create maps for quick lookup
@@ -854,27 +892,26 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       // Process each inclusion
       for (const inclusion of inclusions) {
         const existing = existingMap.get(inclusion.order);
-        let compositionId = inclusion.composition_id;
+        let compositionId = null;
 
-        // If we have composition data, try to match or create a composition
+        // Handle composition matching/creation
         if (inclusion.composition_data) {
           const { composer_ids, title_id, type_id, tone, even_odd, number_of_voices } = inclusion.composition_data;
 
-          // First try to find an existing composition
-          const matchResult = await client.query(
+          // Try to find existing composition
+          const existingComposition = await client.query(
             `SELECT id FROM compositions 
              WHERE composer_ids = $1 
              AND title_id = $2 
              AND type_id = $3 
-             AND (tone = $4 OR (tone IS NULL AND $4 IS NULL))
-             AND (even_odd = $5 OR (even_odd IS NULL AND $5 IS NULL))
-             AND (number_of_voices = $6 OR (number_of_voices IS NULL AND $6 IS NULL))`,
+             AND tone = $4 
+             AND even_odd = $5 
+             AND number_of_voices = $6`,
             [composer_ids, title_id, type_id, tone, even_odd, number_of_voices]
           );
 
-          if (matchResult.rows.length > 0) {
-            // Use existing composition
-            compositionId = matchResult.rows[0].id;
+          if (existingComposition.rows.length > 0) {
+            compositionId = existingComposition.rows[0].id;
           } else {
             // Create new composition
             const newComposition = await client.query(
@@ -1189,7 +1226,6 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 }); 

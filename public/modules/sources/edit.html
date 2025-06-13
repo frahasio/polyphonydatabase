@@ -9,172 +9,127 @@
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <link href="/css/styles.css" rel="stylesheet">
     <style>
-        .clef-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 0.125rem;
-            margin-bottom: 0.25rem;
-        }
-        
-        .clef-input {
-            text-align: center;
-            font-family: monospace;
-            padding: 0.125rem;
-            font-size: 0.75rem;
-        }
-        
-        .clef-input.is-invalid {
-            border-color: red !important;
-        }
-        
-        .attribution-container,
-        .composer-container {
-            position: relative;
-        }
-        
-        .additional-attributions,
-        .additional-composers {
-            margin-top: 0.25rem;
-        }
-        
-        .add-attribution,
-        .add-clef-row {
-            padding: 0;
-            font-size: 0.75rem;
-            line-height: 1;
-        }
-        
-        #inclusionsTable td {
-            vertical-align: top;
-            padding: 0.125rem;
-            font-size: 0.875rem;
-        }
-        
-        #inclusionsTable th {
-            padding: 0.125rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        
-        #inclusionsTable .form-control-sm {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.875rem;
-            height: calc(1.5em + 0.25rem + 2px);
-        }
-        
-        #inclusionsTable .btn-sm {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.75rem;
-            line-height: 1;
+        /* Global styles matching polyphonydatabase.com */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --text-color: #2c3e50;
+            --border-color: #bdc3c7;
+            --background-color: #ecf0f1;
+            --hover-color: #f5f6fa;
         }
 
-        .title-suggestions {
-            margin-top: 0.125rem;
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text-color);
+            background-color: var(--background-color);
+        }
+
+        .card {
+            border: none;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .title-suggestions li {
-            padding: 0.25rem;
-            border-bottom: 1px solid #eee;
-            font-size: 0.875rem;
-        }
-
-        .title-suggestions li:last-child {
-            border-bottom: none;
-        }
-
-        .title-suggestions li:hover {
-            background-color: #f8f9fa;
-        }
-
-        /* Make Select2 dropdowns more compact */
-        .select2-container--bootstrap-5 .select2-selection {
-            min-height: calc(1.5em + 0.5rem + 2px);
-            padding: 0.125rem 0.25rem;
-        }
-
-        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.875rem;
-        }
-
-        .select2-container--bootstrap-5 .select2-results__option {
-            padding: 0.25rem;
-            font-size: 0.875rem;
-        }
-
-        /* Make textareas more compact */
-        #inclusionsTable textarea {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.875rem;
-            line-height: 1.2;
-            min-height: 32px;
-        }
-
-        /* Reduce spacing in input groups */
-        .input-group-sm > .form-control,
-        .input-group-sm > .input-group-text,
-        .input-group-sm > .btn {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.875rem;
-        }
-
-        /* Make the table more compact overall */
-        .table {
-            margin-bottom: 0.5rem;
-        }
-
-        /* Reduce spacing in the card */
-        .card-body {
-            padding: 0.5rem;
+            background: white;
         }
 
         .card-header {
-            padding: 0.5rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
         }
 
-        .sticky-action-bar {
+        .btn-primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        /* Table styles */
+        .inclusions-container {
+            height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        #inclusionsTable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #inclusionsTable th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.5rem;
+            text-align: left;
+            font-weight: 500;
             position: sticky;
             top: 0;
-            background: white;
-            z-index: 1000;
-            padding: 1rem;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 1rem;
+            z-index: 10;
+        }
+
+        #inclusionsTable td {
+            padding: 0;
+            vertical-align: top;
         }
 
         .inclusion-row {
-            display: grid;
-            grid-template-columns: 100px 2fr 2fr 3fr 2fr 60px;
-            gap: 0.125rem;
-            padding: 0.125rem;
-            align-items: start;
+            background-color: white;
+        }
+
+        .inclusion-row:nth-child(even) {
+            background-color: var(--hover-color);
+        }
+
+        /* Column widths */
+        .order-position-col {
+            width: 100px;
+            min-width: 100px;
+        }
+
+        .attribution-col {
+            min-width: 200px;
+        }
+
+        .composition-col {
+            min-width: 250px;
+        }
+
+        .clefs-col {
+            min-width: 400px;
+        }
+
+        .notes-col {
+            min-width: 200px;
+        }
+
+        .delete-col {
+            width: 50px;
+            min-width: 50px;
+        }
+
+        /* Input styles */
+        .form-control {
+            border: 1px solid var(--border-color);
+            border-radius: 0;
+            padding: 0.25rem;
+            font-size: 0.9rem;
+            background-color: white;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: none;
         }
 
         .clef-input {
             width: 50px !important;
-            padding: 0 !important;
+            min-width: 50px !important;
             text-align: center;
-            border-radius: 0;
-        }
-
-        .clef-input:first-child {
-            border-top-left-radius: 0.25rem;
-            border-bottom-left-radius: 0.25rem;
-        }
-
-        .clef-input:last-child {
-            border-top-right-radius: 0.25rem;
-            border-bottom-right-radius: 0.25rem;
-        }
-
-        .clef-input:focus {
-            z-index: 1;
-        }
-
-        .clef-input:not(:last-child) {
-            border-right: none;
+            padding: 0.25rem !important;
+            border-radius: 0 !important;
         }
 
         .clef-inputs-container {
@@ -182,74 +137,35 @@
             gap: 0;
         }
 
-        .form-control {
-            height: calc(1.5em + 0.25rem + 2px);
-            padding: 0.125rem 0.25rem;
+        .clef-input:not(:last-child) {
+            border-right: none;
         }
 
-        textarea.form-control {
-            min-height: 32px;
+        /* Composition details row */
+        .composition-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.5rem;
         }
 
-        #inclusionsTable td, #inclusionsTable th {
-            padding: 0.125rem;
-        }
-
-        #inclusionsTable th:first-child {
-            width: 100px;
-        }
-
-        #inclusionsTable th:last-child {
-            width: 60px;
-        }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-
-        .loading-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            text-align: center;
-        }
-
-        .progress {
-            height: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .inclusions-container {
-            height: calc(100vh - 300px);
-            overflow-y: auto;
-            position: relative;
-        }
-
+        /* Pagination controls */
         .pagination-controls {
             position: sticky;
             bottom: 0;
             background: white;
             padding: 1rem;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 1000;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
         }
 
         .pagination-info {
             font-size: 0.9rem;
-            color: #6c757d;
+            color: var(--text-color);
         }
 
         .pagination-buttons {
@@ -259,6 +175,21 @@
 
         .pagination-buttons button {
             min-width: 40px;
+            border-radius: 0;
+        }
+
+        /* Stacked inputs */
+        .stacked-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Notes textarea */
+        .notes-textarea {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -417,12 +348,12 @@
                 <table class="table mb-0" id="inclusionsTable">
                     <thead>
                         <tr>
-                            <th style="width: 100px">Order/Position</th>
-                            <th>Attribution/Composer</th>
-                            <th>Title/Details</th>
-                            <th>Clefs</th>
-                            <th>Notes</th>
-                            <th style="width: 60px"></th>
+                            <th class="order-position-col">Order/Position</th>
+                            <th class="attribution-col">Attribution/Composer</th>
+                            <th class="composition-col">Title/Details</th>
+                            <th class="clefs-col">Clefs</th>
+                            <th class="notes-col">Notes</th>
+                            <th class="delete-col"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -431,17 +362,11 @@
                 </table>
             </div>
             <div class="pagination-controls">
-                <div class="pagination-info">
-                    Showing <span id="currentPageStart">1</span> to <span id="currentPageEnd">40</span> of <span id="totalInclusions">0</span> inclusions
-                </div>
-                <div class="pagination-buttons">
-                    <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn" disabled>
-                        <i class="bi bi-chevron-left"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn" disabled>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                </div>
+                <button id="prevPageBtn" class="btn btn-secondary" disabled>←</button>
+                <span class="pagination-info">
+                    Showing <span id="currentPageStart">0</span> - <span id="currentPageEnd">0</span> of <span id="totalInclusions">0</span> inclusions
+                </span>
+                <button id="nextPageBtn" class="btn btn-secondary" disabled>→</button>
             </div>
         </div>
     </div>
@@ -567,15 +492,16 @@
             }
         }
 
-        // Pagination implementation
-        let allInclusions = []; // Store all inclusions data
-        const ROWS_PER_PAGE = 40;
+        // Update the data management
+        let currentPageData = []; // Only store current page data
+        let totalInclusions = 0;
         let currentPage = 0;
+        const ROWS_PER_PAGE = 50;
 
         function updatePaginationInfo() {
             const start = currentPage * ROWS_PER_PAGE + 1;
-            const end = Math.min((currentPage + 1) * ROWS_PER_PAGE, allInclusions.length);
-            const total = allInclusions.length;
+            const end = Math.min((currentPage + 1) * ROWS_PER_PAGE, totalInclusions);
+            const total = totalInclusions;
 
             document.getElementById('currentPageStart').textContent = start;
             document.getElementById('currentPageEnd').textContent = end;
@@ -583,6 +509,11 @@
 
             document.getElementById('prevPageBtn').disabled = currentPage === 0;
             document.getElementById('nextPageBtn').disabled = end >= total;
+
+            // Update URL with current page
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', currentPage + 1);
+            window.history.replaceState({}, '', url);
         }
 
         function renderCurrentPage() {
@@ -590,10 +521,10 @@
             tbody.innerHTML = ''; // Clear existing rows
 
             const start = currentPage * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, allInclusions.length);
+            const end = Math.min(start + ROWS_PER_PAGE, totalInclusions);
 
             for (let i = start; i < end; i++) {
-                const inclusion = allInclusions[i];
+                const inclusion = currentPageData[i];
                 const row = createInclusionRow(inclusion);
                 tbody.appendChild(row);
             }
@@ -604,7 +535,7 @@
         // Fetch source data
         async function fetchSource() {
             try {
-                const response = await fetch(`/sources/${sourceId}`);
+                const response = await fetch(`/sources/${sourceId}?page=${currentPage + 1}&limit=${ROWS_PER_PAGE}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch source');
                 }
@@ -657,10 +588,14 @@
                     $('#scribes').val(scribeIds).trigger('change');
                 }
 
-                // Store inclusions data and render first page
-                allInclusions = source.inclusions || [];
-                currentPage = 0;
+                // Store inclusions data and render current page
+                currentPageData = source.inclusions || [];
+                totalInclusions = source.pagination.total;
                 renderCurrentPage();
+
+                // Reset unsaved changes flag
+                hasUnsavedChanges = false;
+
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load source data. Please try again.');
@@ -792,6 +727,9 @@
                 setTimeout(() => {
                     alertDiv.remove();
                 }, 3000);
+
+                // Reset unsaved changes flag
+                hasUnsavedChanges = false;
 
             } catch (error) {
                 console.error('Error updating source:', error);
@@ -1009,168 +947,89 @@
                 }
             }
             
-            // Sort clefs before any formatting
-            const sortedClefs = inclusion?.clefs ? sortClefs(inclusion.clefs) : [];
-            
-            row.innerHTML = `
-                <td>
-                    <div class="inclusion-cell">
-                        <label>Order</label>
-                        <input type="number" class="form-control form-control-sm" name="order" value="${inclusion?.order ?? 0}">
-                        <label>Position</label>
-                        <input type="text" class="form-control form-control-sm" name="position" 
-                               value="${inclusion?.position || ''}" 
-                               placeholder="e.g. f.1r, f.2v, p.1">
-                    </div>
-                </td>
-                <td>
-                    <div class="inclusion-cell">
-                        <label>Attribution</label>
-                        <div class="attribution-container">
-                            <input type="text" class="form-control form-control-sm" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}">
-                            <button type="button" class="btn btn-link btn-sm add-attribution" style="display: ${inclusion?.attribution_texts?.length > 1 ? 'block' : 'none'}">
-                                <i class="bi bi-plus-lg"></i> Add another attribution
-                            </button>
-                            <div class="additional-attributions">
-                                ${(inclusion?.attribution_texts?.slice(1) || []).map((text, i) => `
-                                    <div class="input-group input-group-sm mt-1">
-                                        <input type="text" class="form-control" name="attribution" value="${text}">
-                                        <button type="button" class="btn btn-outline-danger remove-attribution">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        <label>Composer</label>
-                        <div class="composer-container">
-                            <select class="form-control form-control-sm" name="composer">
-                                <option value="">Select composer</option>
-                                ${composers.map(composer => `
-                                    <option value="${composer.id}" ${inclusion?.composer_ids?.[0] === composer.id ? 'selected' : ''}>
-                                        ${composer.name}
-                                    </option>
-                                `).join('')}
-                            </select>
-                            <button type="button" class="btn btn-link btn-sm add-composer" style="display: ${inclusion?.composer_ids?.length > 1 ? 'block' : 'none'}">
-                                <i class="bi bi-plus-lg"></i> Add another composer
-                            </button>
-                            <div class="additional-composers">
-                                ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
-                                    <div class="input-group input-group-sm mt-1">
-                                        <select class="form-control" name="composer">
-                                            <option value="">Select composer</option>
-                                            ${composers.map(composer => `
-                                                <option value="${composer.id}" ${id === composer.id ? 'selected' : ''}>
-                                                    ${composer.name}
-                                                </option>
-                                            `).join('')}
-                                        </select>
-                                        <button type="button" class="btn btn-outline-danger remove-composer">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div class="inclusion-cell">
-                        <label>Title</label>
-                        <input type="text" class="form-control form-control-sm" name="title" value="${inclusion?.title || ''}">
-                        <div class="composition-details">
-                            <div>
-                                <label>Type</label>
-                                <select class="form-control form-control-sm" name="type">
-                                    <option value="">Select type</option>
-                                    ${compositionTypes.map(type => `
-                                        <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
-                                            ${type.name}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label>Tone</label>
-                                <select class="form-control form-control-sm" name="tone">
-                                    <option value="">Select tone</option>
-                                    ${tones.map(tone => `
-                                        <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
-                                            ${tone}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <label>Even/Odd</label>
-                                <select class="form-control form-control-sm" name="evenOdd">
-                                    <option value="">Select</option>
-                                    <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
-                                    <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
-                                    <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div class="clef-container">
-                        <div class="clef-grid">
-                            ${Array(8).fill(0).map((_, i) => {
-                                const clef = sortedClefs[i];
-                                const formattedClef = clef ? formatClef(
-                                    clef.clef,
-                                    clef.optional,
-                                    clef.missing,
-                                    clef.incomplete,
-                                    clef.transitions_to
-                                ) : '';
-                                return `
-                                    <input type="text" class="form-control form-control-sm clef-input" 
-                                           name="clef" value="${formattedClef}">
-                                `;
-                            }).join('')}
-                        </div>
-                        <button type="button" class="btn btn-link btn-sm add-clef-row">
-                            <i class="bi bi-plus-lg"></i> Add row
-                        </button>
-                    </div>
-                </td>
-                <td>
-                    <div class="inclusion-cell">
-                        <label>Notes</label>
-                        <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
-                    </div>
-                </td>
-                <td>
-                    <button type="button" class="btn btn-outline-danger remove-inclusion">
-                        ×
-                    </button>
-                </td>
-                <input type="hidden" name="composition_id" value="${inclusion?.composition_id || ''}">
+            // Order/Position column
+            const orderPositionCell = document.createElement('td');
+            orderPositionCell.className = 'order-position-col';
+            orderPositionCell.innerHTML = `
+                <div class="stacked-inputs">
+                    <input type="number" class="form-control" name="order" value="${inclusion?.order || ''}" placeholder="Order">
+                    <input type="text" class="form-control" name="position" value="${inclusion?.position || ''}" placeholder="Position">
+                </div>
             `;
 
-            // Initialize Select2 for the new row
-            initializeSelect2();
+            // Attribution/Composer column
+            const attributionCell = document.createElement('td');
+            attributionCell.className = 'attribution-col';
+            attributionCell.innerHTML = `
+                <div class="stacked-inputs">
+                    <input type="text" class="form-control" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}" placeholder="Attribution">
+                    <select class="form-control" name="composer">
+                        <option value="">Select Composer</option>
+                        ${composers.map(c => `<option value="${c.id}" ${inclusion?.composer_ids?.[0] === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                    </select>
+                </div>
+            `;
 
-            // Add composition check listeners after a short delay to ensure Select2 is initialized
-            setTimeout(() => {
-                const inputs = row.querySelectorAll('[name="composer"], [name="title"], [name="type"], [name="tone"], [name="evenOdd"], .clef-input');
-                inputs.forEach(input => {
-                    // For Select2 elements, we need to listen to the change event on the select element
-                    if (input.classList.contains('composer-select') || input.classList.contains('title-select')) {
-                        $(input).on('change', debounce(() => {
-                            checkCompositionMatch(row);
-                        }, 500));
-                    } else {
-                        // For regular inputs, listen to the input event
-                        input.addEventListener('change', debounce(() => {
-                            checkCompositionMatch(row);
-                        }, 500));
-                    }
-                });
-            }, 100);
+            // Title/Details column
+            const compositionCell = document.createElement('td');
+            compositionCell.className = 'composition-col';
+            compositionCell.innerHTML = `
+                <input type="text" class="form-control" name="title" value="${inclusion?.composition_data?.title_id || ''}" placeholder="Title">
+                <div class="composition-details">
+                    <select class="form-control" name="type">
+                        <option value="">Type</option>
+                        ${compositionTypes.map(t => `<option value="${t.id}" ${inclusion?.composition_data?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+                    </select>
+                    <input type="text" class="form-control" name="tone" value="${inclusion?.composition_data?.tone || ''}" placeholder="Tone">
+                    <select class="form-control" name="evenOdd">
+                        <option value="">Even/Odd</option>
+                        <option value="even" ${inclusion?.composition_data?.even_odd === 'even' ? 'selected' : ''}>Even</option>
+                        <option value="odd" ${inclusion?.composition_data?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
+                    </select>
+                </div>
+            `;
+
+            // Clefs column
+            const clefsCell = document.createElement('td');
+            clefsCell.className = 'clefs-col';
+            const clefsContainer = document.createElement('div');
+            clefsContainer.className = 'clef-inputs-container';
+            
+            // Create 8 clef inputs
+            for (let i = 0; i < 8; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control clef-input';
+                input.name = `clef_${i}`;
+                input.value = inclusion?.clefs?.[i]?.clef || '';
+                input.placeholder = 'Clef';
+                clefsContainer.appendChild(input);
+            }
+            clefsCell.appendChild(clefsContainer);
+
+            // Notes column
+            const notesCell = document.createElement('td');
+            notesCell.className = 'notes-col';
+            notesCell.innerHTML = `
+                <textarea class="form-control notes-textarea" name="notes">${inclusion?.notes || ''}</textarea>
+            `;
+
+            // Delete button column
+            const deleteCell = document.createElement('td');
+            deleteCell.className = 'delete-col';
+            deleteCell.innerHTML = `
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteInclusion(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+
+            // Add all cells to the row
+            row.appendChild(orderPositionCell);
+            row.appendChild(attributionCell);
+            row.appendChild(compositionCell);
+            row.appendChild(clefsCell);
+            row.appendChild(notesCell);
+            row.appendChild(deleteCell);
 
             // Add keyboard navigation for clef inputs
             const clefInputs = row.querySelectorAll('.clef-input');
@@ -1192,14 +1051,12 @@
                         const currentRowIndex = allRows.indexOf(currentRow);
                         
                         if (e.key === 'ArrowDown' && currentRowIndex < allRows.length - 1) {
-                            // Move to the same position in the next row
                             const nextRow = allRows[currentRowIndex + 1];
                             const nextInputs = nextRow.querySelectorAll('.clef-input');
                             if (nextInputs[currentIndex]) {
                                 nextInputs[currentIndex].focus();
                             }
                         } else if (e.key === 'ArrowUp' && currentRowIndex > 0) {
-                            // Move to the same position in the previous row
                             const prevRow = allRows[currentRowIndex - 1];
                             const prevInputs = prevRow.querySelectorAll('.clef-input');
                             if (prevInputs[currentIndex]) {
@@ -1293,7 +1150,7 @@
         // Add event listener for the Add Inclusion button
         document.getElementById('addInclusionBtn').addEventListener('click', () => {
             const newInclusion = {
-                order: allInclusions.length + 1,
+                order: totalInclusions + 1,
                 attribution_texts: [],
                 composer_ids: [],
                 clefs: [],
@@ -1301,11 +1158,11 @@
                 notes: ''
             };
             
-            allInclusions.push(newInclusion);
+            currentPageData.push(newInclusion);
             
             // If we're on the last page and it's not full, stay on current page
             // Otherwise, go to the last page
-            const maxPage = Math.ceil(allInclusions.length / ROWS_PER_PAGE) - 1;
+            const maxPage = Math.ceil(totalInclusions / ROWS_PER_PAGE) - 1;
             if (currentPage !== maxPage) {
                 currentPage = maxPage;
             }
@@ -1373,7 +1230,7 @@
 
         // Function to collect inclusion data for saving
         function collectInclusionData() {
-            return allInclusions.map(inclusion => {
+            return currentPageData.map(inclusion => {
                 const row = document.querySelector(`#inclusionsTable tr[data-order="${inclusion.order}"]`);
                 if (row) {
                     // Update the inclusion data from the visible row
@@ -1505,19 +1362,94 @@
             }
         }
 
-        // Add event listeners for pagination
-        document.getElementById('prevPageBtn').addEventListener('click', () => {
-            if (currentPage > 0) {
-                currentPage--;
-                renderCurrentPage();
+        // Add unsaved changes tracking
+        let hasUnsavedChanges = false;
+
+        // Function to check for unsaved changes
+        function checkForUnsavedChanges() {
+            const currentPageInclusions = currentPageData.map(inclusion => {
+                const row = document.querySelector(`#inclusionsTable tr[data-order="${inclusion.order}"]`);
+                if (row) {
+                    return {
+                        ...inclusion,
+                        attribution_texts: JSON.parse(row.getAttribute('data-attributions') || '[]'),
+                        composer_ids: JSON.parse(row.getAttribute('data-composers') || '[]'),
+                        clefs: JSON.parse(row.getAttribute('data-clefs') || '[]'),
+                        position: row.querySelector('[name="position"]').value,
+                        notes: row.querySelector('[name="notes"]').value,
+                        composition_data: JSON.parse(row.getAttribute('data-composition') || 'null')
+                    };
+                }
+                return inclusion;
+            });
+
+            // Compare with original data
+            return JSON.stringify(currentPageInclusions) !== JSON.stringify(currentPageData);
+        }
+
+        // Update the form submission to reset unsaved changes flag
+        document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+            
+            try {
+                // ... existing save logic ...
+
+                // Reset unsaved changes flag
+                hasUnsavedChanges = false;
+                
+                // Show success message
+                alert('Source updated successfully');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update source. Please try again.');
+            } finally {
+                loadingOverlay.style.display = 'none';
             }
         });
 
-        document.getElementById('nextPageBtn').addEventListener('click', () => {
-            const maxPage = Math.ceil(allInclusions.length / ROWS_PER_PAGE) - 1;
+        // Add event listeners for form changes
+        document.getElementById('editSourceForm').addEventListener('change', () => {
+            hasUnsavedChanges = checkForUnsavedChanges();
+        });
+
+        // Add beforeunload event listener
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+
+        // Update pagination event listeners to check for unsaved changes
+        document.getElementById('prevPageBtn').addEventListener('click', async () => {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Would you like to save before changing pages?')) {
+                    return;
+                }
+                await document.getElementById('editSourceForm').dispatchEvent(new Event('submit'));
+            }
+            if (currentPage > 0) {
+                currentPage--;
+                await fetchSource();
+            }
+        });
+
+        document.getElementById('nextPageBtn').addEventListener('click', async () => {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Would you like to save before changing pages?')) {
+                    return;
+                }
+                await document.getElementById('editSourceForm').dispatchEvent(new Event('submit'));
+            }
+            const maxPage = Math.ceil(totalInclusions / ROWS_PER_PAGE) - 1;
             if (currentPage < maxPage) {
                 currentPage++;
-                renderCurrentPage();
+                await fetchSource();
             }
         });
     </script>

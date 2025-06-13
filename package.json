@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Polyphony Database Node.js Application",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "prisma generate && tsc",
@@ -27,6 +28,6 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": "24.x"
+    "node": ">=18.0.0"
   }
 }
