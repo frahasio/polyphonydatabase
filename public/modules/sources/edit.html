@@ -230,25 +230,35 @@
         }
 
         .inclusions-container {
-            height: calc(100vh - 300px); /* Adjust based on your layout */
+            height: calc(100vh - 300px);
             overflow-y: auto;
             position: relative;
         }
 
-        .inclusions-table {
-            position: relative;
+        .pagination-controls {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
         }
 
-        .inclusion-row {
-            position: absolute;
-            width: 100%;
-            left: 0;
-            right: 0;
+        .pagination-info {
+            font-size: 0.9rem;
+            color: #6c757d;
         }
 
-        .inclusions-spacer {
-            height: 0;
-            visibility: hidden;
+        .pagination-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .pagination-buttons button {
+            min-width: 40px;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -416,11 +426,22 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="inclusions-spacer">
-                            <td colspan="6"></td>
-                        </tr>
+                        <!-- Inclusions will be added here -->
                     </tbody>
                 </table>
+            </div>
+            <div class="pagination-controls">
+                <div class="pagination-info">
+                    Showing <span id="currentPageStart">1</span> to <span id="currentPageEnd">40</span> of <span id="totalInclusions">0</span> inclusions
+                </div>
+                <div class="pagination-buttons">
+                    <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn" disabled>
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn" disabled>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -546,66 +567,38 @@
             }
         }
 
-        // Virtual scrolling implementation
+        // Pagination implementation
         let allInclusions = []; // Store all inclusions data
-        let visibleInclusions = new Map(); // Store currently rendered rows
-        const ROW_HEIGHT = 40; // Approximate height of each row
-        const BUFFER_ROWS = 5; // Number of extra rows to render above/below visible area
+        const ROWS_PER_PAGE = 40;
+        let currentPage = 0;
 
-        function initializeVirtualScroll() {
-            const container = document.getElementById('inclusionsContainer');
-            const spacer = document.querySelector('.inclusions-spacer');
-            
-            // Set initial spacer height
-            updateSpacerHeight();
+        function updatePaginationInfo() {
+            const start = currentPage * ROWS_PER_PAGE + 1;
+            const end = Math.min((currentPage + 1) * ROWS_PER_PAGE, allInclusions.length);
+            const total = allInclusions.length;
 
-            // Handle scroll events
-            container.addEventListener('scroll', () => {
-                requestAnimationFrame(renderVisibleRows);
-            });
+            document.getElementById('currentPageStart').textContent = start;
+            document.getElementById('currentPageEnd').textContent = end;
+            document.getElementById('totalInclusions').textContent = total;
 
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                updateSpacerHeight();
-                renderVisibleRows();
-            });
+            document.getElementById('prevPageBtn').disabled = currentPage === 0;
+            document.getElementById('nextPageBtn').disabled = end >= total;
         }
 
-        function updateSpacerHeight() {
-            const spacer = document.querySelector('.inclusions-spacer');
-            spacer.style.height = `${allInclusions.length * ROW_HEIGHT}px`;
-        }
+        function renderCurrentPage() {
+            const tbody = document.querySelector('#inclusionsTable tbody');
+            tbody.innerHTML = ''; // Clear existing rows
 
-        function renderVisibleRows() {
-            const container = document.getElementById('inclusionsContainer');
-            const scrollTop = container.scrollTop;
-            const containerHeight = container.clientHeight;
-            
-            // Calculate visible range
-            const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
-            const endIndex = Math.min(
-                allInclusions.length,
-                Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_ROWS
-            );
+            const start = currentPage * ROWS_PER_PAGE;
+            const end = Math.min(start + ROWS_PER_PAGE, allInclusions.length);
 
-            // Remove rows that are no longer visible
-            for (const [index, row] of visibleInclusions.entries()) {
-                if (index < startIndex || index >= endIndex) {
-                    row.remove();
-                    visibleInclusions.delete(index);
-                }
+            for (let i = start; i < end; i++) {
+                const inclusion = allInclusions[i];
+                const row = createInclusionRow(inclusion);
+                tbody.appendChild(row);
             }
 
-            // Add new visible rows
-            for (let i = startIndex; i < endIndex; i++) {
-                if (!visibleInclusions.has(i)) {
-                    const inclusion = allInclusions[i];
-                    const row = createInclusionRow(inclusion);
-                    row.style.top = `${i * ROW_HEIGHT}px`;
-                    document.querySelector('#inclusionsTable tbody').appendChild(row);
-                    visibleInclusions.set(i, row);
-                }
-            }
+            updatePaginationInfo();
         }
 
         // Fetch source data
@@ -664,10 +657,10 @@
                     $('#scribes').val(scribeIds).trigger('change');
                 }
 
-                // Store inclusions data and initialize virtual scroll
+                // Store inclusions data and render first page
                 allInclusions = source.inclusions || [];
-                initializeVirtualScroll();
-                renderVisibleRows();
+                currentPage = 0;
+                renderCurrentPage();
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load source data. Please try again.');
@@ -1006,6 +999,15 @@
         function createInclusionRow(inclusion = null) {
             const row = document.createElement('tr');
             row.className = 'inclusion-row';
+            if (inclusion) {
+                row.setAttribute('data-order', inclusion.order);
+                row.setAttribute('data-attributions', JSON.stringify(inclusion.attribution_texts || []));
+                row.setAttribute('data-composers', JSON.stringify(inclusion.composer_ids || []));
+                row.setAttribute('data-clefs', JSON.stringify(inclusion.clefs || []));
+                if (inclusion.composition_data) {
+                    row.setAttribute('data-composition', JSON.stringify(inclusion.composition_data));
+                }
+            }
             
             // Sort clefs before any formatting
             const sortedClefs = inclusion?.clefs ? sortClefs(inclusion.clefs) : [];
@@ -1174,68 +1176,36 @@
             const clefInputs = row.querySelectorAll('.clef-input');
             clefInputs.forEach((input, index) => {
                 input.addEventListener('keydown', (e) => {
-                    const currentRow = input.closest('tr');
-                    const allRows = Array.from(document.querySelectorAll('.inclusion-row'));
-                    const currentRowIndex = allRows.indexOf(currentRow);
-                    const inputsInRow = Array.from(currentRow.querySelectorAll('.clef-input'));
-                    const currentInputIndex = inputsInRow.indexOf(input);
-
-                    // Get the current clef row (0 for first row, 1 for second row, etc.)
-                    const clefRowsInInclusion = Math.ceil(inputsInRow.length / 4); // Assuming 4 clefs per row
-                    const currentClefRow = Math.floor(currentInputIndex / 4);
-                    const positionInClefRow = currentInputIndex % 4;
-
-                    switch(e.key) {
-                        case 'ArrowRight':
-                            if (currentInputIndex < inputsInRow.length - 1) {
-                                inputsInRow[currentInputIndex + 1].focus();
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        const currentIndex = Array.from(clefInputs).indexOf(e.target);
+                        const targetIndex = e.key === 'ArrowRight' ? currentIndex + 1 : currentIndex - 1;
+                        
+                        if (targetIndex >= 0 && targetIndex < clefInputs.length) {
+                            clefInputs[targetIndex].focus();
+                        }
+                    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const currentIndex = Array.from(clefInputs).indexOf(e.target);
+                        const currentRow = row;
+                        const allRows = Array.from(document.querySelectorAll('.inclusion-row'));
+                        const currentRowIndex = allRows.indexOf(currentRow);
+                        
+                        if (e.key === 'ArrowDown' && currentRowIndex < allRows.length - 1) {
+                            // Move to the same position in the next row
+                            const nextRow = allRows[currentRowIndex + 1];
+                            const nextInputs = nextRow.querySelectorAll('.clef-input');
+                            if (nextInputs[currentIndex]) {
+                                nextInputs[currentIndex].focus();
                             }
-                            break;
-                        case 'ArrowLeft':
-                            if (currentInputIndex > 0) {
-                                inputsInRow[currentInputIndex - 1].focus();
+                        } else if (e.key === 'ArrowUp' && currentRowIndex > 0) {
+                            // Move to the same position in the previous row
+                            const prevRow = allRows[currentRowIndex - 1];
+                            const prevInputs = prevRow.querySelectorAll('.clef-input');
+                            if (prevInputs[currentIndex]) {
+                                prevInputs[currentIndex].focus();
                             }
-                            break;
-                        case 'ArrowDown':
-                            // If we're in the last clef row of current inclusion
-                            if (currentClefRow === clefRowsInInclusion - 1) {
-                                // Move to first clef row of next inclusion
-                                if (currentRowIndex < allRows.length - 1) {
-                                    const nextRow = allRows[currentRowIndex + 1];
-                                    const nextRowInputs = nextRow.querySelectorAll('.clef-input');
-                                    if (nextRowInputs[positionInClefRow]) {
-                                        nextRowInputs[positionInClefRow].focus();
-                                    }
-                                }
-                            } else {
-                                // Move to same position in next clef row of current inclusion
-                                const nextInputIndex = currentInputIndex + 4;
-                                if (nextInputIndex < inputsInRow.length) {
-                                    inputsInRow[nextInputIndex].focus();
-                                }
-                            }
-                            break;
-                        case 'ArrowUp':
-                            // If we're in the first clef row of current inclusion
-                            if (currentClefRow === 0) {
-                                // Move to last clef row of previous inclusion
-                                if (currentRowIndex > 0) {
-                                    const prevRow = allRows[currentRowIndex - 1];
-                                    const prevRowInputs = prevRow.querySelectorAll('.clef-input');
-                                    const prevRowClefRows = Math.ceil(prevRowInputs.length / 4);
-                                    const targetIndex = (prevRowClefRows - 1) * 4 + positionInClefRow;
-                                    if (prevRowInputs[targetIndex]) {
-                                        prevRowInputs[targetIndex].focus();
-                                    }
-                                }
-                            } else {
-                                // Move to same position in previous clef row of current inclusion
-                                const prevInputIndex = currentInputIndex - 4;
-                                if (prevInputIndex >= 0) {
-                                    inputsInRow[prevInputIndex].focus();
-                                }
-                            }
-                            break;
+                        }
                     }
                 });
             });
@@ -1332,8 +1302,15 @@
             };
             
             allInclusions.push(newInclusion);
-            updateSpacerHeight();
-            renderVisibleRows();
+            
+            // If we're on the last page and it's not full, stay on current page
+            // Otherwise, go to the last page
+            const maxPage = Math.ceil(allInclusions.length / ROWS_PER_PAGE) - 1;
+            if (currentPage !== maxPage) {
+                currentPage = maxPage;
+            }
+            
+            renderCurrentPage();
         });
 
         // Handle clef input validation and formatting
@@ -1397,7 +1374,7 @@
         // Function to collect inclusion data for saving
         function collectInclusionData() {
             return allInclusions.map(inclusion => {
-                const row = visibleInclusions.get(allInclusions.indexOf(inclusion));
+                const row = document.querySelector(`#inclusionsTable tr[data-order="${inclusion.order}"]`);
                 if (row) {
                     // Update the inclusion data from the visible row
                     inclusion.attribution_texts = JSON.parse(row.getAttribute('data-attributions') || '[]');
@@ -1527,6 +1504,22 @@
                 indicator.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" title="Error"></i>';
             }
         }
+
+        // Add event listeners for pagination
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                renderCurrentPage();
+            }
+        });
+
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+            const maxPage = Math.ceil(allInclusions.length / ROWS_PER_PAGE) - 1;
+            if (currentPage < maxPage) {
+                currentPage++;
+                renderCurrentPage();
+            }
+        });
     </script>
 </body>
 </html> 
