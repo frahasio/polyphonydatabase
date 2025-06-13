@@ -68,7 +68,7 @@
     <script>
         async function fetchPerformers() {
             try {
-                const response = await fetch('/performers');
+                const response = await fetch('/api/performers');
                 if (!response.ok) {
                     throw new Error('Failed to fetch performers');
                 }
@@ -79,14 +79,7 @@
                 displayPerformers(data.performers);
             } catch (error) {
                 console.error('Error:', error);
-                const performersList = document.getElementById('performersList');
-                performersList.innerHTML = `
-                    <tr>
-                        <td colspan="2" class="text-center text-danger">
-                            Failed to load performers. Please try refreshing the page.
-                        </td>
-                    </tr>
-                `;
+                alert('Failed to load performers. Please try again.');
             }
         }
 
@@ -97,11 +90,11 @@
                 <tr>
                     <td>${performer.name || ''}</td>
                     <td>
-                        <a href="edit.html?id=${performer.id}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editPerformer(${performer.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deletePerformer(${performer.id})">
-                            <i class="bi bi-trash"></i> Delete
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
@@ -118,7 +111,7 @@
             }
 
             try {
-                const response = await fetch('/performers', {
+                const response = await fetch('/api/performers', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -148,7 +141,7 @@
             }
 
             try {
-                const response = await fetch(`/performers/${id}`, {
+                const response = await fetch(`/api/performers/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -164,7 +157,7 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', fetchPerformers);
+        fetchPerformers();
     </script>
 </body>
 </html> 

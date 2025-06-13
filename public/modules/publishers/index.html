@@ -69,30 +69,37 @@
         // Fetch and display publishers
         async function fetchPublishers() {
             try {
-                const response = await fetch('/publishers');
+                const response = await fetch('/api/publishers');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch publishers');
+                }
                 const data = await response.json();
-                const publishersList = document.getElementById('publishersList');
-                publishersList.innerHTML = '';
-
-                data.publishers.forEach(publisher => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${publisher.name || ''}</td>
-                        <td>
-                            <a href="edit.html?id=${publisher.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deletePublisher(${publisher.id})">
-                                <i class="bi bi-trash"></i> Delete
-                            </button>
-                        </td>
-                    `;
-                    publishersList.appendChild(row);
-                });
+                if (!data.publishers) {
+                    throw new Error('Invalid response format');
+                }
+                displayPublishers(data.publishers);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load publishers');
+                alert('Failed to load publishers. Please try again.');
             }
+        }
+
+        function displayPublishers(publishers) {
+            const publishersList = document.getElementById('publishersList');
+            
+            publishersList.innerHTML = publishers.map(publisher => `
+                <tr>
+                    <td>${publisher.name || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editPublisher(${publisher.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePublisher(${publisher.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         // Add new publisher
@@ -104,7 +111,7 @@
             }
 
             try {
-                const response = await fetch('/publishers', {
+                const response = await fetch('/api/publishers', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -123,7 +130,7 @@
                 fetchPublishers();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create publisher');
+                alert('Failed to create publisher. Please try again.');
             }
         });
 
@@ -134,7 +141,7 @@
             }
 
             try {
-                const response = await fetch(`/publishers/${id}`, {
+                const response = await fetch(`/api/publishers/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -145,12 +152,12 @@
                 fetchPublishers();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to delete publisher');
+                alert('Failed to delete publisher. Please try again.');
             }
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', fetchPublishers);
+        fetchPublishers();
     </script>
 </body>
 </html> 

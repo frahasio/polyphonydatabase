@@ -78,26 +78,6 @@
                             <label for="title" class="form-label">Title</label>
                             <input type="text" class="form-control" id="title" name="title">
                         </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">From Year</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="Annotation">
-                                    <input type="number" class="form-control" id="fromYear" name="fromYear" placeholder="Year">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">To Year</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="Annotation">
-                                    <input type="number" class="form-control" id="toYear" name="toYear" placeholder="Year">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="town" class="form-label">Town</label>
-                            <input type="text" class="form-control" id="town" name="town">
-                        </div>
                         <div class="mb-3">
                             <label for="type" class="form-label">Type</label>
                             <select class="form-control" id="type" name="type">
@@ -121,6 +101,10 @@
                                 <option value="Partbook/score">Partbook/score</option>
                                 <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
                             </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="town" class="form-label">Town</label>
+                            <input type="text" class="form-control" id="town" name="town">
                         </div>
                         <div class="mb-3">
                             <label for="rismLink" class="form-label">RISM URL</label>
@@ -147,7 +131,7 @@
         // Fetch and display sources
         async function fetchSources(searchTerm = '') {
             try {
-                const response = await fetch(`/sources${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`);
+                const response = await fetch(`/api/sources${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch sources');
                 }
@@ -218,12 +202,12 @@
                 type: formData.get('type'),
                 format: formData.get('format'),
                 town: formData.get('town'),
-                rismLink: formData.get('rismLink'),
+                rism_link: formData.get('rismLink'),
                 catalogued: formData.get('catalogued') === 'on'
             };
 
             try {
-                const response = await fetch('/sources', {
+                const response = await fetch('/api/sources', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -253,7 +237,7 @@
             }
 
             try {
-                const response = await fetch(`/sources/${id}`, {
+                const response = await fetch(`/api/sources/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -268,10 +252,8 @@
             }
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchSources();
-        });
+        // Initial load
+        fetchSources();
     </script>
 </body>
 </html> 

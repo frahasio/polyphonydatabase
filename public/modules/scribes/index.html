@@ -68,30 +68,37 @@
         // Fetch and display scribes
         async function fetchScribes() {
             try {
-                const response = await fetch('/scribes');
+                const response = await fetch('/api/scribes');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch scribes');
+                }
                 const data = await response.json();
-                const scribesList = document.getElementById('scribesList');
-                scribesList.innerHTML = '';
-
-                data.scribes.forEach(scribe => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${scribe.name || ''}</td>
-                        <td>
-                            <a href="edit.html?id=${scribe.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteScribe(${scribe.id})">
-                                <i class="bi bi-trash"></i> Delete
-                            </button>
-                        </td>
-                    `;
-                    scribesList.appendChild(row);
-                });
+                if (!data.scribes) {
+                    throw new Error('Invalid response format');
+                }
+                displayScribes(data.scribes);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load scribes');
+                alert('Failed to load scribes. Please try again.');
             }
+        }
+
+        function displayScribes(scribes) {
+            const scribesList = document.getElementById('scribesList');
+            
+            scribesList.innerHTML = scribes.map(scribe => `
+                <tr>
+                    <td>${scribe.name || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editScribe(${scribe.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteScribe(${scribe.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         // Add new scribe
@@ -103,7 +110,7 @@
             }
 
             try {
-                const response = await fetch('/scribes', {
+                const response = await fetch('/api/scribes', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -122,7 +129,7 @@
                 fetchScribes();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to create scribe');
+                alert('Failed to create scribe. Please try again.');
             }
         });
 
@@ -133,7 +140,7 @@
             }
 
             try {
-                const response = await fetch(`/scribes/${id}`, {
+                const response = await fetch(`/api/scribes/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -144,12 +151,12 @@
                 fetchScribes();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to delete scribe');
+                alert('Failed to delete scribe. Please try again.');
             }
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', fetchScribes);
+        fetchScribes();
     </script>
 </body>
 </html> 

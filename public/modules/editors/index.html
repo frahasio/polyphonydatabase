@@ -84,7 +84,7 @@
 
         async function fetchEditors() {
             try {
-                const response = await fetch('/editors');
+                const response = await fetch('/api/editors');
                 if (!response.ok) {
                     throw new Error('Failed to fetch editors');
                 }
@@ -95,14 +95,7 @@
                 displayEditors(data.editors);
             } catch (error) {
                 console.error('Error:', error);
-                const editorsList = document.getElementById('editorsList');
-                editorsList.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="text-center text-danger">
-                            Failed to load editors. Please try refreshing the page.
-                        </td>
-                    </tr>
-                `;
+                alert('Failed to load editors. Please try again.');
             }
         }
 
@@ -114,11 +107,11 @@
                     <td>${editor.name || ''}</td>
                     <td>${formatDate(editor.dateOfBirth)}</td>
                     <td>
-                        <a href="edit.html?id=${editor.id}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editEditor(${editor.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteEditor(${editor.id})">
-                            <i class="bi bi-trash"></i> Delete
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
@@ -136,14 +129,14 @@
             }
 
             try {
-                const response = await fetch('/editors', {
+                const response = await fetch('/api/editors', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         name,
-                        dateOfBirth: dateOfBirth || null
+                        date_of_birth: dateOfBirth || null
                     })
                 });
 
@@ -169,7 +162,7 @@
             }
 
             try {
-                const response = await fetch(`/editors/${id}`, {
+                const response = await fetch(`/api/editors/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -185,7 +178,7 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', fetchEditors);
+        fetchEditors();
     </script>
 </body>
 </html> 
