@@ -37,9 +37,11 @@ if (-not $herokuRemote) {
 $currentBranch = git rev-parse --abbrev-ref HEAD
 Write-Host "Current branch: $currentBranch" -ForegroundColor Yellow
 
-# Clean install dependencies
-Write-Host "Performing clean install of dependencies..."
-npm ci
+# Clean up and reinstall dependencies
+Write-Host "Cleaning up and reinstalling dependencies..."
+Remove-Item -Path "package-lock.json" -ErrorAction SilentlyContinue
+Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+npm install
 
 # Stage and commit changes
 Write-Host "Staging and committing changes..."
