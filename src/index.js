@@ -21,6 +21,66 @@ const pool = new pg.Pool({
   }
 });
 
+// Get list of sources
+app.get('/sources', async (req, res) => {
+  try {
+    const searchTerm = req.query.search || '';
+    let query = `
+      SELECT 
+        s.*,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', p.id,
+              'name', p.name
+            )
+          ) FILTER (WHERE p.id IS NOT NULL),
+          '[]'
+        ) as publishers,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', sc.id,
+              'name', sc.name
+            )
+          ) FILTER (WHERE sc.id IS NOT NULL),
+          '[]'
+        ) as scribes
+      FROM sources s
+      LEFT JOIN publishers_sources ps ON s.id = ps.source_id
+      LEFT JOIN publishers p ON ps.publisher_id = p.id
+      LEFT JOIN scribes_sources ss ON s.id = ss.source_id
+      LEFT JOIN scribes sc ON ss.scribe_id = sc.id
+    `;
+
+    const queryParams = [];
+    if (searchTerm) {
+      query += `
+        WHERE s.code ILIKE $1 OR s.title ILIKE $1
+      `;
+      queryParams.push(`%${searchTerm}%`);
+    }
+
+    query += `
+      GROUP BY s.id
+      ORDER BY s.code
+    `;
+
+    const result = await pool.query(query, queryParams);
+    
+    res.json({
+      sources: result.rows.map(row => ({
+        ...row,
+        publishers: row.publishers || [],
+        scribes: row.scribes || []
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching sources:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/sources/:id', async (req, res) => {
   try {
     const sourceId = parseInt(req.params.id);
