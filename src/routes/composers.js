@@ -102,21 +102,23 @@ router.post('/', async (req, res) => {
         birthplace_2, 
         deathplace_1, 
         deathplace_2, 
-        image_url
+        image_url,
+        created_at,
+        updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
     const result = await pool.query(query, [
       name, 
-      from_year, 
-      to_year, 
-      birthplace_1, 
-      birthplace_2, 
-      deathplace_1, 
-      deathplace_2, 
-      image_url
+      from_year || null, 
+      to_year || null, 
+      birthplace_1 || null, 
+      birthplace_2 || null, 
+      deathplace_1 || null, 
+      deathplace_2 || null, 
+      image_url || null
     ]);
 
     res.status(201).json(result.rows[0]);
@@ -171,13 +173,13 @@ router.put('/:id', async (req, res) => {
 
     const result = await pool.query(query, [
       name, 
-      from_year, 
-      to_year, 
-      birthplace_1, 
-      birthplace_2, 
-      deathplace_1, 
-      deathplace_2, 
-      image_url,
+      from_year || null, 
+      to_year || null, 
+      birthplace_1 || null, 
+      birthplace_2 || null, 
+      deathplace_1 || null, 
+      deathplace_2 || null, 
+      image_url || null,
       id
     ]);
 
