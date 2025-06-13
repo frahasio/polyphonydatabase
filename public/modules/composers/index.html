@@ -234,7 +234,7 @@
 
         async function fetchComposers() {
             try {
-                const response = await fetch(`/api/composers?search=${currentLetter}`);
+                const response = await fetch(`/api/composers`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch composers');
                 }
@@ -242,7 +242,11 @@
                 if (!data.composers) {
                     throw new Error('Invalid response format');
                 }
-                displayComposers(data.composers);
+                // Filter composers by first letter
+                const filteredComposers = data.composers.filter(composer => 
+                    composer.name.toUpperCase().startsWith(currentLetter)
+                );
+                displayComposers(filteredComposers);
                 updateURL();
             } catch (error) {
                 console.error('Error:', error);
@@ -360,6 +364,81 @@
                 fetchComposers();
             });
         });
+
+        // Handle edit
+        async function editComposer(id) {
+            try {
+                const response = await fetch(`/api/composers/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch composer details');
+                }
+                const data = await response.json();
+                const composer = data.composer;
+
+                // Populate the form with composer data
+                const form = document.getElementById('addComposerForm');
+                form.name.value = composer.name;
+                form.fromYear.value = composer.from_year || '';
+                form.toYear.value = composer.to_year || '';
+                form.birthplace1.value = composer.birthplace_1 || '';
+                form.birthplace2.value = composer.birthplace_2 || '';
+                form.deathplace1.value = composer.deathplace_1 || '';
+                form.deathplace2.value = composer.deathplace_2 || '';
+                form.imageUrl.value = composer.image_url || '';
+
+                // Change modal title and button
+                const modal = document.getElementById('addComposerModal');
+                modal.querySelector('.modal-title').textContent = 'Edit Composer';
+                const submitBtn = document.getElementById('addComposerBtn');
+                submitBtn.textContent = 'Save Changes';
+                submitBtn.onclick = async () => {
+                    try {
+                        const formData = new FormData(form);
+                        const data = {
+                            name: formData.get('name'),
+                            from_year: formData.get('fromYear'),
+                            to_year: formData.get('toYear'),
+                            birthplace_1: formData.get('birthplace1'),
+                            birthplace_2: formData.get('birthplace2'),
+                            deathplace_1: formData.get('deathplace1'),
+                            deathplace_2: formData.get('deathplace2'),
+                            image_url: formData.get('imageUrl')
+                        };
+
+                        const response = await fetch(`/api/composers/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to update composer');
+                        }
+
+                        // Reset modal and refresh list
+                        const modalInstance = bootstrap.Modal.getInstance(modal);
+                        modalInstance.hide();
+                        form.reset();
+                        modal.querySelector('.modal-title').textContent = 'Add New Composer';
+                        submitBtn.textContent = 'Add Composer';
+                        submitBtn.onclick = null; // Remove the edit handler
+                        fetchComposers();
+                    } catch (error) {
+                        console.error('Error updating composer:', error);
+                        alert('Failed to update composer. Please try again.');
+                    }
+                };
+
+                // Show the modal
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load composer details. Please try again.');
+            }
+        }
 
         // Initialize
         getInitialState();

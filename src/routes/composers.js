@@ -138,4 +138,58 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Update composer
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, 
+      from_year, 
+      to_year, 
+      birthplace_1, 
+      birthplace_2, 
+      deathplace_1, 
+      deathplace_2, 
+      image_url 
+    } = req.body;
+
+    const query = `
+      UPDATE composers
+      SET 
+        name = $1,
+        from_year = $2,
+        to_year = $3,
+        birthplace_1 = $4,
+        birthplace_2 = $5,
+        deathplace_1 = $6,
+        deathplace_2 = $7,
+        image_url = $8,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $9
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [
+      name, 
+      from_year, 
+      to_year, 
+      birthplace_1, 
+      birthplace_2, 
+      deathplace_1, 
+      deathplace_2, 
+      image_url,
+      id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Composer not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating composer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router; 
