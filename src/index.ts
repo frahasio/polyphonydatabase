@@ -827,7 +827,8 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       );
     }
 
-    // Delete existing inclusions
+    // Delete existing clef_inclusions and inclusions
+    await client.query('DELETE FROM clef_inclusions WHERE inclusion_id IN (SELECT id FROM inclusions WHERE source_id = $1)', [sourceId]);
     await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
 
     // Process inclusions and handle pending compositions
