@@ -37,12 +37,14 @@ if (-not $herokuRemote) {
 $currentBranch = git rev-parse --abbrev-ref HEAD
 Write-Host "Current branch: $currentBranch" -ForegroundColor Yellow
 
-# Update dependencies and lock file
-Write-Host "Updating dependencies..."
-npm install
+# Clean install dependencies
+Write-Host "Performing clean install of dependencies..."
+npm ci
 
 # Stage and commit changes
 Write-Host "Staging and committing changes..."
+git add package.json package-lock.json
+git commit -m "Update dependencies and lock file"
 git add .
 git commit -m $commitMessage
 
