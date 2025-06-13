@@ -180,17 +180,20 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { code, title, type, format, town, rismLink, catalogued } = req.body;
+    const now = new Date();
 
     const query = `
       INSERT INTO sources (
-        code, title, type, format, town, rism_link, catalogued
+        code, title, type, format, town, rism_link, catalogued,
+        created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
 
     const result = await pool.query(query, [
-      code, title, type, format, town, rismLink, catalogued
+      code, title, type, format, town, rismLink, catalogued,
+      now, now
     ]);
 
     res.status(201).json(result.rows[0]);

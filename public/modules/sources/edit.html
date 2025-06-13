@@ -4,1454 +4,160 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Source - Polyphony Database</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-    <link href="/css/styles.css" rel="stylesheet">
-    <style>
-        /* Global styles matching polyphonydatabase.com */
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --text-color: #2c3e50;
-            --border-color: #bdc3c7;
-            --background-color: #ecf0f1;
-            --hover-color: #f5f6fa;
-        }
-
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: var(--text-color);
-            background-color: var(--background-color);
-        }
-
-        .card {
-            border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            background: white;
-        }
-
-        .card-header {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-color);
-            border-color: var(--accent-color);
-        }
-
-        .btn-primary:hover {
-            background-color: #2980b9;
-            border-color: #2980b9;
-        }
-
-        /* Table styles */
-        .inclusions-container {
-            height: calc(100vh - 300px);
-            overflow-y: auto;
-        }
-
-        #inclusionsTable {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        #inclusionsTable th {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 0.5rem;
-            text-align: left;
-            font-weight: 500;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        #inclusionsTable td {
-            padding: 0;
-            vertical-align: top;
-        }
-
-        .inclusion-row {
-            background-color: white;
-        }
-
-        .inclusion-row:nth-child(even) {
-            background-color: var(--hover-color);
-        }
-
-        /* Column widths */
-        .order-position-col {
-            width: 100px;
-            min-width: 100px;
-        }
-
-        .attribution-col {
-            min-width: 200px;
-        }
-
-        .composition-col {
-            min-width: 250px;
-        }
-
-        .clefs-col {
-            min-width: 400px;
-        }
-
-        .notes-col {
-            min-width: 200px;
-        }
-
-        .delete-col {
-            width: 50px;
-            min-width: 50px;
-        }
-
-        /* Input styles */
-        .form-control {
-            border: 1px solid var(--border-color);
-            border-radius: 0;
-            padding: 0.25rem;
-            font-size: 0.9rem;
-            background-color: white;
-        }
-
-        .form-control:focus {
-            border-color: var(--accent-color);
-            box-shadow: none;
-        }
-
-        .clef-input {
-            width: 50px !important;
-            min-width: 50px !important;
-            text-align: center;
-            padding: 0.25rem !important;
-            border-radius: 0 !important;
-        }
-
-        .clef-inputs-container {
-            display: flex;
-            gap: 0;
-        }
-
-        .clef-input:not(:last-child) {
-            border-right: none;
-        }
-
-        /* Composition details row */
-        .composition-details {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        /* Pagination controls */
-        .pagination-controls {
-            position: sticky;
-            bottom: 0;
-            background: white;
-            padding: 1rem;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
-            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
-        }
-
-        .pagination-info {
-            font-size: 0.9rem;
-            color: var(--text-color);
-        }
-
-        .pagination-buttons {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .pagination-buttons button {
-            min-width: 40px;
-            border-radius: 0;
-        }
-
-        /* Stacked inputs */
-        .stacked-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        /* Notes textarea */
-        .notes-textarea {
-            width: 100%;
-            min-height: 100px;
-            resize: vertical;
-        }
-    </style>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="container-fluid py-4">
-        <div class="sticky-action-bar">
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h3 mb-0">Edit Source</h1>
                 <p class="text-muted">Update source details</p>
             </div>
             <div>
-                <button type="submit" form="editSourceForm" class="btn btn-primary me-2">
-                    <i class="bi bi-save"></i> Save Changes
-                </button>
-                <a href="index.html" class="btn btn-outline-secondary me-2">
-                    <i class="bi bi-arrow-left"></i> Back to List
+                <a href="index.html" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Sources
                 </a>
-                <button class="btn btn-danger" id="deleteButton">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
-            </div>
-        </div>
-
-        <!-- Add loading overlay -->
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="loading-content">
-                <h5>Processing Compositions</h5>
-                <p class="text-muted mb-2">Checking and matching compositions...</p>
-                <div class="progress">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" 
-                         style="width: 0%"></div>
-                </div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-body">
                 <form id="editSourceForm">
-                    <div class="mb-3">
-                        <label for="code" class="form-label">Code *</label>
-                        <input type="text" class="form-control" id="code" name="code" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="title" class="form-label">Title</label>
-                        <textarea class="form-control" id="title" name="title" rows="2"></textarea>
-                    </div>
-
-                    <div class="row mb-3">
+                    <input type="hidden" id="source_id">
+                    <div class="row">
                         <div class="col-md-6">
-                            <label class="form-label">From Year</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="Annotation">
-                                <input type="number" class="form-control" id="fromYear" name="fromYear" placeholder="Year">
+                            <div class="mb-3">
+                                <label for="code" class="form-label">Code *</label>
+                                <input type="text" class="form-control" id="code" name="code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" name="title">
+                            </div>
+                            <div class="mb-3">
+                                <label for="type" class="form-label">Type</label>
+                                <select class="form-control" id="type" name="type">
+                                    <option value="">Select Type</option>
+                                    <option value="MS">MS</option>
+                                    <option value="Print">Print</option>
+                                    <option value="Print/MS">Print/MS</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="format" class="form-label">Format</label>
+                                <select class="form-control" id="format" name="format">
+                                    <option value="">Select Format</option>
+                                    <option value="Choirbook">Choirbook</option>
+                                    <option value="Partbook">Partbook</option>
+                                    <option value="Score">Score</option>
+                                    <option value="Tablature">Tablature</option>
+                                    <option value="Tablebook">Tablebook</option>
+                                    <option value="Multiple_choirbooks">Multiple choirbooks</option>
+                                    <option value="Choirbook/score">Choirbook/score</option>
+                                    <option value="Partbook/score">Partbook/score</option>
+                                    <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">To Year</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="Annotation">
-                                <input type="number" class="form-control" id="toYear" name="toYear" placeholder="Year">
+                            <div class="mb-3">
+                                <label for="town" class="form-label">Town</label>
+                                <input type="text" class="form-control" id="town" name="town">
+                            </div>
+                            <div class="mb-3">
+                                <label for="rism_link" class="form-label">RISM URL</label>
+                                <input type="url" class="form-control" id="rism_link" name="rism_link">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
+                                <label class="form-check-label" for="catalogued">Catalogued</label>
                             </div>
                         </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label for="town" class="form-label">Town</label>
-                        <input type="text" class="form-control" id="town" name="town">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="type" class="form-label">Type</label>
-                        <select class="form-control" id="type" name="type">
-                            <option value="">Select Type</option>
-                            <option value="MS">MS</option>
-                            <option value="Print">Print</option>
-                            <option value="Print/MS">Print/MS</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="format" class="form-label">Format</label>
-                        <select class="form-control" id="format" name="format">
-                            <option value="">Select Format</option>
-                            <option value="Choirbook">Choirbook</option>
-                            <option value="Partbook">Partbook</option>
-                            <option value="Score">Score</option>
-                            <option value="Tablature">Tablature</option>
-                            <option value="Tablebook">Tablebook</option>
-                            <option value="Multiple_choirbooks">Multiple choirbooks</option>
-                            <option value="Choirbook/score">Choirbook/score</option>
-                            <option value="Partbook/score">Partbook/score</option>
-                            <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="dates" class="form-label">Dates</label>
-                        <input type="text" class="form-control" id="dates" name="dates">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="rismLink" class="form-label">RISM permalink</label>
-                        <input type="url" class="form-control" id="rismLink" name="rismLink">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="publishers" class="form-label">Publishers</label>
-                        <select class="form-control" id="publishers" name="publishers" multiple>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="scribes" class="form-label">Scribes</label>
-                        <select class="form-control" id="scribes" name="scribes" multiple>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Images</label>
-                        <div id="imageInputs">
-                            <div class="input-group mb-2">
-                                <input type="url" class="form-control" name="images[0][url]" placeholder="Image URL">
-                                <input type="text" class="form-control" name="images[0][label]" placeholder="Label (optional)">
-                                <button type="button" class="btn btn-outline-danger remove-image" style="display: none;">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-outline-secondary" id="addImageBtn">
-                            <i class="bi bi-plus-lg"></i> Add Image
-                        </button>
-                    </div>
-
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
-                        <label class="form-check-label" for="catalogued">Catalogued</label>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <a href="index.html" class="btn btn-outline-secondary ms-2">Cancel</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Inclusions Table -->
-    <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Inclusions</h5>
-            <button type="button" class="btn btn-primary btn-sm" id="addInclusionBtn">
-                <i class="bi bi-plus-lg"></i> Add Inclusion
-            </button>
-        </div>
-        <div class="card-body p-0">
-            <div class="inclusions-container" id="inclusionsContainer">
-                <table class="table mb-0" id="inclusionsTable">
-                    <thead>
-                        <tr>
-                            <th class="order-position-col">Order/Position</th>
-                            <th class="attribution-col">Attribution/Composer</th>
-                            <th class="composition-col">Title/Details</th>
-                            <th class="clefs-col">Clefs</th>
-                            <th class="notes-col">Notes</th>
-                            <th class="delete-col"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Inclusions will be added here -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination-controls">
-                <button id="prevPageBtn" class="btn btn-secondary" disabled>←</button>
-                <span class="pagination-info">
-                    Showing <span id="currentPageStart">0</span> - <span id="currentPageEnd">0</span> of <span id="totalInclusions">0</span> inclusions
-                </span>
-                <button id="nextPageBtn" class="btn btn-secondary" disabled>→</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    Are you sure you want to delete this source? This action cannot be undone.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Global variables
-        let publishers = [];
-        let scribes = [];
-        let composers = [];
-        let titles = [];
-        let compositions = [];
-        let compositionTypes = [];
-
-        // Get source ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const sourceId = urlParams.get('id');
-
-        if (!sourceId) {
-            window.location.href = 'index.html';
-        }
-
-        // Initialize Select2 for multiple selects
-        $('#publishers').select2({
-            theme: 'bootstrap-5',
-            placeholder: 'Select publishers',
-            allowClear: true,
-            ajax: {
-                url: '/publishers/search',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return {
-                        search: params.term,
-                        page: params.page || 1
-                    };
-                },
-                processResults: function(data) {
-                    return {
-                        results: data.publishers.map(publisher => ({
-                            id: publisher.id,
-                            text: publisher.name
-                        }))
-                    };
-                },
-                cache: true
-            },
-            minimumInputLength: 2
-        });
-
-        $('#scribes').select2({
-            theme: 'bootstrap-5',
-            placeholder: 'Select scribes',
-            allowClear: true,
-            ajax: {
-                url: '/scribes/search',
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return {
-                        search: params.term,
-                        page: params.page || 1
-                    };
-                },
-                processResults: function(data) {
-                    return {
-                        results: data.scribes.map(scribe => ({
-                            id: scribe.id,
-                            text: scribe.name
-                        }))
-                    };
-                },
-                cache: true
-            },
-            minimumInputLength: 2
-        });
-
-        // Fetch composers
-        async function fetchComposers() {
-            try {
-                const response = await fetch('/composers');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch composers');
-                }
-                const data = await response.json();
-                composers = data.composers;
-            } catch (error) {
-                console.error('Error fetching composers:', error);
-            }
-        }
-
-        // Fetch titles for autocomplete
-        async function fetchTitles() {
-            try {
-                const response = await fetch('/titles');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch titles');
-                }
-                const data = await response.json();
-                titles = data.titles;
-            } catch (error) {
-                console.error('Error fetching titles:', error);
-            }
-        }
-
-        // Update the data management
-        let currentPageData = []; // Only store current page data
-        let totalInclusions = 0;
-        let currentPage = 0;
-        const ROWS_PER_PAGE = 50;
-
-        function updatePaginationInfo() {
-            const start = currentPage * ROWS_PER_PAGE + 1;
-            const end = Math.min((currentPage + 1) * ROWS_PER_PAGE, totalInclusions);
-            const total = totalInclusions;
-
-            document.getElementById('currentPageStart').textContent = start;
-            document.getElementById('currentPageEnd').textContent = end;
-            document.getElementById('totalInclusions').textContent = total;
-
-            document.getElementById('prevPageBtn').disabled = currentPage === 0;
-            document.getElementById('nextPageBtn').disabled = end >= total;
-
-            // Update URL with current page
-            const url = new URL(window.location.href);
-            url.searchParams.set('page', currentPage + 1);
-            window.history.replaceState({}, '', url);
-        }
-
-        function renderCurrentPage() {
-            const tbody = document.querySelector('#inclusionsTable tbody');
-            tbody.innerHTML = ''; // Clear existing rows
-
-            const start = currentPage * ROWS_PER_PAGE;
-            const end = Math.min(start + ROWS_PER_PAGE, totalInclusions);
-
-            for (let i = start; i < end; i++) {
-                const inclusion = currentPageData[i];
-                const row = createInclusionRow(inclusion);
-                tbody.appendChild(row);
-            }
-
-            updatePaginationInfo();
-        }
-
-        // Fetch source data
+        // Fetch source details
         async function fetchSource() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sourceId = urlParams.get('id');
+            
+            if (!sourceId) {
+                alert('No source ID provided');
+                return;
+            }
+
             try {
-                const response = await fetch(`/sources/${sourceId}?page=${currentPage + 1}&limit=${ROWS_PER_PAGE}`);
+                const response = await fetch(`/api/sources/${sourceId}`);
                 if (!response.ok) {
-                    throw new Error('Failed to fetch source');
+                    throw new Error('Failed to fetch source details');
                 }
-                const source = await response.json();
+                const data = await response.json();
+                const source = data.source;
                 
                 // Populate form fields
+                document.getElementById('source_id').value = source.id;
                 document.getElementById('code').value = source.code || '';
                 document.getElementById('title').value = source.title || '';
                 document.getElementById('type').value = source.type || '';
                 document.getElementById('format').value = source.format || '';
                 document.getElementById('town').value = source.town || '';
-                document.getElementById('dates').value = source.dates || '';
-                document.getElementById('rismLink').value = source.rism_link || '';
+                document.getElementById('rism_link').value = source.rism_link || '';
                 document.getElementById('catalogued').checked = source.catalogued || false;
-                document.getElementById('fromYear').value = source.from_year || '';
-                document.getElementById('toYear').value = source.to_year || '';
-                document.getElementById('fromYearAnnotation').value = source.from_year_annotation || '';
-                document.getElementById('toYearAnnotation').value = source.to_year_annotation || '';
-
-                // Handle images
-                const imageInputs = document.getElementById('imageInputs');
-                imageInputs.innerHTML = '';
-                let imageCount = 0;
-
-                if (source.images && source.images.length > 0) {
-                    // Add each image
-                    source.images.forEach((image, index) => {
-                        const div = document.createElement('div');
-                        div.className = 'input-group mb-2';
-                        div.innerHTML = `
-                            <input type="url" class="form-control" name="images[${index}][url]" placeholder="Image URL" value="${image.url || ''}">
-                            <input type="text" class="form-control" name="images[${index}][label]" placeholder="Label (optional)" value="${image.label || ''}">
-                            <button type="button" class="btn btn-outline-danger remove-image" ${index === 0 ? 'style="display: none;"' : ''}>
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        `;
-                        imageInputs.appendChild(div);
-                        imageCount++;
-                    });
-                }
-
-                // Set selected publishers and scribes
-                if (source.publishers) {
-                    const publisherIds = source.publishers.map(p => p.id);
-                    $('#publishers').val(publisherIds).trigger('change');
-                }
-
-                if (source.scribes) {
-                    const scribeIds = source.scribes.map(s => s.id);
-                    $('#scribes').val(scribeIds).trigger('change');
-                }
-
-                // Store inclusions data and render current page
-                currentPageData = source.inclusions || [];
-                totalInclusions = source.pagination.total;
-                renderCurrentPage();
-
-                // Reset unsaved changes flag
-                hasUnsavedChanges = false;
-
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load source data. Please try again.');
+                alert('Failed to load source details. Please try again.');
             }
         }
-
-        // Handle image inputs
-        let imageCount = 1;
-        const imageInputs = document.getElementById('imageInputs');
-        const addImageBtn = document.getElementById('addImageBtn');
-
-        addImageBtn.addEventListener('click', () => {
-            const div = document.createElement('div');
-            div.className = 'input-group mb-2';
-            div.innerHTML = `
-                <input type="url" class="form-control" name="images[${imageCount}][url]" placeholder="Image URL">
-                <input type="text" class="form-control" name="images[${imageCount}][label]" placeholder="Label (optional)">
-                <button type="button" class="btn btn-outline-danger remove-image">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `;
-            imageInputs.appendChild(div);
-            imageCount++;
-
-            // Show remove buttons if there's more than one image input
-            if (imageCount > 1) {
-                document.querySelectorAll('.remove-image').forEach(btn => btn.style.display = 'block');
-            }
-        });
-
-        imageInputs.addEventListener('click', (e) => {
-            if (e.target.closest('.remove-image')) {
-                e.target.closest('.input-group').remove();
-                imageCount--;
-                
-                // Hide remove buttons if there's only one image input left
-                if (imageCount === 1) {
-                    document.querySelectorAll('.remove-image').forEach(btn => btn.style.display = 'none');
-                }
-            }
-        });
 
         // Handle form submission
         document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const form = e.target;
-            const formData = new FormData(form);
             
-            // Show loading overlay
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            const progressBar = loadingOverlay.querySelector('.progress-bar');
-            loadingOverlay.style.display = 'flex';
-            progressBar.style.width = '0%';
+            const sourceId = document.getElementById('source_id').value;
+            const formData = {
+                code: document.getElementById('code').value,
+                title: document.getElementById('title').value,
+                type: document.getElementById('type').value,
+                format: document.getElementById('format').value,
+                town: document.getElementById('town').value,
+                rism_link: document.getElementById('rism_link').value,
+                catalogued: document.getElementById('catalogued').checked
+            };
 
             try {
-                // Convert form data to object
-                const data = {
-                    code: formData.get('code'),
-                    title: formData.get('title'),
-                    type: formData.get('type'),
-                    format: formData.get('format'),
-                    town: formData.get('town'),
-                    rismLink: formData.get('rismLink'),
-                    catalogued: formData.get('catalogued') === 'on',
-                    fromYear: formData.get('fromYear') ? parseInt(formData.get('fromYear')) : null,
-                    toYear: formData.get('toYear') ? parseInt(formData.get('toYear')) : null,
-                    fromYearAnnotation: formData.get('fromYearAnnotation'),
-                    toYearAnnotation: formData.get('toYearAnnotation'),
-                    dates: formData.get('dates'),
-                    images: [],
-                    inclusions: collectInclusionData()
-                };
-
-                // Get selected publishers and scribes
-                const publishersSelect = document.getElementById('publishers');
-                const scribesSelect = document.getElementById('scribes');
-                data.publisherIds = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
-                data.scribeIds = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
-
-                // Collect image data
-                const imageUrls = formData.getAll('images[0][url]');
-                const imageLabels = formData.getAll('images[0][label]');
-                
-                for (let i = 0; i < imageUrls.length; i++) {
-                    if (imageUrls[i]) {
-                        data.images.push({
-                            url: imageUrls[i],
-                            label: imageLabels[i] || ''
-                        });
-                    }
-                }
-
-                // Update progress
-                progressBar.style.width = '30%';
-
-                // Send the data to the server
-                const response = await fetch(`/sources/${sourceId}`, {
-                    method: 'POST',
+                const response = await fetch(`/api/sources/${sourceId}`, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(formData)
                 });
-
-                // Update progress
-                progressBar.style.width = '60%';
 
                 if (!response.ok) {
                     throw new Error('Failed to update source');
                 }
 
-                // Update progress
-                progressBar.style.width = '100%';
-
-                // Update last saved timestamp
-                const now = new Date();
-                document.getElementById('lastSaved').textContent = `Last saved: ${now.toLocaleString()}`;
-                
-                // Show success message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
-                    Changes saved successfully
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('.card-body').appendChild(alertDiv);
-
-                // Remove alert after 3 seconds
-                setTimeout(() => {
-                    alertDiv.remove();
-                }, 3000);
-
-                // Reset unsaved changes flag
-                hasUnsavedChanges = false;
-
-            } catch (error) {
-                console.error('Error updating source:', error);
-                alert('Failed to update source. Please try again.');
-            } finally {
-                // Hide loading overlay after a short delay to show 100%
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 500);
-            }
-        });
-
-        // Handle delete
-        document.getElementById('deleteButton').addEventListener('click', () => {
-            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-            deleteModal.show();
-        });
-
-        document.getElementById('confirmDelete').addEventListener('click', async () => {
-            try {
-                const response = await fetch(`/sources/${sourceId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to delete source');
-                }
-
+                alert('Source updated successfully');
                 window.location.href = 'index.html';
             } catch (error) {
-                console.error('Error deleting source:', error);
-                alert('Failed to delete source. Please try again.');
+                console.error('Error:', error);
+                alert('Failed to update source. Please try again.');
             }
         });
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                await Promise.all([
-                    fetchComposers(),
-                    fetchTitles(),
-                    fetchCompositionsAndTypes()
-                ]);
-                await fetchSource();
-                initializeTitleAutocomplete();
-            } catch (error) {
-                console.error('Error during initialization:', error);
-            }
-        });
-
-        // Inclusions handling
-        let inclusions = [];
-        let validClefs = []; // Will be populated with the hardcoded list
-
-        // Tone and clef lists
-        const tones = [
-            'primi toni',
-            'secundi toni',
-            'tertii toni',
-            'quarti toni',
-            'quinti toni',
-            'sexti toni',
-            'septimi toni',
-            'octavi toni',
-            'noni toni',
-            'duodecimi toni',
-            'mixti toni',
-            'peregrini toni',
-            'proprii toni'
-        ];
-
-        const clefs = [
-            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28',
-            'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5',
-            'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4',
-            'x5', 'org', 'bc', 'lut'
-        ];
-
-        // Function to sort clefs by pitch
-        function sortClefs(clefArray) {
-            if (!clefArray) return [];
-            
-            // First, ensure we have a copy of the array
-            const clefsToSort = [...clefArray];
-            
-            // Sort based on the exact order in the clefs array
-            return clefsToSort.sort((a, b) => {
-                const aIndex = clefs.indexOf(a.clef);
-                const bIndex = clefs.indexOf(b.clef);
-                
-                // If either clef is not in our defined list, put it at the end
-                if (aIndex === -1) return 1;
-                if (bIndex === -1) return -1;
-                
-                // Otherwise, sort by their position in our defined list
-                return aIndex - bIndex;
-            });
-        }
-
-        // Function to validate clef notation
-        function validateClef(clef) {
-            // Remove any brackets for validation
-            const cleanClef = clef.replace(/[\[\]{}()]/g, '');
-            return clefs.includes(cleanClef);
-        }
-
-        // Function to format clef for display
-        function formatClef(clef, isOptional, isMissing, isIncomplete, transitionsTo) {
-            let formatted = clef;
-            if (isOptional) formatted = `(${formatted})`;
-            if (isMissing) formatted = `[${formatted}]`;
-            if (isIncomplete) formatted = `{${formatted}}`;
-            if (transitionsTo && transitionsTo.length > 0) {
-                formatted = `${formatted}/${transitionsTo.join('/')}`;
-            }
-            return formatted;
-        }
-
-        // Function to parse clef from display format
-        function parseClef(formatted) {
-            const isOptional = formatted.includes('(') && formatted.includes(')');
-            const isMissing = formatted.includes('[') && formatted.includes(']');
-            const isIncomplete = formatted.includes('{') && formatted.includes('}');
-            const hasTransitions = formatted.includes('/');
-            
-            let clef = formatted;
-            if (isOptional) clef = clef.replace(/[()]/g, '');
-            if (isMissing) clef = clef.replace(/[\[\]]/g, '');
-            if (isIncomplete) clef = clef.replace(/[{}]/g, '');
-            
-            let transitionsTo = [];
-            if (hasTransitions) {
-                const parts = clef.split('/');
-                clef = parts[0];
-                transitionsTo = parts.slice(1);
-            }
-
-            return {
-                clef,
-                optional: isOptional,
-                missing: isMissing,
-                incomplete: isIncomplete,
-                transitions_to: transitionsTo
-            };
-        }
-
-        // Initialize Select2 for composers and titles
-        function initializeSelect2() {
-            // Initialize composer selects
-            $('.composer-select').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select composer',
-                allowClear: true,
-                ajax: {
-                    url: '/composers/search',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            term: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.results.map(composer => ({
-                                id: composer.id,
-                                text: composer.text
-                            }))
-                        };
-                    },
-                    cache: true
-                },
-                minimumInputLength: 1
-            });
-
-            // Initialize title selects
-            $('.title-select').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Enter or select title',
-                allowClear: true,
-                tags: true,  // Allow free text entry
-                ajax: {
-                    url: '/titles',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            term: params.term
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: data.results.map(title => ({
-                                id: title.id.toString(),  // Convert to string for Select2
-                                text: title.text
-                            }))
-                        };
-                    },
-                    cache: true
-                }
-            });
-        }
-
-        // Function to create a new inclusion row
-        function createInclusionRow(inclusion = null) {
-            const row = document.createElement('tr');
-            row.className = 'inclusion-row';
-            if (inclusion) {
-                row.setAttribute('data-order', inclusion.order);
-                row.setAttribute('data-attributions', JSON.stringify(inclusion.attribution_texts || []));
-                row.setAttribute('data-composers', JSON.stringify(inclusion.composer_ids || []));
-                row.setAttribute('data-clefs', JSON.stringify(inclusion.clefs || []));
-                if (inclusion.composition_data) {
-                    row.setAttribute('data-composition', JSON.stringify(inclusion.composition_data));
-                }
-            }
-            
-            // Order/Position column
-            const orderPositionCell = document.createElement('td');
-            orderPositionCell.className = 'order-position-col';
-            orderPositionCell.innerHTML = `
-                <div class="stacked-inputs">
-                    <input type="number" class="form-control" name="order" value="${inclusion?.order || ''}" placeholder="Order">
-                    <input type="text" class="form-control" name="position" value="${inclusion?.position || ''}" placeholder="Position">
-                </div>
-            `;
-
-            // Attribution/Composer column
-            const attributionCell = document.createElement('td');
-            attributionCell.className = 'attribution-col';
-            attributionCell.innerHTML = `
-                <div class="stacked-inputs">
-                    <input type="text" class="form-control" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}" placeholder="Attribution">
-                    <select class="form-control" name="composer">
-                        <option value="">Select Composer</option>
-                        ${composers.map(c => `<option value="${c.id}" ${inclusion?.composer_ids?.[0] === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-
-            // Title/Details column
-            const compositionCell = document.createElement('td');
-            compositionCell.className = 'composition-col';
-            compositionCell.innerHTML = `
-                <input type="text" class="form-control" name="title" value="${inclusion?.composition_data?.title_id || ''}" placeholder="Title">
-                <div class="composition-details">
-                    <select class="form-control" name="type">
-                        <option value="">Type</option>
-                        ${compositionTypes.map(t => `<option value="${t.id}" ${inclusion?.composition_data?.type_id === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
-                    </select>
-                    <input type="text" class="form-control" name="tone" value="${inclusion?.composition_data?.tone || ''}" placeholder="Tone">
-                    <select class="form-control" name="evenOdd">
-                        <option value="">Even/Odd</option>
-                        <option value="even" ${inclusion?.composition_data?.even_odd === 'even' ? 'selected' : ''}>Even</option>
-                        <option value="odd" ${inclusion?.composition_data?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
-                    </select>
-                </div>
-            `;
-
-            // Clefs column
-            const clefsCell = document.createElement('td');
-            clefsCell.className = 'clefs-col';
-            const clefsContainer = document.createElement('div');
-            clefsContainer.className = 'clef-inputs-container';
-            
-            // Create 8 clef inputs
-            for (let i = 0; i < 8; i++) {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.className = 'form-control clef-input';
-                input.name = `clef_${i}`;
-                input.value = inclusion?.clefs?.[i]?.clef || '';
-                input.placeholder = 'Clef';
-                clefsContainer.appendChild(input);
-            }
-            clefsCell.appendChild(clefsContainer);
-
-            // Notes column
-            const notesCell = document.createElement('td');
-            notesCell.className = 'notes-col';
-            notesCell.innerHTML = `
-                <textarea class="form-control notes-textarea" name="notes">${inclusion?.notes || ''}</textarea>
-            `;
-
-            // Delete button column
-            const deleteCell = document.createElement('td');
-            deleteCell.className = 'delete-col';
-            deleteCell.innerHTML = `
-                <button type="button" class="btn btn-danger btn-sm" onclick="deleteInclusion(this)">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `;
-
-            // Add all cells to the row
-            row.appendChild(orderPositionCell);
-            row.appendChild(attributionCell);
-            row.appendChild(compositionCell);
-            row.appendChild(clefsCell);
-            row.appendChild(notesCell);
-            row.appendChild(deleteCell);
-
-            // Add keyboard navigation for clef inputs
-            const clefInputs = row.querySelectorAll('.clef-input');
-            clefInputs.forEach((input, index) => {
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        const currentIndex = Array.from(clefInputs).indexOf(e.target);
-                        const targetIndex = e.key === 'ArrowRight' ? currentIndex + 1 : currentIndex - 1;
-                        
-                        if (targetIndex >= 0 && targetIndex < clefInputs.length) {
-                            clefInputs[targetIndex].focus();
-                        }
-                    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        const currentIndex = Array.from(clefInputs).indexOf(e.target);
-                        const currentRow = row;
-                        const allRows = Array.from(document.querySelectorAll('.inclusion-row'));
-                        const currentRowIndex = allRows.indexOf(currentRow);
-                        
-                        if (e.key === 'ArrowDown' && currentRowIndex < allRows.length - 1) {
-                            const nextRow = allRows[currentRowIndex + 1];
-                            const nextInputs = nextRow.querySelectorAll('.clef-input');
-                            if (nextInputs[currentIndex]) {
-                                nextInputs[currentIndex].focus();
-                            }
-                        } else if (e.key === 'ArrowUp' && currentRowIndex > 0) {
-                            const prevRow = allRows[currentRowIndex - 1];
-                            const prevInputs = prevRow.querySelectorAll('.clef-input');
-                            if (prevInputs[currentIndex]) {
-                                prevInputs[currentIndex].focus();
-                            }
-                        }
-                    }
-                });
-            });
-
-            return row;
-        }
-
-        // Function to check for matching composition
-        async function checkCompositionMatch(row) {
-            console.log('Checking composition match for row:', row); // Debug log
-            try {
-                const composerIds = [
-                    row.querySelector('[name="composer"]').value,
-                    ...Array.from(row.querySelectorAll('.additional-composers [name="composer"]'))
-                        .map(select => select.value)
-                ].filter(id => id).map(id => parseInt(id));
-
-                // Convert array to PostgreSQL array format string
-                const composerIdsString = `{${composerIds.join(',')}}`;
-
-                const titleId = row.querySelector('[name="title"]').value;
-                const typeId = row.querySelector('[name="type"]').value;
-                const tone = row.querySelector('[name="tone"]').value;
-                const evenOdd = row.querySelector('[name="evenOdd"]').value;
-                
-                // Calculate number of voices from non-optional clefs
-                const clefs = Array.from(row.querySelectorAll('.clef-input'))
-                    .map(input => parseClef(input.value))
-                    .filter(clef => clef.clef && !clef.optional);
-                const numberOfVoices = clefs.length;
-
-                console.log('Composition data:', { composerIdsString, titleId, typeId, tone, evenOdd, numberOfVoices }); // Debug log
-
-                // Only check if we have enough data
-                if (composerIds.length > 0 && titleId && typeId) {
-                    const response = await fetch('/compositions/match', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            composer_ids: composerIdsString,
-                            title_id: parseInt(titleId),
-                            type_id: parseInt(typeId),
-                            tone: tone || null,
-                            even_odd: evenOdd || null,
-                            number_of_voices: numberOfVoices,
-                            source_id: window.location.pathname.split('/').pop() // Get source ID from URL
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to check composition match');
-                    }
-
-                    const data = await response.json();
-                    console.log('Match response:', data); // Debug log
-                    
-                    // Store the composition data in a data attribute for later use
-                    const compositionData = {
-                        composer_ids: composerIdsString,
-                        title_id: parseInt(titleId),
-                        type_id: parseInt(typeId),
-                        tone: tone || null,
-                        even_odd: evenOdd || null,
-                        number_of_voices: numberOfVoices
-                    };
-                    row.setAttribute('data-composition', JSON.stringify(compositionData));
-                    
-                    // Update the hidden composition_id field
-                    const compositionIdField = row.querySelector('[name="composition_id"]');
-                    compositionIdField.value = data.composition_id || '';
-
-                    // Update the status indicator
-                    updateCompositionStatus(row, data.status);
-                } else {
-                    updateCompositionStatus(row, 'incomplete');
-                }
-            } catch (error) {
-                console.error('Error checking composition match:', error);
-                updateCompositionStatus(row, 'error');
-            }
-        }
-
-        // Add event listener for the Add Inclusion button
-        document.getElementById('addInclusionBtn').addEventListener('click', () => {
-            const newInclusion = {
-                order: totalInclusions + 1,
-                attribution_texts: [],
-                composer_ids: [],
-                clefs: [],
-                position: '',
-                notes: ''
-            };
-            
-            currentPageData.push(newInclusion);
-            
-            // If we're on the last page and it's not full, stay on current page
-            // Otherwise, go to the last page
-            const maxPage = Math.ceil(totalInclusions / ROWS_PER_PAGE) - 1;
-            if (currentPage !== maxPage) {
-                currentPage = maxPage;
-            }
-            
-            renderCurrentPage();
-        });
-
-        // Handle clef input validation and formatting
-        function handleClefInputChange(input) {
-            const row = input.closest('tr');
-            const clefInputs = row.querySelectorAll('.clef-input');
-            const clefs = Array.from(clefInputs).map(input => input.value).filter(Boolean);
-            
-            // Just store the clefs in the data attribute
-            row.setAttribute('data-clefs', JSON.stringify(clefs));
-        }
-
-        // Handle additional attributions
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.add-attribution')) {
-                const container = e.target.closest('.attribution-container');
-                const additionalDiv = container.querySelector('.additional-attributions');
-                const newInput = document.createElement('div');
-                newInput.className = 'input-group input-group-sm mt-1';
-                newInput.innerHTML = `
-                    <input type="text" class="form-control" name="attribution">
-                    <button type="button" class="btn btn-outline-danger remove-attribution">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                `;
-                additionalDiv.appendChild(newInput);
-                e.target.style.display = 'none';
-            }
-            
-            if (e.target.closest('.remove-attribution')) {
-                const inputGroup = e.target.closest('.input-group');
-                inputGroup.remove();
-                const container = e.target.closest('.attribution-container');
-                const additionalDiv = container.querySelector('.additional-attributions');
-                if (additionalDiv.children.length === 0) {
-                    container.querySelector('.add-attribution').style.display = 'block';
-                }
-            }
-        });
-
-        // Handle additional clef rows
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.add-clef-row')) {
-                const container = e.target.closest('.clef-container');
-                const newRow = document.createElement('div');
-                newRow.className = 'clef-grid mt-1';
-                newRow.innerHTML = Array(8).fill(0).map(() => `
-                    <input type="text" class="form-control form-control-sm clef-input" name="clef">
-                `).join('');
-                container.insertBefore(newRow, e.target.closest('.add-clef-row'));
-            }
-        });
-
-        // Handle removal of inclusions
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.remove-inclusion')) {
-                e.target.closest('tr').remove();
-            }
-        });
-
-        // Function to collect inclusion data for saving
-        function collectInclusionData() {
-            return currentPageData.map(inclusion => {
-                const row = document.querySelector(`#inclusionsTable tr[data-order="${inclusion.order}"]`);
-                if (row) {
-                    // Update the inclusion data from the visible row
-                    inclusion.attribution_texts = JSON.parse(row.getAttribute('data-attributions') || '[]');
-                    inclusion.composer_ids = JSON.parse(row.getAttribute('data-composers') || '[]');
-                    inclusion.clefs = JSON.parse(row.getAttribute('data-clefs') || '[]');
-                    inclusion.position = row.querySelector('[name="position"]').value;
-                    inclusion.notes = row.querySelector('[name="notes"]').value;
-                    inclusion.composition_data = JSON.parse(row.getAttribute('data-composition') || 'null');
-                }
-                return inclusion;
-            });
-        }
-
-        // Title autocomplete functionality
-        function initializeTitleAutocomplete() {
-            const titleInputs = document.querySelectorAll('[name="title"]');
-            titleInputs.forEach(input => {
-                input.addEventListener('input', debounce(async (e) => {
-                    const value = e.target.value.toLowerCase();
-                    if (value.length < 2) return;
-
-                    const matches = titles.filter(title => 
-                        title.text.toLowerCase().includes(value)
-                    ).slice(0, 10); // Limit to 10 suggestions
-
-                    // Remove existing suggestions
-                    const existingList = input.parentElement.querySelector('.title-suggestions');
-                    if (existingList) existingList.remove();
-
-                    if (matches.length > 0) {
-                        const list = document.createElement('ul');
-                        list.className = 'title-suggestions list-unstyled position-absolute bg-white border rounded shadow-sm';
-                        list.style.zIndex = '1000';
-                        list.style.width = '100%';
-                        list.style.maxHeight = '200px';
-                        list.style.overflowY = 'auto';
-
-                        matches.forEach(match => {
-                            const li = document.createElement('li');
-                            li.className = 'p-2 cursor-pointer';
-                            li.style.cursor = 'pointer';
-                            li.textContent = match.text;
-                            li.addEventListener('click', () => {
-                                input.value = match.text;
-                                list.remove();
-                            });
-                            list.appendChild(li);
-                        });
-
-                        input.parentElement.style.position = 'relative';
-                        input.parentElement.appendChild(list);
-                    }
-                }, 300));
-            });
-        }
-
-        // Debounce function to limit API calls
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // Add event listener for dynamically added title inputs
-        document.addEventListener('input', (e) => {
-            if (e.target.name === 'title' && !e.target.hasAttribute('data-autocomplete-initialized')) {
-                e.target.setAttribute('data-autocomplete-initialized', 'true');
-                initializeTitleAutocomplete();
-            }
-        });
-
-        // Fetch compositions and types
-        async function fetchCompositionsAndTypes() {
-            try {
-                const response = await fetch('/composition-types');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch composition types');
-                }
-
-                const data = await response.json();
-                compositionTypes = data.types;
-
-                // Populate type dropdowns
-                const typeSelects = document.querySelectorAll('[name="type"]');
-                typeSelects.forEach(select => {
-                    select.innerHTML = `
-                        <option value="">Select type</option>
-                        ${compositionTypes.map(type => `
-                            <option value="${type.id}">${type.name}</option>
-                        `).join('')}
-                    `;
-                });
-            } catch (error) {
-                console.error('Error fetching composition types:', error);
-            }
-        }
-
-        // Function to update composition status indicator
-        function updateCompositionStatus(row, status) {
-            let indicator = row.querySelector('.composition-status');
-            if (!indicator) {
-                indicator = document.createElement('div');
-                indicator.className = 'composition-status position-absolute';
-                indicator.style.right = '-25px';
-                indicator.style.top = '50%';
-                indicator.style.transform = 'translateY(-50%)';
-                row.querySelector('td').style.position = 'relative';
-                row.querySelector('td').appendChild(indicator);
-            }
-
-            indicator.innerHTML = '';
-            if (status === 'match') {
-                indicator.innerHTML = '<i class="bi bi-check-circle-fill text-success" title="Matches existing composition"></i>';
-            } else if (status === 'pending') {
-                indicator.innerHTML = '<i class="bi bi-clock-fill text-warning" title="Pending composition"></i>';
-            } else if (status === 'new') {
-                indicator.innerHTML = '<i class="bi bi-plus-circle-fill text-primary" title="New composition"></i>';
-            } else if (status === 'incomplete') {
-                indicator.innerHTML = '<i class="bi bi-dash-circle-fill text-muted" title="Incomplete data"></i>';
-            } else {
-                indicator.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" title="Error"></i>';
-            }
-        }
-
-        // Add unsaved changes tracking
-        let hasUnsavedChanges = false;
-
-        // Function to check for unsaved changes
-        function checkForUnsavedChanges() {
-            const currentPageInclusions = currentPageData.map(inclusion => {
-                const row = document.querySelector(`#inclusionsTable tr[data-order="${inclusion.order}"]`);
-                if (row) {
-                    return {
-                        ...inclusion,
-                        attribution_texts: JSON.parse(row.getAttribute('data-attributions') || '[]'),
-                        composer_ids: JSON.parse(row.getAttribute('data-composers') || '[]'),
-                        clefs: JSON.parse(row.getAttribute('data-clefs') || '[]'),
-                        position: row.querySelector('[name="position"]').value,
-                        notes: row.querySelector('[name="notes"]').value,
-                        composition_data: JSON.parse(row.getAttribute('data-composition') || 'null')
-                    };
-                }
-                return inclusion;
-            });
-
-            // Compare with original data
-            return JSON.stringify(currentPageInclusions) !== JSON.stringify(currentPageData);
-        }
-
-        // Update the form submission to reset unsaved changes flag
-        document.getElementById('editSourceForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Show loading overlay
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            loadingOverlay.style.display = 'flex';
-            
-            try {
-                // ... existing save logic ...
-
-                // Reset unsaved changes flag
-                hasUnsavedChanges = false;
-                
-                // Show success message
-                alert('Source updated successfully');
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to update source. Please try again.');
-            } finally {
-                loadingOverlay.style.display = 'none';
-            }
-        });
-
-        // Add event listeners for form changes
-        document.getElementById('editSourceForm').addEventListener('change', () => {
-            hasUnsavedChanges = checkForUnsavedChanges();
-        });
-
-        // Add beforeunload event listener
-        window.addEventListener('beforeunload', (e) => {
-            if (hasUnsavedChanges) {
-                e.preventDefault();
-                e.returnValue = '';
-                return '';
-            }
-        });
-
-        // Update pagination event listeners to check for unsaved changes
-        document.getElementById('prevPageBtn').addEventListener('click', async () => {
-            if (hasUnsavedChanges) {
-                if (!confirm('You have unsaved changes. Would you like to save before changing pages?')) {
-                    return;
-                }
-                await document.getElementById('editSourceForm').dispatchEvent(new Event('submit'));
-            }
-            if (currentPage > 0) {
-                currentPage--;
-                await fetchSource();
-            }
-        });
-
-        document.getElementById('nextPageBtn').addEventListener('click', async () => {
-            if (hasUnsavedChanges) {
-                if (!confirm('You have unsaved changes. Would you like to save before changing pages?')) {
-                    return;
-                }
-                await document.getElementById('editSourceForm').dispatchEvent(new Event('submit'));
-            }
-            const maxPage = Math.ceil(totalInclusions / ROWS_PER_PAGE) - 1;
-            if (currentPage < maxPage) {
-                currentPage++;
-                await fetchSource();
-            }
-        });
+        fetchSource();
     </script>
 </body>
 </html> 

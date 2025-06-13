@@ -190,9 +190,8 @@
         });
 
         // Handle form submission
-        document.getElementById('addSourceForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
+        document.getElementById('addSourceBtn').addEventListener('click', async () => {
+            const form = document.getElementById('addSourceForm');
             const formData = new FormData(form);
             
             // Convert form data to object
