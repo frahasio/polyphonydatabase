@@ -840,11 +840,11 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
       );
 
       // Create maps for quick lookup
-      const existingMap = new Map(existingInclusions.rows.map(i => [i.order, i]));
-      const newMap = new Map(inclusions.map(i => [i.order, i]));
+      const existingMap = new Map(existingInclusions.rows.map((i: { order: number; id: number }) => [i.order, i]));
+      const newMap = new Map(inclusions.map((i: { order: number }) => [i.order, i]));
 
       // Find inclusions to delete (exist in DB but not in new data)
-      const toDelete = existingInclusions.rows.filter(i => !newMap.has(i.order));
+      const toDelete = existingInclusions.rows.filter((i: { order: number; id: number }) => !newMap.has(i.order));
       if (toDelete.length > 0) {
         const deleteIds = toDelete.map(i => i.id);
         await client.query('DELETE FROM clef_inclusions WHERE inclusion_id = ANY($1)', [deleteIds]);
