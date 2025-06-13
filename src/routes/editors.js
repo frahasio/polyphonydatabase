@@ -101,4 +101,33 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Update editor
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, date_of_birth } = req.body;
+
+    const query = `
+      UPDATE editors
+      SET 
+        name = $1,
+        date_of_birth = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [name, date_of_birth || null, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Editor not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating editor:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router; 
