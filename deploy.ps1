@@ -43,7 +43,7 @@ git add .
 git commit -m $commitMessage
 git push origin $currentBranch
 
-# Push to Heroku
+# Push to Heroku (force push to main branch)
 Write-Host "`nPushing to Heroku..." -ForegroundColor Green
 git push heroku $currentBranch:main --force
 
