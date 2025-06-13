@@ -101,18 +101,24 @@
             `).join('');
         }
 
-        // Add new performer
-        document.getElementById('savePerformerButton').addEventListener('click', async () => {
-            const name = document.getElementById('name').value;
+        const form = document.getElementById('addPerformerForm');
+        const submitBtn = document.getElementById('savePerformerButton');
+        const modal = document.getElementById('addPerformerModal');
+        let editingId = null;
 
+        submitBtn.addEventListener('click', async () => {
+            const name = document.getElementById('name').value;
             if (!name) {
                 alert('Please enter a name');
                 return;
             }
 
             try {
-                const response = await fetch('/api/performers', {
-                    method: 'POST',
+                const url = editingId ? `/api/performers/${editingId}` : '/api/performers';
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -120,19 +126,56 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create performer');
+                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} performer`);
                 }
 
                 // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addPerformerModal'));
-                modal.hide();
-                document.getElementById('addPerformerForm').reset();
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
+                form.reset();
+                resetFormState();
                 fetchPerformers();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to create performer. Please try again.');
+                console.error(`Error ${editingId ? 'updating' : 'creating'} performer:`, error);
+                alert(`Failed to ${editingId ? 'update' : 'create'} performer. Please try again.`);
             }
         });
+
+        function resetFormState() {
+            editingId = null;
+            modal.querySelector('.modal-title').textContent = 'Add New Performer';
+            submitBtn.textContent = 'Save';
+        }
+
+        // Handle edit
+        async function editPerformer(id) {
+            try {
+                const response = await fetch(`/api/performers/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch performer details');
+                }
+                const data = await response.json();
+                const performer = data.performer;
+
+                // Set editing state
+                editingId = id;
+                modal.querySelector('.modal-title').textContent = 'Edit Performer';
+                submitBtn.textContent = 'Save Changes';
+
+                // Populate the form with performer data
+                document.getElementById('name').value = performer.name || '';
+
+                // Show the modal
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load performer details. Please try again.');
+            }
+        }
+
+        // Reset form state when modal is hidden
+        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete performer
         async function deletePerformer(id) {

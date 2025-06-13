@@ -102,8 +102,12 @@
             `).join('');
         }
 
-        // Add new publisher
-        document.getElementById('savePublisherButton').addEventListener('click', async () => {
+        const form = document.getElementById('addPublisherForm');
+        const submitBtn = document.getElementById('savePublisherButton');
+        const modal = document.getElementById('addPublisherModal');
+        let editingId = null;
+
+        submitBtn.addEventListener('click', async () => {
             const name = document.getElementById('name').value;
             if (!name) {
                 alert('Please enter a name');
@@ -111,8 +115,11 @@
             }
 
             try {
-                const response = await fetch('/api/publishers', {
-                    method: 'POST',
+                const url = editingId ? `/api/publishers/${editingId}` : '/api/publishers';
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -120,19 +127,56 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create publisher');
+                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} publisher`);
                 }
 
                 // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addPublisherModal'));
-                modal.hide();
-                document.getElementById('addPublisherForm').reset();
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
+                form.reset();
+                resetFormState();
                 fetchPublishers();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to create publisher. Please try again.');
+                console.error(`Error ${editingId ? 'updating' : 'creating'} publisher:`, error);
+                alert(`Failed to ${editingId ? 'update' : 'create'} publisher. Please try again.`);
             }
         });
+
+        function resetFormState() {
+            editingId = null;
+            modal.querySelector('.modal-title').textContent = 'Add New Publisher';
+            submitBtn.textContent = 'Save';
+        }
+
+        // Handle edit
+        async function editPublisher(id) {
+            try {
+                const response = await fetch(`/api/publishers/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch publisher details');
+                }
+                const data = await response.json();
+                const publisher = data.publisher;
+
+                // Set editing state
+                editingId = id;
+                modal.querySelector('.modal-title').textContent = 'Edit Publisher';
+                submitBtn.textContent = 'Save Changes';
+
+                // Populate the form with publisher data
+                document.getElementById('name').value = publisher.name || '';
+
+                // Show the modal
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load publisher details. Please try again.');
+            }
+        }
+
+        // Reset form state when modal is hidden
+        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete publisher
         async function deletePublisher(id) {
