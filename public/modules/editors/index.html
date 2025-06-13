@@ -79,7 +79,7 @@
         function formatDate(dateString) {
             if (!dateString) return '';
             const date = new Date(dateString);
-            return date.toLocaleDateString();
+            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD for input[type="date"]
         }
 
         async function fetchEditors() {
@@ -105,7 +105,7 @@
             editorsList.innerHTML = editors.map(editor => `
                 <tr>
                     <td>${editor.name || ''}</td>
-                    <td>${formatDate(editor.dateOfBirth)}</td>
+                    <td>${editor.date_of_birth ? new Date(editor.date_of_birth).toLocaleDateString() : ''}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary me-2" onclick="editEditor(${editor.id})">
                             <i class="bi bi-pencil"></i>
@@ -186,7 +186,7 @@
 
                 // Populate the form with editor data
                 document.getElementById('name').value = editor.name || '';
-                document.getElementById('dateOfBirth').value = editor.date_of_birth || '';
+                document.getElementById('dateOfBirth').value = editor.date_of_birth ? formatDate(editor.date_of_birth) : '';
 
                 // Show the modal
                 const modalInstance = new bootstrap.Modal(modal);

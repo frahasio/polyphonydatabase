@@ -74,13 +74,16 @@ router.post('/', async (req, res) => {
 
     const query = `
       INSERT INTO editors (
-        name, date_of_birth
+        name, 
+        date_of_birth,
+        created_at,
+        updated_at
       )
-      VALUES ($1, $2)
+      VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [name, date_of_birth]);
+    const result = await pool.query(query, [name, date_of_birth || null]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
