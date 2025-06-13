@@ -9,42 +9,27 @@ router.get('/', async (req, res) => {
     const searchTerm = req.query.search || '';
     let query = `
       SELECT 
-        p.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', s.id,
-              'code', s.code,
-              'title', s.title
-            )
-          ) FILTER (WHERE s.id IS NOT NULL),
-          '[]'
-        ) as sources
-      FROM publishers p
-      LEFT JOIN publishers_sources ps ON p.id = ps.publisher_id
-      LEFT JOIN sources s ON ps.source_id = s.id
+        id,
+        name
+      FROM publishers
     `;
 
     const queryParams = [];
     if (searchTerm) {
       query += `
-        WHERE p.name ILIKE $1
+        WHERE name ILIKE $1
       `;
       queryParams.push(`%${searchTerm}%`);
     }
 
     query += `
-      GROUP BY p.id
-      ORDER BY p.name
+      ORDER BY name
     `;
 
     const result = await pool.query(query, queryParams);
     
     res.json({
-      publishers: result.rows.map(row => ({
-        ...row,
-        sources: row.sources || []
-      }))
+      publishers: result.rows
     });
   } catch (error) {
     console.error('Error fetching publishers:', error);
@@ -56,66 +41,23 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const publisherId = parseInt(req.params.id);
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
 
-    // Fetch publisher details with sources
-    const publisherQuery = `
+    const query = `
       SELECT 
-        p.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', s.id,
-              'code', s.code,
-              'title', s.title
-            )
-          ) FILTER (WHERE s.id IS NOT NULL),
-          '[]'
-        ) as sources
-      FROM publishers p
-      LEFT JOIN publishers_sources ps ON p.id = ps.publisher_id
-      LEFT JOIN sources s ON ps.source_id = s.id
-      WHERE p.id = $1
-      GROUP BY p.id
+        id,
+        name
+      FROM publishers
+      WHERE id = $1
     `;
 
-    const publisherResult = await pool.query(publisherQuery, [publisherId]);
+    const result = await pool.query(query, [publisherId]);
     
-    if (publisherResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Publisher not found' });
     }
 
-    const publisher = publisherResult.rows[0];
-
-    // Fetch total count of sources
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM publishers_sources 
-      WHERE publisher_id = $1
-    `;
-    const countResult = await pool.query(countQuery, [publisherId]);
-    const totalSources = parseInt(countResult.rows[0].count);
-
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalSources / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
     res.json({
-      publisher: {
-        ...publisher,
-        sources: publisher.sources || []
-      },
-      pagination: {
-        total: totalSources,
-        page,
-        limit,
-        totalPages,
-        hasNextPage,
-        hasPrevPage
-      }
+      publisher: result.rows[0]
     });
   } catch (error) {
     console.error('Error fetching publisher:', error);
@@ -126,17 +68,17 @@ router.get('/:id', async (req, res) => {
 // Add new publisher
 router.post('/', async (req, res) => {
   try {
-    const { name, notes } = req.body;
+    const { name } = req.body;
 
     const query = `
       INSERT INTO publishers (
-        name, notes
+        name
       )
-      VALUES ($1, $2)
+      VALUES ($1)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [name, notes]);
+    const result = await pool.query(query, [name]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

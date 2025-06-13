@@ -9,43 +9,28 @@ router.get('/', async (req, res) => {
     const searchTerm = req.query.search || '';
     let query = `
       SELECT 
-        e.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'title', comp.title,
-              'type', ct.name
-            )
-          ) FILTER (WHERE comp.id IS NOT NULL),
-          '[]'
-        ) as compositions
-      FROM editors e
-      LEFT JOIN editors_compositions ec ON e.id = ec.editor_id
-      LEFT JOIN compositions comp ON ec.composition_id = comp.id
-      LEFT JOIN composition_types ct ON comp.composition_type_id = ct.id
+        id,
+        name,
+        date_of_birth
+      FROM editors
     `;
 
     const queryParams = [];
     if (searchTerm) {
       query += `
-        WHERE e.name ILIKE $1
+        WHERE name ILIKE $1
       `;
       queryParams.push(`%${searchTerm}%`);
     }
 
     query += `
-      GROUP BY e.id
-      ORDER BY e.name
+      ORDER BY name
     `;
 
     const result = await pool.query(query, queryParams);
     
     res.json({
-      editors: result.rows.map(row => ({
-        ...row,
-        compositions: row.compositions || []
-      }))
+      editors: result.rows
     });
   } catch (error) {
     console.error('Error fetching editors:', error);
@@ -57,67 +42,24 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const editorId = parseInt(req.params.id);
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
 
-    // Fetch editor details with compositions
-    const editorQuery = `
+    const query = `
       SELECT 
-        e.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'title', comp.title,
-              'type', ct.name
-            )
-          ) FILTER (WHERE comp.id IS NOT NULL),
-          '[]'
-        ) as compositions
-      FROM editors e
-      LEFT JOIN editors_compositions ec ON e.id = ec.editor_id
-      LEFT JOIN compositions comp ON ec.composition_id = comp.id
-      LEFT JOIN composition_types ct ON comp.composition_type_id = ct.id
-      WHERE e.id = $1
-      GROUP BY e.id
+        id,
+        name,
+        date_of_birth
+      FROM editors
+      WHERE id = $1
     `;
 
-    const editorResult = await pool.query(editorQuery, [editorId]);
+    const result = await pool.query(query, [editorId]);
     
-    if (editorResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Editor not found' });
     }
 
-    const editor = editorResult.rows[0];
-
-    // Fetch total count of compositions
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM editors_compositions 
-      WHERE editor_id = $1
-    `;
-    const countResult = await pool.query(countQuery, [editorId]);
-    const totalCompositions = parseInt(countResult.rows[0].count);
-
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCompositions / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
     res.json({
-      editor: {
-        ...editor,
-        compositions: editor.compositions || []
-      },
-      pagination: {
-        total: totalCompositions,
-        page,
-        limit,
-        totalPages,
-        hasNextPage,
-        hasPrevPage
-      }
+      editor: result.rows[0]
     });
   } catch (error) {
     console.error('Error fetching editor:', error);
@@ -128,17 +70,17 @@ router.get('/:id', async (req, res) => {
 // Add new editor
 router.post('/', async (req, res) => {
   try {
-    const { name, notes } = req.body;
+    const { name, date_of_birth } = req.body;
 
     const query = `
       INSERT INTO editors (
-        name, notes
+        name, date_of_birth
       )
       VALUES ($1, $2)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [name, notes]);
+    const result = await pool.query(query, [name, date_of_birth]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

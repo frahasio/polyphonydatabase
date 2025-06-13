@@ -9,42 +9,27 @@ router.get('/', async (req, res) => {
     const searchTerm = req.query.search || '';
     let query = `
       SELECT 
-        s.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', src.id,
-              'code', src.code,
-              'title', src.title
-            )
-          ) FILTER (WHERE src.id IS NOT NULL),
-          '[]'
-        ) as sources
-      FROM scribes s
-      LEFT JOIN scribes_sources ss ON s.id = ss.scribe_id
-      LEFT JOIN sources src ON ss.source_id = src.id
+        id,
+        name
+      FROM scribes
     `;
 
     const queryParams = [];
     if (searchTerm) {
       query += `
-        WHERE s.name ILIKE $1
+        WHERE name ILIKE $1
       `;
       queryParams.push(`%${searchTerm}%`);
     }
 
     query += `
-      GROUP BY s.id
-      ORDER BY s.name
+      ORDER BY name
     `;
 
     const result = await pool.query(query, queryParams);
     
     res.json({
-      scribes: result.rows.map(row => ({
-        ...row,
-        sources: row.sources || []
-      }))
+      scribes: result.rows
     });
   } catch (error) {
     console.error('Error fetching scribes:', error);
@@ -56,66 +41,23 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const scribeId = parseInt(req.params.id);
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
 
-    // Fetch scribe details with sources
-    const scribeQuery = `
+    const query = `
       SELECT 
-        s.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', src.id,
-              'code', src.code,
-              'title', src.title
-            )
-          ) FILTER (WHERE src.id IS NOT NULL),
-          '[]'
-        ) as sources
-      FROM scribes s
-      LEFT JOIN scribes_sources ss ON s.id = ss.scribe_id
-      LEFT JOIN sources src ON ss.source_id = src.id
-      WHERE s.id = $1
-      GROUP BY s.id
+        id,
+        name
+      FROM scribes
+      WHERE id = $1
     `;
 
-    const scribeResult = await pool.query(scribeQuery, [scribeId]);
+    const result = await pool.query(query, [scribeId]);
     
-    if (scribeResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Scribe not found' });
     }
 
-    const scribe = scribeResult.rows[0];
-
-    // Fetch total count of sources
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM scribes_sources 
-      WHERE scribe_id = $1
-    `;
-    const countResult = await pool.query(countQuery, [scribeId]);
-    const totalSources = parseInt(countResult.rows[0].count);
-
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalSources / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
     res.json({
-      scribe: {
-        ...scribe,
-        sources: scribe.sources || []
-      },
-      pagination: {
-        total: totalSources,
-        page,
-        limit,
-        totalPages,
-        hasNextPage,
-        hasPrevPage
-      }
+      scribe: result.rows[0]
     });
   } catch (error) {
     console.error('Error fetching scribe:', error);
@@ -126,17 +68,17 @@ router.get('/:id', async (req, res) => {
 // Add new scribe
 router.post('/', async (req, res) => {
   try {
-    const { name, notes } = req.body;
+    const { name } = req.body;
 
     const query = `
       INSERT INTO scribes (
-        name, notes
+        name
       )
-      VALUES ($1, $2)
+      VALUES ($1)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [name, notes]);
+    const result = await pool.query(query, [name]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

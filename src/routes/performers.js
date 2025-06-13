@@ -9,43 +9,27 @@ router.get('/', async (req, res) => {
     const searchTerm = req.query.search || '';
     let query = `
       SELECT 
-        p.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'title', comp.title,
-              'type', ct.name
-            )
-          ) FILTER (WHERE comp.id IS NOT NULL),
-          '[]'
-        ) as compositions
-      FROM performers p
-      LEFT JOIN performers_compositions pc ON p.id = pc.performer_id
-      LEFT JOIN compositions comp ON pc.composition_id = comp.id
-      LEFT JOIN composition_types ct ON comp.composition_type_id = ct.id
+        id,
+        name
+      FROM performers
     `;
 
     const queryParams = [];
     if (searchTerm) {
       query += `
-        WHERE p.name ILIKE $1
+        WHERE name ILIKE $1
       `;
       queryParams.push(`%${searchTerm}%`);
     }
 
     query += `
-      GROUP BY p.id
-      ORDER BY p.name
+      ORDER BY name
     `;
 
     const result = await pool.query(query, queryParams);
     
     res.json({
-      performers: result.rows.map(row => ({
-        ...row,
-        compositions: row.compositions || []
-      }))
+      performers: result.rows
     });
   } catch (error) {
     console.error('Error fetching performers:', error);
@@ -57,67 +41,23 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const performerId = parseInt(req.params.id);
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
 
-    // Fetch performer details with compositions
-    const performerQuery = `
+    const query = `
       SELECT 
-        p.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'title', comp.title,
-              'type', ct.name
-            )
-          ) FILTER (WHERE comp.id IS NOT NULL),
-          '[]'
-        ) as compositions
-      FROM performers p
-      LEFT JOIN performers_compositions pc ON p.id = pc.performer_id
-      LEFT JOIN compositions comp ON pc.composition_id = comp.id
-      LEFT JOIN composition_types ct ON comp.composition_type_id = ct.id
-      WHERE p.id = $1
-      GROUP BY p.id
+        id,
+        name
+      FROM performers
+      WHERE id = $1
     `;
 
-    const performerResult = await pool.query(performerQuery, [performerId]);
+    const result = await pool.query(query, [performerId]);
     
-    if (performerResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Performer not found' });
     }
 
-    const performer = performerResult.rows[0];
-
-    // Fetch total count of compositions
-    const countQuery = `
-      SELECT COUNT(*) 
-      FROM performers_compositions 
-      WHERE performer_id = $1
-    `;
-    const countResult = await pool.query(countQuery, [performerId]);
-    const totalCompositions = parseInt(countResult.rows[0].count);
-
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCompositions / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-
     res.json({
-      performer: {
-        ...performer,
-        compositions: performer.compositions || []
-      },
-      pagination: {
-        total: totalCompositions,
-        page,
-        limit,
-        totalPages,
-        hasNextPage,
-        hasPrevPage
-      }
+      performer: result.rows[0]
     });
   } catch (error) {
     console.error('Error fetching performer:', error);
@@ -128,17 +68,17 @@ router.get('/:id', async (req, res) => {
 // Add new performer
 router.post('/', async (req, res) => {
   try {
-    const { name, notes } = req.body;
+    const { name } = req.body;
 
     const query = `
       INSERT INTO performers (
-        name, notes
+        name
       )
-      VALUES ($1, $2)
+      VALUES ($1)
       RETURNING *
     `;
 
-    const result = await pool.query(query, [name, notes]);
+    const result = await pool.query(query, [name]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
