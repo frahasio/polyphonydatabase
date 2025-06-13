@@ -37,16 +37,18 @@ if (-not $herokuRemote) {
 Write-Host "`nPushing to GitHub..." -ForegroundColor Green
 git add .
 git commit -m $commitMessage
-git push origin node-rewrite
+git push origin main
 
 # Push to Heroku
 Write-Host "`nPushing to Heroku..." -ForegroundColor Green
-git push heroku node-rewrite:main --force
+git push heroku main --force
 
-# Show deployment status
+# Show brief deployment status
 Write-Host "`nChecking deployment status..." -ForegroundColor Green
 if ($herokuAppName) {
-    heroku logs --tail --app $herokuAppName
+    heroku releases --app $herokuAppName | Select-Object -First 1
+    Write-Host "`nDeployment complete! You can check the full logs with: heroku logs --app $herokuAppName" -ForegroundColor Green
 } else {
-    heroku logs --tail
+    heroku releases | Select-Object -First 1
+    Write-Host "`nDeployment complete! You can check the full logs with: heroku logs" -ForegroundColor Green
 } 

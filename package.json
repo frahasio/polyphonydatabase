@@ -1,33 +1,21 @@
 {
   "name": "polyphony-database",
   "version": "1.0.0",
-  "description": "Polyphony Database Node.js Application",
-  "main": "index.js",
+  "description": "Polyphony Database API",
+  "main": "src/index.js",
   "type": "module",
-  "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "prisma generate && tsc",
-    "start": "node dist/index.js",
-    "postinstall": "prisma generate"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.18.2",
-    "pg": "^8.16.0"
-  },
-  "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.11.20",
-    "@types/pg": "^8.15.1",
-    "prisma": "^5.22.0",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
-  },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
 }

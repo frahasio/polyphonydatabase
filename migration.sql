@@ -57,4 +57,64 @@ ALTER TABLE inclusions
 ALTER COLUMN position TYPE varchar;
 
 -- Add comment to explain the field
-COMMENT ON COLUMN inclusions.position IS 'Folio numbers or other position indicators'; 
+COMMENT ON COLUMN inclusions.position IS 'Position in the source, can be a number or a more complex identifier';
+
+-- Add new columns to attributions table
+ALTER TABLE attributions
+ADD COLUMN IF NOT EXISTS refers_to_id integer,
+ADD COLUMN IF NOT EXISTS search_vector tsvector;
+
+-- Update clef_combinations table
+ALTER TABLE clef_combinations
+ALTER COLUMN clef_ids SET DEFAULT '{}'::integer[],
+ADD COLUMN IF NOT EXISTS sorting varchar;
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS index_inclusions_on_clefs ON inclusions USING gin (clefs);
+CREATE INDEX IF NOT EXISTS index_inclusions_on_attribution_texts ON inclusions USING gin (attribution_texts);
+CREATE INDEX IF NOT EXISTS index_inclusions_on_composer_ids ON inclusions USING gin (composer_ids);
+CREATE INDEX IF NOT EXISTS index_attributions_on_search_vector ON attributions USING gin (search_vector);
+CREATE INDEX IF NOT EXISTS index_attributions_on_refers_to_id ON attributions (refers_to_id);
+
+-- Migrate data from old columns to new JSONB columns
+WITH clef_data AS (
+  SELECT 
+    i.id,
+    jsonb_agg(
+      jsonb_build_object(
+        'clef', ci.clef,
+        'missing', i.missing_clef_ids @> ARRAY[ci.id],
+        'incomplete', i.incomplete_clef_ids @> ARRAY[ci.id]
+      )
+    ) as clefs_json
+  FROM inclusions i
+  LEFT JOIN clef_inclusions ci ON ci.inclusion_id = i.id
+  GROUP BY i.id
+)
+UPDATE inclusions i
+SET clefs = cd.clefs_json
+FROM clef_data cd
+WHERE i.id = cd.id;
+
+-- Migrate attribution texts
+WITH attribution_data AS (
+  SELECT 
+    i.id,
+    jsonb_agg(a.text) as texts_json
+  FROM inclusions i
+  LEFT JOIN attributions a ON a.inclusion_id = i.id
+  GROUP BY i.id
+)
+UPDATE inclusions i
+SET attribution_texts = ad.texts_json
+FROM attribution_data ad
+WHERE i.id = ad.id;
+
+-- Drop old columns after migration
+ALTER TABLE inclusions
+DROP COLUMN IF EXISTS missing_clef_ids,
+DROP COLUMN IF EXISTS incomplete_clef_ids,
+DROP COLUMN IF EXISTS clef_combination_id;
+
+-- Add comment to explain position field
+COMMENT ON COLUMN inclusions.position IS 'Position in the source, can be a number or a more complex identifier'; 
