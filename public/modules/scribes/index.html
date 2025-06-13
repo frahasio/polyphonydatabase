@@ -101,8 +101,12 @@
             `).join('');
         }
 
-        // Add new scribe
-        document.getElementById('saveScribeButton').addEventListener('click', async () => {
+        const form = document.getElementById('addScribeForm');
+        const submitBtn = document.getElementById('saveScribeButton');
+        const modal = document.getElementById('addScribeModal');
+        let editingId = null;
+
+        submitBtn.addEventListener('click', async () => {
             const name = document.getElementById('name').value;
             if (!name) {
                 alert('Please enter a name');
@@ -110,8 +114,11 @@
             }
 
             try {
-                const response = await fetch('/api/scribes', {
-                    method: 'POST',
+                const url = editingId ? `/api/scribes/${editingId}` : '/api/scribes';
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -119,19 +126,56 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create scribe');
+                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} scribe`);
                 }
 
                 // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addScribeModal'));
-                modal.hide();
-                document.getElementById('addScribeForm').reset();
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
+                form.reset();
+                resetFormState();
                 fetchScribes();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to create scribe. Please try again.');
+                console.error(`Error ${editingId ? 'updating' : 'creating'} scribe:`, error);
+                alert(`Failed to ${editingId ? 'update' : 'create'} scribe. Please try again.`);
             }
         });
+
+        function resetFormState() {
+            editingId = null;
+            modal.querySelector('.modal-title').textContent = 'Add New Scribe';
+            submitBtn.textContent = 'Save';
+        }
+
+        // Handle edit
+        async function editScribe(id) {
+            try {
+                const response = await fetch(`/api/scribes/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch scribe details');
+                }
+                const data = await response.json();
+                const scribe = data.scribe;
+
+                // Set editing state
+                editingId = id;
+                modal.querySelector('.modal-title').textContent = 'Edit Scribe';
+                submitBtn.textContent = 'Save Changes';
+
+                // Populate the form with scribe data
+                document.getElementById('name').value = scribe.name || '';
+
+                // Show the modal
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load scribe details. Please try again.');
+            }
+        }
+
+        // Reset form state when modal is hidden
+        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete scribe
         async function deleteScribe(id) {

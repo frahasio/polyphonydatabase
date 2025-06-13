@@ -72,9 +72,11 @@ router.post('/', async (req, res) => {
 
     const query = `
       INSERT INTO performers (
-        name
+        name,
+        created_at,
+        updated_at
       )
-      VALUES ($1)
+      VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
@@ -83,6 +85,34 @@ router.post('/', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating performer:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update performer
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    const query = `
+      UPDATE performers
+      SET 
+        name = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [name, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Performer not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating performer:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
