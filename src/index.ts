@@ -890,7 +890,7 @@ app.post('/sources/:id', async (req: Request, res: Response) => {
         // Insert inclusion with the final composition_id
         const insertInclusionQuery = `
           INSERT INTO inclusions 
-          (source_id, order_num, attribution_texts, composer_ids, title_id, type_id, 
+          (source_id, "order", attribution_texts, composer_ids, title_id, type_id, 
            tone, even_odd, clefs, position, notes, composition_id)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         `;
