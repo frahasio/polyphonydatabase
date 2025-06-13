@@ -46,26 +46,27 @@
         
         #inclusionsTable td {
             vertical-align: top;
-            padding: 0.25rem;
+            padding: 0.5rem;
             font-size: 0.875rem;
         }
         
         #inclusionsTable th {
-            padding: 0.25rem;
+            padding: 0.5rem;
             font-size: 0.875rem;
             font-weight: 600;
+            white-space: nowrap;
         }
         
         #inclusionsTable .form-control-sm {
-            padding: 0.125rem 0.25rem;
+            padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
-            height: calc(1.5em + 0.5rem + 2px);
+            height: calc(1.5em + 0.75rem + 2px);
         }
         
         #inclusionsTable .btn-sm {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.75rem;
-            line-height: 1;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.2;
         }
 
         .title-suggestions {
@@ -105,9 +106,10 @@
 
         /* Make textareas more compact */
         #inclusionsTable textarea {
-            padding: 0.125rem 0.25rem;
+            padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
-            line-height: 1.2;
+            line-height: 1.4;
+            min-height: 60px;
         }
 
         /* Reduce spacing in input groups */
@@ -130,6 +132,45 @@
 
         .card-header {
             padding: 0.5rem;
+        }
+
+        .inclusion-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr 1fr 60px;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .inclusion-row:last-child {
+            border-bottom: none;
+        }
+
+        .inclusion-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .inclusion-cell label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        .remove-inclusion {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .remove-inclusion i {
+            margin: 0;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -273,20 +314,14 @@
                     <i class="bi bi-plus-lg"></i> Add Inclusion
                 </button>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table" id="inclusionsTable">
+                    <table class="table mb-0" id="inclusionsTable">
                         <thead>
                             <tr>
-                                <th style="width: 60px">Order</th>
-                                <th>Attribution</th>
-                                <th>Composer</th>
-                                <th>Title</th>
-                                <th>Type</th>
-                                <th>Tone</th>
-                                <th>Even/Odd</th>
-                                <th>Clefs</th>
-                                <th>Position</th>
+                                <th style="width: 120px">Order/Position</th>
+                                <th>Attribution/Composer</th>
+                                <th>Title/Details</th>
                                 <th>Notes</th>
                                 <th style="width: 60px"></th>
                             </tr>
@@ -811,111 +846,127 @@
             
             row.innerHTML = `
                 <td>
-                    <input type="number" class="form-control form-control-sm" name="order" value="${inclusion?.order || ''}">
+                    <div class="inclusion-cell">
+                        <label>Order</label>
+                        <input type="number" class="form-control form-control-sm" name="order" value="${inclusion?.order ?? 0}">
+                        <label>Position</label>
+                        <input type="text" class="form-control form-control-sm" name="position" 
+                               value="${inclusion?.position || ''}" 
+                               placeholder="e.g. f.1r, f.2v, p.1">
+                    </div>
                 </td>
                 <td>
-                    <div class="attribution-container">
-                        <input type="text" class="form-control form-control-sm" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}">
-                        <button type="button" class="btn btn-link btn-sm add-attribution" style="display: ${inclusion?.attribution_texts?.length > 1 ? 'block' : 'none'}">
-                            <i class="bi bi-plus-lg"></i> Add another attribution
-                        </button>
-                        <div class="additional-attributions">
-                            ${(inclusion?.attribution_texts?.slice(1) || []).map((text, i) => `
-                                <div class="input-group input-group-sm mt-1">
-                                    <input type="text" class="form-control" name="attribution" value="${text}">
-                                    <button type="button" class="btn btn-outline-danger remove-attribution">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            `).join('')}
+                    <div class="inclusion-cell">
+                        <label>Attribution</label>
+                        <div class="attribution-container">
+                            <input type="text" class="form-control form-control-sm" name="attribution" value="${inclusion?.attribution_texts?.[0] || ''}">
+                            <button type="button" class="btn btn-link btn-sm add-attribution" style="display: ${inclusion?.attribution_texts?.length > 1 ? 'block' : 'none'}">
+                                <i class="bi bi-plus-lg"></i> Add another attribution
+                            </button>
+                            <div class="additional-attributions">
+                                ${(inclusion?.attribution_texts?.slice(1) || []).map((text, i) => `
+                                    <div class="input-group input-group-sm mt-1">
+                                        <input type="text" class="form-control" name="attribution" value="${text}">
+                                        <button type="button" class="btn btn-outline-danger remove-attribution">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <label>Composer</label>
+                        <div class="composer-container">
+                            <select class="form-control form-control-sm" name="composer">
+                                <option value="">Select composer</option>
+                                ${composers.map(composer => `
+                                    <option value="${composer.id}" ${inclusion?.composer_ids?.[0] === composer.id ? 'selected' : ''}>
+                                        ${composer.name}
+                                    </option>
+                                `).join('')}
+                            </select>
+                            <button type="button" class="btn btn-link btn-sm add-composer" style="display: ${inclusion?.composer_ids?.length > 1 ? 'block' : 'none'}">
+                                <i class="bi bi-plus-lg"></i> Add another composer
+                            </button>
+                            <div class="additional-composers">
+                                ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
+                                    <div class="input-group input-group-sm mt-1">
+                                        <select class="form-control" name="composer">
+                                            <option value="">Select composer</option>
+                                            ${composers.map(composer => `
+                                                <option value="${composer.id}" ${id === composer.id ? 'selected' : ''}>
+                                                    ${composer.name}
+                                                </option>
+                                            `).join('')}
+                                        </select>
+                                        <button type="button" class="btn btn-outline-danger remove-composer">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                 </td>
                 <td>
-                    <div class="composer-container">
-                        <select class="form-control form-control-sm composer-select" name="composer">
-                            <option value="">Select composer</option>
-                            ${inclusion?.composer_ids?.[0] ? `<option value="${inclusion.composer_ids[0]}" selected>${inclusion.composer_names?.[0] || ''}</option>` : ''}
+                    <div class="inclusion-cell">
+                        <label>Title</label>
+                        <input type="text" class="form-control form-control-sm" name="title" value="${inclusion?.title || ''}">
+                        <label>Type</label>
+                        <select class="form-control form-control-sm" name="type">
+                            <option value="">Select type</option>
+                            ${compositionTypes.map(type => `
+                                <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
+                                    ${type.name}
+                                </option>
+                            `).join('')}
                         </select>
-                        <button type="button" class="btn btn-link btn-sm add-composer" style="display: ${inclusion?.composer_ids?.length > 1 ? 'block' : 'none'}">
-                            <i class="bi bi-plus-lg"></i> Add another composer
-                        </button>
-                        <div class="additional-composers">
-                            ${(inclusion?.composer_ids?.slice(1) || []).map((id, i) => `
-                                <select class="form-control form-control-sm composer-select mt-1" name="composer">
-                                    <option value="">Select composer</option>
-                                    <option value="${id}" selected>${inclusion.composer_names?.[i + 1] || ''}</option>
-                                </select>
+                        <label>Tone</label>
+                        <select class="form-control form-control-sm" name="tone">
+                            <option value="">Select tone</option>
+                            ${tones.map(tone => `
+                                <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
+                                    ${tone}
+                                </option>
                             `).join('')}
+                        </select>
+                        <label>Even/Odd</label>
+                        <select class="form-control form-control-sm" name="evenOdd">
+                            <option value="">Select</option>
+                            <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
+                            <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
+                            <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
+                        </select>
+                        <label>Clefs</label>
+                        <div class="clef-grid">
+                            ${Array(8).fill(0).map((_, i) => {
+                                const clef = sortedClefs[i];
+                                const formattedClef = clef ? formatClef(
+                                    clef.clef,
+                                    clef.optional,
+                                    clef.missing,
+                                    clef.incomplete,
+                                    clef.transitions_to
+                                ) : '';
+                                return `
+                                    <input type="text" class="form-control form-control-sm clef-input" 
+                                           name="clef" value="${formattedClef}">
+                                `;
+                            }).join('')}
                         </div>
+                        <button type="button" class="btn btn-link btn-sm add-clef-row">
+                            <i class="bi bi-plus-lg"></i> Add row
+                        </button>
                     </div>
                 </td>
                 <td>
-                    <select class="form-control form-control-sm title-select" name="title">
-                        <option value="">Enter or select title</option>
-                        ${inclusion?.title_id ? `<option value="${inclusion.title_id}" selected>${inclusion.title_text}</option>` : ''}
-                    </select>
-                </td>
-                <td>
-                    <select class="form-control form-control-sm" name="type">
-                        <option value="">Select type</option>
-                        ${compositionTypes.map(type => `
-                            <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
-                                ${type.name}
-                            </option>
-                        `).join('')}
-                    </select>
-                </td>
-                <td>
-                    <select class="form-control form-control-sm" name="tone">
-                        <option value="">Select tone</option>
-                        ${tones.map(tone => `
-                            <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
-                                ${tone}
-                            </option>
-                        `).join('')}
-                    </select>
-                </td>
-                <td>
-                    <select class="form-control form-control-sm" name="evenOdd">
-                        <option value="">Select</option>
-                        <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
-                        <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
-                        <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
-                    </select>
-                </td>
-                <td>
-                    <div class="clef-grid">
-                        ${Array(8).fill(0).map((_, i) => {
-                            const clef = sortedClefs[i];
-                            const formattedClef = clef ? formatClef(
-                                clef.clef,
-                                clef.optional,
-                                clef.missing,
-                                clef.incomplete,
-                                clef.transitions_to
-                            ) : '';
-                            return `
-                                <input type="text" class="form-control form-control-sm clef-input" 
-                                       name="clef" value="${formattedClef}">
-                            `;
-                        }).join('')}
+                    <div class="inclusion-cell">
+                        <label>Notes</label>
+                        <textarea class="form-control form-control-sm" name="notes" rows="3">${inclusion?.notes || ''}</textarea>
                     </div>
-                    <button type="button" class="btn btn-link btn-sm add-clef-row">
-                        <i class="bi bi-plus-lg"></i> Add row
-                    </button>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="position" 
-                           value="${inclusion?.position || ''}" 
-                           placeholder="e.g. f.1r, f.2v, p.1">
-                </td>
-                <td>
-                    <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
-                </td>
-                <td>
-                    <button type="button" class="btn btn-outline-danger btn-sm remove-inclusion">
-                        <i class="bi bi-trash"></i>
+                    <button type="button" class="btn btn-outline-danger remove-inclusion">
+                        <i class="bi bi-x-lg"></i>
                     </button>
                 </td>
                 <input type="hidden" name="composition_id" value="${inclusion?.composition_id || ''}">
@@ -984,7 +1035,8 @@
                             type_id: parseInt(typeId),
                             tone: tone || null,
                             even_odd: evenOdd || null,
-                            number_of_voices: numberOfVoices
+                            number_of_voices: numberOfVoices,
+                            source_id: window.location.pathname.split('/').pop() // Get source ID from URL
                         })
                     });
 
@@ -1246,11 +1298,15 @@
 
             indicator.innerHTML = '';
             if (status === 'match') {
-                indicator.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                indicator.innerHTML = '<i class="bi bi-check-circle-fill text-success" title="Matches existing composition"></i>';
+            } else if (status === 'pending') {
+                indicator.innerHTML = '<i class="bi bi-clock-fill text-warning" title="Pending composition"></i>';
             } else if (status === 'new') {
-                indicator.innerHTML = '<i class="bi bi-arrow-right-circle-fill text-primary"></i>';
+                indicator.innerHTML = '<i class="bi bi-plus-circle-fill text-primary" title="New composition"></i>';
+            } else if (status === 'incomplete') {
+                indicator.innerHTML = '<i class="bi bi-dash-circle-fill text-muted" title="Incomplete data"></i>';
             } else {
-                indicator.innerHTML = '<i class="bi bi-question-circle-fill text-muted"></i>';
+                indicator.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" title="Error"></i>';
             }
         }
     </script>

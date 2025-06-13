@@ -748,134 +748,156 @@ app.post('/sources', async (req, res) => {
   }
 });
 
-// PUT /sources/:id
-app.put('/sources/:id', async (req, res) => {
+// POST /sources/:id - Update source
+app.post('/sources/:id', async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     const sourceId = parseInt(req.params.id);
     const {
-      code, title, type, format, town, rismLink, catalogued,
-      fromYear, toYear, fromYearAnnotation, toYearAnnotation,
-      dates, publisherIds, scribeIds, images, inclusions
+      code,
+      title,
+      fromYear,
+      toYear,
+      fromYearAnnotation,
+      toYearAnnotation,
+      town,
+      type,
+      format,
+      publisherId,
+      scribeId,
+      images,
+      inclusions
     } = req.body;
 
     // Update source
-    const sourceResult = await client.query(
-      `UPDATE sources SET
-        code = $1, title = $2, type = $3, format = $4,
-        town = $5, rism_link = $6, catalogued = $7,
-        from_year = $8, to_year = $9,
-        from_year_annotation = $10, to_year_annotation = $11,
-        dates = $12
-      WHERE id = $13
-      RETURNING *`,
-      [code, title, type, format, town, rismLink, catalogued,
-       fromYear, toYear, fromYearAnnotation, toYearAnnotation,
-       dates, sourceId]
-    );
+    const updateSourceQuery = `
+      UPDATE sources
+      SET code = $1,
+          title = $2,
+          from_year = $3,
+          to_year = $4,
+          from_year_annotation = $5,
+          to_year_annotation = $6,
+          town = $7,
+          type = $8,
+          format = $9,
+          publisher_id = $10,
+          scribe_id = $11,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12
+      RETURNING id
+    `;
 
-    if (sourceResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Source not found' });
-    }
+    const sourceResult = await client.query(updateSourceQuery, [
+      code,
+      title,
+      fromYear || null,
+      toYear || null,
+      fromYearAnnotation,
+      toYearAnnotation,
+      town,
+      type,
+      format,
+      publisherId || null,
+      scribeId || null,
+      sourceId
+    ]);
 
-    // Update images
-    await client.query(
-      'DELETE FROM source_images WHERE source_id = $1',
-      [sourceId]
-    );
+    // Delete existing inclusions
+    await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
 
-    if (images && images.length > 0) {
-      const imageValues = images.map((image: any) => 
-        `(${sourceId}, '${image.url}', '${image.label || ''}')`
-      ).join(',');
-      
-      await client.query(
-        `INSERT INTO source_images (source_id, url, label)
-         VALUES ${imageValues}`
-      );
-    }
-
-    // Update inclusions
-    await client.query(
-      'DELETE FROM inclusions WHERE source_id = $1',
-      [sourceId]
-    );
-
+    // Process inclusions and handle pending compositions
     if (inclusions && inclusions.length > 0) {
-      const inclusionValues = inclusions.map((inclusion: any) => 
-        `(${sourceId}, '${inclusion.notes || ''}', ${inclusion.order || 0}, ${inclusion.position || 'NULL'}, 
-         ${inclusion.composition_id || 'NULL'}, 
-         '${JSON.stringify(inclusion.clefs || [])}'::jsonb,
-         '${JSON.stringify(inclusion.attribution_texts || [])}'::jsonb,
-         '${JSON.stringify(inclusion.composer_ids || [])}'::jsonb)`
-      ).join(',');
-      
-      await client.query(
-        `INSERT INTO inclusions (source_id, notes, "order", position, composition_id, 
-                                clefs, attribution_texts, composer_ids)
-         VALUES ${inclusionValues}`
-      );
+      for (const inclusion of inclusions) {
+        let compositionId = inclusion.composition_id;
+
+        // If this is a pending composition, check if it should be moved to the main table
+        if (inclusion.composition_data) {
+          const { title_id, composition_type_id, tone, even_odd, number_of_voices, composer_ids } = inclusion.composition_data;
+
+          // Check if this composition already exists in the main table
+          const checkQuery = `
+            SELECT id
+            FROM compositions
+            WHERE title_id = $1
+              AND composition_type_id = $2
+              AND ($3::text IS NULL OR tone = $3)
+              AND ($4::text IS NULL OR even_odd = $4)
+              AND ($5::integer IS NULL OR number_of_voices = $5)
+              AND composer_id_list = $6::integer[]
+            LIMIT 1
+          `;
+
+          const checkResult = await client.query(checkQuery, [
+            title_id,
+            composition_type_id,
+            tone,
+            even_odd,
+            number_of_voices,
+            composer_ids
+          ]);
+
+          if (checkResult.rows.length > 0) {
+            // Use existing composition
+            compositionId = checkResult.rows[0].id;
+          } else {
+            // Create new composition in main table
+            const insertCompositionQuery = `
+              INSERT INTO compositions 
+              (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              RETURNING id
+            `;
+
+            const insertResult = await client.query(insertCompositionQuery, [
+              title_id,
+              composition_type_id,
+              tone,
+              even_odd,
+              number_of_voices,
+              composer_ids
+            ]);
+
+            compositionId = insertResult.rows[0].id;
+          }
+        }
+
+        // Insert inclusion with the final composition_id
+        const insertInclusionQuery = `
+          INSERT INTO inclusions 
+          (source_id, order_num, attribution_texts, composer_ids, title_id, type_id, 
+           tone, even_odd, clefs, position, notes, composition_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `;
+
+        await client.query(insertInclusionQuery, [
+          sourceId,
+          inclusion.order,
+          inclusion.attribution_texts,
+          inclusion.composer_ids,
+          inclusion.title_id,
+          inclusion.type_id,
+          inclusion.tone,
+          inclusion.even_odd,
+          inclusion.clefs,
+          inclusion.position,
+          inclusion.notes,
+          compositionId
+        ]);
+      }
     }
 
-    // Update publisher relationships
-    await client.query(
-      'DELETE FROM publishers_sources WHERE source_id = $1',
-      [sourceId]
-    );
-
-    if (publisherIds && publisherIds.length > 0) {
-      const publisherValues = publisherIds.map((id: number) => 
-        `(${sourceId}, ${id})`
-      ).join(',');
-      
-      await client.query(
-        `INSERT INTO publishers_sources (source_id, publisher_id)
-         VALUES ${publisherValues}`
-      );
-    }
-
-    // Update scribe relationships
-    await client.query(
-      'DELETE FROM scribes_sources WHERE source_id = $1',
-      [sourceId]
-    );
-
-    if (scribeIds && scribeIds.length > 0) {
-      const scribeValues = scribeIds.map((id: number) => 
-        `(${sourceId}, ${id})`
-      ).join(',');
-      
-      await client.query(
-        `INSERT INTO scribes_sources (source_id, scribe_id)
-         VALUES ${scribeValues}`
-      );
-    }
+    // Clean up pending compositions for this source
+    await client.query('DELETE FROM pending_compositions WHERE source_id = $1', [sourceId]);
 
     await client.query('COMMIT');
-
-    // Fetch the complete updated source
-    const completeSource = await client.query(
-      `SELECT s.*, 
-              json_agg(DISTINCT p.*) as publishers,
-              json_agg(DISTINCT sc.*) as scribes
-       FROM sources s
-       LEFT JOIN publishers_sources ps ON s.id = ps.source_id
-       LEFT JOIN publishers p ON ps.publisher_id = p.id
-       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
-       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
-       WHERE s.id = $1
-       GROUP BY s.id`,
-      [sourceId]
-    );
-
-    res.json(completeSource.rows[0]);
+    res.json({ success: true, id: sourceResult.rows[0].id });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating source:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Failed to update source' });
   } finally {
     client.release();
   }
@@ -1002,6 +1024,26 @@ app.get('/compositions', async (req: Request, res: Response) => {
   }
 });
 
+// Create temporary table for pending compositions
+const createPendingCompositionsTable = `
+  CREATE TEMPORARY TABLE IF NOT EXISTS pending_compositions (
+    id SERIAL PRIMARY KEY,
+    title_id INTEGER,
+    composition_type_id INTEGER,
+    tone TEXT,
+    even_odd TEXT,
+    number_of_voices INTEGER,
+    composer_id_list INTEGER[],
+    source_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`;
+
+// Initialize temporary table when server starts
+pool.query(createPendingCompositionsTable).catch(err => {
+  console.error('Error creating pending_compositions table:', err);
+});
+
 // POST /compositions/match - Check for matching composition
 app.post('/compositions/match', async (req: Request, res: Response) => {
   try {
@@ -1011,11 +1053,12 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
       type_id,
       tone,
       even_odd,
-      number_of_voices
+      number_of_voices,
+      source_id
     } = req.body;
 
-    // Look for an exact match
-    const query = `
+    // Look for an exact match in the main compositions table
+    const mainQuery = `
       SELECT id
       FROM compositions
       WHERE title_id = $1
@@ -1027,7 +1070,7 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
       LIMIT 1
     `;
 
-    const result = await pool.query(query, [
+    const mainResult = await pool.query(mainQuery, [
       title_id,
       type_id,
       tone,
@@ -1036,17 +1079,65 @@ app.post('/compositions/match', async (req: Request, res: Response) => {
       composer_ids
     ]);
 
-    if (result.rows.length > 0) {
-      // Found an exact match
+    if (mainResult.rows.length > 0) {
+      // Found an exact match in main table
       return res.json({
         status: 'match',
-        composition_id: result.rows[0].id
+        composition_id: mainResult.rows[0].id
       });
     }
 
-    // No match found - this is a new composition
+    // Check for match in pending_compositions table
+    const pendingQuery = `
+      SELECT id
+      FROM pending_compositions
+      WHERE title_id = $1
+        AND composition_type_id = $2
+        AND ($3::text IS NULL OR tone = $3)
+        AND ($4::text IS NULL OR even_odd = $4)
+        AND ($5::integer IS NULL OR number_of_voices = $5)
+        AND composer_id_list = $6::integer[]
+      LIMIT 1
+    `;
+
+    const pendingResult = await pool.query(pendingQuery, [
+      title_id,
+      type_id,
+      tone,
+      even_odd,
+      number_of_voices,
+      composer_ids
+    ]);
+
+    if (pendingResult.rows.length > 0) {
+      // Found a match in pending table
+      return res.json({
+        status: 'pending',
+        composition_id: pendingResult.rows[0].id
+      });
+    }
+
+    // No match found - create a new pending composition
+    const insertQuery = `
+      INSERT INTO pending_compositions 
+      (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, source_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `;
+
+    const insertResult = await pool.query(insertQuery, [
+      title_id,
+      type_id,
+      tone,
+      even_odd,
+      number_of_voices,
+      composer_ids,
+      source_id
+    ]);
+
     res.json({
-      status: 'new'
+      status: 'new',
+      composition_id: insertResult.rows[0].id
     });
   } catch (error) {
     console.error('Error matching composition:', error);
