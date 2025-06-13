@@ -46,27 +46,27 @@
         
         #inclusionsTable td {
             vertical-align: top;
-            padding: 0.5rem;
+            padding: 0.25rem;
             font-size: 0.875rem;
         }
         
         #inclusionsTable th {
-            padding: 0.5rem;
+            padding: 0.25rem;
             font-size: 0.875rem;
             font-weight: 600;
             white-space: nowrap;
         }
         
         #inclusionsTable .form-control-sm {
-            padding: 0.25rem 0.5rem;
+            padding: 0.125rem 0.25rem;
             font-size: 0.875rem;
-            height: calc(1.5em + 0.75rem + 2px);
+            height: calc(1.5em + 0.5rem + 2px);
         }
         
         #inclusionsTable .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
-            line-height: 1.2;
+            padding: 0.125rem 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1;
         }
 
         .title-suggestions {
@@ -106,10 +106,10 @@
 
         /* Make textareas more compact */
         #inclusionsTable textarea {
-            padding: 0.25rem 0.5rem;
+            padding: 0.125rem 0.25rem;
             font-size: 0.875rem;
-            line-height: 1.4;
-            min-height: 60px;
+            line-height: 1.2;
+            min-height: 40px;
         }
 
         /* Reduce spacing in input groups */
@@ -136,9 +136,9 @@
 
         .inclusion-row {
             display: grid;
-            grid-template-columns: 120px 1fr 1fr 1fr 60px;
-            gap: 0.5rem;
-            padding: 0.5rem;
+            grid-template-columns: 120px 1fr 1fr 1fr 1fr 60px;
+            gap: 0.25rem;
+            padding: 0.25rem;
             border-bottom: 1px solid #dee2e6;
         }
 
@@ -149,28 +149,41 @@
         .inclusion-cell {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.25rem;
         }
 
         .inclusion-cell label {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             color: #6c757d;
             margin-bottom: 0;
         }
 
+        .composition-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.25rem;
+        }
+
         .remove-inclusion {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 0.875rem;
+            line-height: 1;
         }
 
         .remove-inclusion i {
             margin: 0;
+        }
+
+        .clef-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
         }
     </style>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -322,6 +335,7 @@
                                 <th style="width: 120px">Order/Position</th>
                                 <th>Attribution/Composer</th>
                                 <th>Title/Details</th>
+                                <th>Clefs</th>
                                 <th>Notes</th>
                                 <th style="width: 60px"></th>
                             </tr>
@@ -911,32 +925,43 @@
                     <div class="inclusion-cell">
                         <label>Title</label>
                         <input type="text" class="form-control form-control-sm" name="title" value="${inclusion?.title || ''}">
-                        <label>Type</label>
-                        <select class="form-control form-control-sm" name="type">
-                            <option value="">Select type</option>
-                            ${compositionTypes.map(type => `
-                                <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
-                                    ${type.name}
-                                </option>
-                            `).join('')}
-                        </select>
-                        <label>Tone</label>
-                        <select class="form-control form-control-sm" name="tone">
-                            <option value="">Select tone</option>
-                            ${tones.map(tone => `
-                                <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
-                                    ${tone}
-                                </option>
-                            `).join('')}
-                        </select>
-                        <label>Even/Odd</label>
-                        <select class="form-control form-control-sm" name="evenOdd">
-                            <option value="">Select</option>
-                            <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
-                            <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
-                            <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
-                        </select>
-                        <label>Clefs</label>
+                        <div class="composition-details">
+                            <div>
+                                <label>Type</label>
+                                <select class="form-control form-control-sm" name="type">
+                                    <option value="">Select type</option>
+                                    ${compositionTypes.map(type => `
+                                        <option value="${type.id}" ${inclusion?.type_id === type.id ? 'selected' : ''}>
+                                            ${type.name}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Tone</label>
+                                <select class="form-control form-control-sm" name="tone">
+                                    <option value="">Select tone</option>
+                                    ${tones.map(tone => `
+                                        <option value="${tone}" ${inclusion?.tone === tone ? 'selected' : ''}>
+                                            ${tone}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Even/Odd</label>
+                                <select class="form-control form-control-sm" name="evenOdd">
+                                    <option value="">Select</option>
+                                    <option value="even" ${inclusion?.even_odd === 'even' ? 'selected' : ''}>Even</option>
+                                    <option value="odd" ${inclusion?.even_odd === 'odd' ? 'selected' : ''}>Odd</option>
+                                    <option value="both" ${inclusion?.even_odd === 'both' ? 'selected' : ''}>Both</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="clef-container">
                         <div class="clef-grid">
                             ${Array(8).fill(0).map((_, i) => {
                                 const clef = sortedClefs[i];
@@ -961,12 +986,12 @@
                 <td>
                     <div class="inclusion-cell">
                         <label>Notes</label>
-                        <textarea class="form-control form-control-sm" name="notes" rows="3">${inclusion?.notes || ''}</textarea>
+                        <textarea class="form-control form-control-sm" name="notes" rows="2">${inclusion?.notes || ''}</textarea>
                     </div>
                 </td>
                 <td>
                     <button type="button" class="btn btn-outline-danger remove-inclusion">
-                        <i class="bi bi-x-lg"></i>
+                        ×
                     </button>
                 </td>
                 <input type="hidden" name="composition_id" value="${inclusion?.composition_id || ''}">
@@ -1140,13 +1165,13 @@
         // Handle additional clef rows
         document.addEventListener('click', (e) => {
             if (e.target.closest('.add-clef-row')) {
-                const container = e.target.closest('td');
+                const container = e.target.closest('.clef-container');
                 const newRow = document.createElement('div');
-                newRow.className = 'clef-grid mt-2';
+                newRow.className = 'clef-grid mt-1';
                 newRow.innerHTML = Array(8).fill(0).map(() => `
                     <input type="text" class="form-control form-control-sm clef-input" name="clef">
                 `).join('');
-                container.insertBefore(newRow, e.target);
+                container.insertBefore(newRow, e.target.closest('.add-clef-row'));
             }
         });
 
