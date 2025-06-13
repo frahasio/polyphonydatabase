@@ -288,8 +288,12 @@
         }
 
         // Handle form submission
-        document.getElementById('addComposerBtn').addEventListener('click', async () => {
-            const form = document.getElementById('addComposerForm');
+        const form = document.getElementById('addComposerForm');
+        const submitBtn = document.getElementById('addComposerBtn');
+        const modal = document.getElementById('addComposerModal');
+        let editingId = null;
+
+        submitBtn.addEventListener('click', async () => {
             const formData = new FormData(form);
             
             // Convert form data to object
@@ -305,8 +309,11 @@
             };
 
             try {
-                const response = await fetch('/api/composers', {
-                    method: 'POST',
+                const url = editingId ? `/api/composers/${editingId}` : '/api/composers';
+                const method = editingId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -314,19 +321,26 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to create composer');
+                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} composer`);
                 }
 
                 // Close modal and refresh list
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addComposerModal'));
-                modal.hide();
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
                 form.reset();
+                resetFormState();
                 fetchComposers();
             } catch (error) {
-                console.error('Error creating composer:', error);
-                alert('Failed to create composer. Please try again.');
+                console.error(`Error ${editingId ? 'updating' : 'creating'} composer:`, error);
+                alert(`Failed to ${editingId ? 'update' : 'create'} composer. Please try again.`);
             }
         });
+
+        function resetFormState() {
+            editingId = null;
+            modal.querySelector('.modal-title').textContent = 'Add New Composer';
+            submitBtn.textContent = 'Add Composer';
+        }
 
         // Handle delete
         async function deleteComposer(id) {
@@ -375,8 +389,12 @@
                 const data = await response.json();
                 const composer = data.composer;
 
+                // Set editing state
+                editingId = id;
+                modal.querySelector('.modal-title').textContent = 'Edit Composer';
+                submitBtn.textContent = 'Save Changes';
+
                 // Populate the form with composer data
-                const form = document.getElementById('addComposerForm');
                 form.name.value = composer.name;
                 form.fromYear.value = composer.from_year || '';
                 form.toYear.value = composer.to_year || '';
@@ -386,51 +404,6 @@
                 form.deathplace2.value = composer.deathplace_2 || '';
                 form.imageUrl.value = composer.image_url || '';
 
-                // Change modal title and button
-                const modal = document.getElementById('addComposerModal');
-                modal.querySelector('.modal-title').textContent = 'Edit Composer';
-                const submitBtn = document.getElementById('addComposerBtn');
-                submitBtn.textContent = 'Save Changes';
-                submitBtn.onclick = async () => {
-                    try {
-                        const formData = new FormData(form);
-                        const data = {
-                            name: formData.get('name'),
-                            from_year: formData.get('fromYear'),
-                            to_year: formData.get('toYear'),
-                            birthplace_1: formData.get('birthplace1'),
-                            birthplace_2: formData.get('birthplace2'),
-                            deathplace_1: formData.get('deathplace1'),
-                            deathplace_2: formData.get('deathplace2'),
-                            image_url: formData.get('imageUrl')
-                        };
-
-                        const response = await fetch(`/api/composers/${id}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(data)
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Failed to update composer');
-                        }
-
-                        // Reset modal and refresh list
-                        const modalInstance = bootstrap.Modal.getInstance(modal);
-                        modalInstance.hide();
-                        form.reset();
-                        modal.querySelector('.modal-title').textContent = 'Add New Composer';
-                        submitBtn.textContent = 'Add Composer';
-                        submitBtn.onclick = null; // Remove the edit handler
-                        fetchComposers();
-                    } catch (error) {
-                        console.error('Error updating composer:', error);
-                        alert('Failed to update composer. Please try again.');
-                    }
-                };
-
                 // Show the modal
                 const modalInstance = new bootstrap.Modal(modal);
                 modalInstance.show();
@@ -439,6 +412,9 @@
                 alert('Failed to load composer details. Please try again.');
             }
         }
+
+        // Reset form state when modal is hidden
+        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Initialize
         getInitialState();
