@@ -33,15 +33,19 @@ if (-not $herokuRemote) {
     git remote add heroku "https://git.heroku.com/$herokuAppName.git"
 }
 
+# Get current branch
+$currentBranch = git rev-parse --abbrev-ref HEAD
+Write-Host "Current branch: $currentBranch" -ForegroundColor Yellow
+
 # Push to GitHub
 Write-Host "`nPushing to GitHub..." -ForegroundColor Green
 git add .
 git commit -m $commitMessage
-git push origin main
+git push origin $currentBranch
 
 # Push to Heroku
 Write-Host "`nPushing to Heroku..." -ForegroundColor Green
-git push heroku main --force
+git push heroku $currentBranch:main --force
 
 # Show brief deployment status
 Write-Host "`nChecking deployment status..." -ForegroundColor Green
