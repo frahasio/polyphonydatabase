@@ -275,6 +275,7 @@ router.get('/:id', async (req, res) => {
         -- Resolved composition data for display
         t.text as title_text,
         ct.name as composition_type_name,
+        c.composition_type_id,
         c.tone,
         c.even_odd,
         c.number_of_voices,
@@ -321,6 +322,7 @@ router.get('/:id', async (req, res) => {
       composition: {
         title_text: row.title_text,
         composition_type_name: row.composition_type_name,
+        composition_type_id: row.composition_type_id,
         tone: row.tone,
         even_odd: row.even_odd,
         number_of_voices: row.number_of_voices,
@@ -790,7 +792,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         `, [tempInclusion.composition_type]);
         
         if (typeResult.rows.length > 0) {
-          compositionTypeId = typeResult.rows[0].id;
+          compositionTypeId = parseInt(typeResult.rows[0].id); // Ensure integer conversion
         }
       }
 
@@ -805,26 +807,30 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       else if (typeof evenOdd === 'number') evenOdd = evenOdd; // Already an integer
       else evenOdd = null;
 
-      // Get number of voices
+      // Get number of voices - ensure integer conversion
       const numberOfVoices = originalInclusion?.composition?.number_of_voices || tempInclusion.number_of_voices || null;
+      const numberOfVoicesInt = numberOfVoices ? parseInt(numberOfVoices) : null;
 
       console.log(`Final composition data for creation:`, {
         titleId,
         compositionTypeId,
+        compositionTypeIdType: typeof compositionTypeId,
         tone,
         evenOdd,
-        numberOfVoices
+        evenOddType: typeof evenOdd,
+        numberOfVoices: numberOfVoicesInt,
+        numberOfVoicesType: typeof numberOfVoicesInt
       });
 
       // IMPORTANT: Check if this exact composition already exists before creating
       const existingComposition = await client.query(`
         SELECT id FROM compositions 
         WHERE title_id = $1 
-        AND ($2::INTEGER IS NULL OR composition_type_id = $2)
-        AND ($3::TEXT IS NULL OR tone = $3)
-        AND ($4::INTEGER IS NULL OR even_odd = $4)
-        AND ($5::INTEGER IS NULL OR number_of_voices = $5)
-      `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices]);
+        AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
+        AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
+        AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
+        AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
+      `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
 
       let compositionId;
       if (existingComposition.rows.length > 0) {
@@ -836,7 +842,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, created_at, updated_at)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING id
-        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices, now, now]);
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, now, now]);
 
         compositionId = compositionResult.rows[0].id;
         console.log(`Created NEW composition ID: ${compositionId}`);
