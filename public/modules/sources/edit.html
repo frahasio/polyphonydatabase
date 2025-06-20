@@ -38,10 +38,18 @@
             font-family: monospace;
             text-align: center;
             font-size: 0.875rem;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            min-width: 60px;
+            width: 60px;
+            height: 30px;
         }
         
         .clef-row {
-            gap: 4px;
+            gap: 2px;
+            display: flex;
+            flex-wrap: wrap;
         }
         
         .btn-xs {
@@ -123,7 +131,7 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid py-4">
+    <div class="py-4" style="max-width: none; padding-left: 15px; padding-right: 15px;">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h3 mb-0">Edit Source</h1>
@@ -188,34 +196,23 @@
                             <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
                         </select>
                     </div>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="mb-3">
-                                            <label for="from_year_annotation" class="form-label">From Year Annotation</label>
-                                            <input type="text" class="form-control" id="from_year_annotation" name="from_year_annotation" placeholder="c.">
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="mb-3">
-                                            <label for="from_year" class="form-label">From Year</label>
-                                            <input type="number" class="form-control" id="from_year" name="from_year">
-                                        </div>
-                                    </div>
+                            <div class="mb-3">
+                                <label class="form-label">Dating</label>
+                                <div class="d-flex align-items-center gap-1">
+                                    <input type="text" class="form-control" id="from_year_annotation" name="from_year_annotation" 
+                                           style="width: 60px;" title="From year annotation (e.g., c.)">
+                                    <span>/</span>
+                                    <input type="number" class="form-control" id="from_year" name="from_year" 
+                                           style="width: 80px;" title="From year">
+                                    <span>/</span>
+                                    <input type="text" class="form-control" id="to_year_annotation" name="to_year_annotation" 
+                                           style="width: 60px;" title="To year annotation (e.g., c.)">
+                                    <span>/</span>
+                                    <input type="number" class="form-control" id="to_year" name="to_year" 
+                                           style="width: 80px;" title="To year">
+                                    <small class="text-muted ms-2">e.g., c./1550/c./1560</small>
                                 </div>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="mb-3">
-                                            <label for="to_year_annotation" class="form-label">To Year Annotation</label>
-                                            <input type="text" class="form-control" id="to_year_annotation" name="to_year_annotation" placeholder="c.">
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="mb-3">
-                                            <label for="to_year" class="form-label">To Year</label>
-                                            <input type="number" class="form-control" id="to_year" name="to_year">
-                                        </div>
-                                    </div>
-                                </div>
+                            </div>
                     </div>
                         <div class="col-md-6">
                     <div class="mb-3">
@@ -304,6 +301,13 @@
                     <!-- Pagination -->
                     <div id="inclusionsPagination" class="d-flex justify-content-center mt-3"></div>
                 </div>
+            </div>
+
+            <!-- Add Inclusion Button -->
+            <div class="d-flex justify-content-center mb-4">
+                <button type="button" class="btn btn-primary" onclick="addNewInclusion()">
+                    <i class="bi bi-plus-lg"></i> Add New Inclusion
+                </button>
             </div>
 
             <!-- Save Button -->
@@ -411,6 +415,7 @@
                 
                 // Populate source form (only on first load)
                 if (page === 1) {
+                    await loadPublishersAndScribes();
                     populateSourceForm();
                 }
                 
@@ -456,77 +461,133 @@
 
         function displayPublishers() {
             const container = document.getElementById('publishersContainer');
-            if (!sourceData.publishers || sourceData.publishers.length === 0) {
-                container.innerHTML = '<span class="text-muted">No publishers</span>';
-                return;
-            }
-
-            const html = sourceData.publishers.map(publisher => 
-                `<span class="badge bg-secondary me-1">${publisher.name}</span>`
-            ).join('');
+            
+            let html = '<select multiple class="form-control" id="publishersSelect" style="min-height: 100px;">';
+            
+            allPublishers.forEach(publisher => {
+                const isSelected = sourceData.publishers && sourceData.publishers.some(p => p.id === publisher.id);
+                html += `<option value="${publisher.id}" ${isSelected ? 'selected' : ''}>${publisher.name}</option>`;
+            });
+            
+            html += '</select>';
             container.innerHTML = html;
         }
 
         function displayScribes() {
             const container = document.getElementById('scribesContainer');
-            if (!sourceData.scribes || sourceData.scribes.length === 0) {
-                container.innerHTML = '<span class="text-muted">No scribes</span>';
-                return;
-            }
-
-            const html = sourceData.scribes.map(scribe => 
-                `<span class="badge bg-info me-1">${scribe.name}</span>`
-            ).join('');
+            
+            let html = '<select multiple class="form-control" id="scribesSelect" style="min-height: 100px;">';
+            
+            allScribes.forEach(scribe => {
+                const isSelected = sourceData.scribes && sourceData.scribes.some(s => s.id === scribe.id);
+                html += `<option value="${scribe.id}" ${isSelected ? 'selected' : ''}>${scribe.name}</option>`;
+            });
+            
+            html += '</select>';
             container.innerHTML = html;
         }
 
         function displaySourceImages() {
             const container = document.getElementById('sourceImagesContainer');
-            if (!sourceData.source_images || sourceData.source_images.length === 0) {
-                container.innerHTML = '<span class="text-muted">No images</span>';
+            
+            let html = '';
+            
+            // Display existing images
+            if (sourceData.source_images && sourceData.source_images.length > 0) {
+                sourceData.source_images.forEach((image, index) => {
+                    html += `
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control" value="${image.url}" 
+                                   onchange="updateSourceImage(${index}, 'url', this.value)" placeholder="Image URL">
+                            <input type="text" class="form-control" value="${image.label || ''}" 
+                                   onchange="updateSourceImage(${index}, 'label', this.value)" placeholder="Image label">
+                            <a href="${image.url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View image">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                    onclick="removeSourceImage(${index})" title="Remove image">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Add new image input
+            html += `
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="newImageUrl" placeholder="New image URL">
+                    <input type="text" class="form-control" id="newImageLabel" placeholder="New image label">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSourceImage()">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function updateSourceImage(index, field, value) {
+            if (!sourceData.source_images) sourceData.source_images = [];
+            if (!sourceData.source_images[index]) sourceData.source_images[index] = {};
+            sourceData.source_images[index][field] = value;
+        }
+
+        function removeSourceImage(index) {
+            if (confirm('Remove this image?')) {
+                sourceData.source_images.splice(index, 1);
+                displaySourceImages();
+            }
+        }
+
+        function addSourceImage() {
+            const url = document.getElementById('newImageUrl').value.trim();
+            const label = document.getElementById('newImageLabel').value.trim();
+            
+            if (!url) {
+                alert('Please enter an image URL');
                 return;
             }
-
-            const html = sourceData.source_images.map(image => 
-                `<div class="mb-1">
-                    <small class="text-muted">${image.label || 'Untitled'}</small><br>
-                    <a href="${image.url}" target="_blank" class="text-decoration-none">
-                        <i class="bi bi-image"></i> View Image
-                    </a>
-                </div>`
-            ).join('');
-            container.innerHTML = html;
+            
+            if (!sourceData.source_images) sourceData.source_images = [];
+            sourceData.source_images.push({ url, label });
+            displaySourceImages();
         }
 
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            if (inclusionsData.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-4 text-muted">
-                        <p>No inclusions found for this page.</p>
-                        ${currentInclusionsPage === 1 ? `
-                            <button type="button" class="btn btn-outline-primary" onclick="addNewInclusion()">
-                                <i class="bi bi-plus-lg"></i> Add First Inclusion
-                            </button>
-                        ` : ''}
-                    </div>
-                `;
-                return;
-            }
+            // Always show 40 rows total (existing + blank)
+            const targetRows = 40;
+            const existingRows = inclusionsData.length;
+            const blankRowsNeeded = Math.max(0, targetRows - existingRows);
 
             // Build the inclusions editing interface
             let html = '<div class="inclusions-container">';
 
+            // Add existing inclusions
             inclusionsData.forEach((inclusion, index) => {
-                html += buildInclusionRow(inclusion, index);
+                html += buildInclusionRow(inclusion, index, false);
             });
+
+            // Add blank rows to reach 40 total
+            for (let i = 0; i < blankRowsNeeded; i++) {
+                const blankInclusion = createBlankInclusion(existingRows + i + 1);
+                html += buildInclusionRow(blankInclusion, existingRows + i, true);
+            }
 
             html += '</div>';
             container.innerHTML = html;
 
             // Initialize autocomplete and styling
             initializeInclusionInteractions();
+        }
+
+        function addNewInclusion() {
+            const newOrder = inclusionsData.length + 1;
+            const newInclusion = createBlankInclusion(newOrder);
+            inclusionsData.push(newInclusion);
+            displayInclusions();
         }
 
         function createBlankInclusion(order) {
@@ -661,6 +722,8 @@
 
         // Global data for dropdowns
         let compositionTypes = [];
+        let allPublishers = [];
+        let allScribes = [];
         const toneOptions = {
             "1": "primi toni",
             "2": "secundi toni", 
@@ -703,6 +766,9 @@
         }
 
         function buildCompositionTypeOptions(selectedType) {
+            if (!Array.isArray(compositionTypes)) {
+                return '<option value="">Loading types...</option>';
+            }
             return compositionTypes.map(type => 
                 `<option value="${type.id}" ${type.name === selectedType ? 'selected' : ''}>${type.name}</option>`
             ).join('');
@@ -727,15 +793,15 @@
             
             let html = '';
             for (let row = 0; row < rows; row++) {
-                html += '<div class="clef-row d-flex mb-1">';
+                html += '<div class="clef-row mb-1">';
                 for (let col = 0; col < 8; col++) {
                     const clefIndex = row * 8 + col;
                     const clef = clefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] };
                     const displayValue = formatClefDisplay(clef);
                     
                     html += `
-                        <input type="text" class="form-control form-control-sm clef-input me-1" 
-                               style="flex: 1; ${getClefInputStyle(clef)}"
+                        <input type="text" class="form-control form-control-sm clef-input" 
+                               style="${getClefInputStyle(clef)}"
                                value="${displayValue}" 
                                data-inclusion="${inclusionIndex}" 
                                data-clef="${clefIndex}"
@@ -1077,16 +1143,26 @@
         }
 
         function reorderInclusions() {
-            if (inclusionsData.length === 0) {
-                alert('No inclusions to reorder.');
+            // Filter out blank/empty inclusions (those without any meaningful data)
+            const realInclusions = inclusionsData.filter(inclusion => 
+                inclusion.id || 
+                inclusion.composition?.title_text || 
+                (inclusion.attribution_texts && inclusion.attribution_texts.some(text => text.trim())) ||
+                inclusion.position ||
+                inclusion.notes
+            );
+
+            if (realInclusions.length === 0) {
+                alert('No real inclusions to reorder.');
                 return;
             }
 
-            if (!confirm('Automatically reorder inclusions by their order field? This will assign sequential numbers starting from 1.')) {
+            if (!confirm(`Automatically reorder ${realInclusions.length} real inclusions? This will assign sequential order numbers starting from 1.`)) {
                 return;
             }
 
-            inclusionsData.forEach((inclusion, index) => {
+            // Update order for real inclusions only
+            realInclusions.forEach((inclusion, index) => {
                 inclusion.order = index + 1 + ((currentInclusionsPage - 1) * inclusionsPageSize);
             });
 
@@ -1101,6 +1177,7 @@
                 compositionTypes = await response.json();
             } catch (error) {
                 console.error('Error loading composition types:', error);
+                compositionTypes = []; // Fallback to empty array
             }
 
             // Initialize title autocomplete
@@ -1108,6 +1185,25 @@
             
             // Initialize composer autocomplete
             initializeComposerAutocomplete();
+        }
+
+        // Load publishers and scribes data
+        async function loadPublishersAndScribes() {
+            try {
+                const [publishersResponse, scribesResponse] = await Promise.all([
+                    fetch('/api/sources/publishers'),
+                    fetch('/api/sources/scribes')
+                ]);
+                
+                if (publishersResponse.ok) {
+                    allPublishers = await publishersResponse.json();
+                }
+                if (scribesResponse.ok) {
+                    allScribes = await scribesResponse.json();
+                }
+            } catch (error) {
+                console.error('Error loading publishers/scribes:', error);
+            }
         }
 
         function initializeTitleAutocomplete() {

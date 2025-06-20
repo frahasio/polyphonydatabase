@@ -474,6 +474,39 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 // Get composition types for dropdown
 router.get('/composition-types', async (req, res) => {
   try {
+    // Check if table exists first
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'composition_types'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      // Return hardcoded list if table doesn't exist yet
+      const hardcodedTypes = [
+        {id: 1, name: "Mass"},
+        {id: 2, name: "Hymn"},
+        {id: 3, name: "Responsory"},
+        {id: 4, name: "Alleluia"},
+        {id: 5, name: "Instrumental"},
+        {id: 6, name: "Introit"},
+        {id: 7, name: "Lamentation"},
+        {id: 8, name: "Litany"},
+        {id: 9, name: "Passion"},
+        {id: 10, name: "Service"},
+        {id: 11, name: "Reading"},
+        {id: 12, name: "Response(s)"},
+        {id: 13, name: "Verse anthem"},
+        {id: 14, name: "Round/canon"},
+        {id: 15, name: "Reproaches"},
+        {id: 16, name: "Alternatim psalm/canticle"},
+        {id: 17, name: "Requiem/Burial service"},
+        {id: 18, name: "Sequence"}
+      ];
+      return res.json(hardcodedTypes);
+    }
+    
     const result = await pool.query('SELECT id, name FROM composition_types ORDER BY name');
     res.json(result.rows);
   } catch (error) {
@@ -516,6 +549,28 @@ router.get('/composers/autocomplete', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all publishers for multi-select
+router.get('/publishers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM publishers ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching publishers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all scribes for multi-select
+router.get('/scribes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM scribes ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching scribes:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
