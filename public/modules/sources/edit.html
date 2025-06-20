@@ -469,7 +469,7 @@
         let inclusionsData = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
-        const inclusionsPageSize = 40;
+        const inclusionsPageSize = 25;
 
         // Fetch source details and inclusions
         async function fetchSource(page = 1) {
@@ -654,8 +654,8 @@
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            // Always show 40 rows total (existing + blank)
-            const targetRows = 40;
+            // Always show 25 rows total (existing + blank)
+            const targetRows = 25;
             const existingRows = inclusionsData.length;
             const blankRowsNeeded = Math.max(0, targetRows - existingRows);
 
@@ -856,7 +856,7 @@
             "per": "peregrini toni",
             "pro": "proprii toni"
         };
-        const evenOddOptions = ["even", "odd", "both"];
+
         
         // Valid clef names (from schema reference)
         const validClefs = [
@@ -902,14 +902,15 @@
         }
 
         function buildEvenOddOptions(selectedValue) {
-            // Convert integer values back to strings for display
-            let selectedString = selectedValue;
-            if (selectedValue === 0) selectedString = 'even';
-            else if (selectedValue === 1) selectedString = 'odd';
-            else if (selectedValue === 2) selectedString = 'both';
+            // Work with integers, display as strings
+            const evenOddMapping = {
+                0: 'even',
+                1: 'odd', 
+                2: 'both'
+            };
             
-            return evenOddOptions.map(option => 
-                `<option value="${option}" ${option === selectedString ? 'selected' : ''}>${option}</option>`
+            return Object.entries(evenOddMapping).map(([intValue, displayText]) => 
+                `<option value="${intValue}" ${parseInt(intValue) === selectedValue ? 'selected' : ''}>${displayText}</option>`
             ).join('');
         }
 
@@ -991,6 +992,9 @@
                 // Also store the name for display
                 const type = compositionTypes.find(t => t.id === parseInt(value));
                 inclusionsData[index].composition.composition_type_name = type ? type.name : '';
+            } else if (field === 'even_odd') {
+                // Store as integer, not string
+                inclusionsData[index].composition[field] = value !== '' ? parseInt(value) : null;
             } else {
                 inclusionsData[index].composition[field] = value || null;
             }
@@ -1725,11 +1729,27 @@
                 document.getElementById('saveProgressBar').style.width = '100%';
                 document.getElementById('saveStatusText').textContent = 'Save completed successfully!';
 
-                modal.hide();
-                markAsSaved();
-                alert('Changes saved successfully!');
-                // Stay on edit page, just refresh the data
-                fetchSource(currentInclusionsPage);
+                // Wait a moment for user to see completion, then close and refresh
+                setTimeout(() => {
+                    modal.hide();
+                    markAsSaved();
+                    
+                    // Show brief success feedback in the save button
+                    const saveBtn = document.getElementById('stickySaveBtn');
+                    const originalText = saveBtn.innerHTML;
+                    saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Saved!';
+                    saveBtn.classList.add('btn-success');
+                    saveBtn.classList.remove('btn-primary');
+                    
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.classList.remove('btn-success');
+                        saveBtn.classList.add('btn-primary');
+                    }, 2000);
+                    
+                    // Stay on edit page, just refresh the data
+                    fetchSource(currentInclusionsPage);
+                }, 800);
 
             } catch (error) {
                 console.error('Error saving:', error);
@@ -1778,19 +1798,15 @@
 
         // Initialize composer select dropdowns
         function initializeComposerSelects() {
+            // Create a single HTML string with all composers for reuse
+            let composerOptionsHTML = '';
+            allComposers.forEach(composer => {
+                composerOptionsHTML += `<option value="${composer.id}">${composer.name}</option>`;
+            });
+
             document.querySelectorAll('.composer-select').forEach(select => {
-                // Clear existing options except the first one
-                while (select.children.length > 1) {
-                    select.removeChild(select.lastChild);
-                }
-                
-                // Add all composers as options
-                allComposers.forEach(composer => {
-                    const option = document.createElement('option');
-                    option.value = composer.id;
-                    option.textContent = composer.name;
-                    select.appendChild(option);
-                });
+                // Clear existing options except the first one and add all at once
+                select.innerHTML = '<option value="">Select composer...</option>' + composerOptionsHTML;
 
                 // Set existing values - fix for single composer per attribution
                 const inclusionIndex = parseInt(select.dataset.inclusion);
