@@ -14,6 +14,9 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
+// Simple favicon handler to prevent 404s
+app.get('/favicon.ico', (req, res) => res.status(204).send());
+
 // Routes
 app.use('/api/sources', sourcesRouter);
 app.use('/api/composers', composersRouter);

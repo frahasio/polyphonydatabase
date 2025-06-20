@@ -588,7 +588,13 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
         const compositionId = tempInclusion.rows[0].composition_id;
         const tone = originalInclusion.composition.tone || null;
-        const evenOdd = originalInclusion.composition.even_odd || null;
+        // Convert even_odd string to integer if needed
+        let evenOdd = originalInclusion.composition.even_odd || null;
+        if (evenOdd === 'even') evenOdd = 0;
+        else if (evenOdd === 'odd') evenOdd = 1;
+        else if (evenOdd === 'both') evenOdd = 2;
+        else evenOdd = null;
+        
         const compositionTypeId = originalInclusion.composition.composition_type_id ? 
           parseInt(originalInclusion.composition.composition_type_id) : null;
 
@@ -643,7 +649,12 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
       // Get tone and even_odd from original inclusion data
       const tone = originalInclusion?.composition?.tone || null;
-      const evenOdd = originalInclusion?.composition?.even_odd || null;
+      // Convert even_odd string to integer if needed
+      let evenOdd = originalInclusion?.composition?.even_odd || null;
+      if (evenOdd === 'even') evenOdd = 0;
+      else if (evenOdd === 'odd') evenOdd = 1;
+      else if (evenOdd === 'both') evenOdd = 2;
+      else evenOdd = null;
 
       // Create new composition with all fields
       const compositionResult = await client.query(`

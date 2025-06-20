@@ -668,11 +668,17 @@
             // Initialize autocomplete and styling
             initializeInclusionInteractions();
             
-            // Populate composer names and update dropdown styling
-            setTimeout(() => {
+            // Ensure composers are loaded before initializing selects
+            if (allComposers.length > 0) {
                 initializeComposerSelects();
                 updateAllDropdownStyling();
-            }, 100);
+            } else {
+                // Wait for composers to load, then initialize
+                setTimeout(() => {
+                    initializeComposerSelects();
+                    updateAllDropdownStyling();
+                }, 500);
+            }
         }
 
         function addNewInclusion() {
@@ -848,20 +854,22 @@
 
         function buildAttributionInputs(attributions, inclusionIndex) {
             return attributions.map((attribution, attrIndex) => `
-                <div class="input-group input-group-sm mb-1">
-                    <input type="text" class="form-control" 
-                           value="${attribution || ''}" 
-                           placeholder="Attribution text"
-                           onchange="updateAttribution(${inclusionIndex}, ${attrIndex}, this.value)">
-                    <select class="form-control composer-select" 
+                <div class="mb-1">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" 
+                               value="${attribution || ''}" 
+                               placeholder="Attribution text"
+                               onchange="updateAttribution(${inclusionIndex}, ${attrIndex}, this.value)">
+                        ${attributions.length > 1 ? `
+                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                    onclick="removeAttribution(${inclusionIndex}, ${attrIndex})">×</button>
+                        ` : ''}
+                    </div>
+                    <select class="form-control form-control-sm mt-1 composer-select" 
                             data-inclusion="${inclusionIndex}" 
                             data-attribution="${attrIndex}">
                         <option value="">Select composer...</option>
                     </select>
-                    ${attributions.length > 1 ? `
-                        <button type="button" class="btn btn-outline-danger btn-sm" 
-                                onclick="removeAttribution(${inclusionIndex}, ${attrIndex})">×</button>
-                    ` : ''}
                 </div>
             `).join('');
         }
@@ -883,8 +891,14 @@
         }
 
         function buildEvenOddOptions(selectedValue) {
+            // Convert integer values back to strings for display
+            let selectedString = selectedValue;
+            if (selectedValue === 0) selectedString = 'even';
+            else if (selectedValue === 1) selectedString = 'odd';
+            else if (selectedValue === 2) selectedString = 'both';
+            
             return evenOddOptions.map(option => 
-                `<option value="${option}" ${option === selectedValue ? 'selected' : ''}>${option}</option>`
+                `<option value="${option}" ${option === selectedString ? 'selected' : ''}>${option}</option>`
             ).join('');
         }
 
@@ -1186,27 +1200,40 @@
                 return;
             }
 
-            const firstComposition = inclusionsData[0].composition;
-            if (!firstComposition || !firstComposition.composition_type_name) {
+            // Get the current value from the first row's composition type dropdown
+            const firstTypeSelect = document.querySelector(`select[onchange*="updateCompositionField(0, 'composition_type_id'"]`);
+            
+            if (!firstTypeSelect || !firstTypeSelect.value) {
                 alert('First inclusion has no composition type to copy.');
                 return;
             }
 
-            const typeName = firstComposition.composition_type_name;
+            const typeId = parseInt(firstTypeSelect.value);
+            const typeOption = firstTypeSelect.selectedOptions[0];
+            const typeName = typeOption ? typeOption.textContent : '';
 
             if (!confirm(`Copy composition type "${typeName}" to all ${inclusionsData.length} inclusions on this page?`)) {
                 return;
             }
 
+            // Update data for all inclusions (except first)
             for (let i = 1; i < inclusionsData.length; i++) {
                 if (!inclusionsData[i].composition) {
                     inclusionsData[i].composition = {};
                 }
                 inclusionsData[i].composition.composition_type_name = typeName;
-                inclusionsData[i].composition.composition_type_id = firstComposition.composition_type_id;
+                inclusionsData[i].composition.composition_type_id = typeId;
             }
-
-            displayInclusions();
+            
+            // Update all type dropdowns at once (except the first one)
+            document.querySelectorAll('select[onchange*="updateCompositionField"]:not([onchange*="updateCompositionField(0, \'composition_type_id\'"])').forEach(select => {
+                if (select.onchange.toString().includes('composition_type_id')) {
+                    select.value = typeId;
+                    updateDropdownStyling(select);
+                }
+            });
+            
+            markAsUnsaved();
         }
 
 
@@ -1251,9 +1278,6 @@
 
             // Initialize title autocomplete
             initializeTitleAutocomplete();
-            
-            // Initialize composer autocomplete
-            initializeComposerAutocomplete();
         }
 
         // Load publishers and scribes data
@@ -1952,7 +1976,18 @@
 
             console.log('Updated inclusionsData:', inclusionsData);
             markAsUnsaved();
-            displayInclusions();
+            
+            // Update all attribution inputs at once (except the first one)
+            document.querySelectorAll('input[onchange*="updateAttribution"]:not([onchange*="updateAttribution(0, 0"])').forEach(input => {
+                input.value = currentAttribution;
+            });
+            
+            // Update all composer selects at once (except the first one)
+            if (currentComposerId) {
+                document.querySelectorAll('select[data-attribution="0"]:not([data-inclusion="0"])').forEach(select => {
+                    select.value = currentComposerId;
+                });
+            }
         }
 
         function initializeInclusionInteractions() {
