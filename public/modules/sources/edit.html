@@ -1623,6 +1623,21 @@
                 // Convert year fields to integers
                 sourceUpdateData.from_year = sourceUpdateData.from_year ? parseInt(sourceUpdateData.from_year) : null;
                 sourceUpdateData.to_year = sourceUpdateData.to_year ? parseInt(sourceUpdateData.to_year) : null;
+                
+                // Collect publishers
+                const publishersSelect = document.getElementById('publishersSelect');
+                if (publishersSelect) {
+                    sourceUpdateData.publishers = Array.from(publishersSelect.selectedOptions).map(option => parseInt(option.value));
+                }
+                
+                // Collect scribes
+                const scribesSelect = document.getElementById('scribesSelect');
+                if (scribesSelect) {
+                    sourceUpdateData.scribes = Array.from(scribesSelect.selectedOptions).map(option => parseInt(option.value));
+                }
+                
+                // Collect source images
+                sourceUpdateData.source_images = sourceData.source_images || [];
 
                 // Prepare data for saving
                 const saveData = {

@@ -63,6 +63,110 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get composition types for dropdown (MUST be before /:id route)
+router.get('/composition-types', async (req, res) => {
+  try {
+    // Check if table exists first
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'composition_types'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      // Return hardcoded list if table doesn't exist yet
+      const hardcodedTypes = [
+        {id: 1, name: "Mass"},
+        {id: 2, name: "Hymn"},
+        {id: 3, name: "Responsory"},
+        {id: 4, name: "Alleluia"},
+        {id: 5, name: "Instrumental"},
+        {id: 6, name: "Introit"},
+        {id: 7, name: "Lamentation"},
+        {id: 8, name: "Litany"},
+        {id: 9, name: "Passion"},
+        {id: 10, name: "Service"},
+        {id: 11, name: "Reading"},
+        {id: 12, name: "Response(s)"},
+        {id: 13, name: "Verse anthem"},
+        {id: 14, name: "Round/canon"},
+        {id: 15, name: "Reproaches"},
+        {id: 16, name: "Alternatim psalm/canticle"},
+        {id: 17, name: "Requiem/Burial service"},
+        {id: 18, name: "Sequence"}
+      ];
+      return res.json(hardcodedTypes);
+    }
+    
+    const result = await pool.query('SELECT id, name FROM composition_types ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composition types:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all publishers for multi-select (MUST be before /:id route)
+router.get('/publishers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM publishers ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching publishers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all scribes for multi-select (MUST be before /:id route)
+router.get('/scribes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM scribes ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching scribes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Title autocomplete (MUST be before /:id route)
+router.get('/titles/autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 3) {
+      return res.json([]);
+    }
+    
+    const result = await pool.query(
+      'SELECT id, text FROM titles WHERE text ILIKE $1 ORDER BY text LIMIT 20',
+      [`${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching titles:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Composer autocomplete (MUST be before /:id route)
+router.get('/composers/autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json([]);
+    }
+    
+    const result = await pool.query(
+      'SELECT id, name FROM composers WHERE name ILIKE $1 ORDER BY name LIMIT 20',
+      [`${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get source by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -337,16 +441,67 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     const updateSourceQuery = `
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
-          rism_link = $6, catalogued = $7, updated_at = $8
-      WHERE id = $9
+          rism_link = $6, catalogued = $7, from_year = $8, to_year = $9,
+          from_year_annotation = $10, to_year_annotation = $11, updated_at = $12
+      WHERE id = $13
       RETURNING *
     `;
     
     const now = new Date();
     await client.query(updateSourceQuery, [
-      source.code, source.title, source.type, source.format, source.town,
-      source.rism_link, source.catalogued, now, sourceId
+      source.code, 
+      source.title, 
+      source.type, 
+      source.format, 
+      source.town,
+      source.rism_link, 
+      source.catalogued,
+      source.from_year || null,
+      source.to_year || null,
+      source.from_year_annotation || null,
+      source.to_year_annotation || null,
+      now, 
+      sourceId
     ]);
+    
+    // Update publishers relationships
+    if (source.publishers) {
+      await client.query('DELETE FROM publishers_sources WHERE source_id = $1', [sourceId]);
+      for (const publisherId of source.publishers) {
+        if (publisherId) {
+          await client.query(
+            'INSERT INTO publishers_sources (publisher_id, source_id) VALUES ($1, $2)',
+            [publisherId, sourceId]
+          );
+        }
+      }
+    }
+    
+    // Update scribes relationships  
+    if (source.scribes) {
+      await client.query('DELETE FROM scribes_sources WHERE source_id = $1', [sourceId]);
+      for (const scribeId of source.scribes) {
+        if (scribeId) {
+          await client.query(
+            'INSERT INTO scribes_sources (scribe_id, source_id) VALUES ($1, $2)',
+            [scribeId, sourceId]
+          );
+        }
+      }
+    }
+    
+    // Update source images
+    if (source.source_images) {
+      await client.query('DELETE FROM source_images WHERE source_id = $1', [sourceId]);
+      for (const image of source.source_images) {
+        if (image.url) {
+          await client.query(
+            'INSERT INTO source_images (source_id, url, label, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)',
+            [sourceId, image.url, image.label || '', now, now]
+          );
+        }
+      }
+    }
 
     // Create temporary table for processing inclusions
     await client.query(`
@@ -365,16 +520,25 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
     // Insert inclusions into temporary table
     for (const inclusion of inclusions) {
+      // Skip completely empty inclusions
+      if (!inclusion.id && 
+          !inclusion.composition?.title_text && 
+          (!inclusion.attribution_texts || !inclusion.attribution_texts.some(text => text.trim())) &&
+          !inclusion.position &&
+          !inclusion.notes) {
+        continue;
+      }
+
       await client.query(`
         INSERT INTO temp_inclusions (source_id, position, composition_name, composition_type, composers, clefs, composition_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [
         sourceId,
-        inclusion.position || 0,
-        inclusion.composition_name || '',
-        inclusion.composition_type || '',
-        inclusion.composers || '',
-        inclusion.clefs || '',
+        inclusion.order || 0,
+        inclusion.composition?.title_text || '',
+        inclusion.composition?.composition_type_name || '',
+        (inclusion.attribution_texts || []).join(', '),
+        JSON.stringify(inclusion.clefs || []),
         inclusion.composition_id || null
       ]);
     }
@@ -437,7 +601,21 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       `, [compositionId, tempInclusion.id]);
     }
 
-    // 3. Clear existing inclusions for this source
+    // 3. Clear existing inclusions for this source (handle foreign key constraints)
+    // First delete related records in clef_inclusions if the table exists
+    try {
+      await client.query(`
+        DELETE FROM clef_inclusions 
+        WHERE inclusion_id IN (
+          SELECT id FROM inclusions WHERE source_id = $1
+        )
+      `, [sourceId]);
+    } catch (error) {
+      // Table might not exist, continue
+      console.log('clef_inclusions table not found or empty, continuing...');
+    }
+    
+    // Now we can safely delete the inclusions
     await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
 
     // 4. Insert final inclusions
@@ -445,12 +623,38 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       SELECT * FROM temp_inclusions ORDER BY position
     `);
 
-    for (const tempInclusion of finalInclusions.rows) {
-      if (tempInclusion.composition_id) {
+    // Get the original inclusions data to preserve all fields
+    const processedInclusions = inclusions.filter(inclusion => 
+      inclusion.id || 
+      inclusion.composition?.title_text || 
+      (inclusion.attribution_texts && inclusion.attribution_texts.some(text => text.trim())) ||
+      inclusion.position ||
+      inclusion.notes
+    );
+
+    for (let i = 0; i < finalInclusions.rows.length; i++) {
+      const tempInclusion = finalInclusions.rows[i];
+      const originalInclusion = processedInclusions[i];
+      
+      if (tempInclusion.composition_id && originalInclusion) {
         await client.query(`
-          INSERT INTO inclusions (source_id, composition_id, position, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [sourceId, tempInclusion.composition_id, tempInclusion.position, now, now]);
+          INSERT INTO inclusions (
+            source_id, composition_id, "order", position, notes, 
+            attribution_texts, composer_ids, clefs, created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [
+          sourceId, 
+          tempInclusion.composition_id, 
+          originalInclusion.order || (i + 1),
+          originalInclusion.position || '',
+          originalInclusion.notes || '',
+          JSON.stringify(originalInclusion.attribution_texts || []),
+          JSON.stringify(originalInclusion.composer_ids || []),
+          JSON.stringify(originalInclusion.clefs || []),
+          now, 
+          now
+        ]);
       }
     }
 
@@ -471,108 +675,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
   }
 });
 
-// Get composition types for dropdown
-router.get('/composition-types', async (req, res) => {
-  try {
-    // Check if table exists first
-    const tableExists = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'composition_types'
-      );
-    `);
-    
-    if (!tableExists.rows[0].exists) {
-      // Return hardcoded list if table doesn't exist yet
-      const hardcodedTypes = [
-        {id: 1, name: "Mass"},
-        {id: 2, name: "Hymn"},
-        {id: 3, name: "Responsory"},
-        {id: 4, name: "Alleluia"},
-        {id: 5, name: "Instrumental"},
-        {id: 6, name: "Introit"},
-        {id: 7, name: "Lamentation"},
-        {id: 8, name: "Litany"},
-        {id: 9, name: "Passion"},
-        {id: 10, name: "Service"},
-        {id: 11, name: "Reading"},
-        {id: 12, name: "Response(s)"},
-        {id: 13, name: "Verse anthem"},
-        {id: 14, name: "Round/canon"},
-        {id: 15, name: "Reproaches"},
-        {id: 16, name: "Alternatim psalm/canticle"},
-        {id: 17, name: "Requiem/Burial service"},
-        {id: 18, name: "Sequence"}
-      ];
-      return res.json(hardcodedTypes);
-    }
-    
-    const result = await pool.query('SELECT id, name FROM composition_types ORDER BY name');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching composition types:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
-// Title autocomplete
-router.get('/titles/autocomplete', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.length < 3) {
-      return res.json([]);
-    }
-    
-    const result = await pool.query(
-      'SELECT id, text FROM titles WHERE text ILIKE $1 ORDER BY text LIMIT 20',
-      [`${q}%`]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching titles:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Composer autocomplete
-router.get('/composers/autocomplete', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.length < 2) {
-      return res.json([]);
-    }
-    
-    const result = await pool.query(
-      'SELECT id, name FROM composers WHERE name ILIKE $1 ORDER BY name LIMIT 20',
-      [`${q}%`]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching composers:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all publishers for multi-select
-router.get('/publishers', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name FROM publishers ORDER BY name');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching publishers:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all scribes for multi-select
-router.get('/scribes', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name FROM scribes ORDER BY name');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching scribes:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router; 
