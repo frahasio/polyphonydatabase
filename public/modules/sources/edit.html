@@ -39,19 +39,21 @@
         .clef-input {
             font-family: monospace;
             text-align: center;
-            font-size: 0.875rem;
-            padding: 0 !important;
+            font-size: 0.75rem;
+            padding: 1px !important;
             margin: 0 !important;
             border-radius: 0 !important;
-            min-width: 60px;
-            width: 60px;
-            height: 30px;
+            min-width: 50px;
+            width: 50px;
+            height: 28px;
+            flex-shrink: 0;
         }
         
         .clef-row {
-            gap: 2px;
+            gap: 1px;
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
         }
         
         .btn-xs {
@@ -109,31 +111,12 @@
             100% { border-color: #dc3545; }
         }
         
-        /* Select2 Bootstrap 5 styling */
-        .select2-container--default .select2-selection--multiple {
+        /* Select2 Bootstrap 5 styling - keep minimal, use defaults mostly */
+        .select2-container--default .select2-selection--multiple,
+        .select2-container--default .select2-selection--single {
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
             min-height: calc(1.5em + 0.75rem + 2px);
-        }
-        
-        .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            background-color: #0d6efd;
-            border: 1px solid #0d6efd;
-            color: white;
-            padding: 2px 8px;
-            margin-top: 4px;
-            margin-right: 4px;
-            border-radius: 0.25rem;
-        }
-        
-        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-            color: white;
-            margin-right: 5px;
-            font-weight: bold;
-        }
-        
-        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
-            color: #dc3545;
         }
         
         /* Optional clef styling */
@@ -192,6 +175,27 @@
         .move-controls select {
             width: 120px;
         }
+        
+        /* Unsaved changes indicator */
+        .unsaved-indicator {
+            color: #dc3545;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .pagination-in-header {
+            font-size: 0.875rem;
+        }
+        
+        .pagination-in-header .page-link {
+            padding: 0.25rem 0.5rem;
+        }
     </style>
 </head>
   <body>
@@ -199,14 +203,18 @@
     <div class="sticky-header">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-                <a href="index.html" class="btn btn-outline-secondary btn-sm me-3">
+                <a href="index.html" class="btn btn-outline-secondary btn-sm me-3" id="backBtn">
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
                 <h5 class="mb-0" id="headerSourceCode">Edit Source</h5>
+                <span id="unsavedIndicator" class="ms-2 unsaved-indicator" style="display: none;">• Unsaved changes</span>
             </div>
-            <button type="button" class="btn btn-success" id="stickySaveBtn">
-                <i class="bi bi-check-lg"></i> Save All Changes
-            </button>
+            <div class="d-flex align-items-center gap-3">
+                <div id="headerPagination" class="pagination-in-header"></div>
+                <button type="button" class="btn btn-success" id="stickySaveBtn">
+                    <i class="bi bi-check-lg"></i> Save All Changes
+                </button>
+            </div>
         </div>
     </div>
 
@@ -238,7 +246,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="title" class="form-label">Title</label>
-                                <input type="text" class="form-control" id="title" name="title">
+                                <textarea class="form-control" id="title" name="title" rows="3"></textarea>
                             </div>
                     <div class="mb-3">
                         <label for="type" class="form-label">Type</label>
@@ -271,11 +279,12 @@
                                            style="width: 60px;" title="From year annotation (e.g., c.)">
                                     <input type="number" class="form-control" id="from_year" name="from_year" 
                                            style="width: 80px;" title="From year">
+                                    <span class="mx-1">–</span>
                                     <input type="text" class="form-control" id="to_year_annotation" name="to_year_annotation" 
                                            style="width: 60px;" title="To year annotation (e.g., c.)">
                                     <input type="number" class="form-control" id="to_year" name="to_year" 
                                            style="width: 80px;" title="To year">
-                                    <small class="text-muted ms-2">e.g., c. 1550 c. 1560</small>
+                                    <small class="text-muted ms-2">e.g., c. 1550 – c. 1560</small>
                                 </div>
                             </div>
                     </div>
@@ -342,9 +351,6 @@
                                 </button>
                             </div>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary" onclick="reorderInclusions()" title="Automatically reorder inclusions by position">
-                                    <i class="bi bi-list-ol"></i> Auto-reorder
-                                </button>
                                 <button type="button" class="btn btn-outline-primary" onclick="showCopyFromSourceModal()" title="Copy all inclusions from another source">
                                     <i class="bi bi-files"></i> Copy from Source
                                 </button>
@@ -359,9 +365,6 @@
                             Loading inclusions...
                         </div>
                     </div>
-                    
-                    <!-- Pagination -->
-                    <div id="inclusionsPagination" class="d-flex justify-content-center mt-3"></div>
                 </div>
             </div>
 
@@ -660,7 +663,7 @@
             
             // Populate composer names and update dropdown styling
             setTimeout(() => {
-                populateComposerNames();
+                initializeComposerSelects();
                 updateAllDropdownStyling();
             }, 100);
         }
@@ -843,10 +846,11 @@
                            value="${attribution || ''}" 
                            placeholder="Attribution text"
                            onchange="updateAttribution(${inclusionIndex}, ${attrIndex}, this.value)">
-                    <input type="text" class="form-control composer-autocomplete" 
-                           placeholder="Select composer"
-                           data-inclusion="${inclusionIndex}" 
-                           data-attribution="${attrIndex}">
+                    <select class="form-control composer-select" 
+                            data-inclusion="${inclusionIndex}" 
+                            data-attribution="${attrIndex}">
+                        <option value="">Select composer...</option>
+                    </select>
                     ${attributions.length > 1 ? `
                         <button type="button" class="btn btn-outline-danger btn-sm" 
                                 onclick="removeAttribution(${inclusionIndex}, ${attrIndex})">×</button>
@@ -935,6 +939,7 @@
                 inclusionsData[index] = createBlankInclusion(index + 1);
             }
             inclusionsData[index][field] = value;
+            markAsUnsaved();
         }
 
         function updateCompositionField(index, field, value) {
@@ -944,7 +949,19 @@
             if (!inclusionsData[index].composition) {
                 inclusionsData[index].composition = {};
             }
-            inclusionsData[index].composition[field] = value;
+            
+            // Handle different field types correctly
+            if (field === 'composition_type_id') {
+                inclusionsData[index].composition.composition_type_id = value ? parseInt(value) : null;
+                // Also store the name for display
+                const type = compositionTypes.find(t => t.id === parseInt(value));
+                inclusionsData[index].composition.composition_type_name = type ? type.name : '';
+            } else {
+                inclusionsData[index].composition[field] = value || null;
+            }
+            
+            markAsUnsaved();
+            console.log(`Updated composition field ${field} to:`, value, 'for inclusion:', index);
         }
 
         function updateAttribution(inclusionIndex, attrIndex, value) {
@@ -955,6 +972,7 @@
                 inclusionsData[inclusionIndex].attribution_texts = [''];
             }
             inclusionsData[inclusionIndex].attribution_texts[attrIndex] = value;
+            markAsUnsaved();
         }
 
         function updateClef(inclusionIndex, clefIndex, value) {
@@ -1087,55 +1105,31 @@
 
         // Pagination display function
         function displayInclusionsPagination() {
-            const container = document.getElementById('inclusionsPagination');
+            const container = document.getElementById('headerPagination');
             
             if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
                 container.innerHTML = '';
                 return;
             }
 
-            let html = '<nav><ul class="pagination pagination-sm justify-content-center">';
+            let html = '<nav><ul class="pagination pagination-sm mb-0">';
             
             // Previous button
             html += `<li class="page-item ${!inclusionsPagination.hasPrev ? 'disabled' : ''}">`;
-            html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${currentInclusionsPage - 1}); return false;">Previous</a>`;
+            html += `<a class="page-link" href="#" onclick="checkUnsavedChanges(() => loadInclusionsPage(${currentInclusionsPage - 1})); return false;">‹</a>`;
             html += '</li>';
 
-            // Page numbers
-            const startPage = Math.max(1, currentInclusionsPage - 2);
-            const endPage = Math.min(inclusionsPagination.totalPages, currentInclusionsPage + 2);
-
-            if (startPage > 1) {
-                html += '<li class="page-item"><a class="page-link" href="#" onclick="loadInclusionsPage(1); return false;">1</a></li>';
-                if (startPage > 2) {
-                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                }
-            }
-
-            for (let i = startPage; i <= endPage; i++) {
-                html += `<li class="page-item ${i === currentInclusionsPage ? 'active' : ''}">`;
-                html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${i}); return false;">${i}</a>`;
-                html += '</li>';
-            }
-
-            if (endPage < inclusionsPagination.totalPages) {
-                if (endPage < inclusionsPagination.totalPages - 1) {
-                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                }
-                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadInclusionsPage(${inclusionsPagination.totalPages}); return false;">${inclusionsPagination.totalPages}</a></li>`;
-            }
+            // Current page info
+            html += `<li class="page-item active">`;
+            html += `<span class="page-link">${currentInclusionsPage} / ${inclusionsPagination.totalPages}</span>`;
+            html += '</li>';
 
             // Next button
             html += `<li class="page-item ${!inclusionsPagination.hasNext ? 'disabled' : ''}">`;
-            html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${currentInclusionsPage + 1}); return false;">Next</a>`;
+            html += `<a class="page-link" href="#" onclick="checkUnsavedChanges(() => loadInclusionsPage(${currentInclusionsPage + 1})); return false;">›</a>`;
             html += '</li>';
 
             html += '</ul></nav>';
-            
-            // Add info text
-            const start = (currentInclusionsPage - 1) * inclusionsPageSize + 1;
-            const end = Math.min(currentInclusionsPage * inclusionsPageSize, inclusionsPagination.total);
-            html += `<div class="text-center mt-2"><small class="text-muted">Showing ${start}-${end} of ${inclusionsPagination.total} inclusions</small></div>`;
 
             container.innerHTML = html;
         }
@@ -1270,6 +1264,9 @@
                 if (compositionTypesResponse.ok) {
                     compositionTypes = await compositionTypesResponse.json();
                 }
+                
+                // Also load composers for the selects
+                await loadAllComposers();
             } catch (error) {
                 console.error('Error loading publishers/scribes/composition types:', error);
             }
@@ -1292,22 +1289,7 @@
             });
         }
 
-        function initializeComposerAutocomplete() {
-            document.querySelectorAll('.composer-autocomplete').forEach(input => {
-                let timeout;
-                
-                input.addEventListener('input', function() {
-                    clearTimeout(timeout);
-                    const query = this.value;
-                    
-                    if (query.length >= 2) {
-                        timeout = setTimeout(() => {
-                            searchComposers(query, this);
-                        }, 300);
-                    }
-                });
-            });
-        }
+
 
         async function searchTitles(query, inputElement) {
             try {
@@ -1320,16 +1302,7 @@
             }
         }
 
-        async function searchComposers(query, inputElement) {
-            try {
-                const response = await fetch(`/api/sources/composers/autocomplete?q=${encodeURIComponent(query)}`);
-                const composers = await response.json();
-                
-                showComposerSuggestions(composers, inputElement);
-            } catch (error) {
-                console.error('Error searching composers:', error);
-            }
-        }
+
 
         function showTitleSuggestions(titles, inputElement) {
             // Remove existing suggestions
@@ -1410,56 +1383,7 @@
             }
         }
 
-        function showComposerSuggestions(composers, inputElement) {
-            // Similar to showTitleSuggestions but for composers
-            const existingSuggestions = inputElement.parentNode.querySelector('.autocomplete-suggestions');
-            if (existingSuggestions) {
-                existingSuggestions.remove();
-            }
 
-            if (composers.length === 0) return;
-
-            const suggestionsDiv = document.createElement('div');
-            suggestionsDiv.className = 'autocomplete-suggestions border bg-white position-absolute w-100';
-            suggestionsDiv.style.zIndex = '1000';
-            suggestionsDiv.style.maxHeight = '200px';
-            suggestionsDiv.style.overflowY = 'auto';
-
-            composers.forEach(composer => {
-                const item = document.createElement('div');
-                item.className = 'p-2 cursor-pointer';
-                item.style.cursor = 'pointer';
-                item.textContent = composer.name;
-                
-                item.addEventListener('click', () => {
-                    inputElement.value = composer.name;
-                    const inclusionIndex = inputElement.dataset.inclusion;
-                    const attrIndex = inputElement.dataset.attribution;
-                    
-                    // Add composer ID to the inclusion's composer_ids array
-                    if (!inclusionsData[inclusionIndex].composer_ids) {
-                        inclusionsData[inclusionIndex].composer_ids = [];
-                    }
-                    if (!inclusionsData[inclusionIndex].composer_ids.includes(composer.id)) {
-                        inclusionsData[inclusionIndex].composer_ids.push(composer.id);
-                    }
-                    
-                    suggestionsDiv.remove();
-                });
-
-                item.addEventListener('mouseenter', () => {
-                    item.style.backgroundColor = '#f8f9fa';
-                });
-                item.addEventListener('mouseleave', () => {
-                    item.style.backgroundColor = '';
-                });
-
-                suggestionsDiv.appendChild(item);
-            });
-
-            inputElement.parentNode.style.position = 'relative';
-            inputElement.parentNode.appendChild(suggestionsDiv);
-        }
 
         // Validation functions
         function validateAllClefs() {
@@ -1738,6 +1662,7 @@
 
                 setTimeout(() => {
                     modal.hide();
+                    markAsSaved();
                     alert('Changes saved successfully!');
                     // Stay on edit page, just refresh the data
                     fetchSource(currentInclusionsPage);
@@ -1750,18 +1675,97 @@
             }
         }
 
-        // New functions for improved functionality
-        function populateComposerNames() {
-            // Populate composer autocomplete inputs with existing names
-            inclusionsData.forEach((inclusion, inclusionIndex) => {
-                if (inclusion.composition && inclusion.composition.composer_names) {
-                    inclusion.composition.composer_names.forEach((composerName, attrIndex) => {
-                        const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-attribution="${attrIndex}"]`);
-                        if (input && composerName) {
-                            input.value = composerName;
-                        }
-                    });
+        // Unsaved changes tracking
+        let hasUnsavedChanges = false;
+        let allComposers = [];
+
+        function markAsUnsaved() {
+            hasUnsavedChanges = true;
+            document.getElementById('unsavedIndicator').style.display = 'inline';
+        }
+
+        function markAsSaved() {
+            hasUnsavedChanges = false;
+            document.getElementById('unsavedIndicator').style.display = 'none';
+        }
+
+        function checkUnsavedChanges(callback) {
+            if (hasUnsavedChanges) {
+                if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
+                    callback();
                 }
+            } else {
+                callback();
+            }
+        }
+
+        // Load all composers for select dropdowns
+        async function loadAllComposers() {
+            try {
+                const response = await fetch('/api/sources/composers/autocomplete?q=');
+                allComposers = await response.json();
+            } catch (error) {
+                console.error('Error loading composers:', error);
+                allComposers = [];
+            }
+        }
+
+        // Initialize composer select dropdowns
+        function initializeComposerSelects() {
+            document.querySelectorAll('.composer-select').forEach(select => {
+                // Clear existing options except the first one
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                // Add all composers as options
+                allComposers.forEach(composer => {
+                    const option = document.createElement('option');
+                    option.value = composer.id;
+                    option.textContent = composer.name;
+                    select.appendChild(option);
+                });
+
+                // Initialize Select2
+                $(select).select2({
+                    placeholder: 'Select composer...',
+                    allowClear: true,
+                    width: '100%'
+                });
+
+                // Set existing values
+                const inclusionIndex = parseInt(select.dataset.inclusion);
+                const attrIndex = parseInt(select.dataset.attribution);
+                const inclusion = inclusionsData[inclusionIndex];
+                
+                if (inclusion && inclusion.composer_ids && inclusion.composer_ids[attrIndex]) {
+                    $(select).val(inclusion.composer_ids[attrIndex]).trigger('change');
+                }
+
+                // Handle changes
+                $(select).on('change', function() {
+                    const composerId = this.value ? parseInt(this.value) : null;
+                    const inclusionIndex = parseInt(this.dataset.inclusion);
+                    const attrIndex = parseInt(this.dataset.attribution);
+                    
+                    if (!inclusionsData[inclusionIndex].composer_ids) {
+                        inclusionsData[inclusionIndex].composer_ids = [];
+                    }
+                    inclusionsData[inclusionIndex].composer_ids[attrIndex] = composerId;
+                    
+                    // Update composer names for display
+                    if (!inclusionsData[inclusionIndex].composition) {
+                        inclusionsData[inclusionIndex].composition = {};
+                    }
+                    if (!inclusionsData[inclusionIndex].composition.composer_names) {
+                        inclusionsData[inclusionIndex].composition.composer_names = [];
+                    }
+                    
+                    const composerName = composerId ? allComposers.find(c => c.id === composerId)?.name || '' : '';
+                    inclusionsData[inclusionIndex].composition.composer_names[attrIndex] = composerName;
+                    
+                    markAsUnsaved();
+                });
             });
         }
 
@@ -1798,47 +1802,95 @@
         }
 
         function copyAttributionToAll() {
+            console.log('copyAttributionToAll called');
+            console.log('inclusionsData:', inclusionsData);
+            
             if (inclusionsData.length === 0) {
                 alert('No inclusions to copy to.');
                 return;
             }
 
             const firstInclusion = inclusionsData[0];
-            if (!firstInclusion.attribution_texts || firstInclusion.attribution_texts.length === 0 || !firstInclusion.attribution_texts[0]) {
+            console.log('firstInclusion:', firstInclusion);
+            
+            // Get current values from the first row's inputs
+            const firstAttributionInput = document.querySelector(`input[data-inclusion="0"][data-attribution="0"]`);
+            const firstComposerSelect = document.querySelector(`select[data-inclusion="0"][data-attribution="0"]`);
+            
+            const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (firstInclusion.attribution_texts?.[0] || '');
+            const currentComposerId = firstComposerSelect ? parseInt(firstComposerSelect.value) : (firstInclusion.composer_ids?.[0] || null);
+            const currentComposerName = currentComposerId ? allComposers.find(c => c.id === currentComposerId)?.name || '' : '';
+            
+            console.log('Current attribution:', currentAttribution);
+            console.log('Current composer ID:', currentComposerId);
+            console.log('Current composer name:', currentComposerName);
+
+            if (!currentAttribution.trim()) {
                 alert('First inclusion has no attribution to copy.');
                 return;
             }
 
-            const attribution = firstInclusion.attribution_texts[0];
-            const composerIds = firstInclusion.composer_ids || [];
-            const composerNames = firstInclusion.composition?.composer_names || [];
+            const message = currentComposerName ? 
+                `Copy attribution "${currentAttribution}" and composer "${currentComposerName}" to all ${inclusionsData.length} inclusions on this page?` :
+                `Copy attribution "${currentAttribution}" to all ${inclusionsData.length} inclusions on this page?`;
 
-            if (!confirm(`Copy attribution "${attribution}" and composers to all ${inclusionsData.length} inclusions on this page?`)) {
+            if (!confirm(message)) {
                 return;
             }
 
+            console.log('Copying to inclusions...');
             for (let i = 1; i < inclusionsData.length; i++) {
+                console.log(`Processing inclusion ${i}`);
+                
+                // Update attribution text
                 if (!inclusionsData[i].attribution_texts) {
                     inclusionsData[i].attribution_texts = [''];
                 }
-                inclusionsData[i].attribution_texts[0] = attribution;
-                inclusionsData[i].composer_ids = [...composerIds];
+                inclusionsData[i].attribution_texts[0] = currentAttribution;
+                
+                // Update composer ID
+                if (!inclusionsData[i].composer_ids) {
+                    inclusionsData[i].composer_ids = [];
+                }
+                inclusionsData[i].composer_ids[0] = currentComposerId;
+                
+                // Update composer name for display
                 if (!inclusionsData[i].composition) {
                     inclusionsData[i].composition = {};
                 }
-                inclusionsData[i].composition.composer_names = [...composerNames];
+                if (!inclusionsData[i].composition.composer_names) {
+                    inclusionsData[i].composition.composer_names = [];
+                }
+                inclusionsData[i].composition.composer_names[0] = currentComposerName;
             }
 
+            console.log('Updated inclusionsData:', inclusionsData);
+            markAsUnsaved();
             displayInclusions();
         }
 
         function initializeInclusionInteractions() {
             initializeTitleAutocomplete();
-            initializeComposerAutocomplete();
         }
 
         // Event listeners
         document.getElementById('stickySaveBtn').addEventListener('click', saveAllChanges);
+        
+        // Back button warning
+        document.getElementById('backBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            checkUnsavedChanges(() => {
+                window.location.href = 'index.html';
+            });
+        });
+        
+        // Browser navigation warning
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         // Initialize
         fetchSource();
