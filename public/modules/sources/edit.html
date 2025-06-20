@@ -10,6 +10,17 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/css/styles.css">
     <style>
+        .selected-source {
+            background-color: #e3f2fd !important;
+        }
+        .autocomplete-suggestions .p-2:hover {
+            background-color: #f8f9fa;
+        }
+        .autocomplete-suggestions .text-success:hover {
+            background-color: #d1e7dd;
+        }
+    </style>
+    <style>
         .min-height-40 {
             min-height: 40px;
         }
@@ -886,7 +897,7 @@
 
         function buildToneOptions(selectedTone) {
             return Object.entries(toneOptions).map(([value, label]) => 
-                `<option value="${value}" ${value === selectedTone ? 'selected' : ''}>${label}</option>`
+                `<option value="${value}" ${value == selectedTone ? 'selected' : ''}>${label}</option>`
             ).join('');
         }
 
@@ -985,7 +996,6 @@
             }
             
             markAsUnsaved();
-            console.log(`Updated composition field ${field} to:`, value, 'for inclusion:', index);
         }
 
         function updateAttribution(inclusionIndex, attrIndex, value) {
@@ -1093,13 +1103,28 @@
                 inclusionsData[inclusionIndex].attribution_texts = [''];
             }
             inclusionsData[inclusionIndex].attribution_texts.push('');
+            
+            // Add corresponding empty composer slot
+            if (!inclusionsData[inclusionIndex].composer_ids) {
+                inclusionsData[inclusionIndex].composer_ids = [];
+            }
+            inclusionsData[inclusionIndex].composer_ids.push(null);
+            
             displayInclusions();
+            markAsUnsaved();
         }
 
         function removeAttribution(inclusionIndex, attrIndex) {
             if (inclusionsData[inclusionIndex]?.attribution_texts?.length > 1) {
                 inclusionsData[inclusionIndex].attribution_texts.splice(attrIndex, 1);
+                
+                // Remove corresponding composer
+                if (inclusionsData[inclusionIndex].composer_ids) {
+                    inclusionsData[inclusionIndex].composer_ids.splice(attrIndex, 1);
+                }
+                
                 displayInclusions();
+                markAsUnsaved();
             }
         }
 
@@ -1366,13 +1391,6 @@
                     suggestionsDiv.remove();
                 });
 
-                item.addEventListener('mouseenter', () => {
-                    item.style.backgroundColor = '#f8f9fa';
-                });
-                item.addEventListener('mouseleave', () => {
-                    item.style.backgroundColor = '';
-                });
-
                 suggestionsDiv.appendChild(item);
             });
 
@@ -1398,13 +1416,6 @@
                     updateCompositionField(inclusionIndex, 'title_text', currentValue);
                     updateCompositionField(inclusionIndex, 'is_new_title', true);
                     suggestionsDiv.remove();
-                });
-
-                createItem.addEventListener('mouseenter', () => {
-                    createItem.style.backgroundColor = '#d1e7dd';
-                });
-                createItem.addEventListener('mouseleave', () => {
-                    createItem.style.backgroundColor = '';
                 });
 
                 suggestionsDiv.appendChild(createItem);
@@ -1549,10 +1560,9 @@
             
             // Highlight selected source
             document.querySelectorAll('.source-result').forEach(el => {
-                el.classList.remove('bg-light');
-                el.style.backgroundColor = '';
+                el.classList.remove('selected-source');
             });
-            event.target.closest('.source-result').style.backgroundColor = '#e3f2fd';
+            event.target.closest('.source-result').classList.add('selected-source');
         }
 
         async function copyInclusionsFromSource() {
@@ -1630,6 +1640,20 @@
             }
         }
 
+        // Calculate number of voices from clefs
+        function calculateNumberOfVoices(clefs) {
+            if (!clefs || clefs.length === 0) return null;
+            
+            // Count non-empty clefs (excluding optional ones for voice count)
+            let voiceCount = 0;
+            for (const clef of clefs) {
+                if (clef.clef && clef.clef.trim() && !clef.optional) {
+                    voiceCount++;
+                }
+            }
+            return voiceCount > 0 ? voiceCount : null;
+        }
+
         // Save all changes
         async function saveAllChanges() {
             // Validate clefs before saving
@@ -1641,7 +1665,7 @@
             const modal = new bootstrap.Modal(document.getElementById('saveProgressModal'));
             modal.show();
 
-                         try {
+            try {
                 // Collect source data
                 const formData = new FormData(document.getElementById('editSourceForm'));
                 const sourceUpdateData = Object.fromEntries(formData);
@@ -1665,6 +1689,13 @@
                 
                 // Collect source images
                 sourceUpdateData.source_images = sourceData.source_images || [];
+
+                // Calculate number_of_voices for each inclusion before saving
+                inclusionsData.forEach(inclusion => {
+                    if (inclusion.composition && inclusion.clefs) {
+                        inclusion.composition.number_of_voices = calculateNumberOfVoices(inclusion.clefs);
+                    }
+                });
 
                 // Prepare data for saving
                 const saveData = {
@@ -1694,13 +1725,11 @@
                 document.getElementById('saveProgressBar').style.width = '100%';
                 document.getElementById('saveStatusText').textContent = 'Save completed successfully!';
 
-                setTimeout(() => {
-                    modal.hide();
-                    markAsSaved();
-                    alert('Changes saved successfully!');
-                    // Stay on edit page, just refresh the data
-                    fetchSource(currentInclusionsPage);
-                }, 1000);
+                modal.hide();
+                markAsSaved();
+                alert('Changes saved successfully!');
+                // Stay on edit page, just refresh the data
+                fetchSource(currentInclusionsPage);
 
             } catch (error) {
                 console.error('Error saving:', error);
@@ -1736,13 +1765,11 @@
         // Load all composers for select dropdowns
         async function loadAllComposers() {
             try {
-                console.log('Loading all composers...');
                 const response = await fetch('/api/sources/composers');
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 allComposers = await response.json();
-                console.log('Loaded composers:', allComposers.length, 'composers');
             } catch (error) {
                 console.error('Error loading composers:', error);
                 allComposers = [];
@@ -1751,11 +1778,7 @@
 
         // Initialize composer select dropdowns
         function initializeComposerSelects() {
-            console.log('Initializing composer selects, allComposers length:', allComposers.length);
-            
             document.querySelectorAll('.composer-select').forEach(select => {
-                console.log('Processing composer select:', select);
-                
                 // Clear existing options except the first one
                 while (select.children.length > 1) {
                     select.removeChild(select.lastChild);
@@ -1769,15 +1792,23 @@
                     select.appendChild(option);
                 });
 
-                console.log('Added', allComposers.length, 'composers to select');
-
-                // Set existing values
+                // Set existing values - fix for single composer per attribution
                 const inclusionIndex = parseInt(select.dataset.inclusion);
                 const attrIndex = parseInt(select.dataset.attribution);
                 const inclusion = inclusionsData[inclusionIndex];
                 
-                if (inclusion && inclusion.composer_ids && inclusion.composer_ids[attrIndex]) {
-                    select.value = inclusion.composer_ids[attrIndex];
+                if (inclusion && inclusion.composer_ids) {
+                    // Ensure we have proper single composer per attribution
+                    // Truncate composer_ids to match attribution_texts length
+                    const maxAttributions = inclusion.attribution_texts ? inclusion.attribution_texts.length : 1;
+                    if (inclusion.composer_ids.length > maxAttributions) {
+                        inclusion.composer_ids = inclusion.composer_ids.slice(0, maxAttributions);
+                    }
+                    
+                    if (inclusion.composer_ids[attrIndex]) {
+                        select.value = inclusion.composer_ids[attrIndex];
+                        updateDropdownStyling(select);
+                    }
                 }
 
                 // Handle changes
@@ -1802,6 +1833,7 @@
                     const composerName = composerId ? allComposers.find(c => c.id === composerId)?.name || '' : '';
                     inclusionsData[inclusionIndex].composition.composer_names[attrIndex] = composerName;
                     
+                    updateDropdownStyling(this);
                     markAsUnsaved();
                 });
             });
@@ -1912,28 +1944,18 @@
         }
 
         function copyAttributionToAll() {
-            console.log('copyAttributionToAll called');
-            console.log('inclusionsData:', inclusionsData);
-            
             if (inclusionsData.length === 0) {
                 alert('No inclusions to copy to.');
                 return;
             }
 
-            const firstInclusion = inclusionsData[0];
-            console.log('firstInclusion:', firstInclusion);
-            
             // Get current values from the first row's inputs
             const firstAttributionInput = document.querySelector(`input[onchange*="updateAttribution(0, 0"]`);
             const firstComposerSelect = document.querySelector(`select[data-inclusion="0"][data-attribution="0"]`);
             
-            const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (firstInclusion.attribution_texts?.[0] || '');
-            const currentComposerId = firstComposerSelect && firstComposerSelect.value ? parseInt(firstComposerSelect.value) : (firstInclusion.composer_ids?.[0] || null);
+            const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (inclusionsData[0].attribution_texts?.[0] || '');
+            const currentComposerId = firstComposerSelect && firstComposerSelect.value ? parseInt(firstComposerSelect.value) : (inclusionsData[0].composer_ids?.[0] || null);
             const currentComposerName = currentComposerId ? allComposers.find(c => c.id === currentComposerId)?.name || '' : '';
-            
-            console.log('Current attribution:', currentAttribution);
-            console.log('Current composer ID:', currentComposerId);
-            console.log('Current composer name:', currentComposerName);
 
             if (!currentAttribution.trim()) {
                 alert('First inclusion has no attribution to copy.');
@@ -1948,10 +1970,8 @@
                 return;
             }
 
-            console.log('Copying to inclusions...');
+            // Update data for all inclusions (except first)
             for (let i = 1; i < inclusionsData.length; i++) {
-                console.log(`Processing inclusion ${i}`);
-                
                 // Update attribution text
                 if (!inclusionsData[i].attribution_texts) {
                     inclusionsData[i].attribution_texts = [''];
@@ -1974,7 +1994,6 @@
                 inclusionsData[i].composition.composer_names[0] = currentComposerName;
             }
 
-            console.log('Updated inclusionsData:', inclusionsData);
             markAsUnsaved();
             
             // Update all attribution inputs at once (except the first one)
@@ -1986,6 +2005,7 @@
             if (currentComposerId) {
                 document.querySelectorAll('select[data-attribution="0"]:not([data-inclusion="0"])').forEach(select => {
                     select.value = currentComposerId;
+                    updateDropdownStyling(select);
                 });
             }
         }
