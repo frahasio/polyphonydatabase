@@ -563,14 +563,22 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     `);
 
     for (const tempInclusion of unmatchedInclusions.rows) {
-      // Create new title
-      const titleResult = await client.query(`
-        INSERT INTO titles (text, created_at, updated_at)
-        VALUES ($1, $2, $3)
-        RETURNING id
-      `, [tempInclusion.composition_name, now, now]);
+      // Check if title already exists, if not create new one
+      let titleResult = await client.query(`
+        SELECT id FROM titles WHERE text = $1
+      `, [tempInclusion.composition_name]);
 
-      const titleId = titleResult.rows[0].id;
+      let titleId;
+      if (titleResult.rows.length > 0) {
+        titleId = titleResult.rows[0].id;
+      } else {
+        const newTitleResult = await client.query(`
+          INSERT INTO titles (text, created_at, updated_at)
+          VALUES ($1, $2, $3)
+          RETURNING id
+        `, [tempInclusion.composition_name, now, now]);
+        titleId = newTitleResult.rows[0].id;
+      }
 
       // Get composition type ID if specified
       let compositionTypeId = null;
