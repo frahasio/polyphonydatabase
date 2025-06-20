@@ -92,29 +92,7 @@
             border-bottom: 2px solid #dee2e6;
         }
         
-        .inclusions-container {
-            max-height: 80vh;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        
-        .inclusions-container::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .inclusions-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        .inclusions-container::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
-        }
-        
-        .inclusions-container::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
+
         
         .source-result:hover {
             background-color: #f8f9fa !important;
@@ -167,21 +145,72 @@
         .clef-input.optional:focus {
             opacity: 1;
         }
+        
+        /* Dropdown styling for selected vs unselected values */
+        .composition-dropdown {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .composition-dropdown.has-value {
+            background-color: #e7f3ff;
+            border-color: #0d6efd;
+            font-weight: 500;
+        }
+        
+        .composition-dropdown:not(.has-value) {
+            opacity: 0.7;
+            background-color: #f8f9fa;
+        }
+        
+        .composition-dropdown:focus {
+            opacity: 1;
+        }
+        
+        /* Sticky header and save button */
+        .sticky-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
+            background: white;
+            border-bottom: 2px solid #dee2e6;
+            padding: 10px 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .main-content-with-header {
+            margin-top: 80px;
+        }
+        
+        .move-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .move-controls select {
+            width: 120px;
+        }
     </style>
 </head>
-<body>
-    <div class="py-4" style="max-width: none; padding-left: 15px; padding-right: 15px;">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h3 mb-0">Edit Source</h1>
-                <p class="text-muted">Update source details and inclusions</p>
-            </div>
-            <div>
-                <a href="index.html" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Sources
+  <body>
+    <!-- Sticky Header -->
+    <div class="sticky-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="index.html" class="btn btn-outline-secondary btn-sm me-3">
+                    <i class="bi bi-arrow-left"></i> Back
                 </a>
+                <h5 class="mb-0" id="headerSourceCode">Edit Source</h5>
             </div>
+            <button type="button" class="btn btn-success" id="stickySaveBtn">
+                <i class="bi bi-check-lg"></i> Save All Changes
+            </button>
         </div>
+    </div>
+
+    <div class="main-content-with-header py-4" style="max-width: none; padding-left: 15px; padding-right: 15px;">
 
         <!-- Loading indicator -->
         <div id="loadingIndicator" class="text-center py-4">
@@ -305,14 +334,11 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="btn-group btn-group-sm me-3" role="group">
-                                <button type="button" class="btn btn-outline-info" onclick="copyAttributionToAll()" title="Copy attribution from first row to all visible rows">
+                                <button type="button" class="btn btn-outline-info" onclick="copyAttributionToAll()" title="Copy attribution text and composer from first row to all visible rows">
                                     <i class="bi bi-person-lines-fill"></i> Copy Attribution
                                 </button>
                                 <button type="button" class="btn btn-outline-success" onclick="copyCompositionTypeToAll()" title="Copy composition type from first row to all visible rows">
                                     <i class="bi bi-music-note-list"></i> Copy Type
-                                </button>
-                                <button type="button" class="btn btn-outline-warning" onclick="copyToneToAll()" title="Copy tone from first row to all visible rows">
-                                    <i class="bi bi-soundwave"></i> Copy Tone
                                 </button>
                             </div>
                             <div class="btn-group btn-group-sm" role="group">
@@ -346,12 +372,7 @@
                 </button>
             </div>
 
-            <!-- Save Button -->
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-success btn-lg" id="saveAllBtn">
-                    <i class="bi bi-check-lg"></i> Save All Changes
-                </button>
-            </div>
+
         </div>
 
         <!-- Save Progress Modal -->
@@ -490,6 +511,9 @@
             document.getElementById('to_year').value = sourceData.to_year || '';
             document.getElementById('from_year_annotation').value = sourceData.from_year_annotation || '';
             document.getElementById('to_year_annotation').value = sourceData.to_year_annotation || '';
+
+            // Update header with source code
+            document.getElementById('headerSourceCode').textContent = `Edit Source: ${sourceData.code}`;
 
             // Display related data
             displayPublishers();
@@ -633,6 +657,12 @@
 
             // Initialize autocomplete and styling
             initializeInclusionInteractions();
+            
+            // Populate composer names and update dropdown styling
+            setTimeout(() => {
+                populateComposerNames();
+                updateAllDropdownStyling();
+            }, 100);
         }
 
         function addNewInclusion() {
@@ -667,13 +697,21 @@
             return `
                 <div class="${rowClass}" data-index="${index}" data-inclusion-id="${inclusion.id || ''}">
                     <div class="row">
-                        <!-- Order and Position -->
+                        <!-- Move and Position -->
                         <div class="col-1">
                             <div class="mb-2">
-                                <label class="form-label small">Order</label>
-                                <input type="number" class="form-control form-control-sm" 
-                                       value="${inclusion.order || ''}" 
-                                       onchange="updateInclusionField(${index}, 'order', this.value)">
+                                <label class="form-label small">Move</label>
+                                <div class="move-controls">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary" 
+                                            onclick="moveInclusion(${index}, 'up')" title="Move up">
+                                        <i class="bi bi-arrow-up"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary" 
+                                            onclick="moveInclusion(${index}, 'down')" title="Move down">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">#${inclusion.order || (index + 1)}</small>
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small">Position</label>
@@ -706,24 +744,24 @@
                             <div class="row">
                                 <div class="col-4">
                                     <label class="form-label small">Type</label>
-                                    <select class="form-control form-control-sm" 
-                                            onchange="updateCompositionField(${index}, 'composition_type_id', this.value)">
+                                    <select class="form-control form-control-sm composition-dropdown" 
+                                            onchange="updateCompositionField(${index}, 'composition_type_id', this.value); updateDropdownStyling(this)">
                                         <option value="">Type...</option>
                                         ${buildCompositionTypeOptions(inclusion.composition?.composition_type_name)}
                                     </select>
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label small">Tone</label>
-                                    <select class="form-control form-control-sm" 
-                                            onchange="updateCompositionField(${index}, 'tone', this.value)">
+                                    <select class="form-control form-control-sm composition-dropdown" 
+                                            onchange="updateCompositionField(${index}, 'tone', this.value); updateDropdownStyling(this)">
                                         <option value="">Tone...</option>
                                         ${buildToneOptions(inclusion.composition?.tone)}
                                     </select>
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label small">Even/Odd</label>
-                                    <select class="form-control form-control-sm" 
-                                            onchange="updateCompositionField(${index}, 'even_odd', this.value)">
+                                    <select class="form-control form-control-sm composition-dropdown" 
+                                            onchange="updateCompositionField(${index}, 'even_odd', this.value); updateDropdownStyling(this)">
                                         <option value="">Even/Odd...</option>
                                         ${buildEvenOddOptions(inclusion.composition?.even_odd)}
                                     </select>
@@ -1167,34 +1205,7 @@
             displayInclusions();
         }
 
-        function copyToneToAll() {
-            if (inclusionsData.length === 0) {
-                alert('No inclusions to copy to.');
-                return;
-            }
 
-            const firstComposition = inclusionsData[0].composition;
-            if (!firstComposition || !firstComposition.tone) {
-                alert('First inclusion has no tone to copy.');
-                return;
-            }
-
-            const tone = firstComposition.tone;
-            const toneLabel = toneOptions[tone] || tone;
-
-            if (!confirm(`Copy tone "${toneLabel}" to all ${inclusionsData.length} inclusions on this page?`)) {
-                return;
-            }
-
-            for (let i = 1; i < inclusionsData.length; i++) {
-                if (!inclusionsData[i].composition) {
-                    inclusionsData[i].composition = {};
-                }
-                inclusionsData[i].composition.tone = tone;
-            }
-
-            displayInclusions();
-        }
 
         function reorderInclusions() {
             // Filter out blank/empty inclusions (those without any meaningful data)
@@ -1728,7 +1739,8 @@
                 setTimeout(() => {
                     modal.hide();
                     alert('Changes saved successfully!');
-                window.location.href = 'index.html';
+                    // Stay on edit page, just refresh the data
+                    fetchSource(currentInclusionsPage);
                 }, 1000);
 
             } catch (error) {
@@ -1738,8 +1750,95 @@
             }
         }
 
+        // New functions for improved functionality
+        function populateComposerNames() {
+            // Populate composer autocomplete inputs with existing names
+            inclusionsData.forEach((inclusion, inclusionIndex) => {
+                if (inclusion.composition && inclusion.composition.composer_names) {
+                    inclusion.composition.composer_names.forEach((composerName, attrIndex) => {
+                        const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-attribution="${attrIndex}"]`);
+                        if (input && composerName) {
+                            input.value = composerName;
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateDropdownStyling(dropdown) {
+            if (dropdown.value && dropdown.value !== '') {
+                dropdown.classList.add('has-value');
+            } else {
+                dropdown.classList.remove('has-value');
+            }
+        }
+
+        function updateAllDropdownStyling() {
+            document.querySelectorAll('.composition-dropdown').forEach(dropdown => {
+                updateDropdownStyling(dropdown);
+            });
+        }
+
+        function moveInclusion(index, direction) {
+            if (direction === 'up' && index > 0) {
+                // Swap with previous inclusion
+                [inclusionsData[index], inclusionsData[index - 1]] = [inclusionsData[index - 1], inclusionsData[index]];
+                // Update order numbers
+                inclusionsData[index - 1].order = index;
+                inclusionsData[index].order = index + 1;
+                displayInclusions();
+            } else if (direction === 'down' && index < inclusionsData.length - 1) {
+                // Swap with next inclusion
+                [inclusionsData[index], inclusionsData[index + 1]] = [inclusionsData[index + 1], inclusionsData[index]];
+                // Update order numbers
+                inclusionsData[index].order = index + 1;
+                inclusionsData[index + 1].order = index + 2;
+                displayInclusions();
+            }
+        }
+
+        function copyAttributionToAll() {
+            if (inclusionsData.length === 0) {
+                alert('No inclusions to copy to.');
+                return;
+            }
+
+            const firstInclusion = inclusionsData[0];
+            if (!firstInclusion.attribution_texts || firstInclusion.attribution_texts.length === 0 || !firstInclusion.attribution_texts[0]) {
+                alert('First inclusion has no attribution to copy.');
+                return;
+            }
+
+            const attribution = firstInclusion.attribution_texts[0];
+            const composerIds = firstInclusion.composer_ids || [];
+            const composerNames = firstInclusion.composition?.composer_names || [];
+
+            if (!confirm(`Copy attribution "${attribution}" and composers to all ${inclusionsData.length} inclusions on this page?`)) {
+                return;
+            }
+
+            for (let i = 1; i < inclusionsData.length; i++) {
+                if (!inclusionsData[i].attribution_texts) {
+                    inclusionsData[i].attribution_texts = [''];
+                }
+                inclusionsData[i].attribution_texts[0] = attribution;
+                inclusionsData[i].composer_ids = [...composerIds];
+                if (!inclusionsData[i].composition) {
+                    inclusionsData[i].composition = {};
+                }
+                inclusionsData[i].composition.composer_names = [...composerNames];
+            }
+
+            displayInclusions();
+        }
+
+        function initializeInclusionInteractions() {
+            initializeTitleAutocomplete();
+            initializeComposerAutocomplete();
+        }
+
         // Event listeners
-        document.getElementById('saveAllBtn').addEventListener('click', saveAllChanges);
+        document.getElementById('stickySaveBtn').addEventListener('click', saveAllChanges);
 
         // Initialize
         fetchSource();
