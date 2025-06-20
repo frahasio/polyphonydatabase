@@ -601,20 +601,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       `, [compositionId, tempInclusion.id]);
     }
 
-    // 3. Clear existing inclusions for this source (handle foreign key constraints)
-    // First delete related records in clef_inclusions if the table exists
-    try {
-      await client.query(`
-        DELETE FROM clef_inclusions 
-        WHERE inclusion_id IN (
-          SELECT id FROM inclusions WHERE source_id = $1
-        )
-      `, [sourceId]);
-    } catch (error) {
-      // Table might not exist, continue
-      console.log('clef_inclusions table not found or empty, continuing...');
-    }
-    
+    // 3. Clear existing inclusions for this source
     // Now we can safely delete the inclusions
     await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
 
