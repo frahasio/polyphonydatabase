@@ -493,6 +493,23 @@
                 inclusionsPagination = data.inclusions_pagination;
                 currentInclusionsPage = page;
                 
+                // ADD LOGGING: Log the raw data received from server
+                console.log('=== FETCH SOURCE DATA ===');
+                console.log('Source data:', sourceData);
+                console.log('Inclusions data:', inclusionsData);
+                console.log('Sample inclusion compositions:');
+                inclusionsData.slice(0, 3).forEach((inclusion, index) => {
+                    console.log(`Inclusion ${index}:`, {
+                        id: inclusion.id,
+                        composition: inclusion.composition,
+                        even_odd: inclusion.composition?.even_odd,
+                        even_odd_type: typeof inclusion.composition?.even_odd,
+                        number_of_voices: inclusion.composition?.number_of_voices,
+                        number_of_voices_type: typeof inclusion.composition?.number_of_voices
+                    });
+                });
+                console.log('=========================');
+                
                 // Populate source form (only on first load)
                 if (page === 1) {
                     await loadPublishersAndScribes(); // This also loads composers
@@ -658,6 +675,22 @@
             const targetRows = 25;
             const existingRows = inclusionsData.length;
             const blankRowsNeeded = Math.max(0, targetRows - existingRows);
+
+            // ADD LOGGING: Log processing of inclusions data
+            console.log('=== DISPLAY INCLUSIONS ===');
+            console.log('Processing inclusions for display:', existingRows, 'existing,', blankRowsNeeded, 'blank');
+            inclusionsData.slice(0, 3).forEach((inclusion, index) => {
+                console.log(`Display inclusion ${index}:`, {
+                    id: inclusion.id,
+                    even_odd: inclusion.composition?.even_odd,
+                    even_odd_type: typeof inclusion.composition?.even_odd,
+                    tone: inclusion.composition?.tone,
+                    number_of_voices: inclusion.composition?.number_of_voices,
+                    number_of_voices_type: typeof inclusion.composition?.number_of_voices,
+                    clefs_count: inclusion.clefs?.length || 0
+                });
+            });
+            console.log('==========================');
 
             // Build the inclusions editing interface
             let html = '<div class="inclusions-container">';
@@ -909,9 +942,14 @@
                 2: 'both'
             };
             
-            return Object.entries(evenOddMapping).map(([intValue, displayText]) => 
-                `<option value="${intValue}" ${parseInt(intValue) === selectedValue ? 'selected' : ''}>${displayText}</option>`
-            ).join('');
+            // ADD LOGGING: Log the even_odd processing
+            console.log('Building even_odd options with selectedValue:', selectedValue, 'type:', typeof selectedValue);
+            
+            return Object.entries(evenOddMapping).map(([intValue, displayText]) => {
+                const isSelected = parseInt(intValue) === selectedValue;
+                console.log(`Even/Odd option ${intValue} (${displayText}): selected=${isSelected}, comparison: ${parseInt(intValue)} === ${selectedValue}`);
+                return `<option value="${intValue}" ${isSelected ? 'selected' : ''}>${displayText}</option>`;
+            }).join('');
         }
 
         function buildClefInputs(clefs, inclusionIndex) {
@@ -986,17 +1024,24 @@
                 inclusionsData[index].composition = {};
             }
             
+            // ADD LOGGING: Track composition field updates
+            console.log(`updateCompositionField: inclusion ${index}, field ${field}, value:`, value, 'type:', typeof value);
+            
             // Handle different field types correctly
             if (field === 'composition_type_id') {
                 inclusionsData[index].composition.composition_type_id = value ? parseInt(value) : null;
                 // Also store the name for display
                 const type = compositionTypes.find(t => t.id === parseInt(value));
                 inclusionsData[index].composition.composition_type_name = type ? type.name : '';
+                console.log(`Updated composition_type_id to: ${inclusionsData[index].composition.composition_type_id}, name: ${inclusionsData[index].composition.composition_type_name}`);
             } else if (field === 'even_odd') {
                 // Store as integer, not string
-                inclusionsData[index].composition[field] = value !== '' ? parseInt(value) : null;
+                const newValue = value !== '' ? parseInt(value) : null;
+                inclusionsData[index].composition[field] = newValue;
+                console.log(`Updated even_odd from ${value} (${typeof value}) to ${newValue} (${typeof newValue})`);
             } else {
                 inclusionsData[index].composition[field] = value || null;
+                console.log(`Updated ${field} to:`, inclusionsData[index].composition[field]);
             }
             
             markAsUnsaved();
@@ -1646,16 +1691,28 @@
 
         // Calculate number of voices from clefs
         function calculateNumberOfVoices(clefs) {
-            if (!clefs || clefs.length === 0) return null;
+            if (!clefs || clefs.length === 0) {
+                console.log('calculateNumberOfVoices: No clefs provided, returning null');
+                return null;
+            }
+            
+            console.log('calculateNumberOfVoices: Processing clefs:', clefs);
             
             // Count non-empty clefs (excluding optional ones for voice count)
             let voiceCount = 0;
             for (const clef of clefs) {
-                if (clef.clef && clef.clef.trim() && !clef.optional) {
+                const hasClef = clef.clef && clef.clef.trim();
+                const isOptional = clef.optional;
+                console.log(`Clef check: "${clef.clef}", hasClef: ${hasClef}, optional: ${isOptional}`);
+                
+                if (hasClef && !isOptional) {
                     voiceCount++;
                 }
             }
-            return voiceCount > 0 ? voiceCount : null;
+            
+            const result = voiceCount > 0 ? voiceCount : null;
+            console.log(`calculateNumberOfVoices: Final count: ${result} (from ${clefs.length} total clefs)`);
+            return result;
         }
 
         // Save all changes
@@ -1695,10 +1752,43 @@
                 sourceUpdateData.source_images = sourceData.source_images || [];
 
                 // Calculate number_of_voices for each inclusion before saving
-                inclusionsData.forEach(inclusion => {
-                    if (inclusion.composition && inclusion.clefs) {
-                        inclusion.composition.number_of_voices = calculateNumberOfVoices(inclusion.clefs);
+                console.log('=== SAVE ALL CHANGES - BEFORE PROCESSING ===');
+                console.log('Original inclusionsData sample (first 3):');
+                
+                inclusionsData.forEach((inclusion, index) => {
+                    if (index < 3) {
+                        console.log(`Before processing inclusion ${index}:`, {
+                            id: inclusion.id,
+                            composition: inclusion.composition,
+                            clefs: inclusion.clefs,
+                            clefs_count: inclusion.clefs?.length || 0
+                        });
                     }
+                    
+                    if (inclusion.composition && inclusion.clefs) {
+                        const calculatedVoices = calculateNumberOfVoices(inclusion.clefs);
+                        console.log(`Inclusion ${index} calculated voices: ${calculatedVoices} (from ${inclusion.clefs?.length || 0} clefs)`);
+                        inclusion.composition.number_of_voices = calculatedVoices;
+                    }
+                });
+
+                // ADD LOGGING: Log the final data being sent
+                console.log('=== FINAL SAVE DATA ===');
+                console.log('Source data:', sourceUpdateData);
+                console.log('Inclusions data sample (first 3):');
+                inclusionsData.slice(0, 3).forEach((inclusion, index) => {
+                    console.log(`Saving inclusion ${index}:`, {
+                        id: inclusion.id,
+                        order: inclusion.order,
+                        composition: inclusion.composition,
+                        even_odd: inclusion.composition?.even_odd,
+                        even_odd_type: typeof inclusion.composition?.even_odd,
+                        number_of_voices: inclusion.composition?.number_of_voices,
+                        number_of_voices_type: typeof inclusion.composition?.number_of_voices,
+                        tone: inclusion.composition?.tone,
+                        title_text: inclusion.composition?.title_text,
+                        composition_type_id: inclusion.composition?.composition_type_id
+                    });
                 });
 
                 // Prepare data for saving
@@ -1706,6 +1796,9 @@
                     source: sourceUpdateData,
                     inclusions: inclusionsData
                 };
+
+                console.log('Complete save payload:', saveData);
+                console.log('=======================');
 
                 document.getElementById('saveStatusText').textContent = 'Saving source data...';
                 document.getElementById('saveProgressBar').style.width = '25%';
@@ -1723,8 +1816,15 @@
                 document.getElementById('saveStatusText').textContent = 'Processing inclusions and compositions...';
 
                 if (!response.ok) {
-                    throw new Error('Failed to save changes');
+                    const errorText = await response.text();
+                    console.log('Save error response:', errorText);
+                    throw new Error('Failed to save changes: ' + errorText);
                 }
+
+                const saveResult = await response.json();
+                console.log('=== SAVE RESPONSE ===');
+                console.log('Save successful, response:', saveResult);
+                console.log('=====================');
 
                 document.getElementById('saveProgressBar').style.width = '100%';
                 document.getElementById('saveStatusText').textContent = 'Save completed successfully!';
@@ -1748,6 +1848,7 @@
                     }, 2000);
                     
                     // Stay on edit page, just refresh the data
+                    console.log('=== REFRESHING DATA AFTER SAVE ===');
                     fetchSource(currentInclusionsPage);
                 }, 800);
 
