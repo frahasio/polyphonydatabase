@@ -67,14 +67,27 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const sourceId = parseInt(req.params.id);
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
+    const inclusionsPage = parseInt(req.query.inclusions_page) || 1;
+    const inclusionsLimit = parseInt(req.query.inclusions_limit) || 40;
+    const inclusionsOffset = (inclusionsPage - 1) * inclusionsLimit;
 
-    // Fetch source details with publishers and scribes
+    // Fetch source details with publishers, scribes, and images
     const sourceQuery = `
       SELECT 
-        s.*,
+        s.id,
+        s.code,
+        s.title,
+        s.type,
+        s.format,
+        s.town,
+        s.rism_link,
+        s.catalogued,
+        s.created_at,
+        s.updated_at,
+        s.from_year,
+        s.to_year,
+        s.from_year_annotation,
+        s.to_year_annotation,
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
@@ -92,12 +105,23 @@ router.get('/:id', async (req, res) => {
             )
           ) FILTER (WHERE sc.id IS NOT NULL),
           '[]'
-        ) as scribes
+        ) as scribes,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', si.id,
+              'url', si.url,
+              'label', si.label
+            )
+          ) FILTER (WHERE si.id IS NOT NULL),
+          '[]'
+        ) as source_images
       FROM sources s
       LEFT JOIN publishers_sources ps ON s.id = ps.source_id
       LEFT JOIN publishers p ON ps.publisher_id = p.id
       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
+      LEFT JOIN source_images si ON s.id = si.source_id
       WHERE s.id = $1
       GROUP BY s.id
     `;
@@ -122,37 +146,77 @@ router.get('/:id', async (req, res) => {
     // Fetch paginated inclusions with related data
     const inclusionsQuery = `
       SELECT 
-        i.*,
-        c.title as composition_name,
-        c.composition_type_id,
-        ct.name as composition_type,
+        i.id,
+        i.source_id,
+        i.composition_id,
+        i.notes,
+        i.order,
+        i.position,
+        i.attribution_texts,
+        i.composer_ids,
+        i.clefs,
+        i.created_at,
+        i.updated_at,
+        -- Resolved composition data for display
+        t.text as title_text,
+        ct.name as composition_type_name,
+        c.tone,
+        c.even_odd,
+        c.number_of_voices,
+        -- Get composer names from the composer_ids array
         COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'name', comp.name
+          (
+            SELECT json_agg(comp.name ORDER BY comp.id)
+            FROM composers comp
+            WHERE comp.id = ANY(
+              CASE 
+                WHEN jsonb_typeof(i.composer_ids) = 'array' 
+                THEN ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer)
+                ELSE '{}'::integer[]
+              END
             )
-          ) FILTER (WHERE comp.id IS NOT NULL),
-          '[]'
-        ) as composers
+          ),
+          '[]'::json
+        ) as composer_names
       FROM inclusions i
       LEFT JOIN compositions c ON i.composition_id = c.id
+      LEFT JOIN titles t ON c.title_id = t.id
       LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
-      LEFT JOIN composers_compositions cc ON c.id = cc.composition_id
-      LEFT JOIN composers comp ON cc.composer_id = comp.id
       WHERE i.source_id = $1
-      GROUP BY i.id, c.id, ct.id, c.title
-      ORDER BY i.position
+      ORDER BY i.order, i.id
       LIMIT $2 OFFSET $3
     `;
 
-    const inclusionsResult = await pool.query(inclusionsQuery, [sourceId, limit, offset]);
-    const inclusions = inclusionsResult.rows;
+    const inclusionsResult = await pool.query(inclusionsQuery, [sourceId, inclusionsLimit, inclusionsOffset]);
+    
+    // Format inclusions to match schema
+    const inclusions = inclusionsResult.rows.map(row => ({
+      id: row.id,
+      source_id: row.source_id,
+      composition_id: row.composition_id,
+      notes: row.notes,
+      order: row.order,
+      position: row.position,
+      attribution_texts: row.attribution_texts || [],
+      composer_ids: row.composer_ids || [],
+      clefs: row.clefs || [],
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      // Resolved composition data for display
+      composition: {
+        title_text: row.title_text,
+        composition_type_name: row.composition_type_name,
+        tone: row.tone,
+        even_odd: row.even_odd,
+        number_of_voices: row.number_of_voices,
+        composer_names: row.composer_names || []
+      }
+    }));
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(totalInclusions / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
+    // Calculate pagination metadata for inclusions
+    const totalInclusionsPages = Math.ceil(totalInclusions / inclusionsLimit);
+    const hasNextPage = inclusionsPage < totalInclusionsPages;
+    const hasPrevPage = inclusionsPage > 1;
 
     res.json({
       source: {
@@ -161,11 +225,11 @@ router.get('/:id', async (req, res) => {
         scribes: source.scribes || []
       },
       inclusions,
-      pagination: {
+      inclusions_pagination: {
         total: totalInclusions,
-        page,
-        limit,
-        totalPages,
+        page: inclusionsPage,
+        limit: inclusionsLimit,
+        totalPages: totalInclusionsPages,
         hasNextPage,
         hasPrevPage
       }
@@ -207,19 +271,33 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, title, type, format, town, rism_link, catalogued } = req.body;
+    const { 
+      code, 
+      title, 
+      type, 
+      format, 
+      town, 
+      rism_link, 
+      catalogued,
+      from_year,
+      to_year,
+      from_year_annotation,
+      to_year_annotation 
+    } = req.body;
     const now = new Date();
 
     const query = `
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
-          rism_link = $6, catalogued = $7, updated_at = $8
-      WHERE id = $9
+          rism_link = $6, catalogued = $7, from_year = $8, to_year = $9,
+          from_year_annotation = $10, to_year_annotation = $11, updated_at = $12
+      WHERE id = $13
       RETURNING *
     `;
 
     const result = await pool.query(query, [
-      code, title, type, format, town, rism_link, catalogued, now, id
+      code, title, type, format, town, rism_link, catalogued,
+      from_year, to_year, from_year_annotation, to_year_annotation, now, id
     ]);
 
     if (result.rows.length === 0) {
@@ -390,6 +468,55 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     res.status(500).json({ error: 'Failed to save source and inclusions' });
   } finally {
     client.release();
+  }
+});
+
+// Get composition types for dropdown
+router.get('/composition-types', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM composition_types ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composition types:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Title autocomplete
+router.get('/titles/autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 3) {
+      return res.json([]);
+    }
+    
+    const result = await pool.query(
+      'SELECT id, text FROM titles WHERE text ILIKE $1 ORDER BY text LIMIT 20',
+      [`${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching titles:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Composer autocomplete
+router.get('/composers/autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json([]);
+    }
+    
+    const result = await pool.query(
+      'SELECT id, name FROM composers WHERE name ILIKE $1 ORDER BY name LIMIT 20',
+      [`${q}%`]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

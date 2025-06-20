@@ -7,6 +7,120 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .min-height-40 {
+            min-height: 40px;
+        }
+        
+        .inclusion-row {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .blank-row {
+            background-color: #ffffff;
+            border: 1px dashed #dee2e6;
+        }
+        
+        .blank-row:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .form-label.small {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .clef-input {
+            font-family: monospace;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+        
+        .clef-row {
+            gap: 4px;
+        }
+        
+        .btn-xs {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1.35;
+            border-radius: 0.2rem;
+        }
+        
+        .autocomplete-suggestions {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .autocomplete-suggestions div:first-child {
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .autocomplete-suggestions div:hover {
+            background-color: #e9ecef !important;
+        }
+        
+        .inclusion-row .input-group {
+            margin-bottom: 0.5rem;
+        }
+        
+        .inclusion-row .input-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .section-title {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .inclusions-container {
+            max-height: 80vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .inclusions-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .inclusions-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .inclusions-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        .inclusions-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        .source-result:hover {
+            background-color: #f8f9fa !important;
+            border-color: #007bff !important;
+        }
+        
+        .clef-input[title]:not([title=""]) {
+            animation: pulse-error 2s infinite;
+        }
+        
+        @keyframes pulse-error {
+            0% { border-color: #dc3545; }
+            50% { border-color: #ff6b7a; }
+            100% { border-color: #dc3545; }
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid py-4">
@@ -37,56 +151,108 @@
                 <div class="card-header">
                     <h5 class="mb-0">Source Details</h5>
                 </div>
-                <div class="card-body">
-                    <form id="editSourceForm">
-                        <input type="hidden" id="source_id">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="code" class="form-label">Code *</label>
-                                    <input type="text" class="form-control" id="code" name="code" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="title" class="form-label">Title</label>
-                                    <input type="text" class="form-control" id="title" name="title">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="type" class="form-label">Type</label>
-                                    <select class="form-control" id="type" name="type">
-                                        <option value="">Select Type</option>
-                                        <option value="MS">MS</option>
-                                        <option value="Print">Print</option>
-                                        <option value="Print/MS">Print/MS</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="format" class="form-label">Format</label>
-                                    <select class="form-control" id="format" name="format">
-                                        <option value="">Select Format</option>
-                                        <option value="Choirbook">Choirbook</option>
-                                        <option value="Partbook">Partbook</option>
-                                        <option value="Score">Score</option>
-                                        <option value="Tablature">Tablature</option>
-                                        <option value="Tablebook">Tablebook</option>
-                                        <option value="Multiple_choirbooks">Multiple choirbooks</option>
-                                        <option value="Choirbook/score">Choirbook/score</option>
-                                        <option value="Partbook/score">Partbook/score</option>
-                                        <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
-                                    </select>
-                                </div>
+            <div class="card-body">
+                <form id="editSourceForm">
+                    <input type="hidden" id="source_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="code" class="form-label">Code *</label>
+                        <input type="text" class="form-control" id="code" name="code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                                <input type="text" class="form-control" id="title" name="title">
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="town" class="form-label">Town</label>
-                                    <input type="text" class="form-control" id="town" name="town">
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-control" id="type" name="type">
+                            <option value="">Select Type</option>
+                            <option value="MS">MS</option>
+                            <option value="Print">Print</option>
+                            <option value="Print/MS">Print/MS</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="format" class="form-label">Format</label>
+                        <select class="form-control" id="format" name="format">
+                            <option value="">Select Format</option>
+                            <option value="Choirbook">Choirbook</option>
+                            <option value="Partbook">Partbook</option>
+                            <option value="Score">Score</option>
+                            <option value="Tablature">Tablature</option>
+                            <option value="Tablebook">Tablebook</option>
+                            <option value="Multiple_choirbooks">Multiple choirbooks</option>
+                            <option value="Choirbook/score">Choirbook/score</option>
+                            <option value="Partbook/score">Partbook/score</option>
+                            <option value="Unidentifiable/fragment">Unidentifiable/fragment</option>
+                        </select>
+                    </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="from_year_annotation" class="form-label">From Year Annotation</label>
+                                            <input type="text" class="form-control" id="from_year_annotation" name="from_year_annotation" placeholder="c.">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="from_year" class="form-label">From Year</label>
+                                            <input type="number" class="form-control" id="from_year" name="from_year">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="rism_link" class="form-label">RISM URL</label>
-                                    <input type="url" class="form-control" id="rism_link" name="rism_link">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="to_year_annotation" class="form-label">To Year Annotation</label>
+                                            <input type="text" class="form-control" id="to_year_annotation" name="to_year_annotation" placeholder="c.">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="to_year" class="form-label">To Year</label>
+                                            <input type="number" class="form-control" id="to_year" name="to_year">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3 form-check">
-                                    <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
-                                    <label class="form-check-label" for="catalogued">Catalogued</label>
+                    </div>
+                        <div class="col-md-6">
+                    <div class="mb-3">
+                                <label for="town" class="form-label">Town</label>
+                                <input type="text" class="form-control" id="town" name="town">
+                    </div>
+                    <div class="mb-3">
+                                <label for="rism_link" class="form-label">RISM URL</label>
+                                <input type="url" class="form-control" id="rism_link" name="rism_link">
+                    </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
+                                <label class="form-check-label" for="catalogued">Catalogued</label>
+                            </div>
+
+                                <!-- Publishers -->
+                                <div class="mb-3">
+                                    <label class="form-label">Publishers</label>
+                                    <div id="publishersContainer" class="border rounded p-2 min-height-40">
+                                        <!-- Publishers will be loaded here -->
+                                    </div>
+                                </div>
+
+                                <!-- Scribes -->
+                                <div class="mb-3">
+                                    <label class="form-label">Scribes</label>
+                                    <div id="scribesContainer" class="border rounded p-2 min-height-40">
+                                        <!-- Scribes will be loaded here -->
+                                    </div>
+                                </div>
+
+                                <!-- Source Images -->
+                                <div class="mb-3">
+                                    <label class="form-label">Source Images</label>
+                                    <div id="sourceImagesContainer" class="border rounded p-2 min-height-40">
+                                        <!-- Source images will be loaded here -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -96,11 +262,36 @@
 
             <!-- Inclusions Section -->
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Inclusions</h5>
-                    <button type="button" class="btn btn-sm btn-primary" id="addInclusionBtn">
-                        <i class="bi bi-plus-lg"></i> Add Inclusion
-                    </button>
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Inclusions</h5>
+                        <small class="text-muted">Source compositions and their details</small>
+                    </div>
+                    
+                    <!-- Shortcut Buttons -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="btn-group btn-group-sm me-3" role="group">
+                                <button type="button" class="btn btn-outline-info" onclick="copyAttributionToAll()" title="Copy attribution from first row to all visible rows">
+                                    <i class="bi bi-person-lines-fill"></i> Copy Attribution
+                                </button>
+                                <button type="button" class="btn btn-outline-success" onclick="copyCompositionTypeToAll()" title="Copy composition type from first row to all visible rows">
+                                    <i class="bi bi-music-note-list"></i> Copy Type
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="copyToneToAll()" title="Copy tone from first row to all visible rows">
+                                    <i class="bi bi-soundwave"></i> Copy Tone
+                                </button>
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="reorderInclusions()" title="Automatically reorder inclusions by position">
+                                    <i class="bi bi-list-ol"></i> Auto-reorder
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="showCopyFromSourceModal()" title="Copy all inclusions from another source">
+                                    <i class="bi bi-files"></i> Copy from Source
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Inclusions will be loaded here -->
@@ -144,17 +335,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- Copy from Source Modal -->
+        <div class="modal fade" id="copyFromSourceModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Copy Inclusions from Another Source</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="sourceSearchInput" class="form-label">Search for Source</label>
+                            <input type="text" class="form-control" id="sourceSearchInput" placeholder="Type source code or title (minimum 2 characters)...">
+                        </div>
+                        
+                        <div id="sourceSearchResults" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-muted text-center">Start typing to search for sources...</div>
+                        </div>
+                        
+                        <div id="selectedSourceInfo" class="mt-3" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6>Selected Source:</h6>
+                                <p id="selectedSourceDetails" class="mb-0"></p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="replaceExistingInclusions" checked>
+                            <label class="form-check-label" for="replaceExistingInclusions">
+                                Replace existing inclusions (if unchecked, will append to current inclusions)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="copyInclusionsBtn" disabled onclick="copyInclusionsFromSource()">
+                            <i class="bi bi-files"></i> Copy Inclusions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let sourceData = {};
         let inclusionsData = [];
-        let currentPage = 1;
-        const pageSize = 40;
+        let inclusionsPagination = null;
+        let currentInclusionsPage = 1;
+        const inclusionsPageSize = 40;
 
         // Fetch source details and inclusions
-        async function fetchSource() {
+        async function fetchSource(page = 1) {
             const urlParams = new URLSearchParams(window.location.search);
             const sourceId = urlParams.get('id');
 
@@ -164,7 +398,7 @@
             }
 
             try {
-                const response = await fetch(`/api/sources/${sourceId}`);
+                const response = await fetch(`/api/sources/${sourceId}?inclusions_page=${page}&inclusions_limit=${inclusionsPageSize}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch source details');
                 }
@@ -172,12 +406,17 @@
                 
                 sourceData = data.source;
                 inclusionsData = data.inclusions || [];
+                inclusionsPagination = data.inclusions_pagination;
+                currentInclusionsPage = page;
                 
-                // Populate source form
-                populateSourceForm();
+                // Populate source form (only on first load)
+                if (page === 1) {
+                    populateSourceForm();
+                }
                 
-                // Display inclusions
+                // Display inclusions with pagination
                 displayInclusions();
+                displayInclusionsPagination();
                 
                 // Show main content
                 document.getElementById('loadingIndicator').style.display = 'none';
@@ -204,6 +443,59 @@
             document.getElementById('town').value = sourceData.town || '';
             document.getElementById('rism_link').value = sourceData.rism_link || '';
             document.getElementById('catalogued').checked = sourceData.catalogued || false;
+            document.getElementById('from_year').value = sourceData.from_year || '';
+            document.getElementById('to_year').value = sourceData.to_year || '';
+            document.getElementById('from_year_annotation').value = sourceData.from_year_annotation || '';
+            document.getElementById('to_year_annotation').value = sourceData.to_year_annotation || '';
+
+            // Display related data
+            displayPublishers();
+            displayScribes();
+            displaySourceImages();
+        }
+
+        function displayPublishers() {
+            const container = document.getElementById('publishersContainer');
+            if (!sourceData.publishers || sourceData.publishers.length === 0) {
+                container.innerHTML = '<span class="text-muted">No publishers</span>';
+                return;
+            }
+
+            const html = sourceData.publishers.map(publisher => 
+                `<span class="badge bg-secondary me-1">${publisher.name}</span>`
+            ).join('');
+            container.innerHTML = html;
+        }
+
+        function displayScribes() {
+            const container = document.getElementById('scribesContainer');
+            if (!sourceData.scribes || sourceData.scribes.length === 0) {
+                container.innerHTML = '<span class="text-muted">No scribes</span>';
+                return;
+            }
+
+            const html = sourceData.scribes.map(scribe => 
+                `<span class="badge bg-info me-1">${scribe.name}</span>`
+            ).join('');
+            container.innerHTML = html;
+        }
+
+        function displaySourceImages() {
+            const container = document.getElementById('sourceImagesContainer');
+            if (!sourceData.source_images || sourceData.source_images.length === 0) {
+                container.innerHTML = '<span class="text-muted">No images</span>';
+                return;
+            }
+
+            const html = sourceData.source_images.map(image => 
+                `<div class="mb-1">
+                    <small class="text-muted">${image.label || 'Untitled'}</small><br>
+                    <a href="${image.url}" target="_blank" class="text-decoration-none">
+                        <i class="bi bi-image"></i> View Image
+                    </a>
+                </div>`
+            ).join('');
+            container.innerHTML = html;
         }
 
         function displayInclusions() {
@@ -212,104 +504,419 @@
             if (inclusionsData.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-4 text-muted">
-                        <p>No inclusions found for this source.</p>
-                        <button type="button" class="btn btn-outline-primary" onclick="addInclusion()">
-                            <i class="bi bi-plus-lg"></i> Add First Inclusion
-                        </button>
+                        <p>No inclusions found for this page.</p>
+                        ${currentInclusionsPage === 1 ? `
+                            <button type="button" class="btn btn-outline-primary" onclick="addNewInclusion()">
+                                <i class="bi bi-plus-lg"></i> Add First Inclusion
+                            </button>
+                        ` : ''}
                     </div>
                 `;
                 return;
             }
 
-            // Start building the inclusions table
-            let html = `
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="80">Order</th>
-                                <th>Composition</th>
-                                <th width="150">Type</th>
-                                <th width="200">Composers</th>
-                                <th width="150">Clefs</th>
-                                <th width="100">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
+            // Build the inclusions editing interface
+            let html = '<div class="inclusions-container">';
 
             inclusionsData.forEach((inclusion, index) => {
-                html += `
-                    <tr data-inclusion-id="${inclusion.id}">
-                        <td>
-                            <input type="number" class="form-control form-control-sm" 
-                                   value="${inclusion.position || index + 1}" 
-                                   onchange="updateInclusionOrder(${index}, this.value)">
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" 
-                                   value="${inclusion.composition_name || ''}" 
-                                   placeholder="Composition title"
-                                   onchange="updateInclusionField(${index}, 'composition_name', this.value)">
-                        </td>
-                        <td>
-                            <select class="form-control form-control-sm" 
-                                    onchange="updateInclusionField(${index}, 'composition_type', this.value)">
-                                <option value="">Select type...</option>
-                                <option value="Mass" ${inclusion.composition_type === 'Mass' ? 'selected' : ''}>Mass</option>
-                                <option value="Motet" ${inclusion.composition_type === 'Motet' ? 'selected' : ''}>Motet</option>
-                                <option value="Song" ${inclusion.composition_type === 'Song' ? 'selected' : ''}>Song</option>
-                            </select>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" 
-                                   value="${inclusion.composers ? inclusion.composers.map(c => c.name).join(', ') : ''}" 
-                                   placeholder="Composer names"
-                                   onchange="updateInclusionField(${index}, 'composers', this.value)">
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm" 
-                                   value="${inclusion.clefs || ''}" 
-                                   placeholder="Clefs"
-                                   onchange="updateInclusionField(${index}, 'clefs', this.value)">
-                        </td>
-                        <td>
-                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                    onclick="removeInclusion(${index})" title="Remove inclusion">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                html += buildInclusionRow(inclusion, index);
             });
 
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
+            html += '</div>';
             container.innerHTML = html;
+
+            // Initialize autocomplete and styling
+            initializeInclusionInteractions();
         }
 
-        function updateInclusionOrder(index, value) {
-            inclusionsData[index].position = parseInt(value);
+        function createBlankInclusion(order) {
+            return {
+                id: null,
+                order: order,
+                position: '',
+                attribution_texts: [''],
+                composer_ids: [],
+                notes: '',
+                clefs: [],
+                composition: {
+                    title_text: '',
+                    composition_type_name: '',
+                    tone: null,
+                    even_odd: null,
+                    composer_names: []
+                }
+            };
+        }
+
+        function buildInclusionRow(inclusion, index, isBlank = false) {
+            const rowClass = isBlank ? 'inclusion-row blank-row' : 'inclusion-row';
+            
+            return `
+                <div class="${rowClass}" data-index="${index}" data-inclusion-id="${inclusion.id || ''}">
+                    <div class="row">
+                        <!-- Order and Position -->
+                        <div class="col-1">
+                            <div class="mb-2">
+                                <label class="form-label small">Order</label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       value="${inclusion.order || ''}" 
+                                       onchange="updateInclusionField(${index}, 'order', this.value)">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Position</label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       value="${inclusion.position || ''}" 
+                                       placeholder="f.1r"
+                                       onchange="updateInclusionField(${index}, 'position', this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Attribution and Composers -->
+                        <div class="col-3">
+                            <div class="mb-2">
+                                <label class="form-label small">Attribution (as in source)</label>
+                                ${buildAttributionInputs(inclusion.attribution_texts || [''], index)}
+                                <button type="button" class="btn btn-xs btn-outline-secondary mt-1" 
+                                        onclick="addAttribution(${index})">+ Add Attribution</button>
+                            </div>
+                        </div>
+
+                        <!-- Title and Composition Details -->
+                        <div class="col-4">
+                            <div class="mb-2">
+                                <label class="form-label small">Title</label>
+                                <input type="text" class="form-control form-control-sm title-autocomplete" 
+                                       value="${inclusion.composition?.title_text || ''}" 
+                                       data-index="${index}"
+                                       placeholder="Start typing title...">
+                            </div>
+                            <div class="row">
+                                <div class="col-4">
+                                    <label class="form-label small">Type</label>
+                                    <select class="form-control form-control-sm" 
+                                            onchange="updateCompositionField(${index}, 'composition_type_id', this.value)">
+                                        <option value="">Type...</option>
+                                        ${buildCompositionTypeOptions(inclusion.composition?.composition_type_name)}
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Tone</label>
+                                    <select class="form-control form-control-sm" 
+                                            onchange="updateCompositionField(${index}, 'tone', this.value)">
+                                        <option value="">Tone...</option>
+                                        ${buildToneOptions(inclusion.composition?.tone)}
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small">Even/Odd</label>
+                                    <select class="form-control form-control-sm" 
+                                            onchange="updateCompositionField(${index}, 'even_odd', this.value)">
+                                        <option value="">Even/Odd...</option>
+                                        ${buildEvenOddOptions(inclusion.composition?.even_odd)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Clefs -->
+                        <div class="col-3">
+                            <div class="mb-2">
+                                <label class="form-label small">Clefs</label>
+                                ${buildClefInputs(inclusion.clefs || [], index)}
+                                <button type="button" class="btn btn-xs btn-outline-secondary mt-1" 
+                                        onclick="addClefRow(${index})">+ Add Clef Row</button>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="col-1">
+                            <div class="mb-2">
+                                <label class="form-label small">&nbsp;</label>
+                                <div>
+                                    ${!isBlank ? `
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="removeInclusion(${index})" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes Row -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <label class="form-label small">Notes</label>
+                            <textarea class="form-control form-control-sm" rows="2" 
+                                      placeholder="Notes about this inclusion..."
+                                      onchange="updateInclusionField(${index}, 'notes', this.value)">${inclusion.notes || ''}</textarea>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+                </div>
+            `;
+        }
+
+        // Global data for dropdowns
+        let compositionTypes = [];
+        const toneOptions = {
+            "1": "primi toni",
+            "2": "secundi toni", 
+            "3": "tertii toni",
+            "4": "quarti toni",
+            "5": "quinti toni",
+            "6": "sexti toni",
+            "7": "septimi toni",
+            "8": "octavi toni",
+            "9": "noni toni",
+            "12": "duodecimi toni",
+            "mix": "mixti toni",
+            "per": "peregrini toni",
+            "pro": "proprii toni"
+        };
+        const evenOddOptions = ["even", "odd", "both"];
+        
+        // Valid clef names (from schema reference)
+        const validClefs = [
+            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+        ];
+
+        function buildAttributionInputs(attributions, inclusionIndex) {
+            return attributions.map((attribution, attrIndex) => `
+                <div class="input-group input-group-sm mb-1">
+                    <input type="text" class="form-control" 
+                           value="${attribution || ''}" 
+                           placeholder="Attribution text"
+                           onchange="updateAttribution(${inclusionIndex}, ${attrIndex}, this.value)">
+                    <input type="text" class="form-control composer-autocomplete" 
+                           placeholder="Select composer"
+                           data-inclusion="${inclusionIndex}" 
+                           data-attribution="${attrIndex}">
+                    ${attributions.length > 1 ? `
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="removeAttribution(${inclusionIndex}, ${attrIndex})">×</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function buildCompositionTypeOptions(selectedType) {
+            return compositionTypes.map(type => 
+                `<option value="${type.id}" ${type.name === selectedType ? 'selected' : ''}>${type.name}</option>`
+            ).join('');
+        }
+
+        function buildToneOptions(selectedTone) {
+            return Object.entries(toneOptions).map(([value, label]) => 
+                `<option value="${value}" ${value === selectedTone ? 'selected' : ''}>${label}</option>`
+            ).join('');
+        }
+
+        function buildEvenOddOptions(selectedValue) {
+            return evenOddOptions.map(option => 
+                `<option value="${option}" ${option === selectedValue ? 'selected' : ''}>${option}</option>`
+            ).join('');
+        }
+
+        function buildClefInputs(clefs, inclusionIndex) {
+            // Ensure we have at least 8 clef inputs, in rows of 8
+            const totalClefs = Math.max(8, Math.ceil(clefs.length / 8) * 8);
+            const rows = Math.ceil(totalClefs / 8);
+            
+            let html = '';
+            for (let row = 0; row < rows; row++) {
+                html += '<div class="clef-row d-flex mb-1">';
+                for (let col = 0; col < 8; col++) {
+                    const clefIndex = row * 8 + col;
+                    const clef = clefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] };
+                    const displayValue = formatClefDisplay(clef);
+                    
+                    html += `
+                        <input type="text" class="form-control form-control-sm clef-input me-1" 
+                               style="flex: 1; ${getClefInputStyle(clef)}"
+                               value="${displayValue}" 
+                               data-inclusion="${inclusionIndex}" 
+                               data-clef="${clefIndex}"
+                               onchange="updateClef(${inclusionIndex}, ${clefIndex}, this.value)"
+                               onfocus="this.select()">
+                    `;
+                }
+                html += '</div>';
+            }
+            return html;
+        }
+
+        function formatClefDisplay(clef) {
+            if (!clef.clef) return '';
+            
+            let display = clef.clef;
+            if (clef.transitions_to && clef.transitions_to.length > 0) {
+                display += '/' + clef.transitions_to.join('/');
+            }
+            
+            if (clef.optional) display = '(' + display + ')';
+            if (clef.missing) display = '[' + display + ']';
+            if (clef.incomplete) display = '{' + display + '}';
+            
+            return display;
+        }
+
+        function getClefInputStyle(clef) {
+            if (clef.valid === false) return 'border-color: #dc3545; background-color: #f8d7da;';
+            if (clef.missing) return 'border-color: #dc3545;';
+            if (clef.incomplete) return 'border-color: #198754;';
+            if (clef.optional) return 'border-color: #6c757d;';
+            if (clef.transitions_to && clef.transitions_to.length > 0) return 'border-color: #0d6efd;';
+            return '';
         }
 
         function updateInclusionField(index, field, value) {
+            if (!inclusionsData[index]) {
+                inclusionsData[index] = createBlankInclusion(index + 1);
+            }
             inclusionsData[index][field] = value;
         }
 
-        function addInclusion() {
-            const newInclusion = {
-                id: null, // new inclusion
-                position: inclusionsData.length + 1,
-                composition_name: '',
-                composition_type: '',
-                composers: '',
-                clefs: ''
-            };
-            inclusionsData.push(newInclusion);
+        function updateCompositionField(index, field, value) {
+            if (!inclusionsData[index]) {
+                inclusionsData[index] = createBlankInclusion(index + 1);
+            }
+            if (!inclusionsData[index].composition) {
+                inclusionsData[index].composition = {};
+            }
+            inclusionsData[index].composition[field] = value;
+        }
+
+        function updateAttribution(inclusionIndex, attrIndex, value) {
+            if (!inclusionsData[inclusionIndex]) {
+                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+            }
+            if (!inclusionsData[inclusionIndex].attribution_texts) {
+                inclusionsData[inclusionIndex].attribution_texts = [''];
+            }
+            inclusionsData[inclusionIndex].attribution_texts[attrIndex] = value;
+        }
+
+        function updateClef(inclusionIndex, clefIndex, value) {
+            if (!inclusionsData[inclusionIndex]) {
+                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+            }
+            if (!inclusionsData[inclusionIndex].clefs) {
+                inclusionsData[inclusionIndex].clefs = [];
+            }
+            
+            // Parse the clef input to extract special formatting and validate
+            const clefData = parseClefInput(value);
+            inclusionsData[inclusionIndex].clefs[clefIndex] = clefData;
+            
+            // Update the input styling
+            const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
+            if (input) {
+                input.style.cssText = getClefInputStyle(clefData);
+                
+                // Update tooltip to show validation error
+                if (clefData.valid === false) {
+                    input.title = clefData.error;
+                    input.setAttribute('data-bs-toggle', 'tooltip');
+                } else {
+                    input.title = '';
+                    input.removeAttribute('data-bs-toggle');
+                }
+            }
+        }
+
+        function parseClefInput(value) {
+            if (!value.trim()) {
+                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: true, error: null };
+            }
+
+            let clef = value.trim();
+            let missing = false, optional = false, incomplete = false;
+            let transitions_to = [];
+
+            // Check for proper bracket/parentheses closure
+            const bracketCount = (clef.match(/\[/g) || []).length - (clef.match(/\]/g) || []).length;
+            const parenCount = (clef.match(/\(/g) || []).length - (clef.match(/\)/g) || []).length;
+            const braceCount = (clef.match(/\{/g) || []).length - (clef.match(/\}/g) || []).length;
+
+            if (bracketCount !== 0) {
+                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed brackets []' };
+            }
+            if (parenCount !== 0) {
+                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed parentheses ()' };
+            }
+            if (braceCount !== 0) {
+                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed braces {}' };
+            }
+
+            // Check for formatting
+            if (clef.startsWith('[') && clef.endsWith(']')) {
+                missing = true;
+                clef = clef.slice(1, -1);
+            } else if (clef.startsWith('(') && clef.endsWith(')')) {
+                optional = true;
+                clef = clef.slice(1, -1);
+            } else if (clef.startsWith('{') && clef.endsWith('}')) {
+                incomplete = true;
+                clef = clef.slice(1, -1);
+            }
+
+            // Check for transitions
+            if (clef.includes('/')) {
+                const parts = clef.split('/');
+                clef = parts[0];
+                transitions_to = parts.slice(1);
+            }
+
+            // Validate clef names
+            if (clef && !validClefs.includes(clef.toLowerCase())) {
+                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: `Invalid clef: ${clef}` };
+            }
+
+            // Validate transition clefs
+            for (const transitionClef of transitions_to) {
+                if (transitionClef && !validClefs.includes(transitionClef.toLowerCase())) {
+                    return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: `Invalid transition clef: ${transitionClef}` };
+                }
+            }
+
+            return { clef, missing, optional, incomplete, transitions_to, valid: true, error: null };
+        }
+
+        function addAttribution(inclusionIndex) {
+            if (!inclusionsData[inclusionIndex]) {
+                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+            }
+            if (!inclusionsData[inclusionIndex].attribution_texts) {
+                inclusionsData[inclusionIndex].attribution_texts = [''];
+            }
+            inclusionsData[inclusionIndex].attribution_texts.push('');
+            displayInclusions();
+        }
+
+        function removeAttribution(inclusionIndex, attrIndex) {
+            if (inclusionsData[inclusionIndex]?.attribution_texts?.length > 1) {
+                inclusionsData[inclusionIndex].attribution_texts.splice(attrIndex, 1);
+                displayInclusions();
+            }
+        }
+
+        function addClefRow(inclusionIndex) {
+            // Add 8 empty clefs
+            if (!inclusionsData[inclusionIndex]) {
+                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+            }
+            if (!inclusionsData[inclusionIndex].clefs) {
+                inclusionsData[inclusionIndex].clefs = [];
+            }
+            
+            for (let i = 0; i < 8; i++) {
+                inclusionsData[inclusionIndex].clefs.push({ 
+                    clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] 
+                });
+            }
             displayInclusions();
         }
 
@@ -320,20 +927,610 @@
             }
         }
 
+        // Pagination display function
+        function displayInclusionsPagination() {
+            const container = document.getElementById('inclusionsPagination');
+            
+            if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '<nav><ul class="pagination pagination-sm justify-content-center">';
+            
+            // Previous button
+            html += `<li class="page-item ${!inclusionsPagination.hasPrev ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${currentInclusionsPage - 1}); return false;">Previous</a>`;
+            html += '</li>';
+
+            // Page numbers
+            const startPage = Math.max(1, currentInclusionsPage - 2);
+            const endPage = Math.min(inclusionsPagination.totalPages, currentInclusionsPage + 2);
+
+            if (startPage > 1) {
+                html += '<li class="page-item"><a class="page-link" href="#" onclick="loadInclusionsPage(1); return false;">1</a></li>';
+                if (startPage > 2) {
+                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<li class="page-item ${i === currentInclusionsPage ? 'active' : ''}">`;
+                html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${i}); return false;">${i}</a>`;
+                html += '</li>';
+            }
+
+            if (endPage < inclusionsPagination.totalPages) {
+                if (endPage < inclusionsPagination.totalPages - 1) {
+                    html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                }
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadInclusionsPage(${inclusionsPagination.totalPages}); return false;">${inclusionsPagination.totalPages}</a></li>`;
+            }
+
+            // Next button
+            html += `<li class="page-item ${!inclusionsPagination.hasNext ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="loadInclusionsPage(${currentInclusionsPage + 1}); return false;">Next</a>`;
+            html += '</li>';
+
+            html += '</ul></nav>';
+            
+            // Add info text
+            const start = (currentInclusionsPage - 1) * inclusionsPageSize + 1;
+            const end = Math.min(currentInclusionsPage * inclusionsPageSize, inclusionsPagination.total);
+            html += `<div class="text-center mt-2"><small class="text-muted">Showing ${start}-${end} of ${inclusionsPagination.total} inclusions</small></div>`;
+
+            container.innerHTML = html;
+        }
+
+        function loadInclusionsPage(page) {
+            if (page < 1 || page > inclusionsPagination.totalPages) return;
+            fetchSource(page);
+        }
+
+        // Shortcut functions
+        function copyAttributionToAll() {
+            if (inclusionsData.length === 0) {
+                alert('No inclusions to copy to.');
+                return;
+            }
+
+            const firstInclusion = inclusionsData[0];
+            if (!firstInclusion.attribution_texts || firstInclusion.attribution_texts.length === 0) {
+                alert('First inclusion has no attribution to copy.');
+                return;
+            }
+
+            const attribution = firstInclusion.attribution_texts[0];
+            const composerIds = firstInclusion.composer_ids || [];
+
+            if (!confirm(`Copy attribution "${attribution}" to all ${inclusionsData.length} inclusions on this page?`)) {
+                return;
+            }
+
+            for (let i = 1; i < inclusionsData.length; i++) {
+                if (!inclusionsData[i].attribution_texts) {
+                    inclusionsData[i].attribution_texts = [''];
+                }
+                inclusionsData[i].attribution_texts[0] = attribution;
+                inclusionsData[i].composer_ids = [...composerIds];
+            }
+
+            displayInclusions();
+        }
+
+        function copyCompositionTypeToAll() {
+            if (inclusionsData.length === 0) {
+                alert('No inclusions to copy to.');
+                return;
+            }
+
+            const firstComposition = inclusionsData[0].composition;
+            if (!firstComposition || !firstComposition.composition_type_name) {
+                alert('First inclusion has no composition type to copy.');
+                return;
+            }
+
+            const typeName = firstComposition.composition_type_name;
+
+            if (!confirm(`Copy composition type "${typeName}" to all ${inclusionsData.length} inclusions on this page?`)) {
+                return;
+            }
+
+            for (let i = 1; i < inclusionsData.length; i++) {
+                if (!inclusionsData[i].composition) {
+                    inclusionsData[i].composition = {};
+                }
+                inclusionsData[i].composition.composition_type_name = typeName;
+                inclusionsData[i].composition.composition_type_id = firstComposition.composition_type_id;
+            }
+
+            displayInclusions();
+        }
+
+        function copyToneToAll() {
+            if (inclusionsData.length === 0) {
+                alert('No inclusions to copy to.');
+                return;
+            }
+
+            const firstComposition = inclusionsData[0].composition;
+            if (!firstComposition || !firstComposition.tone) {
+                alert('First inclusion has no tone to copy.');
+                return;
+            }
+
+            const tone = firstComposition.tone;
+            const toneLabel = toneOptions[tone] || tone;
+
+            if (!confirm(`Copy tone "${toneLabel}" to all ${inclusionsData.length} inclusions on this page?`)) {
+                return;
+            }
+
+            for (let i = 1; i < inclusionsData.length; i++) {
+                if (!inclusionsData[i].composition) {
+                    inclusionsData[i].composition = {};
+                }
+                inclusionsData[i].composition.tone = tone;
+            }
+
+            displayInclusions();
+        }
+
+        function reorderInclusions() {
+            if (inclusionsData.length === 0) {
+                alert('No inclusions to reorder.');
+                return;
+            }
+
+            if (!confirm('Automatically reorder inclusions by their order field? This will assign sequential numbers starting from 1.')) {
+                return;
+            }
+
+            inclusionsData.forEach((inclusion, index) => {
+                inclusion.order = index + 1 + ((currentInclusionsPage - 1) * inclusionsPageSize);
+            });
+
+            displayInclusions();
+        }
+
+        // Load composition types and initialize autocomplete
+        async function initializeInclusionInteractions() {
+            // Load composition types
+            try {
+                const response = await fetch('/api/sources/composition-types');
+                compositionTypes = await response.json();
+            } catch (error) {
+                console.error('Error loading composition types:', error);
+            }
+
+            // Initialize title autocomplete
+            initializeTitleAutocomplete();
+            
+            // Initialize composer autocomplete
+            initializeComposerAutocomplete();
+        }
+
+        function initializeTitleAutocomplete() {
+            document.querySelectorAll('.title-autocomplete').forEach(input => {
+                let timeout;
+                
+                input.addEventListener('input', function() {
+                    clearTimeout(timeout);
+                    const query = this.value;
+                    
+                    if (query.length >= 3) {
+                        timeout = setTimeout(() => {
+                            searchTitles(query, this);
+                        }, 300);
+                    }
+                });
+            });
+        }
+
+        function initializeComposerAutocomplete() {
+            document.querySelectorAll('.composer-autocomplete').forEach(input => {
+                let timeout;
+                
+                input.addEventListener('input', function() {
+                    clearTimeout(timeout);
+                    const query = this.value;
+                    
+                    if (query.length >= 2) {
+                        timeout = setTimeout(() => {
+                            searchComposers(query, this);
+                        }, 300);
+                    }
+                });
+            });
+        }
+
+        async function searchTitles(query, inputElement) {
+            try {
+                const response = await fetch(`/api/sources/titles/autocomplete?q=${encodeURIComponent(query)}`);
+                const titles = await response.json();
+                
+                showTitleSuggestions(titles, inputElement);
+            } catch (error) {
+                console.error('Error searching titles:', error);
+            }
+        }
+
+        async function searchComposers(query, inputElement) {
+            try {
+                const response = await fetch(`/api/sources/composers/autocomplete?q=${encodeURIComponent(query)}`);
+                const composers = await response.json();
+                
+                showComposerSuggestions(composers, inputElement);
+            } catch (error) {
+                console.error('Error searching composers:', error);
+            }
+        }
+
+        function showTitleSuggestions(titles, inputElement) {
+            // Remove existing suggestions
+            const existingSuggestions = inputElement.parentNode.querySelector('.autocomplete-suggestions');
+            if (existingSuggestions) {
+                existingSuggestions.remove();
+            }
+
+            const suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'autocomplete-suggestions border bg-white position-absolute w-100';
+            suggestionsDiv.style.zIndex = '1000';
+            suggestionsDiv.style.maxHeight = '200px';
+            suggestionsDiv.style.overflowY = 'auto';
+
+            // Add existing titles
+            titles.forEach(title => {
+                const item = document.createElement('div');
+                item.className = 'p-2 cursor-pointer';
+                item.style.cursor = 'pointer';
+                item.textContent = title.text;
+                
+                item.addEventListener('click', () => {
+                    inputElement.value = title.text;
+                    const inclusionIndex = inputElement.dataset.index;
+                    updateCompositionField(inclusionIndex, 'title_id', title.id);
+                    updateCompositionField(inclusionIndex, 'title_text', title.text);
+                    suggestionsDiv.remove();
+                });
+
+                item.addEventListener('mouseenter', () => {
+                    item.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.backgroundColor = '';
+                });
+
+                suggestionsDiv.appendChild(item);
+            });
+
+            // Add "Create new title" option if user input doesn't match any existing titles
+            const currentValue = inputElement.value.trim();
+            if (currentValue && !titles.some(t => t.text.toLowerCase() === currentValue.toLowerCase())) {
+                if (titles.length > 0) {
+                    // Add separator
+                    const separator = document.createElement('div');
+                    separator.className = 'border-top mx-2';
+                    suggestionsDiv.appendChild(separator);
+                }
+
+                const createItem = document.createElement('div');
+                createItem.className = 'p-2 cursor-pointer text-success';
+                createItem.style.cursor = 'pointer';
+                createItem.innerHTML = `<i class="bi bi-plus-circle"></i> Create new title: "<strong>${currentValue}</strong>"`;
+                
+                createItem.addEventListener('click', () => {
+                    inputElement.value = currentValue;
+                    const inclusionIndex = inputElement.dataset.index;
+                    updateCompositionField(inclusionIndex, 'title_id', null); // Will be created on save
+                    updateCompositionField(inclusionIndex, 'title_text', currentValue);
+                    updateCompositionField(inclusionIndex, 'is_new_title', true);
+                    suggestionsDiv.remove();
+                });
+
+                createItem.addEventListener('mouseenter', () => {
+                    createItem.style.backgroundColor = '#d1e7dd';
+                });
+                createItem.addEventListener('mouseleave', () => {
+                    createItem.style.backgroundColor = '';
+                });
+
+                suggestionsDiv.appendChild(createItem);
+            }
+
+            // Only show suggestions if we have content
+            if (suggestionsDiv.children.length > 0) {
+                inputElement.parentNode.style.position = 'relative';
+                inputElement.parentNode.appendChild(suggestionsDiv);
+            }
+        }
+
+        function showComposerSuggestions(composers, inputElement) {
+            // Similar to showTitleSuggestions but for composers
+            const existingSuggestions = inputElement.parentNode.querySelector('.autocomplete-suggestions');
+            if (existingSuggestions) {
+                existingSuggestions.remove();
+            }
+
+            if (composers.length === 0) return;
+
+            const suggestionsDiv = document.createElement('div');
+            suggestionsDiv.className = 'autocomplete-suggestions border bg-white position-absolute w-100';
+            suggestionsDiv.style.zIndex = '1000';
+            suggestionsDiv.style.maxHeight = '200px';
+            suggestionsDiv.style.overflowY = 'auto';
+
+            composers.forEach(composer => {
+                const item = document.createElement('div');
+                item.className = 'p-2 cursor-pointer';
+                item.style.cursor = 'pointer';
+                item.textContent = composer.name;
+                
+                item.addEventListener('click', () => {
+                    inputElement.value = composer.name;
+                    const inclusionIndex = inputElement.dataset.inclusion;
+                    const attrIndex = inputElement.dataset.attribution;
+                    
+                    // Add composer ID to the inclusion's composer_ids array
+                    if (!inclusionsData[inclusionIndex].composer_ids) {
+                        inclusionsData[inclusionIndex].composer_ids = [];
+                    }
+                    if (!inclusionsData[inclusionIndex].composer_ids.includes(composer.id)) {
+                        inclusionsData[inclusionIndex].composer_ids.push(composer.id);
+                    }
+                    
+                    suggestionsDiv.remove();
+                });
+
+                item.addEventListener('mouseenter', () => {
+                    item.style.backgroundColor = '#f8f9fa';
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.backgroundColor = '';
+                });
+
+                suggestionsDiv.appendChild(item);
+            });
+
+            inputElement.parentNode.style.position = 'relative';
+            inputElement.parentNode.appendChild(suggestionsDiv);
+        }
+
+        // Validation functions
+        function validateAllClefs() {
+            const errors = [];
+            
+            for (let i = 0; i < inclusionsData.length; i++) {
+                const inclusion = inclusionsData[i];
+                if (!inclusion.clefs) continue;
+                
+                for (let j = 0; j < inclusion.clefs.length; j++) {
+                    const clef = inclusion.clefs[j];
+                    if (clef && clef.valid === false) {
+                        errors.push({
+                            inclusionIndex: i,
+                            clefIndex: j,
+                            error: clef.error,
+                            inclusionOrder: inclusion.order || (i + 1)
+                        });
+                    }
+                }
+            }
+            
+            return errors;
+        }
+
+        function showValidationErrors(errors) {
+            if (errors.length === 0) return;
+            
+            let message = 'Please fix the following clef validation errors before saving:\n\n';
+            errors.forEach(error => {
+                message += `Inclusion #${error.inclusionOrder}, Clef ${error.clefIndex + 1}: ${error.error}\n`;
+            });
+            
+            alert(message);
+        }
+
+        // Copy from source functionality
+        let selectedSourceForCopy = null;
+
+        function showCopyFromSourceModal() {
+            const modal = new bootstrap.Modal(document.getElementById('copyFromSourceModal'));
+            modal.show();
+            
+            // Reset modal state
+            document.getElementById('sourceSearchInput').value = '';
+            document.getElementById('sourceSearchResults').innerHTML = '<div class="text-muted text-center">Start typing to search for sources...</div>';
+            document.getElementById('selectedSourceInfo').style.display = 'none';
+            document.getElementById('copyInclusionsBtn').disabled = true;
+            selectedSourceForCopy = null;
+            
+            // Setup search input listener
+            const searchInput = document.getElementById('sourceSearchInput');
+            let searchTimeout;
+            
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+                
+                if (query.length >= 2) {
+                    searchTimeout = setTimeout(() => {
+                        searchSourcesForCopy(query);
+                    }, 300);
+                } else {
+                    document.getElementById('sourceSearchResults').innerHTML = '<div class="text-muted text-center">Start typing to search for sources...</div>';
+                }
+            });
+        }
+
+        async function searchSourcesForCopy(query) {
+            try {
+                const response = await fetch(`/api/sources?search=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                const sources = data.sources;
+                
+                const container = document.getElementById('sourceSearchResults');
+                
+                if (sources.length === 0) {
+                    container.innerHTML = '<div class="text-muted text-center">No sources found matching your search.</div>';
+                    return;
+                }
+                
+                const currentSourceId = parseInt(document.getElementById('source_id').value);
+                const filteredSources = sources.filter(source => source.id !== currentSourceId);
+                
+                if (filteredSources.length === 0) {
+                    container.innerHTML = '<div class="text-muted text-center">No other sources found matching your search.</div>';
+                    return;
+                }
+                
+                let html = '';
+                filteredSources.forEach(source => {
+                    html += `
+                        <div class="source-result border rounded p-3 mb-2 cursor-pointer" style="cursor: pointer;" onclick="selectSourceForCopy(${source.id}, '${escapeHtml(source.code)}', '${escapeHtml(source.title || '')}')">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">${source.code}</h6>
+                                    ${source.title ? `<p class="mb-1 text-muted">${source.title}</p>` : ''}
+                                    <small class="text-muted">${source.type || 'Unknown type'} • ${source.format || 'Unknown format'}</small>
+                                </div>
+                                <small class="text-muted">${source.catalogued ? '<span class="badge bg-success">Catalogued</span>' : '<span class="badge bg-secondary">Not catalogued</span>'}</small>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error searching sources:', error);
+                document.getElementById('sourceSearchResults').innerHTML = '<div class="text-danger text-center">Error searching sources. Please try again.</div>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function selectSourceForCopy(sourceId, sourceCode, sourceTitle) {
+            selectedSourceForCopy = { id: sourceId, code: sourceCode, title: sourceTitle };
+            
+            // Update UI
+            document.getElementById('selectedSourceDetails').innerHTML = `
+                <strong>${sourceCode}</strong>${sourceTitle ? ` - ${sourceTitle}` : ''}
+            `;
+            document.getElementById('selectedSourceInfo').style.display = 'block';
+            document.getElementById('copyInclusionsBtn').disabled = false;
+            
+            // Highlight selected source
+            document.querySelectorAll('.source-result').forEach(el => {
+                el.classList.remove('bg-light');
+                el.style.backgroundColor = '';
+            });
+            event.target.closest('.source-result').style.backgroundColor = '#e3f2fd';
+        }
+
+        async function copyInclusionsFromSource() {
+            if (!selectedSourceForCopy) {
+                alert('Please select a source first.');
+                return;
+            }
+            
+            const replaceExisting = document.getElementById('replaceExistingInclusions').checked;
+            
+            if (!confirm(`Are you sure you want to ${replaceExisting ? 'replace all existing inclusions with' : 'append'} inclusions from "${selectedSourceForCopy.code}"?`)) {
+                return;
+            }
+            
+            try {
+                // Show loading
+                document.getElementById('copyInclusionsBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+                document.getElementById('copyInclusionsBtn').disabled = true;
+                
+                // Fetch all inclusions from the selected source
+                const response = await fetch(`/api/sources/${selectedSourceForCopy.id}?inclusions_limit=9999`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch source inclusions');
+                }
+                
+                const sourceInclusions = data.inclusions || [];
+                
+                if (sourceInclusions.length === 0) {
+                    alert('The selected source has no inclusions to copy.');
+                    return;
+                }
+                
+                // Copy inclusions to current source
+                const copiedInclusions = sourceInclusions.map((inclusion, index) => ({
+                    id: null, // New inclusion
+                    order: replaceExisting ? (index + 1) : (inclusionsData.length + index + 1),
+                    position: inclusion.position || '',
+                    attribution_texts: [...(inclusion.attribution_texts || [''])],
+                    composer_ids: [...(inclusion.composer_ids || [])],
+                    notes: inclusion.notes || '',
+                    clefs: [...(inclusion.clefs || [])],
+                    composition: {
+                        title_text: inclusion.composition?.title_text || '',
+                        composition_type_name: inclusion.composition?.composition_type_name || '',
+                        tone: inclusion.composition?.tone || null,
+                        even_odd: inclusion.composition?.even_odd || null,
+                        composer_names: [...(inclusion.composition?.composer_names || [])]
+                    }
+                }));
+                
+                // Update inclusions data
+                if (replaceExisting) {
+                    inclusionsData = copiedInclusions;
+                } else {
+                    inclusionsData.push(...copiedInclusions);
+                }
+                
+                // Close modal and refresh display
+                const modal = bootstrap.Modal.getInstance(document.getElementById('copyFromSourceModal'));
+                modal.hide();
+                
+                displayInclusions();
+                
+                alert(`Successfully copied ${copiedInclusions.length} inclusions from "${selectedSourceForCopy.code}".`);
+                
+            } catch (error) {
+                console.error('Error copying inclusions:', error);
+                alert('Failed to copy inclusions. Please try again.');
+            } finally {
+                // Reset button
+                document.getElementById('copyInclusionsBtn').innerHTML = '<i class="bi bi-files"></i> Copy Inclusions';
+                document.getElementById('copyInclusionsBtn').disabled = false;
+            }
+        }
+
         // Save all changes
         async function saveAllChanges() {
+            // Validate clefs before saving
+            const clefErrors = validateAllClefs();
+            if (clefErrors.length > 0) {
+                showValidationErrors(clefErrors);
+                return;
+            }
             const modal = new bootstrap.Modal(document.getElementById('saveProgressModal'));
             modal.show();
 
-            try {
+                         try {
                 // Collect source data
                 const formData = new FormData(document.getElementById('editSourceForm'));
-                const sourceData = Object.fromEntries(formData);
-                sourceData.catalogued = document.getElementById('catalogued').checked;
+                const sourceUpdateData = Object.fromEntries(formData);
+                sourceUpdateData.catalogued = document.getElementById('catalogued').checked;
+                
+                // Convert year fields to integers
+                sourceUpdateData.from_year = sourceUpdateData.from_year ? parseInt(sourceUpdateData.from_year) : null;
+                sourceUpdateData.to_year = sourceUpdateData.to_year ? parseInt(sourceUpdateData.to_year) : null;
 
                 // Prepare data for saving
                 const saveData = {
-                    source: sourceData,
+                    source: sourceUpdateData,
                     inclusions: inclusionsData
                 };
 
@@ -362,7 +1559,7 @@
                 setTimeout(() => {
                     modal.hide();
                     alert('Changes saved successfully!');
-                    window.location.href = 'index.html';
+                window.location.href = 'index.html';
                 }, 1000);
 
             } catch (error) {
@@ -373,7 +1570,6 @@
         }
 
         // Event listeners
-        document.getElementById('addInclusionBtn').addEventListener('click', addInclusion);
         document.getElementById('saveAllBtn').addEventListener('click', saveAllChanges);
 
         // Initialize
