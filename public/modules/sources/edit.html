@@ -1713,7 +1713,7 @@
         async function loadAllComposers() {
             try {
                 console.log('Loading all composers...');
-                const response = await fetch('/api/sources/composers/autocomplete?q=a'); // Get all with minimal query
+                const response = await fetch('/api/sources/composers');
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -1747,24 +1747,17 @@
 
                 console.log('Added', allComposers.length, 'composers to select');
 
-                // Initialize Select2
-                $(select).select2({
-                    placeholder: 'Select composer...',
-                    allowClear: true,
-                    width: '100%'
-                });
-
                 // Set existing values
                 const inclusionIndex = parseInt(select.dataset.inclusion);
                 const attrIndex = parseInt(select.dataset.attribution);
                 const inclusion = inclusionsData[inclusionIndex];
                 
                 if (inclusion && inclusion.composer_ids && inclusion.composer_ids[attrIndex]) {
-                    $(select).val(inclusion.composer_ids[attrIndex]).trigger('change');
+                    select.value = inclusion.composer_ids[attrIndex];
                 }
 
                 // Handle changes
-                $(select).on('change', function() {
+                select.addEventListener('change', function() {
                     const composerId = this.value ? parseInt(this.value) : null;
                     const inclusionIndex = parseInt(this.dataset.inclusion);
                     const attrIndex = parseInt(this.dataset.attribution);
@@ -1907,11 +1900,11 @@
             console.log('firstInclusion:', firstInclusion);
             
             // Get current values from the first row's inputs
-            const firstAttributionInput = document.querySelector(`input[data-inclusion="0"][data-attribution="0"]`);
+            const firstAttributionInput = document.querySelector(`input[onchange*="updateAttribution(0, 0"]`);
             const firstComposerSelect = document.querySelector(`select[data-inclusion="0"][data-attribution="0"]`);
             
             const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (firstInclusion.attribution_texts?.[0] || '');
-            const currentComposerId = firstComposerSelect ? parseInt(firstComposerSelect.value) : (firstInclusion.composer_ids?.[0] || null);
+            const currentComposerId = firstComposerSelect && firstComposerSelect.value ? parseInt(firstComposerSelect.value) : (firstInclusion.composer_ids?.[0] || null);
             const currentComposerName = currentComposerId ? allComposers.find(c => c.id === currentComposerId)?.name || '' : '';
             
             console.log('Current attribution:', currentAttribution);

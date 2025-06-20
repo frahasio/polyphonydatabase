@@ -129,6 +129,17 @@ router.get('/scribes', async (req, res) => {
   }
 });
 
+// Get all composers for select dropdowns (MUST be before /:id route)
+router.get('/composers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM composers ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Title autocomplete (MUST be before /:id route)
 router.get('/titles/autocomplete', async (req, res) => {
   try {
@@ -556,6 +567,15 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     `;
     await client.query(matchExistingQuery);
 
+    // Get the original inclusions data to preserve all fields (move this up before use)
+    const processedInclusions = inclusions.filter(inclusion => 
+      inclusion.id || 
+      inclusion.composition?.title_text || 
+      (inclusion.attribution_texts && inclusion.attribution_texts.some(text => text.trim())) ||
+      inclusion.position ||
+      inclusion.notes
+    );
+
     // Update existing compositions with new tone/even_odd values
     for (let i = 0; i < processedInclusions.length; i++) {
       const originalInclusion = processedInclusions[i];
@@ -642,23 +662,24 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       `, [compositionId, tempInclusion.id]);
     }
 
-    // 3. Clear existing inclusions for this source
-    // Now we can safely delete the inclusions
-    await client.query('DELETE FROM inclusions WHERE source_id = $1', [sourceId]);
+    // 3. Only update/delete inclusions that are being changed on this page
+    // First, collect the IDs of inclusions we're updating
+    const inclusionIdsToUpdate = processedInclusions
+      .filter(inc => inc.id)
+      .map(inc => inc.id);
 
-    // 4. Insert final inclusions
+    // Delete only the inclusions that were on this page (if any have IDs)
+    if (inclusionIdsToUpdate.length > 0) {
+      await client.query(
+        'DELETE FROM inclusions WHERE source_id = $1 AND id = ANY($2)',
+        [sourceId, inclusionIdsToUpdate]
+      );
+    }
+
+    // 4. Insert/update final inclusions
     const finalInclusions = await client.query(`
       SELECT * FROM temp_inclusions ORDER BY position
     `);
-
-    // Get the original inclusions data to preserve all fields
-    const processedInclusions = inclusions.filter(inclusion => 
-      inclusion.id || 
-      inclusion.composition?.title_text || 
-      (inclusion.attribution_texts && inclusion.attribution_texts.some(text => text.trim())) ||
-      inclusion.position ||
-      inclusion.notes
-    );
 
     for (let i = 0; i < finalInclusions.rows.length; i++) {
       const tempInclusion = finalInclusions.rows[i];
