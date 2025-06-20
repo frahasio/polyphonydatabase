@@ -518,7 +518,9 @@
                 
                 // Display inclusions with pagination
                 displayInclusions();
+                console.log('About to call displayInclusionsPagination...');
                 displayInclusionsPagination();
+                console.log('displayInclusionsPagination called');
                 
                 // Show main content
                 document.getElementById('loadingIndicator').style.display = 'none';
@@ -1205,35 +1207,91 @@
         function displayInclusionsPagination() {
             const container = document.getElementById('headerPagination');
             
+            // ADD LOGGING: Debug pagination data
+            console.log('=== PAGINATION DEBUG ===');
+            console.log('inclusionsPagination:', inclusionsPagination);
+            console.log('currentInclusionsPage:', currentInclusionsPage);
+            console.log('Container exists:', !!container);
+            
+            if (!container) {
+                console.log('ERROR: Pagination container not found!');
+                return;
+            }
+            
             if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
+                console.log('No pagination needed - total pages:', inclusionsPagination?.totalPages);
                 container.innerHTML = '';
                 return;
             }
 
+            console.log('Building pagination controls...');
+            
+            // Build pagination with simplified click handlers
             let html = '<nav><ul class="pagination pagination-sm mb-0">';
             
             // Previous button
-            html += `<li class="page-item ${!inclusionsPagination.hasPrev ? 'disabled' : ''}">`;
-            html += `<a class="page-link" href="#" onclick="checkUnsavedChanges(() => loadInclusionsPage(${currentInclusionsPage - 1})); return false;">‹</a>`;
+            const prevDisabled = !inclusionsPagination.hasPrev || currentInclusionsPage <= 1;
+            html += `<li class="page-item ${prevDisabled ? 'disabled' : ''}">`;
+            if (!prevDisabled) {
+                html += `<a class="page-link" href="#" onclick="loadInclusionsPageSafe(${currentInclusionsPage - 1}); return false;">‹ Previous</a>`;
+            } else {
+                html += `<span class="page-link">‹ Previous</span>`;
+            }
             html += '</li>';
 
             // Current page info
             html += `<li class="page-item active">`;
-            html += `<span class="page-link">${currentInclusionsPage} / ${inclusionsPagination.totalPages}</span>`;
+            html += `<span class="page-link">${currentInclusionsPage} of ${inclusionsPagination.totalPages}</span>`;
             html += '</li>';
 
             // Next button
-            html += `<li class="page-item ${!inclusionsPagination.hasNext ? 'disabled' : ''}">`;
-            html += `<a class="page-link" href="#" onclick="checkUnsavedChanges(() => loadInclusionsPage(${currentInclusionsPage + 1})); return false;">›</a>`;
+            const nextDisabled = !inclusionsPagination.hasNext || currentInclusionsPage >= inclusionsPagination.totalPages;
+            html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">`;
+            if (!nextDisabled) {
+                html += `<a class="page-link" href="#" onclick="loadInclusionsPageSafe(${currentInclusionsPage + 1}); return false;">Next ›</a>`;
+            } else {
+                html += `<span class="page-link">Next ›</span>`;
+            }
             html += '</li>';
 
             html += '</ul></nav>';
 
+            console.log('Pagination HTML:', html);
+            console.log('Previous disabled:', prevDisabled, 'Next disabled:', nextDisabled);
             container.innerHTML = html;
+            console.log('Pagination rendered to container');
+            console.log('========================');
+        }
+
+        // Safer pagination function that handles unsaved changes
+        function loadInclusionsPageSafe(page) {
+            console.log('loadInclusionsPageSafe called with page:', page);
+            
+            if (!inclusionsPagination || page < 1 || page > inclusionsPagination.totalPages) {
+                console.log('Invalid page requested:', page);
+                return;
+            }
+            
+            // Check for unsaved changes before navigating
+            if (hasUnsavedChanges) {
+                if (confirm('You have unsaved changes. Are you sure you want to navigate to another page? Your changes will be lost.')) {
+                    console.log('User confirmed navigation despite unsaved changes');
+                    loadInclusionsPage(page);
+                } else {
+                    console.log('User cancelled navigation due to unsaved changes');
+                }
+            } else {
+                console.log('No unsaved changes, navigating to page:', page);
+                loadInclusionsPage(page);
+            }
         }
 
         function loadInclusionsPage(page) {
-            if (page < 1 || page > inclusionsPagination.totalPages) return;
+            console.log('loadInclusionsPage called with page:', page);
+            if (!inclusionsPagination || page < 1 || page > inclusionsPagination.totalPages) {
+                console.log('Invalid page range');
+                return;
+            }
             fetchSource(page);
         }
 

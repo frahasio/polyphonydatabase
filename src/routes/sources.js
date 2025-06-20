@@ -448,6 +448,28 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     const sourceId = parseInt(req.params.id);
     const { source, inclusions } = req.body;
     
+    // === COMPREHENSIVE LOGGING START ===
+    console.log('\n=== SAVE WITH INCLUSIONS START ===');
+    console.log('Source ID:', sourceId);
+    console.log('Source data:', source);
+    console.log('Total inclusions received:', inclusions.length);
+    console.log('Inclusions sample (first 3):');
+    inclusions.slice(0, 3).forEach((inclusion, index) => {
+      console.log(`Inclusion ${index}:`, {
+        id: inclusion.id,
+        order: inclusion.order,
+        composition: inclusion.composition,
+        even_odd: inclusion.composition?.even_odd,
+        even_odd_type: typeof inclusion.composition?.even_odd,
+        number_of_voices: inclusion.composition?.number_of_voices,
+        number_of_voices_type: typeof inclusion.composition?.number_of_voices,
+        title_text: inclusion.composition?.title_text,
+        composition_type_id: inclusion.composition?.composition_type_id,
+        clefs: inclusion.clefs
+      });
+    });
+    console.log('=====================================\n');
+    
     // Update source first
     const updateSourceQuery = `
       UPDATE sources 
@@ -514,6 +536,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
     }
 
+    console.log('\n=== CREATING TEMP TABLE ===');
     // Create temporary table for processing inclusions
     await client.query(`
       CREATE TEMP TABLE temp_inclusions (
@@ -525,11 +548,23 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         composers TEXT,
         clefs TEXT,
         composition_id INTEGER,
-        processed BOOLEAN DEFAULT FALSE
+        processed BOOLEAN DEFAULT FALSE,
+        -- ADD FIELDS FOR PROPER MATCHING
+        original_composition_id INTEGER,
+        tone TEXT,
+        even_odd INTEGER,
+        composition_type_id INTEGER,
+        number_of_voices INTEGER,
+        composer_ids_json TEXT
       )
     `);
 
+    console.log('Temp table created with enhanced fields for matching');
+
     // Insert inclusions into temporary table
+    console.log('\n=== INSERTING INTO TEMP TABLE ===');
+    let tempInsertCount = 0;
+    
     for (const inclusion of inclusions) {
       // Skip completely empty inclusions
       if (!inclusion.id && 
@@ -537,12 +572,35 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           (!inclusion.attribution_texts || !inclusion.attribution_texts.some(text => text.trim())) &&
           !inclusion.position &&
           !inclusion.notes) {
+        console.log('Skipping completely empty inclusion');
         continue;
       }
 
+      // Calculate number of voices from clefs
+      let numberOfVoices = null;
+      if (inclusion.clefs && inclusion.clefs.length > 0) {
+        numberOfVoices = inclusion.clefs.filter(clef => 
+          clef.clef && clef.clef.trim() && !clef.optional
+        ).length;
+        numberOfVoices = numberOfVoices > 0 ? numberOfVoices : null;
+      }
+
+      console.log(`Inserting temp inclusion ${tempInsertCount}:`, {
+        order: inclusion.order,
+        title: inclusion.composition?.title_text,
+        composition_type_id: inclusion.composition?.composition_type_id,
+        tone: inclusion.composition?.tone,
+        even_odd: inclusion.composition?.even_odd,
+        number_of_voices: numberOfVoices,
+        original_composition_id: inclusion.composition_id
+      });
+
       await client.query(`
-        INSERT INTO temp_inclusions (source_id, position, composition_name, composition_type, composers, clefs, composition_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO temp_inclusions (
+          source_id, position, composition_name, composition_type, composers, clefs, composition_id,
+          original_composition_id, tone, even_odd, composition_type_id, number_of_voices, composer_ids_json
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `, [
         sourceId,
         inclusion.order || 0,
@@ -550,11 +608,40 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         inclusion.composition?.composition_type_name || '',
         (inclusion.attribution_texts || []).join(', '),
         JSON.stringify(inclusion.clefs || []),
-        inclusion.composition_id || null
+        inclusion.composition_id || null,
+        inclusion.composition_id || null, // Store original composition ID
+        inclusion.composition?.tone || null,
+        inclusion.composition?.even_odd || null,
+        inclusion.composition?.composition_type_id || null,
+        numberOfVoices,
+        JSON.stringify(inclusion.composer_ids || [])
       ]);
+      
+      tempInsertCount++;
     }
 
+    console.log(`Inserted ${tempInsertCount} inclusions into temp table`);
+
+    // Show what's in the temp table
+    const tempTableContents = await client.query(`SELECT * FROM temp_inclusions ORDER BY position`);
+    console.log('\n=== TEMP TABLE CONTENTS ===');
+    tempTableContents.rows.forEach((row, index) => {
+      console.log(`Temp row ${index}:`, {
+        id: row.id,
+        position: row.position,
+        composition_name: row.composition_name,
+        original_composition_id: row.original_composition_id,
+        tone: row.tone,
+        even_odd: row.even_odd,
+        composition_type_id: row.composition_type_id,
+        number_of_voices: row.number_of_voices,
+        processed: row.processed
+      });
+    });
+    console.log('=============================\n');
+
     // Process compositions
+    console.log('\n=== COMPOSITION MATCHING PHASE 1: BY TITLE ONLY ===');
     // 1. First pass: try to match existing compositions by title and update them
     const matchExistingQuery = `
       UPDATE temp_inclusions 
@@ -565,7 +652,32 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       AND temp_inclusions.composition_id IS NULL
       AND temp_inclusions.composition_name != ''
     `;
-    await client.query(matchExistingQuery);
+    const matchResult = await client.query(matchExistingQuery);
+    console.log(`Phase 1 matching by title: ${matchResult.rowCount} rows matched`);
+
+    // Show what got matched
+    const matchedByTitle = await client.query(`
+      SELECT ti.*, c.*, t.text as title_text
+      FROM temp_inclusions ti 
+      LEFT JOIN compositions c ON ti.composition_id = c.id
+      LEFT JOIN titles t ON c.title_id = t.id
+      WHERE ti.processed = TRUE
+    `);
+    console.log('Matched by title:');
+    matchedByTitle.rows.forEach((row, index) => {
+      console.log(`Matched ${index}:`, {
+        temp_id: row.id,
+        composition_id: row.composition_id,
+        title: row.title_text,
+        existing_tone: row.tone,
+        existing_even_odd: row.even_odd,
+        existing_composition_type_id: row.composition_type_id,
+        existing_number_of_voices: row.number_of_voices,
+        new_tone: row.tone, // from temp table
+        new_even_odd: row.even_odd, // from temp table
+        new_composition_type_id: row.composition_type_id // from temp table
+      });
+    });
 
     // Get the original inclusions data to preserve all fields (move this up before use)
     const processedInclusions = inclusions.filter(inclusion => 
@@ -576,11 +688,14 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       inclusion.notes
     );
 
+    console.log(`\nProcessed inclusions count: ${processedInclusions.length}`);
+
+    console.log('\n=== UPDATING EXISTING COMPOSITIONS ===');
     // Update existing compositions with new tone/even_odd values
     for (let i = 0; i < processedInclusions.length; i++) {
       const originalInclusion = processedInclusions[i];
       const tempInclusion = await client.query(`
-        SELECT composition_id FROM temp_inclusions 
+        SELECT composition_id, tone, even_odd, composition_type_id FROM temp_inclusions 
         WHERE position = $1 AND processed = TRUE
         LIMIT 1
       `, [originalInclusion.order || (i + 1)]);
@@ -588,15 +703,26 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
         const compositionId = tempInclusion.rows[0].composition_id;
         const tone = originalInclusion.composition.tone || null;
+        
         // Convert even_odd string to integer if needed
         let evenOdd = originalInclusion.composition.even_odd || null;
         if (evenOdd === 'even') evenOdd = 0;
         else if (evenOdd === 'odd') evenOdd = 1;
         else if (evenOdd === 'both') evenOdd = 2;
+        else if (typeof evenOdd === 'number') evenOdd = evenOdd; // Already an integer
         else evenOdd = null;
         
         const compositionTypeId = originalInclusion.composition.composition_type_id ? 
           parseInt(originalInclusion.composition.composition_type_id) : null;
+
+        console.log(`Updating composition ${compositionId}:`, {
+          original_tone: tempInclusion.rows[0].tone,
+          new_tone: tone,
+          original_even_odd: tempInclusion.rows[0].even_odd,
+          new_even_odd: evenOdd,
+          original_composition_type_id: tempInclusion.rows[0].composition_type_id,
+          new_composition_type_id: compositionTypeId
+        });
 
         await client.query(`
           UPDATE compositions 
@@ -606,15 +732,34 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
     }
 
+    console.log('\n=== CREATING NEW COMPOSITIONS FOR UNMATCHED ===');
     // 2. Second pass: create new compositions for unmatched items
     const unmatchedInclusions = await client.query(`
       SELECT * FROM temp_inclusions 
       WHERE processed = FALSE AND composition_name != ''
     `);
 
+    console.log(`Found ${unmatchedInclusions.rows.length} unmatched inclusions that need new compositions`);
+
     for (let i = 0; i < unmatchedInclusions.rows.length; i++) {
       const tempInclusion = unmatchedInclusions.rows[i];
-      const originalInclusion = processedInclusions[i];
+      
+      // Find the corresponding original inclusion by position
+      const originalInclusion = processedInclusions.find(inc => 
+        (inc.order || (processedInclusions.indexOf(inc) + 1)) === tempInclusion.position
+      );
+      
+      console.log(`Creating new composition for temp inclusion ${tempInclusion.id}:`, {
+        position: tempInclusion.position,
+        composition_name: tempInclusion.composition_name,
+        found_original: !!originalInclusion,
+        original_data: originalInclusion ? {
+          composition_type_id: originalInclusion.composition?.composition_type_id,
+          tone: originalInclusion.composition?.tone,
+          even_odd: originalInclusion.composition?.even_odd,
+          number_of_voices: originalInclusion.composition?.number_of_voices
+        } : null
+      });
       
       // Check if title already exists, if not create new one
       let titleResult = await client.query(`
@@ -624,6 +769,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       let titleId;
       if (titleResult.rows.length > 0) {
         titleId = titleResult.rows[0].id;
+        console.log(`Using existing title ID: ${titleId}`);
       } else {
         const newTitleResult = await client.query(`
           INSERT INTO titles (text, created_at, updated_at)
@@ -631,6 +777,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           RETURNING id
         `, [tempInclusion.composition_name, now, now]);
         titleId = newTitleResult.rows[0].id;
+        console.log(`Created new title ID: ${titleId}`);
       }
 
       // Get composition type ID if specified
@@ -648,22 +795,52 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
 
       // Get tone and even_odd from original inclusion data
-      const tone = originalInclusion?.composition?.tone || null;
+      const tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
+      
       // Convert even_odd string to integer if needed
-      let evenOdd = originalInclusion?.composition?.even_odd || null;
+      let evenOdd = originalInclusion?.composition?.even_odd || tempInclusion.even_odd || null;
       if (evenOdd === 'even') evenOdd = 0;
       else if (evenOdd === 'odd') evenOdd = 1;
       else if (evenOdd === 'both') evenOdd = 2;
+      else if (typeof evenOdd === 'number') evenOdd = evenOdd; // Already an integer
       else evenOdd = null;
 
-      // Create new composition with all fields
-      const compositionResult = await client.query(`
-        INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id
-      `, [titleId, compositionTypeId, tone, evenOdd, now, now]);
+      // Get number of voices
+      const numberOfVoices = originalInclusion?.composition?.number_of_voices || tempInclusion.number_of_voices || null;
 
-      const compositionId = compositionResult.rows[0].id;
+      console.log(`Final composition data for creation:`, {
+        titleId,
+        compositionTypeId,
+        tone,
+        evenOdd,
+        numberOfVoices
+      });
+
+      // IMPORTANT: Check if this exact composition already exists before creating
+      const existingComposition = await client.query(`
+        SELECT id FROM compositions 
+        WHERE title_id = $1 
+        AND ($2::INTEGER IS NULL OR composition_type_id = $2)
+        AND ($3::TEXT IS NULL OR tone = $3)
+        AND ($4::INTEGER IS NULL OR even_odd = $4)
+        AND ($5::INTEGER IS NULL OR number_of_voices = $5)
+      `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices]);
+
+      let compositionId;
+      if (existingComposition.rows.length > 0) {
+        compositionId = existingComposition.rows[0].id;
+        console.log(`Found existing matching composition ID: ${compositionId} - NOT creating new one!`);
+      } else {
+        // Create new composition with all fields
+        const compositionResult = await client.query(`
+          INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING id
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices, now, now]);
+
+        compositionId = compositionResult.rows[0].id;
+        console.log(`Created NEW composition ID: ${compositionId}`);
+      }
 
       // Update temp table
       await client.query(`
@@ -673,20 +850,38 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       `, [compositionId, tempInclusion.id]);
     }
 
+    // Show final temp table state
+    const finalTempContents = await client.query(`SELECT * FROM temp_inclusions ORDER BY position`);
+    console.log('\n=== FINAL TEMP TABLE STATE ===');
+    finalTempContents.rows.forEach((row, index) => {
+      console.log(`Final temp row ${index}:`, {
+        id: row.id,
+        position: row.position,
+        composition_name: row.composition_name,
+        final_composition_id: row.composition_id,
+        processed: row.processed
+      });
+    });
+    console.log('===============================\n');
+
     // 3. Only update/delete inclusions that are being changed on this page
     // First, collect the IDs of inclusions we're updating
     const inclusionIdsToUpdate = processedInclusions
       .filter(inc => inc.id)
       .map(inc => inc.id);
 
+    console.log('Inclusion IDs to delete:', inclusionIdsToUpdate);
+
     // Delete only the inclusions that were on this page (if any have IDs)
     if (inclusionIdsToUpdate.length > 0) {
-      await client.query(
+      const deleteResult = await client.query(
         'DELETE FROM inclusions WHERE source_id = $1 AND id = ANY($2)',
         [sourceId, inclusionIdsToUpdate]
       );
+      console.log(`Deleted ${deleteResult.rowCount} existing inclusions`);
     }
 
+    console.log('\n=== INSERTING FINAL INCLUSIONS ===');
     // 4. Insert/update final inclusions
     const finalInclusions = await client.query(`
       SELECT * FROM temp_inclusions ORDER BY position
@@ -694,9 +889,19 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
     for (let i = 0; i < finalInclusions.rows.length; i++) {
       const tempInclusion = finalInclusions.rows[i];
-      const originalInclusion = processedInclusions[i];
+      const originalInclusion = processedInclusions.find(inc => 
+        (inc.order || (processedInclusions.indexOf(inc) + 1)) === tempInclusion.position
+      ) || processedInclusions[i]; // Fallback to index matching
       
       if (tempInclusion.composition_id && originalInclusion) {
+        console.log(`Inserting final inclusion ${i}:`, {
+          source_id: sourceId,
+          composition_id: tempInclusion.composition_id,
+          order: originalInclusion.order || (i + 1),
+          position: originalInclusion.position || '',
+          clefs_count: originalInclusion.clefs?.length || 0
+        });
+
         await client.query(`
           INSERT INTO inclusions (
             source_id, composition_id, "order", position, notes, 
@@ -720,6 +925,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
     await client.query('COMMIT');
     
+    console.log(`\n=== SAVE COMPLETE ===`);
+    console.log(`Processed ${finalInclusions.rows.length} inclusions successfully`);
+    console.log(`====================\n`);
+    
     res.json({ 
       success: true, 
       message: 'Source and inclusions saved successfully',
@@ -734,7 +943,5 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     client.release();
   }
 });
-
-
 
 export default router; 
