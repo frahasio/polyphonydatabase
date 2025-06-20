@@ -543,8 +543,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       ]);
     }
 
-    // Process compositions (simplified for now - you can expand this)
-    // 1. First pass: try to match existing compositions by title
+    // Process compositions
+    // 1. First pass: try to match existing compositions by title and update them
     const matchExistingQuery = `
       UPDATE temp_inclusions 
       SET composition_id = c.id, processed = TRUE
@@ -556,13 +556,40 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     `;
     await client.query(matchExistingQuery);
 
+    // Update existing compositions with new tone/even_odd values
+    for (let i = 0; i < processedInclusions.length; i++) {
+      const originalInclusion = processedInclusions[i];
+      const tempInclusion = await client.query(`
+        SELECT composition_id FROM temp_inclusions 
+        WHERE position = $1 AND processed = TRUE
+        LIMIT 1
+      `, [originalInclusion.order || (i + 1)]);
+
+      if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
+        const compositionId = tempInclusion.rows[0].composition_id;
+        const tone = originalInclusion.composition.tone || null;
+        const evenOdd = originalInclusion.composition.even_odd || null;
+        const compositionTypeId = originalInclusion.composition.composition_type_id ? 
+          parseInt(originalInclusion.composition.composition_type_id) : null;
+
+        await client.query(`
+          UPDATE compositions 
+          SET tone = $1, even_odd = $2, composition_type_id = $3, updated_at = $4
+          WHERE id = $5
+        `, [tone, evenOdd, compositionTypeId, now, compositionId]);
+      }
+    }
+
     // 2. Second pass: create new compositions for unmatched items
     const unmatchedInclusions = await client.query(`
       SELECT * FROM temp_inclusions 
       WHERE processed = FALSE AND composition_name != ''
     `);
 
-    for (const tempInclusion of unmatchedInclusions.rows) {
+    for (let i = 0; i < unmatchedInclusions.rows.length; i++) {
+      const tempInclusion = unmatchedInclusions.rows[i];
+      const originalInclusion = processedInclusions[i];
+      
       // Check if title already exists, if not create new one
       let titleResult = await client.query(`
         SELECT id FROM titles WHERE text = $1
@@ -582,7 +609,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
       // Get composition type ID if specified
       let compositionTypeId = null;
-      if (tempInclusion.composition_type) {
+      if (originalInclusion?.composition?.composition_type_id) {
+        compositionTypeId = parseInt(originalInclusion.composition.composition_type_id);
+      } else if (tempInclusion.composition_type) {
         const typeResult = await client.query(`
           SELECT id FROM composition_types WHERE name = $1
         `, [tempInclusion.composition_type]);
@@ -592,12 +621,16 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         }
       }
 
-      // Create new composition
+      // Get tone and even_odd from original inclusion data
+      const tone = originalInclusion?.composition?.tone || null;
+      const evenOdd = originalInclusion?.composition?.even_odd || null;
+
+      // Create new composition with all fields
       const compositionResult = await client.query(`
-        INSERT INTO compositions (title_id, composition_type_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
-      `, [titleId, compositionTypeId, now, now]);
+      `, [titleId, compositionTypeId, tone, evenOdd, now, now]);
 
       const compositionId = compositionResult.rows[0].id;
 

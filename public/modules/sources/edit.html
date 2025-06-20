@@ -16,9 +16,8 @@
         
         .inclusion-row {
             background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            padding: 8px;
+            margin-bottom: 8px;
         }
         
         .blank-row {
@@ -39,21 +38,21 @@
         .clef-input {
             font-family: monospace;
             text-align: center;
-            font-size: 0.75rem;
-            padding: 1px !important;
+            font-size: 0.7rem;
+            padding: 0 !important;
             margin: 0 !important;
             border-radius: 0 !important;
-            min-width: 50px;
-            width: 50px;
-            height: 28px;
+            min-width: 42px;
+            width: 42px;
+            height: 26px;
             flex-shrink: 0;
+            border: 1px solid #dee2e6;
         }
         
         .clef-row {
             gap: 1px;
             display: flex;
             flex-wrap: nowrap;
-            overflow-x: auto;
         }
         
         .btn-xs {
@@ -187,6 +186,14 @@
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
+        }
+        
+        /* Clef input focus styling */
+        .clef-input:focus {
+            outline: 2px solid #0d6efd;
+            outline-offset: -1px;
+            z-index: 10;
+            position: relative;
         }
         
         .pagination-in-header {
@@ -477,7 +484,7 @@
                 
                 // Populate source form (only on first load)
                 if (page === 1) {
-                    await loadPublishersAndScribes();
+                    await loadPublishersAndScribes(); // This also loads composers
                     populateSourceForm();
                 }
                 
@@ -726,18 +733,18 @@
                         </div>
 
                         <!-- Attribution and Composers -->
-                        <div class="col-3">
-                            <div class="mb-2">
-                                <label class="form-label small">Attribution (as in source)</label>
+                        <div class="col-2">
+                            <div class="mb-1">
+                                <label class="form-label small">Attribution</label>
                                 ${buildAttributionInputs(inclusion.attribution_texts || [''], index)}
                                 <button type="button" class="btn btn-xs btn-outline-secondary mt-1" 
-                                        onclick="addAttribution(${index})">+ Add Attribution</button>
+                                        onclick="addAttribution(${index})">+ Add</button>
                             </div>
                         </div>
 
                         <!-- Title and Composition Details -->
-                        <div class="col-4">
-                            <div class="mb-2">
+                        <div class="col-3">
+                            <div class="mb-1">
                                 <label class="form-label small">Title</label>
                                 <input type="text" class="form-control form-control-sm title-autocomplete" 
                                        value="${inclusion.composition?.title_text || ''}" 
@@ -773,12 +780,12 @@
                         </div>
 
                         <!-- Clefs -->
-                        <div class="col-3">
-                            <div class="mb-2">
+                        <div class="col-5">
+                            <div class="mb-1">
                                 <label class="form-label small">Clefs</label>
                                 ${buildClefInputs(inclusion.clefs || [], index)}
                                 <button type="button" class="btn btn-xs btn-outline-secondary mt-1" 
-                                        onclick="addClefRow(${index})">+ Add Clef Row</button>
+                                        onclick="addClefRow(${index})">+ Add Row</button>
                             </div>
                         </div>
 
@@ -799,7 +806,7 @@
                     </div>
 
                     <!-- Notes Row -->
-                    <div class="row mt-2">
+                    <div class="row mt-1">
                         <div class="col-12">
                             <label class="form-label small">Notes</label>
                             <textarea class="form-control form-control-sm" rows="2" 
@@ -808,7 +815,7 @@
                         </div>
                     </div>
 
-                    <hr class="my-3">
+                    <hr class="my-2">
                 </div>
             `;
         }
@@ -864,7 +871,7 @@
                 return '<option value="">Loading types...</option>';
             }
             return compositionTypes.map(type => {
-                const isSelected = type.name === selectedType || type.id === selectedType;
+                const isSelected = type.name === selectedType || type.id == selectedType;
                 return `<option value="${type.id}" ${isSelected ? 'selected' : ''}>${type.name}</option>`;
             }).join('');
         }
@@ -901,8 +908,11 @@
                                value="${displayValue}" 
                                data-inclusion="${inclusionIndex}" 
                                data-clef="${clefIndex}"
+                               data-row="${row}"
+                               data-col="${col}"
                                onchange="updateClef(${inclusionIndex}, ${clefIndex}, this.value)"
-                               onfocus="this.select()">
+                               onfocus="this.select()"
+                               onkeydown="handleClefNavigation(event, this)">
                     `;
                 }
                 html += '</div>';
@@ -1702,8 +1712,13 @@
         // Load all composers for select dropdowns
         async function loadAllComposers() {
             try {
-                const response = await fetch('/api/sources/composers/autocomplete?q=');
+                console.log('Loading all composers...');
+                const response = await fetch('/api/sources/composers/autocomplete?q=a'); // Get all with minimal query
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 allComposers = await response.json();
+                console.log('Loaded composers:', allComposers.length, 'composers');
             } catch (error) {
                 console.error('Error loading composers:', error);
                 allComposers = [];
@@ -1712,7 +1727,11 @@
 
         // Initialize composer select dropdowns
         function initializeComposerSelects() {
+            console.log('Initializing composer selects, allComposers length:', allComposers.length);
+            
             document.querySelectorAll('.composer-select').forEach(select => {
+                console.log('Processing composer select:', select);
+                
                 // Clear existing options except the first one
                 while (select.children.length > 1) {
                     select.removeChild(select.lastChild);
@@ -1725,6 +1744,8 @@
                     option.textContent = composer.name;
                     select.appendChild(option);
                 });
+
+                console.log('Added', allComposers.length, 'composers to select');
 
                 // Initialize Select2
                 $(select).select2({
@@ -1767,6 +1788,78 @@
                     markAsUnsaved();
                 });
             });
+        }
+
+        // Spreadsheet-style navigation for clef inputs
+        function handleClefNavigation(event, currentInput) {
+            const inclusionIndex = parseInt(currentInput.dataset.inclusion);
+            const row = parseInt(currentInput.dataset.row);
+            const col = parseInt(currentInput.dataset.col);
+            
+            let targetRow = row;
+            let targetCol = col;
+            let targetInclusion = inclusionIndex;
+            
+            switch(event.key) {
+                case 'ArrowUp':
+                    event.preventDefault();
+                    if (row > 0) {
+                        targetRow = row - 1;
+                    } else if (inclusionIndex > 0) {
+                        // Move to bottom row of previous inclusion
+                        targetInclusion = inclusionIndex - 1;
+                        const prevInclusionClefs = inclusionsData[targetInclusion]?.clefs || [];
+                        const maxRows = Math.max(1, Math.ceil(prevInclusionClefs.length / 8));
+                        targetRow = maxRows - 1;
+                    }
+                    break;
+                    
+                case 'ArrowDown':
+                    event.preventDefault();
+                    const currentInclusionClefs = inclusionsData[inclusionIndex]?.clefs || [];
+                    const currentMaxRows = Math.max(1, Math.ceil(currentInclusionClefs.length / 8));
+                    
+                    if (row < currentMaxRows - 1) {
+                        targetRow = row + 1;
+                    } else if (inclusionIndex < inclusionsData.length - 1) {
+                        // Move to top row of next inclusion
+                        targetInclusion = inclusionIndex + 1;
+                        targetRow = 0;
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    if (col > 0) {
+                        targetCol = col - 1;
+                    }
+                    break;
+                    
+                case 'ArrowRight':
+                    event.preventDefault();
+                    if (col < 7) {
+                        targetCol = col + 1;
+                    }
+                    break;
+                    
+                case 'Enter':
+                case 'Tab':
+                    // Allow default behavior for Enter and Tab
+                    return;
+                    
+                default:
+                    return; // Don't prevent default for other keys
+            }
+            
+            // Find and focus the target input
+            const targetInput = document.querySelector(
+                `input[data-inclusion="${targetInclusion}"][data-row="${targetRow}"][data-col="${targetCol}"]`
+            );
+            
+            if (targetInput) {
+                targetInput.focus();
+                targetInput.select();
+            }
         }
 
         function updateDropdownStyling(dropdown) {
