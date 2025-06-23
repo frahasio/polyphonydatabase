@@ -6,6 +6,7 @@ import editorsRouter from './routes/editors.js';
 import performersRouter from './routes/performers.js';
 import publishersRouter from './routes/publishers.js';
 import scribesRouter from './routes/scribes.js';
+import functionsRouter from './routes/functions.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -24,6 +25,7 @@ app.use('/api/editors', editorsRouter);
 app.use('/api/performers', performersRouter);
 app.use('/api/publishers', publishersRouter);
 app.use('/api/scribes', scribesRouter);
+app.use('/api/functions', functionsRouter);
 
 // Start server
 app.listen(port, () => {
