@@ -40,6 +40,121 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get languages - MUST come before /:id route!
+router.get('/languages', async (req, res) => {
+  try {
+    let languages = [];
+    
+    try {
+      // Try to get languages from a languages table
+      const result = await pool.query('SELECT id, language as name FROM languages ORDER BY language');
+      languages = result.rows;
+    } catch (dbError) {
+      console.log('Languages table not found or error accessing it:', dbError.message);
+      // Languages table doesn't exist or error accessing it
+    }
+
+    // If no languages found in database, use fallback
+    if (languages.length === 0) {
+      languages = [
+        { id: 1, name: 'Latin' },
+        { id: 2, name: 'English' },
+        { id: 3, name: 'French' },
+        { id: 4, name: 'Italian' },
+        { id: 5, name: 'German' },
+        { id: 6, name: 'Spanish' },
+        { id: 7, name: 'Dutch' },
+        { id: 8, name: 'Portuguese' }
+      ];
+    }
+    
+    res.json({ languages });
+  } catch (error) {
+    console.error('Error in languages endpoint:', error);
+    // Even on error, return fallback languages
+    res.json({ 
+      languages: [
+        { id: 1, name: 'Latin' },
+        { id: 2, name: 'English' },
+        { id: 3, name: 'French' },
+        { id: 4, name: 'Italian' },
+        { id: 5, name: 'German' },
+        { id: 6, name: 'Spanish' },
+        { id: 7, name: 'Dutch' },
+        { id: 8, name: 'Portuguese' }
+      ]
+    });
+  }
+});
+
+// Get dashboard alerts for data quality issues
+router.get('/dashboard/alerts', async (req, res) => {
+  try {
+    const alerts = [];
+
+    // Check for titles with no functions assigned
+    const titlesNoFunctions = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles t
+      LEFT JOIN functions_titles ft ON t.id = ft.title_id
+      WHERE ft.title_id IS NULL
+    `);
+
+    if (parseInt(titlesNoFunctions.rows[0].count) > 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Titles without Functions',
+        count: parseInt(titlesNoFunctions.rows[0].count),
+        description: 'titles have no functions assigned',
+        action_url: '/modules/functions/index.html?filter=no_functions',
+        action_text: 'Assign Functions'
+      });
+    }
+
+    // Check for functions with no titles assigned
+    const functionsNoTitles = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM functions f
+      LEFT JOIN functions_titles ft ON f.id = ft.function_id
+      WHERE ft.function_id IS NULL
+    `);
+
+    if (parseInt(functionsNoTitles.rows[0].count) > 0) {
+      alerts.push({
+        type: 'info',
+        title: 'Functions without Titles',
+        count: parseInt(functionsNoTitles.rows[0].count),
+        description: 'functions have no titles assigned',
+        action_url: '/modules/functions/index.html?filter=empty_functions',
+        action_text: 'Add Titles'
+      });
+    }
+
+    // Check for titles with null language
+    const titlesNoLanguage = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles
+      WHERE language IS NULL
+    `);
+
+    if (parseInt(titlesNoLanguage.rows[0].count) > 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Titles without Language',
+        count: parseInt(titlesNoLanguage.rows[0].count),
+        description: 'titles have no language assigned',
+        action_url: '/modules/functions/index.html?filter=no_language',
+        action_text: 'Assign Languages'
+      });
+    }
+
+    res.json({ alerts });
+  } catch (error) {
+    console.error('Error fetching dashboard alerts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get function by ID with its titles
 router.get('/:id', async (req, res) => {
   try {
@@ -301,11 +416,13 @@ router.post('/titles/merge', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { target_title_id, source_title_ids, final_text, final_language } = req.body;
+    const { target_title_id: initial_target_id, source_title_ids, final_text, final_language } = req.body;
     
-    if (!target_title_id || !source_title_ids || source_title_ids.length === 0) {
+    if (!initial_target_id || !source_title_ids || source_title_ids.length === 0) {
       throw new Error('target_title_id and source_title_ids are required');
     }
+
+    let target_title_id = initial_target_id;
 
     // Check if final text already exists (excluding target)
     const existingTitle = await client.query(`
@@ -358,11 +475,19 @@ router.post('/titles/merge', async (req, res) => {
 
         // Add associations to target title (ignore conflicts)
         for (const func of sourceFunctions.rows) {
-          await client.query(`
-            INSERT INTO functions_titles (function_id, title_id)
-            VALUES ($1, $2)
-            ON CONFLICT (function_id, title_id) DO NOTHING
+          // Check if association already exists
+          const existing = await client.query(`
+            SELECT 1 FROM functions_titles 
+            WHERE function_id = $1 AND title_id = $2
           `, [func.function_id, target_title_id]);
+
+          if (existing.rows.length === 0) {
+            // Only insert if it doesn't exist
+            await client.query(`
+              INSERT INTO functions_titles (function_id, title_id)
+              VALUES ($1, $2)
+            `, [func.function_id, target_title_id]);
+          }
         }
 
         // Remove associations from source title
@@ -413,14 +538,20 @@ router.post('/titles/:titleId/functions/:functionId', async (req, res) => {
   try {
     const { titleId, functionId } = req.params;
 
-    const query = `
-      INSERT INTO functions_titles (function_id, title_id)
-      VALUES ($1, $2)
-      ON CONFLICT (function_id, title_id) DO NOTHING
-      RETURNING *
-    `;
+    // Check if association already exists
+    const existing = await pool.query(`
+      SELECT 1 FROM functions_titles 
+      WHERE function_id = $1 AND title_id = $2
+    `, [functionId, titleId]);
 
-    await pool.query(query, [functionId, titleId]);
+    if (existing.rows.length === 0) {
+      // Only insert if it doesn't exist
+      await pool.query(`
+        INSERT INTO functions_titles (function_id, title_id)
+        VALUES ($1, $2)
+      `, [functionId, titleId]);
+    }
+
     res.json({ success: true, message: 'Title assigned to function' });
   } catch (error) {
     console.error('Error assigning title to function:', error);
@@ -440,121 +571,6 @@ router.delete('/titles/:titleId/functions/:functionId', async (req, res) => {
     res.json({ success: true, message: 'Title unassigned from function' });
   } catch (error) {
     console.error('Error unassigning title from function:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get languages (assuming we need to create this table)
-router.get('/languages', async (req, res) => {
-  try {
-    let languages = [];
-    
-    try {
-      // Try to get languages from a languages table
-      const result = await pool.query('SELECT id, language as name FROM languages ORDER BY language');
-      languages = result.rows;
-    } catch (dbError) {
-      console.log('Languages table not found or error accessing it:', dbError.message);
-      // Languages table doesn't exist or error accessing it
-    }
-
-    // If no languages found in database, use fallback
-    if (languages.length === 0) {
-      languages = [
-        { id: 1, name: 'Latin' },
-        { id: 2, name: 'English' },
-        { id: 3, name: 'French' },
-        { id: 4, name: 'Italian' },
-        { id: 5, name: 'German' },
-        { id: 6, name: 'Spanish' },
-        { id: 7, name: 'Dutch' },
-        { id: 8, name: 'Portuguese' }
-      ];
-    }
-    
-    res.json({ languages });
-  } catch (error) {
-    console.error('Error in languages endpoint:', error);
-    // Even on error, return fallback languages
-    res.json({ 
-      languages: [
-        { id: 1, name: 'Latin' },
-        { id: 2, name: 'English' },
-        { id: 3, name: 'French' },
-        { id: 4, name: 'Italian' },
-        { id: 5, name: 'German' },
-        { id: 6, name: 'Spanish' },
-        { id: 7, name: 'Dutch' },
-        { id: 8, name: 'Portuguese' }
-      ]
-    });
-  }
-});
-
-// Get dashboard alerts for data quality issues
-router.get('/dashboard/alerts', async (req, res) => {
-  try {
-    const alerts = [];
-
-    // Check for titles with no functions assigned
-    const titlesNoFunctions = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM titles t
-      LEFT JOIN functions_titles ft ON t.id = ft.title_id
-      WHERE ft.title_id IS NULL
-    `);
-
-    if (parseInt(titlesNoFunctions.rows[0].count) > 0) {
-      alerts.push({
-        type: 'warning',
-        title: 'Titles without Functions',
-        count: parseInt(titlesNoFunctions.rows[0].count),
-        description: 'titles have no functions assigned',
-        action_url: '/modules/functions/index.html?filter=no_functions',
-        action_text: 'Assign Functions'
-      });
-    }
-
-    // Check for functions with no titles assigned
-    const functionsNoTitles = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM functions f
-      LEFT JOIN functions_titles ft ON f.id = ft.function_id
-      WHERE ft.function_id IS NULL
-    `);
-
-    if (parseInt(functionsNoTitles.rows[0].count) > 0) {
-      alerts.push({
-        type: 'info',
-        title: 'Functions without Titles',
-        count: parseInt(functionsNoTitles.rows[0].count),
-        description: 'functions have no titles assigned',
-        action_url: '/modules/functions/index.html?filter=empty_functions',
-        action_text: 'Add Titles'
-      });
-    }
-
-    // Check for titles with null language
-    const titlesNoLanguage = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM titles
-      WHERE language IS NULL
-    `);
-
-    if (parseInt(titlesNoLanguage.rows[0].count) > 0) {
-      alerts.push({
-        type: 'warning',
-        title: 'Titles without Language',
-        count: parseInt(titlesNoLanguage.rows[0].count),
-        description: 'titles have no language assigned',
-        action_url: '/modules/functions/index.html?filter=no_language',
-        action_text: 'Assign Languages'
-      });
-    }
-
-    res.json({ alerts });
-  } catch (error) {
-    console.error('Error fetching dashboard alerts:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
