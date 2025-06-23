@@ -155,12 +155,16 @@ router.get('/titles/search', async (req, res) => {
     } = req.query;
 
     const offset = (page - 1) * limit;
-    let countQuery = 'SELECT COUNT(*) FROM titles t';
+    let countQuery = `
+      SELECT COUNT(DISTINCT t.id) FROM titles t
+      LEFT JOIN functions_titles ft ON t.id = ft.title_id
+    `;
     let query = `
       SELECT 
         t.id,
         t.text,
         t.language,
+        l.language as language_name,
         t.created_at,
         t.updated_at,
         COUNT(DISTINCT c.id) as composition_count,
@@ -170,6 +174,7 @@ router.get('/titles/search', async (req, res) => {
       LEFT JOIN compositions c ON t.id = c.title_id
       LEFT JOIN functions_titles ft ON t.id = ft.title_id
       LEFT JOIN functions f ON ft.function_id = f.id
+      LEFT JOIN languages l ON t.language = l.id
     `;
 
     const queryParams = [];
@@ -212,7 +217,7 @@ router.get('/titles/search', async (req, res) => {
     }
 
     query += `
-      GROUP BY t.id, t.text, t.language, t.created_at, t.updated_at
+      GROUP BY t.id, t.text, t.language, l.language, t.created_at, t.updated_at
       ORDER BY t.text
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
@@ -302,12 +307,35 @@ router.post('/titles/merge', async (req, res) => {
       throw new Error('target_title_id and source_title_ids are required');
     }
 
-    // Update the target title with final text and language
-    await client.query(`
-      UPDATE titles 
-      SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $3
-    `, [final_text, final_language || null, target_title_id]);
+    // Check if final text already exists (excluding target)
+    const existingTitle = await client.query(`
+      SELECT id FROM titles 
+      WHERE text = $1 AND id != $2
+    `, [final_text, target_title_id]);
+
+    if (existingTitle.rows.length > 0) {
+      // If final text exists, merge with that existing title instead
+      const existingTitleId = existingTitle.rows[0].id;
+      
+      // Update target title to use existing title
+      target_title_id = existingTitleId;
+      
+      // Update language if specified
+      if (final_language) {
+        await client.query(`
+          UPDATE titles 
+          SET language = $1, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = $2
+        `, [final_language, target_title_id]);
+      }
+    } else {
+      // Update the target title with final text and language
+      await client.query(`
+        UPDATE titles 
+        SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $3
+      `, [final_text, final_language || null, target_title_id]);
+    }
 
     // Update all compositions that reference source titles to point to target title
     for (const sourceId of source_title_ids) {
@@ -419,30 +447,47 @@ router.delete('/titles/:titleId/functions/:functionId', async (req, res) => {
 // Get languages (assuming we need to create this table)
 router.get('/languages', async (req, res) => {
   try {
-    // Try to get languages from a languages table, or return common ones
-    let result;
+    let languages = [];
+    
     try {
-      result = await pool.query('SELECT id, language as name FROM languages ORDER BY language');
-    } catch (error) {
-      // If languages table doesn't exist, return common language options
-      result = {
-        rows: [
-          { id: 1, name: 'Latin' },
-          { id: 2, name: 'English' },
-          { id: 3, name: 'French' },
-          { id: 4, name: 'Italian' },
-          { id: 5, name: 'German' },
-          { id: 6, name: 'Spanish' },
-          { id: 7, name: 'Dutch' },
-          { id: 8, name: 'Portuguese' }
-        ]
-      };
+      // Try to get languages from a languages table
+      const result = await pool.query('SELECT id, language as name FROM languages ORDER BY language');
+      languages = result.rows;
+    } catch (dbError) {
+      console.log('Languages table not found or error accessing it:', dbError.message);
+      // Languages table doesn't exist or error accessing it
+    }
+
+    // If no languages found in database, use fallback
+    if (languages.length === 0) {
+      languages = [
+        { id: 1, name: 'Latin' },
+        { id: 2, name: 'English' },
+        { id: 3, name: 'French' },
+        { id: 4, name: 'Italian' },
+        { id: 5, name: 'German' },
+        { id: 6, name: 'Spanish' },
+        { id: 7, name: 'Dutch' },
+        { id: 8, name: 'Portuguese' }
+      ];
     }
     
-    res.json({ languages: result.rows });
+    res.json({ languages });
   } catch (error) {
-    console.error('Error fetching languages:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error in languages endpoint:', error);
+    // Even on error, return fallback languages
+    res.json({ 
+      languages: [
+        { id: 1, name: 'Latin' },
+        { id: 2, name: 'English' },
+        { id: 3, name: 'French' },
+        { id: 4, name: 'Italian' },
+        { id: 5, name: 'German' },
+        { id: 6, name: 'Spanish' },
+        { id: 7, name: 'Dutch' },
+        { id: 8, name: 'Portuguese' }
+      ]
+    });
   }
 });
 

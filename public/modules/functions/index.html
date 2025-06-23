@@ -57,13 +57,31 @@
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h1>Titles Management</h1>
-                <p class="text-muted mb-0">Search, edit, merge duplicates, and assign functions to titles</p>
+                <h1>Titles & Functions Management</h1>
+                <p class="text-muted mb-0">Search, edit, merge duplicates, and manage functions</p>
             </div>
             <a href="/" class="btn btn-outline-secondary">Back to Home</a>
         </div>
 
-        <div class="card">
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="managementTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="titles-tab" data-bs-toggle="tab" data-bs-target="#titles-pane" type="button" role="tab">
+                    <i class="bi bi-card-text"></i> Titles Management
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="functions-tab" data-bs-toggle="tab" data-bs-target="#functions-pane" type="button" role="tab">
+                    <i class="bi bi-gear"></i> Functions Management
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="managementTabsContent">
+            <!-- Titles Management Tab -->
+            <div class="tab-pane fade show active" id="titles-pane" role="tabpanel">
+                <div class="card">
             <div class="card-body">
                 <!-- Search Controls -->
                 <div class="search-container">
@@ -163,6 +181,76 @@
                 </div>
             </div>
         </div>
+            </div>
+            <!-- End Titles Management Tab -->
+
+            <!-- Functions Management Tab -->
+            <div class="tab-pane fade" id="functions-pane" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h3>Functions Management</h3>
+                            <button class="btn btn-primary" onclick="showAddFunctionModal()">
+                                <i class="bi bi-plus"></i> Add New Function
+                            </button>
+                        </div>
+
+                        <div id="functionsResults">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-gear display-4 text-muted"></i>
+                                <p>Loading functions...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Functions Management Tab -->
+        </div>
+        <!-- End Tab Content -->
+    </div>
+
+    <!-- Add Function Modal -->
+    <div class="modal fade" id="addFunctionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Function</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newFunctionName" class="form-label">Function Name</label>
+                        <input type="text" class="form-control" id="newFunctionName" placeholder="Enter function name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createFunction()">Add Function</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Function Modal -->
+    <div class="modal fade" id="editFunctionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Function</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editFunctionName" class="form-label">Function Name</label>
+                        <input type="text" class="form-control" id="editFunctionName">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveFunctionEdit()">Save Changes</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Assign Function Modal -->
@@ -221,6 +309,40 @@
         </div>
     </div>
 
+    <!-- Edit Title Modal -->
+    <div class="modal fade" id="editTitleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Title</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editTitleText" class="form-label">Title Text</label>
+                        <input type="text" class="form-control" id="editTitleText">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTitleLanguage" class="form-label">Language</label>
+                        <select class="form-select" id="editTitleLanguage">
+                            <option value="">Select language...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign Functions</label>
+                        <div id="editFunctionCheckboxes" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                            <!-- Function checkboxes will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditedTitle()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Merge Titles Modal -->
     <div class="modal fade" id="mergeModal" tabindex="-1">
         <div class="modal-dialog">
@@ -260,8 +382,9 @@
         let languages = [];
         let functions = [];
         let selectedTitles = [];
-        let currentPagination = { page: 1, limit: 20, total: 0 };
+        let currentPagination = { page: 1, limit: 50, total: 0 }; // Increased to 50
         let allTitles = []; // Store current search results
+        let currentEditingTitleId = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
@@ -269,6 +392,7 @@
             await loadFunctions();
             setupEventListeners();
             handleURLFilters();
+            loadFunctionsDisplay();
         });
 
         async function loadLanguages() {
@@ -290,7 +414,7 @@
                 }
                 
                 // Populate language dropdowns
-                const languageSelects = ['languageFilter', 'bulkLanguageSelect', 'finalLanguage'];
+                const languageSelects = ['languageFilter', 'bulkLanguageSelect', 'finalLanguage', 'editTitleLanguage'];
                 languageSelects.forEach(selectId => {
                     const select = document.getElementById(selectId);
                     if (select) {
@@ -399,7 +523,7 @@
             }
 
             container.innerHTML = titles.map(title => {
-                const languageName = languages.find(l => l.id == title.language)?.name || 'Unknown';
+                const languageName = title.language_name || 'Unknown';
                 const functionBadges = title.function_names && title.function_names.length > 0 
                     ? title.function_names.map(name => `<span class="badge bg-info function-badge me-1">${name}</span>`).join('')
                     : '<span class="text-muted small">No functions</span>';
@@ -423,6 +547,11 @@
                                 <div class="mb-2">${functionBadges}</div>
                                 <div class="composition-count">
                                     <i class="bi bi-music-note"></i> ${title.composition_count || 0} compositions
+                                </div>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTitle(${title.id})">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -645,6 +774,100 @@
             }
         }
 
+        async function editTitle(titleId) {
+            currentEditingTitleId = titleId;
+            
+            try {
+                // Find the title in current results
+                const title = allTitles.find(t => t.id === titleId);
+                if (!title) {
+                    throw new Error('Title not found');
+                }
+
+                // Populate form
+                document.getElementById('editTitleText').value = title.text;
+                document.getElementById('editTitleLanguage').value = title.language || '';
+
+                // Populate function checkboxes
+                const container = document.getElementById('editFunctionCheckboxes');
+                container.innerHTML = functions.map(func => {
+                    const isAssigned = title.function_names && title.function_names.includes(func.name);
+                    return `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit_func_${func.id}" 
+                                   value="${func.id}" ${isAssigned ? 'checked' : ''}>
+                            <label class="form-check-label" for="edit_func_${func.id}">
+                                ${func.name}
+                            </label>
+                        </div>
+                    `;
+                }).join('');
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('editTitleModal'));
+                modal.show();
+
+            } catch (error) {
+                console.error('Error loading title for edit:', error);
+                alert('Failed to load title details');
+            }
+        }
+
+        async function saveEditedTitle() {
+            if (!currentEditingTitleId) return;
+
+            const text = document.getElementById('editTitleText').value.trim();
+            const language = document.getElementById('editTitleLanguage').value;
+
+            if (!text) {
+                alert('Please enter title text');
+                return;
+            }
+
+            try {
+                // Update title
+                const updateResponse = await fetch(`/api/functions/titles/${currentEditingTitleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: text, 
+                        language: language || null 
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Failed to update title');
+                }
+
+                // Update function associations
+                const checkboxes = document.querySelectorAll('#editFunctionCheckboxes input[type="checkbox"]');
+                for (const checkbox of checkboxes) {
+                    const functionId = checkbox.value;
+                    const isChecked = checkbox.checked;
+                    
+                    if (isChecked) {
+                        // Assign function to title
+                        await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                            method: 'POST'
+                        });
+                    } else {
+                        // Unassign function from title
+                        await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                            method: 'DELETE'
+                        });
+                    }
+                }
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editTitleModal'));
+                modal.hide();
+                searchTitles();
+
+            } catch (error) {
+                console.error('Error saving title:', error);
+                alert('Failed to save title');
+            }
+        }
+
         function handleURLFilters() {
             const params = new URLSearchParams(window.location.search);
             const filter = params.get('filter');
@@ -715,6 +938,150 @@
             });
         }
 
+        // Functions management
+        let currentEditingFunctionId = null;
+
+        function loadFunctionsDisplay() {
+            const container = document.getElementById('functionsResults');
+            
+            if (functions.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-4">No functions found</div>';
+                return;
+            }
+
+            container.innerHTML = functions.map(func => {
+                return `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">${func.name}</h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="editFunction(${func.id})"><i class="bi bi-pencil"></i> Edit</a></li>
+                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteFunction(${func.id})"><i class="bi bi-trash"></i> Delete</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="text-muted small">
+                                    <i class="bi bi-card-text"></i> Function ID: ${func.id}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            container.className = 'row';
+        }
+
+        function showAddFunctionModal() {
+            document.getElementById('newFunctionName').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('addFunctionModal'));
+            modal.show();
+        }
+
+        async function createFunction() {
+            const name = document.getElementById('newFunctionName').value.trim();
+            
+            if (!name) {
+                alert('Please enter a function name');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/functions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addFunctionModal'));
+                    modal.hide();
+                    await loadFunctions();
+                    loadFunctionsDisplay();
+                    alert('Function created successfully');
+                } else {
+                    throw new Error('Failed to create function');
+                }
+            } catch (error) {
+                console.error('Error creating function:', error);
+                alert('Failed to create function');
+            }
+        }
+
+        function editFunction(functionId) {
+            const func = functions.find(f => f.id === functionId);
+            if (!func) return;
+
+            currentEditingFunctionId = functionId;
+            document.getElementById('editFunctionName').value = func.name;
+            
+            const modal = new bootstrap.Modal(document.getElementById('editFunctionModal'));
+            modal.show();
+        }
+
+        async function saveFunctionEdit() {
+            if (!currentEditingFunctionId) return;
+
+            const name = document.getElementById('editFunctionName').value.trim();
+            
+            if (!name) {
+                alert('Please enter a function name');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/functions/${currentEditingFunctionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editFunctionModal'));
+                    modal.hide();
+                    await loadFunctions();
+                    loadFunctionsDisplay();
+                    alert('Function updated successfully');
+                } else {
+                    throw new Error('Failed to update function');
+                }
+            } catch (error) {
+                console.error('Error updating function:', error);
+                alert('Failed to update function');
+            }
+        }
+
+        async function deleteFunction(functionId) {
+            const func = functions.find(f => f.id === functionId);
+            if (!func) return;
+
+            if (!confirm(`Are you sure you want to delete "${func.name}"? This will remove all title associations.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/functions/${functionId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    await loadFunctions();
+                    loadFunctionsDisplay();
+                    alert('Function deleted successfully');
+                } else {
+                    throw new Error('Failed to delete function');
+                }
+            } catch (error) {
+                console.error('Error deleting function:', error);
+                alert('Failed to delete function');
+            }
+        }
+
         // Global functions
         window.searchTitles = searchTitles;
         window.toggleSelection = toggleSelection;
@@ -727,6 +1094,13 @@
         window.performBulkLanguageAssign = performBulkLanguageAssign;
         window.performMerge = performMerge;
         window.clearSpecialFilter = clearSpecialFilter;
+        window.editTitle = editTitle;
+        window.saveEditedTitle = saveEditedTitle;
+        window.showAddFunctionModal = showAddFunctionModal;
+        window.createFunction = createFunction;
+        window.editFunction = editFunction;
+        window.saveFunctionEdit = saveFunctionEdit;
+        window.deleteFunction = deleteFunction;
     </script>
 </body>
 </html> 
