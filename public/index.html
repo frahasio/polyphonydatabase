@@ -15,6 +15,22 @@
             <p class="lead">A comprehensive database of Renaissance polyphonic music</p>
         </div>
 
+        <!-- Dashboard Alerts -->
+        <div id="dashboardAlerts" class="mb-4" style="display: none;">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Data Quality Alerts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="alertsList" class="row g-3">
+                        <!-- Alerts will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-4">
             <!-- Composers Card -->
             <div class="col-md-6 col-lg-4">
@@ -106,16 +122,16 @@
                 </div>
             </div>
 
-            <!-- Functions & Titles Card -->
+            <!-- Titles Card -->
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
                     <div class="card-body">
                         <h5 class="card-title">
-                            <i class="bi bi-card-text"></i> Functions & Titles
+                            <i class="bi bi-card-text"></i> Titles
                         </h5>
-                        <p class="card-text">Manage musical functions and title texts, including merging duplicates and language assignments.</p>
+                        <p class="card-text">Manage title texts, functions, and languages. Search, merge duplicates, and assign functions in bulk.</p>
                         <a href="/modules/functions/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Functions & Titles
+                            <i class="bi bi-arrow-right"></i> Manage Titles
                         </a>
                     </div>
                 </div>
@@ -124,5 +140,69 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load dashboard alerts on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/functions/dashboard/alerts');
+                if (response.ok) {
+                    const data = await response.json();
+                    displayDashboardAlerts(data.alerts);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard alerts:', error);
+            }
+        });
+
+        function displayDashboardAlerts(alerts) {
+            const alertsContainer = document.getElementById('dashboardAlerts');
+            const alertsList = document.getElementById('alertsList');
+
+            if (!alerts || alerts.length === 0) {
+                alertsContainer.style.display = 'none';
+                return;
+            }
+
+            alertsContainer.style.display = 'block';
+            
+            alertsList.innerHTML = alerts.map(alert => {
+                const alertClass = alert.type === 'warning' ? 'alert-warning' : 
+                                 alert.type === 'info' ? 'alert-info' : 'alert-secondary';
+                const iconClass = alert.type === 'warning' ? 'bi-exclamation-triangle' : 
+                                alert.type === 'info' ? 'bi-info-circle' : 'bi-bell';
+
+                return `
+                    <div class="col-md-4">
+                        <div class="alert ${alertClass} mb-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="alert-heading mb-1">
+                                        <i class="bi ${iconClass}"></i> ${alert.title}
+                                    </h6>
+                                    <p class="mb-2">
+                                        <strong>${alert.count}</strong> ${alert.description}
+                                    </p>
+                                    <a href="${alert.action_url}" class="btn btn-sm btn-outline-dark">
+                                        ${alert.action_text}
+                                    </a>
+                                </div>
+                                <button type="button" class="btn-close btn-close-sm" onclick="dismissAlert(this.closest('.col-md-4'))"></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function dismissAlert(alertElement) {
+            alertElement.style.display = 'none';
+            
+            // Hide entire dashboard if no alerts remain visible
+            const remainingAlerts = document.querySelectorAll('#alertsList .col-md-4:not([style*="display: none"])');
+            if (remainingAlerts.length === 0) {
+                document.getElementById('dashboardAlerts').style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html> 

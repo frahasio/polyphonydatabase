@@ -176,14 +176,19 @@ router.get('/titles/search', async (req, res) => {
     const conditions = [];
 
     if (search) {
-      if (similar === 'true') {
-        // Use similarity search for finding potential duplicates
+      // Handle special dashboard filters
+      if (search === '*no_functions*') {
+        conditions.push(`ft.title_id IS NULL`);
+      } else if (search === '*no_language*') {
+        conditions.push(`t.language IS NULL`);
+      } else if (similar === 'true') {
+        // Use basic similarity search for finding potential duplicates
         conditions.push(`(
           t.text ILIKE $${queryParams.length + 1} OR
-          SIMILARITY(t.text, $${queryParams.length + 2}) > 0.3 OR
-          LEVENSHTEIN(LOWER(t.text), LOWER($${queryParams.length + 3})) <= 3
+          t.text ILIKE $${queryParams.length + 2} OR
+          t.text ILIKE $${queryParams.length + 3}
         )`);
-        queryParams.push(`%${search}%`, search, search);
+        queryParams.push(`%${search}%`, `%${search.toLowerCase()}%`, `%${search.toUpperCase()}%`);
       } else {
         conditions.push(`t.text ILIKE $${queryParams.length + 1}`);
         queryParams.push(`%${search}%`);
@@ -437,6 +442,74 @@ router.get('/languages', async (req, res) => {
     res.json({ languages: result.rows });
   } catch (error) {
     console.error('Error fetching languages:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get dashboard alerts for data quality issues
+router.get('/dashboard/alerts', async (req, res) => {
+  try {
+    const alerts = [];
+
+    // Check for titles with no functions assigned
+    const titlesNoFunctions = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles t
+      LEFT JOIN functions_titles ft ON t.id = ft.title_id
+      WHERE ft.title_id IS NULL
+    `);
+
+    if (parseInt(titlesNoFunctions.rows[0].count) > 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Titles without Functions',
+        count: parseInt(titlesNoFunctions.rows[0].count),
+        description: 'titles have no functions assigned',
+        action_url: '/modules/functions/index.html?filter=no_functions',
+        action_text: 'Assign Functions'
+      });
+    }
+
+    // Check for functions with no titles assigned
+    const functionsNoTitles = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM functions f
+      LEFT JOIN functions_titles ft ON f.id = ft.function_id
+      WHERE ft.function_id IS NULL
+    `);
+
+    if (parseInt(functionsNoTitles.rows[0].count) > 0) {
+      alerts.push({
+        type: 'info',
+        title: 'Functions without Titles',
+        count: parseInt(functionsNoTitles.rows[0].count),
+        description: 'functions have no titles assigned',
+        action_url: '/modules/functions/index.html?filter=empty_functions',
+        action_text: 'Add Titles'
+      });
+    }
+
+    // Check for titles with null language
+    const titlesNoLanguage = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles
+      WHERE language IS NULL
+    `);
+
+    if (parseInt(titlesNoLanguage.rows[0].count) > 0) {
+      alerts.push({
+        type: 'warning',
+        title: 'Titles without Language',
+        count: parseInt(titlesNoLanguage.rows[0].count),
+        description: 'titles have no language assigned',
+        action_url: '/modules/functions/index.html?filter=no_language',
+        action_text: 'Assign Languages'
+      });
+    }
+
+    res.json({ alerts });
+  } catch (error) {
+    console.error('Error fetching dashboard alerts:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
