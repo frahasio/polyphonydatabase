@@ -613,7 +613,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         inclusion.composition_id || null,
         inclusion.composition_id || null, // Store original composition ID
         inclusion.composition?.tone || null,
-        inclusion.composition?.even_odd || null,
+        inclusion.composition?.even_odd ?? null,
         inclusion.composition?.composition_type_id || null,
         numberOfVoices,
         JSON.stringify(inclusion.composer_ids || [])
@@ -707,7 +707,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         const tone = originalInclusion.composition.tone || null;
         
         // Convert even_odd string to integer if needed
-        let evenOdd = originalInclusion.composition.even_odd || null;
+        let evenOdd = originalInclusion.composition.even_odd ?? null;
         if (evenOdd === 'even') evenOdd = 0;
         else if (evenOdd === 'odd') evenOdd = 1;
         else if (evenOdd === 'both') evenOdd = 2;
@@ -800,7 +800,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       const tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
       
       // Convert even_odd string to integer if needed
-      let evenOdd = originalInclusion?.composition?.even_odd || tempInclusion.even_odd || null;
+      let evenOdd = originalInclusion?.composition?.even_odd ?? tempInclusion.even_odd ?? null;
       if (evenOdd === 'even') evenOdd = 0;
       else if (evenOdd === 'odd') evenOdd = 1;
       else if (evenOdd === 'both') evenOdd = 2;

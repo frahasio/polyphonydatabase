@@ -325,6 +325,100 @@ A composition is unique by the combination of:
 5. Update/insert inclusions with final composition_ids
 6. Process synchronously to handle duplicate compositions in temp table
 
+## Composition Matching Algorithm (Detailed)
+
+The composition matching follows a multi-step process to avoid creating duplicate compositions:
+
+### Phase 1: Title-Only Matching
+```sql
+UPDATE temp_inclusions 
+SET composition_id = c.id, processed = TRUE
+FROM compositions c
+INNER JOIN titles t ON c.title_id = t.id
+WHERE temp_inclusions.composition_name = t.text
+AND temp_inclusions.composition_id IS NULL
+AND temp_inclusions.composition_name != ''
+```
+
+### Phase 2: Comprehensive Uniqueness Check
+Before creating new compositions, check for exact matches:
+```sql
+SELECT id FROM compositions 
+WHERE title_id = $1 
+AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
+AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
+AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
+AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
+```
+
+### Phase 3: New Composition Creation
+Only if no exact match found in Phase 2.
+
+## Data Type Handling & Common Pitfalls
+
+### Critical Type Conversions
+
+1. **composition_type_id**: Must be INTEGER in database
+   - Frontend sends: `composition_type_id: 4` (number)
+   - Backend receives: `composition_type_id: 4` (number)
+   - Database stores: `4` (INTEGER)
+
+2. **even_odd**: Stored as INTEGER (0=even, 1=odd, 2=both)
+   - Frontend may send: `"even"` (string) or `0` (number)
+   - Backend converts: `"even" → 0`, `"odd" → 1`, `"both" → 2`
+   - Database stores: `0`, `1`, or `2` (INTEGER)
+
+3. **number_of_voices**: Calculated from non-optional clefs
+   - Calculation: `clefs.filter(c => c.clef && c.clef.trim() && !c.optional).length`
+   - Must be converted to INTEGER before database storage
+
+### Frontend-Backend Data Flow
+
+**Load (Backend → Frontend):**
+- Backend query MUST include `c.composition_type_id` to send ID to frontend
+- Frontend receives both `composition_type_name` and `composition_type_id`
+- Dropdown selection uses ID when available, falls back to name
+
+**Save (Frontend → Backend):**
+- Frontend sends composition object with proper field types
+- Backend validates and converts types before database operations
+- Uses comprehensive matching before creating new compositions
+
+## Debugging Tips
+
+### Frontend Logging
+Check browser console for:
+```javascript
+// Data received from server
+console.log('even_odd:', inclusion.composition?.even_odd, 'type:', typeof inclusion.composition?.even_odd);
+console.log('composition_type_id:', inclusion.composition?.composition_type_id);
+```
+
+### Backend Logging
+Check server logs for:
+```javascript
+// Comprehensive save logging with data types
+console.log('Final composition data:', {
+  titleId, compositionTypeId, tone, evenOdd, numberOfVoices,
+  compositionTypeIdType: typeof compositionTypeId,
+  evenOddType: typeof evenOdd
+});
+```
+
+### Common Issues & Solutions
+
+1. **"composition_type_id: undefined"**: Backend not including `c.composition_type_id` in SELECT
+2. **"operator does not exist: integer = text"**: Type casting issue, ensure `parseInt()` conversions
+3. **New compositions created for unchanged data**: Matching algorithm not finding existing compositions due to type mismatches
+4. **"even_odd always null"**: Frontend not properly sending integer values to backend
+
+## Performance Considerations
+
+- Temporary table approach allows batch processing of inclusions
+- Composition matching happens in SQL for efficiency
+- Transaction-based approach ensures data consistency
+- Single-pass processing minimizes database round trips
+
 ## Notes
 
 - PostgreSQL: TEXT and VARCHAR have identical performance characteristics
