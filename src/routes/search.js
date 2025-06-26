@@ -396,11 +396,11 @@ router.get('/groups', async (req, res) => {
             'type', s.type,
             'format', s.format,
             'town', s.town,
-            'from_year', NULLIF(s.from_year, '')::integer,
-            'to_year', NULLIF(s.to_year, '')::integer,
+            'from_year', CASE WHEN s.from_year IS NOT NULL AND s.from_year != '' THEN s.from_year::integer ELSE NULL END,
+            'to_year', CASE WHEN s.to_year IS NOT NULL AND s.to_year != '' THEN s.to_year::integer ELSE NULL END,
             'rism_link', s.rism_link,
             'source_notes', s.notes,
-            'position', NULLIF(i.position, '')::integer,
+            'position', CASE WHEN i.position IS NOT NULL AND i.position != '' THEN i.position::integer ELSE NULL END,
             'attribution_texts', i.attribution_texts,
             'inclusion_notes', i.notes,
             'clefs', i.clefs,
@@ -425,12 +425,11 @@ router.get('/groups', async (req, res) => {
           ) scr ON s.id = scr.source_id
           LEFT JOIN (
             SELECT si.source_id, json_agg(json_build_object(
-              'id', NULLIF(si.id, '')::integer,
+              'id', CASE WHEN si.id IS NOT NULL AND si.id != '' THEN si.id::integer ELSE NULL END,
               'url', si.url,
               'label', si.label
-            ) ORDER BY NULLIF(si.id, '')::integer) as images
+            ) ORDER BY CASE WHEN si.id IS NOT NULL AND si.id != '' THEN si.id::integer ELSE NULL END) as images
             FROM source_images si
-            WHERE si.id IS NOT NULL AND si.id != ''
             GROUP BY si.source_id
           ) imgs ON s.id = imgs.source_id
           WHERE comp.group_id = g.id
