@@ -254,7 +254,7 @@ router.get('/groups', async (req, res) => {
             
             whereConditions.push(condition);
             queryParams.push(targetClefCombinations);
-            paramIndex += 2; // We used two parameters
+            paramIndex++; // We only used one parameter (same array for both conditions)
           }
         }
               } catch (voicingError) {

@@ -144,9 +144,18 @@
         let currentPage = 1;
         let itemsPerPage = 25;
         let totalPages = 1;
+        let mappingsLookup = {};
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Get page and itemsPerPage from URL query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            currentPage = parseInt(urlParams.get('page')) || 1;
+            itemsPerPage = parseInt(urlParams.get('itemsPerPage')) || 25;
+            
+            // Set the items per page dropdown
+            document.getElementById('itemsPerPage').value = itemsPerPage;
+            
             loadData();
         });
 
@@ -178,8 +187,8 @@
                 clefCombinations = await clefCombosResponse.json();
                 const mappings = await mappingsResponse.json();
 
-                // Build mappings lookup
-                const mappingsLookup = {};
+                // Build mappings lookup (store globally for pagination)
+                mappingsLookup = {};
                 mappings.forEach(mapping => {
                     if (!mappingsLookup[mapping.clef_combination_id]) {
                         mappingsLookup[mapping.clef_combination_id] = [];
@@ -193,7 +202,7 @@
                 // Calculate pagination
                 totalPages = Math.ceil(clefCombinations.length / itemsPerPage);
 
-                renderClefCombinations(mappingsLookup);
+                renderClefCombinations();
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('clefCombinations').style.display = 'block';
@@ -215,7 +224,7 @@
             }
         }
 
-        function renderClefCombinations(mappingsLookup) {
+        function renderClefCombinations() {
             const container = document.getElementById('clefCombinations');
             
             // Calculate pagination
@@ -256,6 +265,16 @@
             container.innerHTML = html;
 
             // Initialize Select2 for all voicing selects
+            initializeSelect2Components();
+
+            renderPagination();
+        }
+
+        function initializeSelect2Components() {
+            // Destroy existing Select2 instances first
+            $('.voicing-select').select2('destroy');
+            
+            // Initialize Select2 for all voicing selects
             $('.voicing-select').select2({
                 placeholder: 'Select voicings...',
                 allowClear: true,
@@ -268,8 +287,6 @@
                 const selectedVoicings = $(this).val() || [];
                 updateVoicingMappings(comboId, selectedVoicings);
             });
-
-            renderPagination();
         }
 
         function renderPagination() {
@@ -320,25 +337,28 @@
         function goToPage(page) {
             if (page < 1 || page > totalPages || page === currentPage) return;
             currentPage = page;
-            renderClefCombinations(buildMappingsLookup());
+            updateUrlParams();
+            renderClefCombinations();
         }
 
         function changeItemsPerPage() {
             itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
             currentPage = 1; // Reset to first page
             totalPages = Math.ceil(clefCombinations.length / itemsPerPage);
-            renderClefCombinations(buildMappingsLookup());
+            updateUrlParams();
+            renderClefCombinations();
         }
 
-        function buildMappingsLookup() {
-            // Rebuild mappings from current select states
-            const mappingsLookup = {};
-            $('.voicing-select').each(function() {
-                const comboId = $(this).data('combo-id');
-                const selectedVoicings = $(this).val() || [];
-                mappingsLookup[comboId] = selectedVoicings.map(id => parseInt(id));
-            });
-            return mappingsLookup;
+        function updateUrlParams() {
+            const url = new URL(window.location);
+            url.searchParams.set('page', currentPage);
+            url.searchParams.set('itemsPerPage', itemsPerPage);
+            window.history.replaceState({}, '', url);
+        }
+
+        function updateMappingsLookup(clefComboId, voicingIds) {
+            // Update the global mappings lookup when changes are made
+            mappingsLookup[clefComboId] = voicingIds;
         }
 
         async function updateVoicingMappings(clefComboId, selectedVoicingIds) {
@@ -430,6 +450,9 @@
                         const selectedVoicings = $(this).val() || [];
                         updateVoicingMappings(comboId, selectedVoicings);
                     });
+
+                    // Update global mappings lookup
+                    updateMappingsLookup(clefComboId, updatedCurrentMappings);
                 }
 
                 // Show success status
@@ -462,6 +485,9 @@
                             const selectedVoicings = $(this).val() || [];
                             updateVoicingMappings(comboId, selectedVoicings);
                         });
+
+                        // Update global mappings lookup  
+                        updateMappingsLookup(clefComboId, currentMappings);
                     }
                 } catch (revertError) {
                     console.error('Error reverting select state:', revertError);
