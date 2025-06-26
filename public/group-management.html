@@ -616,7 +616,8 @@
                 // Load editors
                 const editorsResponse = await fetch('/api/admin/editors');
                 if (editorsResponse.ok) {
-                    const editors = await editorsResponse.json();
+                    const editorsData = await editorsResponse.json();
+                    const editors = Array.isArray(editorsData) ? editorsData : editorsData.editors || [];
                     const editorSelect = document.getElementById('editorSelect');
                     editors.forEach(editor => {
                         const option = document.createElement('option');
@@ -629,7 +630,8 @@
                 // Load performers
                 const performersResponse = await fetch('/api/admin/performers');
                 if (performersResponse.ok) {
-                    const performers = await performersResponse.json();
+                    const performersData = await performersResponse.json();
+                    const performers = Array.isArray(performersData) ? performersData : performersData.performers || [];
                     const performerSelect = document.getElementById('performerSelect');
                     performers.forEach(performer => {
                         const option = document.createElement('option');

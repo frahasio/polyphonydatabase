@@ -111,6 +111,13 @@ updated_at (TIMESTAMP)
 ```sql
 id (PK, INTEGER, AUTO)
 name (TEXT, NOT NULL)
+from_year (INTEGER)
+to_year (INTEGER)
+birthplace_1 (TEXT)
+birthplace_2 (INTEGER)
+deathplace_1 (TEXT)
+deathplace_2 (INTEGER)
+image_url (TEXT)
 created_at (TIMESTAMP)
 updated_at (TIMESTAMP)
 ```
@@ -586,3 +593,150 @@ res.json({ languages }); // Never return 500 for reference data
 - **Route order matters**: Specific routes must come before parameterized routes in Express.js
 - **Constraint assumptions**: Never assume unique constraints exist - always check explicitly
 - **Reference data robustness**: Language/dropdown APIs should never fail - always provide fallbacks 
+
+## New Media Tables
+
+### editions
+```sql
+id (SERIAL PRIMARY KEY)
+group_id (INTEGER) - FK to groups
+editor_id (INTEGER) - FK to editors
+voicing (TEXT) - Voicing description
+file_url (TEXT) - URL to edition file
+created_at (TIMESTAMP)
+updated_at (TIMESTAMP)
+```
+
+### recordings
+```sql
+id (SERIAL PRIMARY KEY)
+group_id (INTEGER) - FK to groups
+performer_id (INTEGER) - FK to performers
+file_url (TEXT) - URL to recording file
+created_at (TIMESTAMP)
+updated_at (TIMESTAMP)
+```
+
+## API Endpoints
+
+### Public Search API (`/api/search/`)
+
+#### `/api/search/groups`
+Public search endpoint for groups with multi-dimensional filtering.
+
+**Query Parameters:**
+- `title` - Search group titles and composition titles
+- `composers` - Comma-separated composer IDs (OR within, AND between filters)
+- `voices` - Comma-separated voice counts
+- `functions` - Comma-separated function IDs
+- `languages` - Comma-separated language IDs
+- `countries` - Comma-separated country IDs (composer birth countries)
+- `sources` - Comma-separated source IDs
+- `publishers` - Comma-separated publisher IDs
+- `cities` - Comma-separated city names (publication places)
+- `page` - Page number (default: 1)
+- `limit` - Results per page (default: 20)
+
+**Response:**
+```json
+{
+  "groups": [
+    {
+      "id": 1,
+      "display_title": "Magnificat primi toni (impares)",
+      "composer_names": ["Lobo, Alonso", "Victoria, Tomás Luis de"],
+      "composers_with_dates": [
+        {"id": 1, "name": "Lobo, Alonso", "dates": "(1555–1617)"}
+      ],
+      "voice_counts": [4, 5],
+      "function_names": ["Magnificat", "Canticle"]
+    }
+  ],
+  "pagination": {
+    "total": 150,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 8,
+    "hasNextPage": true,
+    "hasPrevPage": false
+  }
+}
+```
+
+#### `/api/search/groups/:id/sources`
+Get detailed source information for a specific group.
+
+**Response:**
+```json
+{
+  "sources": [
+    {
+      "id": 1,
+      "code": "E-SE s.s.",
+      "title": "Liber primus missarum",
+      "type": "Print",
+      "format": "Choirbook",
+      "place_of_publication": "Venice",
+      "from_year": 1600,
+      "to_year": null,
+      "rism_link": "https://opac.rism.info/...",
+      "publishers": ["Gardano, Angelo"],
+      "scribes": null
+    }
+  ]
+}
+```
+
+### Admin API Endpoints
+
+#### Existing Admin Endpoints
+- `/api/composers/` - CRUD operations for composers
+- `/api/sources/` - CRUD operations for sources
+- `/api/sources/composers` - Composers for dropdowns
+- `/api/sources/publishers` - Publishers for dropdowns
+- `/api/sources/scribes` - Scribes for dropdowns
+- `/api/functions/` - CRUD operations for functions
+- `/api/functions/languages` - Languages for dropdowns
+- `/api/groups/` - CRUD operations for groups (new)
+
+#### Authentication Endpoints (`/api/auth/`)
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/forgot-password` - Password reset request
+- `POST /api/auth/reset-password` - Password reset completion
+
+## Data Enhancement Logic
+
+### Composer Attribution Display
+- **Single composer**: "Lobo, Alonso (1555–1617)"
+- **Anonymous only**: "Anon"
+- **Multiple composers**: "Conflicting attributions"
+
+### Title Enhancement
+Automatically appends tone and even/odd information:
+- Tone mapping: "1" → "primi toni", "2" → "secundi toni", etc.
+- Even/odd mapping: "odd" → "impares", "even" → "pares"
+- Example: "Magnificat" + tone "1" + even_odd "odd" → "Magnificat primi toni (impares)"
+
+### Multi-Select Filtering Logic
+- **OR within filter**: Multiple values in same filter are ORed
+- **AND between filters**: Different filters are ANDed together
+- Example: voices=4,5 AND functions=1,2 finds groups with (4 OR 5 voices) AND (function 1 OR 2)
+
+## Migration Notes
+
+### Groups Migration (`groups-migration.sql`)
+Creates the new group structure and automatically migrates existing compositions into initial groups. Each composition starts in its own group, which can then be merged through the admin interface.
+
+### User Authentication Migration (`migration.sql`)
+Creates the users table with email-based authentication, roles, and approval workflow.
+
+## Security Features
+
+- JWT-based authentication with HTTP-only cookies
+- bcrypt password hashing (12 salt rounds)
+- Rate limiting on login attempts and registrations
+- User approval workflow for new registrations
+- Role-based access control (user/admin)
+- Account lockout after failed login attempts 

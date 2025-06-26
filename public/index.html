@@ -6,6 +6,7 @@
     <title>The Polyphony Database</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/css/styles.css">
     <style>
         .navbar {
@@ -124,6 +125,44 @@
             padding: 3rem;
             color: #6c757d;
         }
+        
+        /* Custom Select2 Styling for Pills */
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            min-height: calc(1.5em + 0.75rem + 2px);
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #0d6efd;
+            border: 1px solid #0d6efd;
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            margin: 2px;
+            padding: 2px 8px;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white;
+            margin-right: 5px;
+        }
+        
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #fff;
+            background: none;
+        }
+        
+        .select2-dropdown {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -173,7 +212,7 @@
                         <select class="form-select" id="searchComposers" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                        <small class="text-muted">Select multiple options</small>
                     </div>
                     <div class="col-md-2">
                         <label for="searchVoices" class="form-label">Voices</label>
@@ -189,21 +228,21 @@
                             <option value="9">9vv</option>
                             <option value="10">10vv</option>
                         </select>
-                        <small class="text-muted">Multiple select</small>
+                        <small class="text-muted">Select multiple</small>
                     </div>
                     <div class="col-md-3">
                         <label for="searchFunctions" class="form-label">Functions</label>
                         <select class="form-select" id="searchFunctions" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <small class="text-muted">Multiple select</small>
+                        <small class="text-muted">Select multiple</small>
                     </div>
                     <div class="col-md-2">
                         <label for="searchLanguages" class="form-label">Languages</label>
                         <select class="form-select" id="searchLanguages" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <small class="text-muted">Multiple select</small>
+                        <small class="text-muted">Select multiple</small>
                     </div>
                     <div class="col-md-2">
                         <label for="searchCountries" class="form-label">Countries</label>
@@ -226,7 +265,7 @@
                         <select class="form-select" id="searchPublishers" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
-                        <small class="text-muted">Multiple select</small>
+                        <small class="text-muted">Select multiple</small>
                     </div>
                     <div class="col-md-3">
                         <label for="searchCities" class="form-label">Publication Cities</label>
@@ -323,6 +362,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         let currentPage = 1;
         let currentPageSize = 25;
@@ -332,18 +373,21 @@
             loadFilters();
             performSearch();
             
-            // Set up search event listeners
-            ['searchTitle', 'searchComposers', 'searchVoices', 'searchFunctions', 'searchLanguages', 
-             'searchCountries', 'searchSources', 'searchPublishers', 'searchCities', 'hasEditions', 'hasRecordings'].forEach(id => {
-                const element = document.getElementById(id);
-                if (element.type === 'checkbox') {
-                    element.addEventListener('change', debounceSearch);
-                } else if (element.tagName === 'SELECT') {
-                    element.addEventListener('change', debounceSearch);
-                } else {
-                    element.addEventListener('input', debounceSearch);
-                }
+            // Initialize Select2 for multi-select elements with pill styling
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').select2({
+                placeholder: 'Select options...',
+                allowClear: true,
+                theme: 'default',
+                width: '100%'
             });
+            
+            // Set up search event listeners
+            document.getElementById('searchTitle').addEventListener('input', debounceSearch);
+            document.getElementById('hasEditions').addEventListener('change', debounceSearch);
+            document.getElementById('hasRecordings').addEventListener('change', debounceSearch);
+            
+            // Set up Select2 change listeners
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').on('change', debounceSearch);
             
             document.getElementById('pageSize').addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -459,10 +503,10 @@
             }
         }
 
-        // Helper function to get selected values from multi-select
+        // Helper function to get selected values from Select2 multi-select
         function getMultiSelectValues(selectId) {
-            const select = document.getElementById(selectId);
-            return Array.from(select.selectedOptions).map(option => option.value).join(',');
+            const values = $(`#${selectId}`).val();
+            return Array.isArray(values) ? values.join(',') : '';
         }
 
         async function performSearch() {
@@ -512,68 +556,37 @@
             const paginationInfo = document.getElementById('paginationInfo');
             const totalResults = document.getElementById('totalResults');
             
-            totalResults.textContent = data.total.toLocaleString();
+            // Handle data structure properly
+            const pagination = data.pagination || {};
+            const total = pagination.total || 0;
+            const groups = data.groups || [];
             
-            if (data.groups.length === 0) {
+            totalResults.textContent = total.toLocaleString();
+            
+            if (groups.length === 0) {
                 resultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No results found. Try adjusting your search criteria.</td></tr>';
                 return;
             }
             
-            resultsBody.innerHTML = data.groups.map(group => `
+            resultsBody.innerHTML = groups.map(group => `
                 <tr>
                     <td>
-                        <strong>${group.display_title}</strong>
-                        ${group.editions.map(edition => `
-                            <div>
-                                <a href="${edition.file_url}" target="_blank" class="edition-link">
-                                    <i class="bi bi-file-earmark-pdf me-1"></i>
-                                    ${edition.editor_name} (${edition.voicing})
-                                </a>
-                            </div>
-                        `).join('')}
-                        ${group.recordings.map(recording => `
-                            <div>
-                                <a href="${recording.file_url}" target="_blank" class="recording-link">
-                                    <i class="bi bi-play-circle me-1"></i>
-                                    ${recording.performer_name}
-                                </a>
-                            </div>
-                        `).join('')}
+                        <strong>${group.display_title || 'Untitled'}</strong>
+                        <!-- TODO: Add editions and recordings display when available -->
                     </td>
                     <td>
-                        ${group.composition_type ? `(${group.composition_type}) ` : ''}
-                        ${group.functions.join(', ')}
+                        ${(group.function_names || []).join(', ')}
                     </td>
-                    <td>${group.composer}</td>
-                    <td>${group.voices}</td>
                     <td>
-                        <table class="sources-subtable w-100">
-                            ${group.sources.map(source => `
-                                <tr>
-                                    <td>
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <strong title="${source.full_title}">${source.short_title}</strong><br>
-                                                <small class="text-muted">${source.code}</small><br>
-                                                <small>${source.publication_details}</small>
-                                                ${source.rism_link ? `<br><a href="${source.rism_link}" target="_blank" class="text-primary"><small>RISM</small></a>` : ''}
-                                                ${source.images.map(img => `
-                                                    <a href="${img.url}" target="_blank" title="${img.comment || 'View image'}" class="text-primary ms-2">
-                                                        <small><i class="bi bi-image"></i></small>
-                                                    </a>
-                                                `).join('')}
-                                                <br><small><strong>Position:</strong> ${source.position}</small>
-                                                ${source.attribution ? `<br><small><strong>Attribution:</strong> ${source.attribution}</small>` : ''}
-                                                ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
-                                            </div>
-                                            <div class="clef-images">
-                                                ${source.clefs.map(clef => `<img src="/assets/clefs/${clef}" alt="clef">`).join('')}
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </table>
+                        ${(group.composer_names || []).join(', ')}
+                    </td>
+                    <td>
+                        ${(group.voice_counts || []).join(', ')}vv
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showGroupSources(${group.id})">
+                            <i class="bi bi-list-ul me-1"></i>View Sources
+                        </button>
                     </td>
                 </tr>
             `).join('');
@@ -584,20 +597,22 @@
         }
 
         function updatePagination(data) {
+            const paginationData = data.pagination || {};
+            const total = paginationData.total || 0;
             const start = (currentPage - 1) * currentPageSize + 1;
-            const end = Math.min(currentPage * currentPageSize, data.total);
+            const end = Math.min(currentPage * currentPageSize, total);
             
             document.getElementById('resultsStart').textContent = start.toLocaleString();
             document.getElementById('resultsEnd').textContent = end.toLocaleString();
-            document.getElementById('resultsTotal').textContent = data.total.toLocaleString();
+            document.getElementById('resultsTotal').textContent = total.toLocaleString();
             
-            const totalPages = Math.ceil(data.total / currentPageSize);
-            const pagination = document.getElementById('pagination');
-            pagination.innerHTML = '';
+            const totalPages = Math.ceil(total / currentPageSize);
+            const paginationEl = document.getElementById('pagination');
+            paginationEl.innerHTML = '';
             
             // Previous button
             if (currentPage > 1) {
-                pagination.innerHTML += `
+                paginationEl.innerHTML += `
                     <li class="page-item">
                         <a class="page-link" href="#" onclick="goToPage(${currentPage - 1})">Previous</a>
                     </li>
@@ -609,7 +624,7 @@
             const endPage = Math.min(totalPages, currentPage + 2);
             
             for (let i = startPage; i <= endPage; i++) {
-                pagination.innerHTML += `
+                paginationEl.innerHTML += `
                     <li class="page-item ${i === currentPage ? 'active' : ''}">
                         <a class="page-link" href="#" onclick="goToPage(${i})">${i}</a>
                     </li>
@@ -618,7 +633,7 @@
             
             // Next button
             if (currentPage < totalPages) {
-                pagination.innerHTML += `
+                paginationEl.innerHTML += `
                     <li class="page-item">
                         <a class="page-link" href="#" onclick="goToPage(${currentPage + 1})">Next</a>
                     </li>
@@ -629,6 +644,22 @@
         function goToPage(page) {
             currentPage = page;
             performSearch();
+        }
+
+        async function showGroupSources(groupId) {
+            try {
+                const response = await fetch(`/api/search/groups/${groupId}/sources`);
+                if (response.ok) {
+                    const data = await response.json();
+                    // For now, just alert with source count - TODO: implement modal display
+                    alert(`This group has ${data.sources.length} sources.`);
+                } else {
+                    alert('Error loading sources');
+                }
+            } catch (error) {
+                console.error('Error loading sources:', error);
+                alert('Error loading sources');
+            }
         }
     </script>
 </body>
