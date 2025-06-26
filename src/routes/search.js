@@ -217,10 +217,10 @@ router.get('/groups', async (req, res) => {
     if (voicingIds.length > 0) {
       // Get clef combinations associated with selected voicings
       const voicingClefsQuery = `
-        SELECT DISTINCT cc.clefs
-        FROM voicing_clef_combinations vcc
-        JOIN clef_combinations cc ON vcc.clef_combination_id = cc.id
-        WHERE vcc.voicing_id = ANY($${paramIndex}::integer[])
+        SELECT DISTINCT cc.clefcombo
+        FROM clef_combos_voicings ccv
+        JOIN clef_combinations cc ON ccv.clef_combo_id = cc.id
+        WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
       `;
       
       try {
@@ -229,6 +229,10 @@ router.get('/groups', async (req, res) => {
         if (voicingClefsResult.rows.length > 0) {
           const voicingConditions = voicingClefsResult.rows.map((row) => {
             paramIndex++;
+            // Convert clef combo string to clef array for JSON matching
+            const clefArray = row.clefcombo.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g);
+            const clefObjects = clefArray.map(clef => ({ clef }));
+            
             const condition = `EXISTS (
               SELECT 1 FROM compositions c2
               JOIN inclusions i ON c2.id = i.composition_id
@@ -236,7 +240,7 @@ router.get('/groups', async (req, res) => {
               AND i.clefs @> $${paramIndex}::jsonb
             )`;
             
-            queryParams.push(JSON.stringify(row.clefs));
+            queryParams.push(JSON.stringify(clefObjects));
             return condition;
           });
           
@@ -500,16 +504,13 @@ router.get('/languages', async (req, res) => {
 router.get('/countries', async (req, res) => {
   try {
     const query = `
-      WITH composer_ids_in_groups AS (
-        SELECT DISTINCT unnest(c.composer_id_list) as composer_id
-        FROM compositions c
-        INNER JOIN groups g ON c.group_id = g.id
-        WHERE c.composer_id_list IS NOT NULL
-      )
       SELECT DISTINCT comp.birthplace_2 as name
       FROM composers comp
-      INNER JOIN composer_ids_in_groups cig ON comp.id = cig.composer_id
       WHERE comp.birthplace_2 IS NOT NULL AND comp.birthplace_2 != ''
+      AND EXISTS (
+        SELECT 1 FROM compositions c
+        WHERE comp.id = ANY(c.composer_id_list)
+      )
       ORDER BY comp.birthplace_2
     `;
     const result = await pool.query(query);
@@ -611,7 +612,7 @@ router.get('/tones', async (req, res) => {
     const query = `
       SELECT DISTINCT tone
       FROM compositions
-      WHERE tone IS NOT NULL AND tone != '' AND tone ~ '^[0-9]+$|^[a-zA-Z]+$'
+      WHERE tone IS NOT NULL AND tone != '' AND tone != '0' AND LENGTH(tone) > 0 AND tone ~ '^[1-9][0-9]*$|^[a-zA-Z]+$'
       ORDER BY tone
     `;
     const result = await pool.query(query);
@@ -649,9 +650,9 @@ router.get('/even-odd', async (req, res) => {
 router.get('/voicings', async (req, res) => {
   try {
     const query = `
-      SELECT id, name, voice_count, description
+      SELECT id, voicing as name
       FROM voicings
-      ORDER BY voice_count, name
+      ORDER BY voicing
     `;
     const result = await pool.query(query);
     res.json(result.rows);

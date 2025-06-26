@@ -12,6 +12,7 @@ import functionsRouter from './routes/functions.js';
 import authRouter from './routes/auth.js';
 import searchRouter from './routes/search.js';
 import groupsRouter from './routes/groups.js';
+import adminRouter from './routes/admin.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -79,6 +80,10 @@ app.get('/admin/groups', requireAuthWeb, (req, res) => {
   res.sendFile('group-management.html', { root: 'public' });
 });
 
+app.get('/admin/clef-voicings', requireAuthWeb, (req, res) => {
+  res.sendFile('admin-clef-voicings.html', { root: 'public' });
+});
+
 // Admin module pages
 app.get('/admin/sources*', requireAuthWeb, (req, res, next) => {
   req.url = req.url.replace('/admin', '');
@@ -99,6 +104,7 @@ app.use('/api/admin/publishers', requireAuthWeb, publishersRouter);
 app.use('/api/admin/scribes', requireAuthWeb, scribesRouter);
 app.use('/api/admin/functions', requireAuthWeb, functionsRouter);
 app.use('/api/admin/groups', requireAuthWeb, groupsRouter);
+app.use('/api/admin', requireAuthWeb, adminRouter);
 
 // Start server
 app.listen(port, () => {

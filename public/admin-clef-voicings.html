@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clef Combinations & Voicings - Polyphony Database Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .pill-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .voicing-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .voicing-pill:hover {
+            background-color: #dee2e6;
+            border-color: #ced4da;
+        }
+        .voicing-pill.selected {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        .clef-combo-row {
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+        }
+        .clef-combo-header {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        .save-status {
+            display: none;
+            margin-left: 10px;
+            font-size: 0.875rem;
+        }
+        .save-status.success {
+            color: #28a745;
+        }
+        .save-status.error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="admin-dashboard.html">Polyphony Database Admin</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin-dashboard.html">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="group-management.html">Group Management</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="user-management.html">User Management</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="admin-clef-voicings.html">Clef & Voicings</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Public Search</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout()">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1>Clef Combinations & Voicings Management</h1>
+                <p class="text-muted">Assign voicing types to clef combinations. Click voicing pills to toggle assignment.</p>
+                
+                <!-- Add new voicing form -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Add New Voicing</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" id="newVoicing" class="form-control" placeholder="e.g., SSAATTBB" maxlength="50">
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-success" onclick="addVoicing()">Add Voicing</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading indicator -->
+                <div id="loading" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Loading clef combinations and voicings...</p>
+                </div>
+
+                <!-- Clef combinations list -->
+                <div id="clefCombinations" style="display: none;">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let voicings = [];
+        let clefCombinations = [];
+
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            return token;
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            window.location.href = 'login.html';
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = checkAuth();
+            if (token) {
+                loadData();
+            }
+        });
+
+        async function loadData() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                
+                // Load voicings and clef combinations
+                const [voicingsResponse, clefCombosResponse, mappingsResponse] = await Promise.all([
+                    fetch('/api/search/voicings', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch('/api/admin/clef-combinations', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch('/api/admin/clef-voicing-mappings', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                if (!voicingsResponse.ok || !clefCombosResponse.ok || !mappingsResponse.ok) {
+                    throw new Error('Failed to load data');
+                }
+
+                voicings = await voicingsResponse.json();
+                clefCombinations = await clefCombosResponse.json();
+                const mappings = await mappingsResponse.json();
+
+                // Build mappings lookup
+                const mappingsLookup = {};
+                mappings.forEach(mapping => {
+                    if (!mappingsLookup[mapping.clef_combo_id]) {
+                        mappingsLookup[mapping.clef_combo_id] = [];
+                    }
+                    mappingsLookup[mapping.clef_combo_id].push(mapping.voicing_id);
+                });
+
+                renderClefCombinations(mappingsLookup);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('clefCombinations').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data. Please refresh the page.');
+            }
+        }
+
+        function renderClefCombinations(mappingsLookup) {
+            const container = document.getElementById('clefCombinations');
+            
+            let html = `<h4>Clef Combinations (${clefCombinations.length})</h4>`;
+            
+            clefCombinations.forEach(combo => {
+                const assignedVoicings = mappingsLookup[combo.id] || [];
+                
+                html += `
+                    <div class="clef-combo-row" data-combo-id="${combo.id}">
+                        <div class="clef-combo-header">${combo.clefcombo}</div>
+                        <div class="pill-container">
+                `;
+                
+                voicings.forEach(voicing => {
+                    const isSelected = assignedVoicings.includes(voicing.id);
+                    html += `
+                        <span class="voicing-pill ${isSelected ? 'selected' : ''}" 
+                              data-voicing-id="${voicing.id}"
+                              onclick="toggleVoicing(${combo.id}, ${voicing.id}, this)">
+                            ${voicing.name}
+                        </span>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        <span class="save-status" id="status-${combo.id}"></span>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        async function toggleVoicing(clefComboId, voicingId, element) {
+            const isSelected = element.classList.contains('selected');
+            const statusElement = document.getElementById(`status-${clefComboId}`);
+            
+            try {
+                const token = localStorage.getItem('auth_token');
+                const method = isSelected ? 'DELETE' : 'POST';
+                const endpoint = `/api/admin/clef-voicing-mappings`;
+                
+                const response = await fetch(endpoint, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        clef_combo_id: clefComboId,
+                        voicing_id: voicingId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update mapping');
+                }
+
+                // Toggle visual state
+                element.classList.toggle('selected');
+                
+                // Show success status
+                statusElement.textContent = isSelected ? 'Unassigned' : 'Assigned';
+                statusElement.className = 'save-status success';
+                statusElement.style.display = 'inline';
+                
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error updating mapping:', error);
+                statusElement.textContent = 'Error';
+                statusElement.className = 'save-status error';
+                statusElement.style.display = 'inline';
+                
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        async function addVoicing() {
+            const input = document.getElementById('newVoicing');
+            const voicingName = input.value.trim();
+            
+            if (!voicingName) {
+                alert('Please enter a voicing name');
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/admin/voicings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ voicing: voicingName })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to add voicing');
+                }
+
+                input.value = '';
+                loadData(); // Reload the page data
+                
+            } catch (error) {
+                console.error('Error adding voicing:', error);
+                alert('Error adding voicing: ' + error.message);
+            }
+        }
+
+        // Allow Enter key to add voicing
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('newVoicing').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addVoicing();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
