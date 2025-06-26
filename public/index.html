@@ -163,24 +163,53 @@
                 <i class="bi bi-music-note-beamed me-2"></i>
                 The Polyphony Database
             </a>
-            <div>
-                <a href="/admin" class="admin-link">
-                    <i class="bi bi-shield-lock me-2"></i>Admin Login
-                </a>
-            </div>
         </div>
     </nav>
 
-    <div class="search-header">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center">
-                    <h1 class="display-5 fw-bold mb-3">Search the Database</h1>
-                    <p class="lead mb-4">Discover Renaissance polyphonic music from manuscripts and prints</p>
-                    <div class="search-info text-muted">
-                        <small><strong id="totalResults">0</strong> groups found</small>
+    <!-- About Section -->
+    <div class="container mt-3">
+        <div class="accordion" id="aboutAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#aboutCollapse" aria-expanded="false" aria-controls="aboutCollapse">
+                        About the Database
+                    </button>
+                </h2>
+                <div id="aboutCollapse" class="accordion-collapse collapse" data-bs-parent="#aboutAccordion">
+                    <div class="accordion-body">
+                        <p>PolyphonyDatabase.com is a detailed catalogue of early music sources designed to help musicians perform, academics study, and enthusiasts explore a vast and glorious repertoire quickly and easily. It aims to combine the practicality of CPDL with the academic rigour and ambition of the RISM census, to make use of similar projects where possible, and to directly combat the frustrations performing musicians have with all existing resources.</p>
+                        
+                        <p>Its three main goals are:</p>
+                        <ul>
+                            <li>To assist performers, directors, and editors by cataloguing the contents of primary sources, source concordances, and basic information about how each piece of music can be performed.</li>
+                            <li>To provide a reliable starting point for academic research by linking to library catalogues, other existing databases, and facsimile images of early music manuscripts and prints.</li>
+                            <li>To provide a repository for properly sourced critical editions, performing scores, and recordings of as much of this music as possible, each carefully vetted for typesetting quality and accuracy, and made available for free download, so that this music might be discovered and appreciated by a wider audience.</li>
+                        </ul>
+                        
+                        <p>The database was founded by Francis Bevan in 2014 as an outlet for his editing hobby and is regularly updated by him and a small team of enthusiasts. If you would like to contribute some cataloguing time, recordings or editions, submit corrections, commission an edition or just donate some cash, please get in touch with Francis via email: <a href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a>.</p>
+                        
+                        <p><strong>The best way to help fund the project is to commission performing editions. New editions can be made quickly for as little as £10.</strong></p>
+                        
+                        <p><strong>2025 update:</strong> Francis has rewritten everything in Node.js with advanced search capabilities, dynamic voicing matching, and improved cataloguing tools to make this remarkable repertoire even more accessible to performers and researchers worldwide.</p>
+                        
+                        <h6>Understanding the clef images</h6>
+                        <p><span class="text-danger">■</span> A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.</p>
+                        <p><span class="text-success">■</span> A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.</p>
+                        <p><span class="text-muted">■</span> A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.</p>
+                        <p><span class="text-primary">■</span> A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.</p>
+                        <p><strong>X</strong> clef is used as a placeholder for voices we know are necessary, but haven't yet worked out which!</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results Count -->
+    <div class="container mt-3">
+        <div class="row">
+            <div class="col-12 text-center">
+                <small class="text-muted"><strong id="totalResults">0</strong> results</small>
             </div>
         </div>
     </div>
@@ -800,7 +829,7 @@
                                                     ${source.source_images && source.source_images.length > 0 ? `
                                                         <br><small><strong>Images:</strong> 
                                                         ${source.source_images.map(img => `
-                                                            <a href="${img.url}" target="_blank" class="text-primary" title="${img.label || 'View image'}">
+                                                            <a href="${img.url}" target="_blank" class="text-primary">
                                                                 <i class="bi bi-image"></i> ${img.label || 'View'}
                                                             </a>
                                                         `).join(', ')}
@@ -820,7 +849,7 @@
                                         <div class="col-md-5">
                                             ${source.clefs && source.clefs.length > 0 ? `
                                                 <div class="clef-images mb-2">
-                                                    ${source.clefs.map(clef => {
+                                                    ${sortClefsInDisplayOrder(source.clefs).map(clef => {
                                                         if (clef.clef && clef.clef.trim()) {
                                                             const clefName = clef.clef.trim();
                                                             const clefImage = clef.transitions_to && clef.transitions_to.length > 0 ? 
@@ -969,6 +998,19 @@
             }
             return originalGetMultiSelectValues(selectId);
         };
+
+        // Clef display order (from schema reference)
+        function sortClefsInDisplayOrder(clefs) {
+            const clefDisplayOrder = [
+                'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+            ];
+            
+            return clefs.slice().sort((a, b) => {
+                const indexA = clefDisplayOrder.indexOf(a.clef?.trim());
+                const indexB = clefDisplayOrder.indexOf(b.clef?.trim());
+                return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+            });
+        }
 
 
     </script>

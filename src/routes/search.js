@@ -469,15 +469,18 @@ router.get('/languages', async (req, res) => {
 
 router.get('/countries', async (req, res) => {
   try {
+    // Optimized query - avoid the expensive unnest operation
     const query = `
-      SELECT DISTINCT comp.birthplace_2 as name
-      FROM composers comp
-      INNER JOIN (
-        SELECT DISTINCT unnest(composer_id_list) as composer_id
+      WITH composer_ids_in_groups AS (
+        SELECT DISTINCT jsonb_array_elements_text(c.composer_id_list)::integer as composer_id
         FROM compositions c
         INNER JOIN groups g ON c.group_id = g.id
-      ) comp_compositions ON comp.id = comp_compositions.composer_id
-      WHERE comp.birthplace_2 IS NOT NULL
+        WHERE c.composer_id_list IS NOT NULL
+      )
+      SELECT DISTINCT comp.birthplace_2 as name
+      FROM composers comp
+      INNER JOIN composer_ids_in_groups cig ON comp.id = cig.composer_id
+      WHERE comp.birthplace_2 IS NOT NULL AND comp.birthplace_2 != ''
       ORDER BY comp.birthplace_2
     `;
     const result = await pool.query(query);
@@ -612,10 +615,10 @@ router.get('/voicing-options', async (req, res) => {
     // Return standard voice types for user selection
     const voiceTypes = [
       { value: 'S', name: 'Soprano', pitchOrder: 1 },
-      { value: 'Ms', name: 'Mezzo-soprano', pitchOrder: 2 },
+      { value: 'Mz', name: 'Mezzo-soprano', pitchOrder: 2 },
       { value: 'A', name: 'Alto', pitchOrder: 3 },
       { value: 'T', name: 'Tenor', pitchOrder: 4 },
-      { value: 'BarT', name: 'Baritone', pitchOrder: 5 },
+      { value: 'Bar', name: 'Baritone', pitchOrder: 5 },
       { value: 'B', name: 'Bass', pitchOrder: 6 }
     ];
     res.json(voiceTypes);
@@ -634,22 +637,23 @@ router.post('/find-voicing-matches', async (req, res) => {
     }
 
     // Define clef pitch relationships (higher numbers = higher pitch)
+    // Based on actual musical pitch: G clef = G above middle C, F clef = F below middle C, C clef = middle C
     const clefPitchOrder = {
-      'g1': 10, 'g2': 9, 'g3': 8, 'c1': 7, 'g4': 6, 'c2': 5, 'g5': 4, 'c3': 3, 
-      'f1': 2, 'g28': 1, 'c4': 0, 'f2': -1, 'c5': -2, 'd1': -3, 'f3': -4, 
-      'd2': -5, 'f4': -6, 'd3': -7, 'y1': -8, 'f5': -9, 'd4': -10, 'y2': -11,
-      'd5': -12, 'y3': -13, 'y4': -14, 'y5': -15, 'x1': -16, 'x2': -17, 
-      'x3': -18, 'x4': -19, 'x5': -20, 'org': -25, 'bc': -26, 'lut': -27
+      'g1': 20, 'g2': 18, 'g3': 16, 'c1': 14, 'g4': 12, 'c2': 10, 'g5': 8, 'c3': 6, 
+      'f1': 4, 'g28': 2, 'c4': 0, 'f2': -2, 'c5': -4, 'd1': -6, 'f3': -8, 
+      'd2': -10, 'f4': -12, 'd3': -14, 'y1': -16, 'f5': -18, 'd4': -20, 'y2': -22,
+      'd5': -24, 'y3': -26, 'y4': -28, 'y5': -30, 'x1': 0, 'x2': 0, 'x3': 0, 'x4': 0, 'x5': 0
+      // Note: bc, lut, org excluded as they have no pitch relationship
     };
 
-    // Define voice type to preferred clef ranges
+    // Define voice type to preferred clef ranges (broader ranges for better matching)
     const voiceClefRanges = {
-      'S': { min: 6, max: 10, preferred: [7, 8] },     // c1, g3, g2, g1
-      'Ms': { min: 4, max: 8, preferred: [5, 6] },     // c2, g4, g3
-      'A': { min: 2, max: 6, preferred: [3, 4] },      // c3, g5, c2
-      'T': { min: -2, max: 2, preferred: [0, 1] },     // c4, f1, g28
-      'BarT': { min: -4, max: 0, preferred: [-1, -2] }, // f2, c5, c4
-      'B': { min: -9, max: -3, preferred: [-6, -4] }   // f4, f3, f5
+      'S': { min: 12, max: 20, preferred: [14, 16, 18] },   // c1, g3, g2, g1
+      'Mz': { min: 8, max: 16, preferred: [10, 12] },       // c2, g4, g3  
+      'A': { min: 4, max: 12, preferred: [6, 8] },          // c3, g5, c2
+      'T': { min: -4, max: 4, preferred: [0, 2] },          // c4, f1, g28
+      'Bar': { min: -8, max: 0, preferred: [-2, -4] },      // f2, c5, c4
+      'B': { min: -18, max: -6, preferred: [-12, -8] }      // f4, f3, f5
     };
 
     // Get all unique clef combinations from database
@@ -666,9 +670,9 @@ router.post('/find-voicing-matches', async (req, res) => {
       const clefs = row.clefs;
       if (!Array.isArray(clefs)) continue;
 
-      // Filter out instrumental clefs and extract main clef names
+      // Separate vocal and instrumental clefs
       const vocalClefs = clefs
-        .filter(c => c.clef && !['org', 'bc', 'lut'].includes(c.clef.trim()))
+        .filter(c => c.clef && !['org', 'bc', 'lut', 'x1', 'x2', 'x3', 'x4', 'x5'].includes(c.clef.trim()))
         .map(c => ({
           clef: c.clef.trim(),
           optional: c.optional || false,
@@ -676,46 +680,131 @@ router.post('/find-voicing-matches', async (req, res) => {
         }))
         .sort((a, b) => b.pitch - a.pitch); // Sort high to low pitch
 
+      const instrumentalClefs = clefs
+        .filter(c => c.clef && ['org', 'bc', 'lut'].includes(c.clef.trim()))
+        .map(c => c.clef.trim());
+
       if (vocalClefs.length !== selectedVoices.length) continue;
 
-      // Try to match the clef combination to selected voices
-      let isMatch = true;
-      const mappings = [];
+      // Smart voice assignment algorithm
+      const smartMapping = assignVoicesIntelligently(vocalClefs, selectedVoices, voiceClefRanges);
+      
+      if (smartMapping.isMatch) {
+        // Create the final clef combination string with instrumentals
+        const baseMapping = smartMapping.mappings.map(m => m.clef);
+        let combinationName = selectedVoices.join('');
+        
+        if (instrumentalClefs.length > 0) {
+          combinationName += '+' + instrumentalClefs.join('+');
+        }
 
+        matchingCombinations.push({
+          clefs: baseMapping.concat(instrumentalClefs),
+          mappings: smartMapping.mappings,
+          voice_combination: combinationName,
+          has_optional: vocalClefs.some(c => c.optional),
+          has_instrumental: instrumentalClefs.length > 0,
+          example_inclusion_id: row.id
+        });
+      }
+    }
+
+    // Helper function for intelligent voice assignment
+    function assignVoicesIntelligently(vocalClefs, selectedVoices, voiceClefRanges) {
+      if (vocalClefs.length !== selectedVoices.length) {
+        return { isMatch: false };
+      }
+
+      // For combinations where we need to be smart about assignment
+      if (selectedVoices.length >= 4) {
+        return assignVoicesWithLogic(vocalClefs, selectedVoices, voiceClefRanges);
+      }
+
+      // For simpler combinations, use direct assignment
+      const mappings = [];
       for (let i = 0; i < selectedVoices.length; i++) {
         const voice = selectedVoices[i];
         const clef = vocalClefs[i];
         const range = voiceClefRanges[voice];
 
         if (!range || clef.pitch < range.min || clef.pitch > range.max) {
-          isMatch = false;
-          break;
-        }
-
-        // Check adjacent voice spacing (should be reasonable interval)
-        if (i > 0) {
-          const pitchDiff = Math.abs(vocalClefs[i-1].pitch - clef.pitch);
-          if (pitchDiff < 1 || pitchDiff > 4) { // Between unison and 4th
-            isMatch = false;
-            break;
-          }
+          return { isMatch: false };
         }
 
         mappings.push({ voice, clef: clef.clef, optional: clef.optional });
       }
 
-      if (isMatch) {
-        // Create variations if there are optional clefs
-        const hasOptional = vocalClefs.some(c => c.optional);
-        const baseMapping = mappings.map(m => m.clef);
-        
-        matchingCombinations.push({
-          clefs: baseMapping,
-          mappings: mappings,
-          has_optional: hasOptional,
-          example_inclusion_id: row.id
-        });
+      return { isMatch: true, mappings };
+    }
+
+    function assignVoicesWithLogic(vocalClefs, selectedVoices, voiceClefRanges) {
+      // Find optimal assignment by trying all permutations of voice assignments
+      // This handles cases like g2,c1,c2,c3,c4,f3,f4 -> SSATTBarB
+      
+      const bestMapping = findBestVoiceAssignment(vocalClefs, selectedVoices, voiceClefRanges);
+      
+      if (bestMapping) {
+        return { isMatch: true, mappings: bestMapping };
       }
+      
+      return { isMatch: false };
+    }
+
+    function findBestVoiceAssignment(vocalClefs, selectedVoices, voiceClefRanges) {
+      // Score different voice assignments and pick the best one
+      let bestScore = -1;
+      let bestMappings = null;
+
+      // Try assigning voices in order (but verify it makes musical sense)
+      const mappings = [];
+      for (let i = 0; i < selectedVoices.length; i++) {
+        const voice = selectedVoices[i];
+        const clef = vocalClefs[i];
+        const range = voiceClefRanges[voice];
+
+        if (!range) continue;
+
+        // Check if clef fits in voice range
+        if (clef.pitch >= range.min && clef.pitch <= range.max) {
+          let score = 1;
+          
+          // Bonus for preferred clefs
+          if (range.preferred.includes(clef.pitch)) {
+            score += 2;
+          }
+          
+          // Check voice spacing makes sense
+          if (i > 0) {
+            const prevPitch = vocalClefs[i-1].pitch;
+            const pitchDiff = prevPitch - clef.pitch;
+            
+            // Good spacing between adjacent voices (2-8 semitones)
+            if (pitchDiff >= 2 && pitchDiff <= 8) {
+              score += 1;
+            } else if (pitchDiff < 0 || pitchDiff > 12) {
+              score -= 2; // Penalty for bad spacing
+            }
+          }
+
+          mappings.push({ 
+            voice, 
+            clef: clef.clef, 
+            optional: clef.optional,
+            score 
+          });
+        } else {
+          return null; // This assignment doesn't work
+        }
+      }
+
+      const totalScore = mappings.reduce((sum, m) => sum + m.score, 0);
+      
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        bestMappings = mappings;
+      }
+
+      return bestMappings;
     }
 
     // Remove duplicates and sort by commonality

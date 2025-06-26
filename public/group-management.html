@@ -421,7 +421,7 @@
                                 <span class="text-muted">${group.composer}</span>
                                 ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
                             </div>
-                            ${group.functions.length > 0 ? `
+                            ${group.functions && group.functions.length > 0 ? `
                                 <div class="mt-2">
                                     <small class="text-muted">Functions: ${group.functions.join(', ')}</small>
                                 </div>
