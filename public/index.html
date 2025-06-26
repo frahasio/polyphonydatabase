@@ -510,6 +510,9 @@
             
             // Set form values from URL parameters
             if (params.get('title')) document.getElementById('searchTitle').value = params.get('title');
+            if (params.get('page')) {
+                currentPage = parseInt(params.get('page')) || 1;
+            }
             if (params.get('page_size')) {
                 currentPageSize = parseInt(params.get('page_size'));
                 document.getElementById('pageSize').value = currentPageSize;
@@ -562,6 +565,7 @@
             if (cities) params.set('cities', cities);
             if (hasEditions) params.set('has_editions', 'true');
             if (hasRecordings) params.set('has_recordings', 'true');
+            if (currentPage !== 1) params.set('page', currentPage);
             if (currentPageSize !== 25) params.set('page_size', currentPageSize);
             
             // Update URL without reloading page
@@ -789,6 +793,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     displayResults(data);
+                    updateURL();
                 } else {
                     throw new Error('Search failed');
                 }
@@ -1023,6 +1028,7 @@
         function goToPage(page) {
             currentPage = page;
             performSearch();
+            updateURL();
         }
 
 

@@ -228,7 +228,7 @@ router.get('/groups', async (req, res) => {
           SELECT DISTINCT cc.clef_combination
           FROM clef_combinations_voicings ccv
           JOIN clef_combinations cc ON ccv.clef_combination_id = cc.id
-          WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
+          WHERE ccv.voicing_id = ANY($1::integer[])
         `;
         
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
@@ -276,11 +276,10 @@ router.get('/groups', async (req, res) => {
             SELECT DISTINCT cc.clef_combination
             FROM clef_combinations_voicings ccv
             JOIN clef_combinations cc ON ccv.clef_combination_id = cc.id
-            WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
+            WHERE ccv.voicing_id = ANY($1::integer[])
           `;
           
           const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
-          paramIndex++; // Increment parameter index for fallback query
           
           if (voicingClefsResult.rows.length > 0) {
             // Define clef display order for sorting (fallback logic)
