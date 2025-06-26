@@ -249,20 +249,19 @@ router.get('/groups', async (req, res) => {
               console.log('New columns exist, using fast path');
               
               // Use the fast indexed approach
-              const clefCombosParam = `$${paramIndex + 1}`;
               const condition = `EXISTS (
                 SELECT 1 FROM compositions c2
                 JOIN inclusions i ON c2.id = i.composition_id
                 WHERE c2.group_id = g.id 
                 AND (
-                  i.sorted_clef_combination_required = ANY(${clefCombosParam}::text[])
-                  OR i.sorted_clef_combination_all = ANY(${clefCombosParam}::text[])
+                  i.sorted_clef_combination_required = ANY($${paramIndex}::text[])
+                  OR i.sorted_clef_combination_all = ANY($${paramIndex}::text[])
                 )
               )`;
               
               whereConditions.push(condition);
               queryParams.push(targetClefCombinations);
-              paramIndex++; // We only used one parameter (same array for both conditions)
+              paramIndex++; // We used one parameter (same array for both conditions)
             } catch (columnError) {
               console.log('New columns do not exist, falling back to old logic');
               throw columnError; // This will trigger the fallback
@@ -788,23 +787,5 @@ router.get('/even-odd', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-router.get('/voicings', async (req, res) => {
-  try {
-    const query = `
-      SELECT id, voicing as name
-      FROM voicings
-      ORDER BY voicing
-    `;
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (error) {
-    console.log('Voicings table not found, returning empty array:', error.message);
-    // Return empty array if voicings table doesn't exist yet
-    res.json([]);
-  }
-});
-
-
 
 export default router; 
