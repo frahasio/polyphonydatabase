@@ -89,6 +89,8 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('Login attempt for:', email);
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -99,18 +101,25 @@ router.post('/login', loginLimiter, async (req, res) => {
       [email.toLowerCase()]
     );
 
+    console.log('Database query result:', result.rows.length, 'users found');
+
     const user = result.rows[0];
     if (!user) {
+      console.log('No user found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    console.log('User found:', user.email, 'Status:', user.status, 'Role:', user.role);
+
     // Check if account is locked
     if (isAccountLocked(user)) {
+      console.log('Account is locked until:', user.locked_until);
       return res.status(423).json({ error: 'Account temporarily locked due to multiple failed login attempts' });
     }
 
     // Check if account is approved
     if (user.status !== 'approved') {
+      console.log('Account status is not approved:', user.status);
       let message = 'Account not approved';
       if (user.status === 'pending') {
         message = 'Account is pending approval';
@@ -122,9 +131,13 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: message });
     }
 
+    console.log('Verifying password...');
     // Verify password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    console.log('Password match:', passwordMatch);
+    
     if (!passwordMatch) {
+      console.log('Password verification failed');
       // Increment failed login attempts
       const newAttempts = user.login_attempts + 1;
       let lockedUntil = null;
@@ -427,6 +440,40 @@ router.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Update user role error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Debug route to check if admin user exists (remove in production)
+router.get('/debug/admin-user', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, name, status, role, created_at FROM users WHERE email = $1',
+      ['admin@polyphony.local']
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ 
+        exists: false, 
+        message: 'Admin user does not exist in database' 
+      });
+    }
+
+    const user = result.rows[0];
+    res.json({
+      exists: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        status: user.status,
+        role: user.role,
+        created_at: user.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Debug admin user error:', error);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
