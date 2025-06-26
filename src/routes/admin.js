@@ -264,17 +264,17 @@ router.get('/data-quality-alerts', async (req, res) => {
 
     // Clef combinations without voicings
     const clefCombosWithoutVoicings = await pool.query(`
-      SELECT cc.id, cc.clefcombo
+      SELECT cc.id, cc.clef_combination
       FROM clef_combinations cc
-      LEFT JOIN clef_combos_voicings ccv ON cc.id = ccv.clef_combo_id
-      WHERE ccv.clef_combo_id IS NULL
+      LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
+      WHERE ccv.clef_combination_id IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM ignored_alerts ia
         WHERE ia.alert_type = 'clef_combo_no_voicing'
         AND ia.entity_type = 'clef_combination'
         AND ia.entity_id = cc.id
       )
-      ORDER BY cc.clefcombo
+      ORDER BY cc.clef_combination
     `);
 
     clefCombosWithoutVoicings.rows.forEach(row => {
@@ -282,10 +282,10 @@ router.get('/data-quality-alerts', async (req, res) => {
         type: 'clef_combo_no_voicing',
         severity: 'warning',
         title: 'Clef combination without voicings',
-        description: `Clef combination "${row.clefcombo}" has no assigned voicings`,
+        description: `Clef combination "${row.clef_combination}" has no assigned voicings`,
         entity_type: 'clef_combination',
         entity_id: row.id,
-        entity_name: row.clefcombo
+        entity_name: row.clef_combination
       });
     });
 
@@ -293,7 +293,7 @@ router.get('/data-quality-alerts', async (req, res) => {
     const voicingsWithoutClefCombos = await pool.query(`
       SELECT v.id, v.voicing
       FROM voicings v
-      LEFT JOIN clef_combos_voicings ccv ON v.id = ccv.voicing_id
+      LEFT JOIN clef_combinations_voicings ccv ON v.id = ccv.voicing_id
       WHERE ccv.voicing_id IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM ignored_alerts ia
