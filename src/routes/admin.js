@@ -1,11 +1,10 @@
 import express from 'express';
 import pool from '../db.js';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // All admin routes require authentication and admin privileges
-router.use(authenticateToken);
 router.use(requireAdmin);
 
 // Get all clef combinations
