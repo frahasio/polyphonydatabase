@@ -396,11 +396,11 @@ router.get('/groups', async (req, res) => {
             'type', s.type,
             'format', s.format,
             'town', s.town,
-            'from_year', CASE WHEN s.from_year IS NOT NULL AND s.from_year != '' THEN s.from_year::integer ELSE NULL END,
-            'to_year', CASE WHEN s.to_year IS NOT NULL AND s.to_year != '' THEN s.to_year::integer ELSE NULL END,
+            'from_year', CASE WHEN NULLIF(s.from_year, '') IS NOT NULL THEN NULLIF(s.from_year, '')::integer ELSE NULL END,
+            'to_year', CASE WHEN NULLIF(s.to_year, '') IS NOT NULL THEN NULLIF(s.to_year, '')::integer ELSE NULL END,
             'rism_link', s.rism_link,
             'source_notes', s.notes,
-            'position', CASE WHEN i.position IS NOT NULL AND i.position != '' THEN i.position::integer ELSE NULL END,
+            'position', CASE WHEN NULLIF(i.position, '') IS NOT NULL THEN NULLIF(i.position, '')::integer ELSE NULL END,
             'attribution_texts', i.attribution_texts,
             'inclusion_notes', i.notes,
             'clefs', i.clefs,
@@ -447,61 +447,25 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    // Debug logging
-    console.log('Query params before execution:', queryParams);
-    console.log('Query params types:', queryParams.map((p, i) => `${i}: ${typeof p} = ${p}`));
-    console.log('Final limit:', finalLimit, 'Final offset:', finalOffset);
-    console.log('Search query length:', searchQuery.length);
-    console.log('Count query:', countQuery);
-    
-    try {
-      const [countResult, searchResult] = await Promise.all([
-        pool.query(countQuery, queryParams.slice(0, -2)),
-        pool.query(searchQuery, queryParams)
-      ]);
-      
-      // Clear debug logs on success
-      console.log('Query executed successfully');
-      
-      const total = parseInt(countResult.rows[0].total);
-      const totalPages = Math.ceil(total / parseInt(limit));
+        const [countResult, searchResult] = await Promise.all([
+      pool.query(countQuery, queryParams.slice(0, -2)),
+      pool.query(searchQuery, queryParams)
+    ]);
 
-      res.json({
-        groups: searchResult.rows,
-        pagination: {
-          total,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages,
-          hasNextPage: parseInt(page) < totalPages,
-          hasPrevPage: parseInt(page) > 1
-        }
-      });
-      
-    } catch (queryError) {
-      console.error('Specific query error details:');
-      console.error('Error message:', queryError.message);
-      console.error('Error position:', queryError.position);
-      console.error('Error code:', queryError.code);
-      console.error('Query params at error:', queryParams);
-      
-      // Try to figure out what parameter is at the error position
-      let charCount = 0;
-      let paramCount = 0;
-      for (let i = 0; i < searchQuery.length; i++) {
-        if (searchQuery.charAt(i) === '$') {
-          paramCount++;
-          console.log(`Parameter $${paramCount} starts at position ${charCount + 1}`);
-        }
-        charCount++;
-        if (charCount >= parseInt(queryError.position)) {
-          console.log(`Error position ${queryError.position} is around parameter context:`, searchQuery.substring(Math.max(0, i-50), i+50));
-          break;
-        }
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    res.json({
+      groups: searchResult.rows,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
       }
-      
-             throw queryError;
-     }
+    });
 
   } catch (error) {
     console.error('Error in public groups search:', error);
