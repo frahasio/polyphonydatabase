@@ -48,14 +48,7 @@ router.get('/groups', async (req, res) => {
 
     let whereConditions = [];
     let queryParams = [];
-    let paramIndex = 1;
-
-    // Debug logging input parameters
-    console.log('Input params:', {
-      title, composers, voices, functions, composition_types, 
-      tones, even_odd, voicing, languages, countries, sources, 
-      publishers, cities, has_editions, has_recordings, page, page_size
-    });
+        let paramIndex = 1;
 
     // Title search - search both group display_title AND composition titles
     if (title.trim()) {
@@ -294,9 +287,9 @@ router.get('/groups', async (req, res) => {
           WITH group_composers AS (
             SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year
             FROM compositions c
-            JOIN unnest(c.composer_id_list) AS composer_id ON true
+            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id
+            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
           )
           SELECT 
             CASE 
@@ -310,9 +303,9 @@ router.get('/groups', async (req, res) => {
             SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year, 
                    comp.from_year_annotation, comp.to_year_annotation
             FROM compositions c
-            JOIN unnest(c.composer_id_list) AS composer_id ON true
+            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id
+            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
           )
           SELECT 
             CASE 
@@ -452,20 +445,7 @@ router.get('/groups', async (req, res) => {
     const finalLimit = parseInt(limit) || 25;
     const finalOffset = parseInt(offset) || 0;
     
-    queryParams.push(finalLimit, finalOffset);
-
-    // Debug logging
-    console.log('Final query params:', queryParams);
-    console.log('paramIndex:', paramIndex);
-    console.log('limit:', finalLimit, 'offset:', finalOffset);
-    console.log('searchQuery length:', searchQuery.length);
-    
-    // Check for any empty string or NaN values in queryParams
-    queryParams.forEach((param, index) => {
-      if (param === '' || param === null || param === undefined || (typeof param === 'number' && isNaN(param))) {
-        console.error(`Invalid param at index ${index}:`, param);
-      }
-    });
+        queryParams.push(finalLimit, finalOffset);
 
     const [countResult, searchResult] = await Promise.all([
       pool.query(countQuery, queryParams.slice(0, -2)),

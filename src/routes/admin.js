@@ -173,47 +173,71 @@ router.get('/recent-activity', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     
-    // Get recent sources added/updated
+    // Get recent sources (check both created_at and updated_at)
     const recentSources = await pool.query(`
-      SELECT 'source' as type, id, code as title, created_at, updated_at
+      SELECT 'source' as type, id, 
+             COALESCE(code, 'Untitled Source') as title, 
+             COALESCE(created_at, updated_at, NOW()) as created_at, 
+             updated_at
       FROM sources 
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      ORDER BY created_at DESC
+      WHERE (created_at >= NOW() - INTERVAL '30 days' 
+             OR updated_at >= NOW() - INTERVAL '30 days'
+             OR (created_at IS NULL AND updated_at IS NULL))
+      ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
       LIMIT $1
     `, [Math.floor(limit / 4)]);
 
-    // Get recent editions added
+    // Get recent editions
     const recentEditions = await pool.query(`
       SELECT 'edition' as type, e.id, 
-             CONCAT(ed.name, ' - ', g.display_title) as title,
-             e.created_at, e.updated_at
+             COALESCE(
+               CONCAT(ed.name, ' - ', g.display_title),
+               CONCAT('Edition - ', g.display_title),
+               'Edition'
+             ) as title,
+             COALESCE(e.created_at, e.updated_at, NOW()) as created_at, 
+             e.updated_at
       FROM editions e
       LEFT JOIN editors ed ON e.editor_id = ed.id
       LEFT JOIN groups g ON e.group_id = g.id
-      WHERE e.created_at >= NOW() - INTERVAL '30 days'
-      ORDER BY e.created_at DESC
+      WHERE (e.created_at >= NOW() - INTERVAL '30 days' 
+             OR e.updated_at >= NOW() - INTERVAL '30 days'
+             OR (e.created_at IS NULL AND e.updated_at IS NULL))
+      ORDER BY COALESCE(e.updated_at, e.created_at, NOW()) DESC
       LIMIT $1
     `, [Math.floor(limit / 4)]);
 
-    // Get recent recordings added
+    // Get recent recordings
     const recentRecordings = await pool.query(`
       SELECT 'recording' as type, r.id,
-             CONCAT(p.name, ' - ', g.display_title) as title,
-             r.created_at, r.updated_at
+             COALESCE(
+               CONCAT(p.name, ' - ', g.display_title),
+               CONCAT('Recording - ', g.display_title),
+               'Recording'
+             ) as title,
+             COALESCE(r.created_at, r.updated_at, NOW()) as created_at, 
+             r.updated_at
       FROM recordings r
       LEFT JOIN performers p ON r.performer_id = p.id
       LEFT JOIN groups g ON r.group_id = g.id
-      WHERE r.created_at >= NOW() - INTERVAL '30 days'
-      ORDER BY r.created_at DESC
+      WHERE (r.created_at >= NOW() - INTERVAL '30 days' 
+             OR r.updated_at >= NOW() - INTERVAL '30 days'
+             OR (r.created_at IS NULL AND r.updated_at IS NULL))
+      ORDER BY COALESCE(r.updated_at, r.created_at, NOW()) DESC
       LIMIT $1
     `, [Math.floor(limit / 4)]);
 
-    // Get recent groups created/updated
+    // Get recent groups
     const recentGroups = await pool.query(`
-      SELECT 'group' as type, id, display_title as title, created_at, updated_at
+      SELECT 'group' as type, id, 
+             COALESCE(display_title, 'Untitled Group') as title, 
+             COALESCE(created_at, updated_at, NOW()) as created_at, 
+             updated_at
       FROM groups
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      ORDER BY created_at DESC
+      WHERE (created_at >= NOW() - INTERVAL '30 days' 
+             OR updated_at >= NOW() - INTERVAL '30 days'
+             OR (created_at IS NULL AND updated_at IS NULL))
+      ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
       LIMIT $1
     `, [Math.floor(limit / 4)]);
 
