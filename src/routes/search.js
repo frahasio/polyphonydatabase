@@ -289,7 +289,7 @@ router.get('/groups', async (req, res) => {
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
+            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL AND composer_id IS NOT NULL
           )
           SELECT 
             CASE 
@@ -305,7 +305,7 @@ router.get('/groups', async (req, res) => {
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
+            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL AND composer_id IS NOT NULL
           )
           SELECT 
             CASE 
