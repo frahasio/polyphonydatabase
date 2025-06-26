@@ -48,7 +48,7 @@ export const requireAuthWeb = async (req, res, next) => {
     const token = req.session?.token;
     
     if (!token) {
-      return res.redirect('/login.html');
+      return res.redirect('/admin/login');
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -56,14 +56,14 @@ export const requireAuthWeb = async (req, res, next) => {
     
     if (!user || user.status !== 'approved') {
       req.session.destroy();
-      return res.redirect('/login.html');
+      return res.redirect('/admin/login');
     }
 
     req.user = user;
     next();
   } catch (error) {
     req.session.destroy();
-    return res.redirect('/login.html');
+    return res.redirect('/admin/login');
   }
 };
 

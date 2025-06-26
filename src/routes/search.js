@@ -620,12 +620,8 @@ router.get('/tones', async (req, res) => {
       SELECT DISTINCT tone
       FROM compositions
       WHERE tone IS NOT NULL 
-      AND tone != '' 
       AND tone != '0'
-      AND LENGTH(trim(tone)) > 0
-      AND (tone ~ '^[1-9][0-9]*$' OR tone ~ '^[a-zA-Z]+$')
       ORDER BY 
-        CASE WHEN tone ~ '^[0-9]+$' THEN tone::integer ELSE 999 END,
         tone
     `;
     const result = await pool.query(query);

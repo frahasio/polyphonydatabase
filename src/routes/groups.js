@@ -23,7 +23,7 @@ router.post('/merge', async (req, res) => {
         // Verify groups exist and check compatibility
         const groupsResult = await client.query(`
             SELECT g.id, 
-                   COUNT(DISTINCT c.voices) as voice_variations,
+                   COUNT(DISTINCT c.number_of_voices) as voice_variations,
                    COUNT(DISTINCT c.composition_type_id) as type_variations,
                    COUNT(DISTINCT c.tone) as tone_variations,
                    COUNT(DISTINCT c.even_odd) as even_odd_variations
@@ -40,7 +40,7 @@ router.post('/merge', async (req, res) => {
 
         // Check if groups are compatible (all compositions must have same properties)
         const compatibilityCheck = await client.query(`
-            SELECT COUNT(DISTINCT c.voices) as voice_variations,
+            SELECT COUNT(DISTINCT c.number_of_voices) as voice_variations,
                    COUNT(DISTINCT c.composition_type_id) as type_variations,
                    COUNT(DISTINCT c.tone) as tone_variations,
                    COUNT(DISTINCT c.even_odd) as even_odd_variations
@@ -198,11 +198,15 @@ router.get('/:id', async (req, res) => {
 
         // Get compositions in this group
         const compositionsResult = await pool.query(`
-            SELECT c.id, t.text as title, comp.name as composer, c.voices,
-                   ct.name as composition_type, c.tone, c.even_odd
+            SELECT c.id, t.text as title, c.number_of_voices,
+                   ct.name as composition_type, c.tone, c.even_odd,
+                   (
+                     SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
+                     FROM composers comp
+                     WHERE comp.id = ANY(c.composer_id_list)
+                   ) as composer
             FROM compositions c
             LEFT JOIN titles t ON c.title_id = t.id
-            LEFT JOIN composers comp ON c.composer_id = comp.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
             WHERE c.group_id = $1
             ORDER BY t.text
@@ -230,8 +234,9 @@ router.get('/:id', async (req, res) => {
         const functionsResult = await pool.query(`
             SELECT DISTINCT f.name
             FROM functions f
-            JOIN composition_functions cf ON cf.function_id = f.id
-            JOIN compositions c ON c.id = cf.composition_id
+            JOIN functions_titles ft ON f.id = ft.function_id
+            JOIN titles t ON ft.title_id = t.id
+            JOIN compositions c ON c.title_id = t.id
             WHERE c.group_id = $1
             ORDER BY f.name
         `, [groupId]);
@@ -279,13 +284,13 @@ router.get('/', async (req, res) => {
 
         if (composer) {
             paramCount++;
-            conditions.push(`c.composer_id = $${paramCount}`);
+            conditions.push(`$${paramCount} = ANY(c.composer_id_list)`);
             params.push(parseInt(composer));
         }
 
         if (voices) {
             paramCount++;
-            conditions.push(`c.voices = $${paramCount}`);
+            conditions.push(`c.number_of_voices = $${paramCount}`);
             params.push(parseInt(voices));
         }
 
@@ -309,18 +314,25 @@ router.get('/', async (req, res) => {
                 COUNT(DISTINCT c.id) as composition_count,
                 COUNT(DISTINCT e.id) as edition_count,
                 COUNT(DISTINCT r.id) as recording_count,
-                c.voices,
+                c.number_of_voices,
                 ct.name as composition_type,
-                -- Simplified composer logic for admin view
-                STRING_AGG(DISTINCT comp.name, ', ') as composers
+                -- Simplified composer logic for admin view using subquery
+                (
+                  SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
+                  FROM composers comp
+                  WHERE comp.id = ANY(
+                    SELECT DISTINCT unnest(c2.composer_id_list)
+                    FROM compositions c2
+                    WHERE c2.group_id = g.id
+                  )
+                ) as composers
             FROM groups g
             JOIN compositions c ON c.group_id = g.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
-            LEFT JOIN composers comp ON c.composer_id = comp.id
             LEFT JOIN editions e ON e.group_id = g.id
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
-            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.voices, ct.name
+            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name
             ORDER BY g.updated_at DESC
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;
@@ -333,7 +345,6 @@ router.get('/', async (req, res) => {
             FROM groups g
             JOIN compositions c ON c.group_id = g.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
-            LEFT JOIN composers comp ON c.composer_id = comp.id
             LEFT JOIN editions e ON e.group_id = g.id
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
@@ -399,6 +410,144 @@ router.delete('/recordings/:id', async (req, res) => {
     } catch (error) {
         console.error('Delete recording error:', error);
         res.status(500).json({ error: 'Failed to remove recording' });
+    }
+});
+
+// POST /api/admin/groups/:groupId/remove-composition - Remove composition from group (splits group)
+router.post('/:groupId/remove-composition', async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+        const groupId = parseInt(req.params.groupId);
+        const { compositionId, newGroupTitle } = req.body;
+
+        if (!compositionId) {
+            return res.status(400).json({ error: 'Composition ID is required' });
+        }
+
+        await client.query('BEGIN');
+
+        // Verify composition exists and belongs to this group
+        const compositionCheck = await client.query(`
+            SELECT c.id, t.text as title
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            WHERE c.id = $1 AND c.group_id = $2
+        `, [compositionId, groupId]);
+
+        if (compositionCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Composition not found in this group' });
+        }
+
+        const composition = compositionCheck.rows[0];
+
+        // Check if this is the only composition in the group
+        const compositionCountResult = await client.query(`
+            SELECT COUNT(*) as count
+            FROM compositions
+            WHERE group_id = $1
+        `, [groupId]);
+
+        const compositionCount = parseInt(compositionCountResult.rows[0].count);
+
+        if (compositionCount <= 1) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Cannot remove the only composition from a group' });
+        }
+
+        // Create new group for the removed composition
+        const newGroupTitleToUse = newGroupTitle?.trim() || composition.title || 'Untitled Group';
+        
+        const newGroupResult = await client.query(`
+            INSERT INTO groups (display_title) 
+            VALUES ($1) 
+            RETURNING id
+        `, [newGroupTitleToUse]);
+
+        const newGroupId = newGroupResult.rows[0].id;
+
+        // Move composition to new group
+        await client.query(`
+            UPDATE compositions 
+            SET group_id = $1 
+            WHERE id = $2
+        `, [newGroupId, compositionId]);
+
+        // Move any editions that might be specifically for this composition
+        // (In practice, editions are usually at group level, but this handles edge cases)
+        await client.query(`
+            UPDATE editions 
+            SET group_id = $1 
+            WHERE group_id = $2 
+            AND (voicing IS NULL OR voicing = '')
+        `, [newGroupId, groupId]);
+
+        // Move any recordings that might be specifically for this composition  
+        await client.query(`
+            UPDATE recordings 
+            SET group_id = $1 
+            WHERE group_id = $2
+            AND id IN (
+                SELECT r.id FROM recordings r
+                WHERE r.group_id = $2
+                LIMIT 1
+            )
+        `, [newGroupId, groupId]);
+
+        await client.query('COMMIT');
+
+        res.json({ 
+            success: true, 
+            newGroupId: newGroupId,
+            newGroupTitle: newGroupTitleToUse,
+            message: `Composition "${composition.title}" moved to new group "${newGroupTitleToUse}"` 
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Remove composition error:', error);
+        res.status(500).json({ error: 'Failed to remove composition from group' });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /api/admin/groups/:id/compositions - Get compositions for group splitting
+router.get('/:id/compositions', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.id);
+
+        const result = await pool.query(`
+            SELECT 
+                c.id,
+                t.text as title,
+                c.number_of_voices,
+                ct.name as composition_type,
+                c.tone,
+                c.even_odd,
+                (
+                  SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
+                  FROM composers comp
+                  WHERE comp.id = ANY(c.composer_id_list)
+                ) as composers,
+                (
+                  SELECT COUNT(*)
+                  FROM inclusions i
+                  WHERE i.composition_id = c.id
+                ) as inclusion_count
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            WHERE c.group_id = $1
+            ORDER BY t.text
+        `, [groupId]);
+
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error('Get group compositions error:', error);
+        res.status(500).json({ error: 'Failed to get group compositions' });
     }
 });
 
