@@ -311,14 +311,14 @@ router.get('/groups', async (req, res) => {
             CASE 
               WHEN COUNT(*) > 1 THEN NULL
               ELSE MAX(CASE 
-                WHEN from_year IS NOT NULL AND to_year IS NOT NULL 
+                WHEN NULLIF(from_year, '') IS NOT NULL AND NULLIF(to_year, '') IS NOT NULL 
                 THEN '(' || 
-                     COALESCE(from_year_annotation || ' ', '') || from_year || '–' || 
-                     COALESCE(to_year_annotation || ' ', '') || to_year || ')'
-                WHEN from_year IS NOT NULL 
-                THEN '(' || COALESCE(from_year_annotation || ' ', '') || from_year || '–)'
-                WHEN to_year IS NOT NULL 
-                THEN '(–' || COALESCE(to_year_annotation || ' ', '') || to_year || ')'
+                     COALESCE(from_year_annotation || ' ', '') || NULLIF(from_year, '') || '–' || 
+                     COALESCE(to_year_annotation || ' ', '') || NULLIF(to_year, '') || ')'
+                WHEN NULLIF(from_year, '') IS NOT NULL 
+                THEN '(' || COALESCE(from_year_annotation || ' ', '') || NULLIF(from_year, '') || '–)'
+                WHEN NULLIF(to_year, '') IS NOT NULL 
+                THEN '(–' || COALESCE(to_year_annotation || ' ', '') || NULLIF(to_year, '') || ')'
                 ELSE NULL
               END)
             END
@@ -469,18 +469,7 @@ router.get('/groups', async (req, res) => {
 
   } catch (error) {
     console.error('Error in public groups search:', error);
-    if (error.position) {
-      console.error('Error position:', error.position);
-      // Find context around the error position
-      let charCount = 0;
-      for (let i = 0; i < searchQuery.length; i++) {
-        charCount++;
-        if (charCount >= parseInt(error.position)) {
-          console.error(`Error position ${error.position} context:`, searchQuery.substring(Math.max(0, i-100), i+100));
-          break;
-        }
-      }
-    }
+    console.error('Error position:', error.position || 'N/A');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
