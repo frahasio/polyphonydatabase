@@ -425,10 +425,10 @@ router.get('/groups', async (req, res) => {
           ) scr ON s.id = scr.source_id
           LEFT JOIN (
             SELECT si.source_id, json_agg(json_build_object(
-              'id', CASE WHEN si.id IS NOT NULL AND si.id != '' THEN si.id::integer ELSE NULL END,
+              'id', si.id,
               'url', si.url,
               'label', si.label
-            ) ORDER BY CASE WHEN si.id IS NOT NULL AND si.id != '' THEN si.id::integer ELSE NULL END) as images
+            ) ORDER BY si.id) as images
             FROM source_images si
             GROUP BY si.source_id
           ) imgs ON s.id = imgs.source_id
@@ -447,27 +447,10 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    let countResult, searchResult;
-    try {
-      console.log('=== QUERY DEBUG INFO ===');
-      console.log('Query params:', queryParams);
-      console.log('Query params types:', queryParams.map(p => typeof p));
-      console.log('Search query first 500 chars:', searchQuery.substring(0, 500));
-      console.log('Search query last 500 chars:', searchQuery.substring(searchQuery.length - 500));
-      console.log('========================');
-      
-      [countResult, searchResult] = await Promise.all([
-        pool.query(countQuery, queryParams.slice(0, -2)),
-        pool.query(searchQuery, queryParams)
-      ]);
-    } catch (error) {
-      console.error('=== QUERY ERROR ===');
-      console.error('Error position:', error.position);
-      console.error('Query length:', searchQuery.length);
-      console.error('Error at approx char:', searchQuery.substring(parseInt(error.position) - 50, parseInt(error.position) + 50));
-      console.error('===================');
-      throw error;
-    }
+    const [countResult, searchResult] = await Promise.all([
+      pool.query(countQuery, queryParams.slice(0, -2)),
+      pool.query(searchQuery, queryParams)
+    ]);
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / parseInt(limit));
