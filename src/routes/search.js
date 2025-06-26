@@ -447,25 +447,61 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    const [countResult, searchResult] = await Promise.all([
-      pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(searchQuery, queryParams)
-    ]);
+    // Debug logging
+    console.log('Query params before execution:', queryParams);
+    console.log('Query params types:', queryParams.map((p, i) => `${i}: ${typeof p} = ${p}`));
+    console.log('Final limit:', finalLimit, 'Final offset:', finalOffset);
+    console.log('Search query length:', searchQuery.length);
+    console.log('Count query:', countQuery);
+    
+    try {
+      const [countResult, searchResult] = await Promise.all([
+        pool.query(countQuery, queryParams.slice(0, -2)),
+        pool.query(searchQuery, queryParams)
+      ]);
+      
+      // Clear debug logs on success
+      console.log('Query executed successfully');
+      
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    const total = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(total / parseInt(limit));
-
-    res.json({
-      groups: searchResult.rows,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages,
-        hasNextPage: parseInt(page) < totalPages,
-        hasPrevPage: parseInt(page) > 1
+      res.json({
+        groups: searchResult.rows,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages,
+          hasNextPage: parseInt(page) < totalPages,
+          hasPrevPage: parseInt(page) > 1
+        }
+      });
+      
+    } catch (queryError) {
+      console.error('Specific query error details:');
+      console.error('Error message:', queryError.message);
+      console.error('Error position:', queryError.position);
+      console.error('Error code:', queryError.code);
+      console.error('Query params at error:', queryParams);
+      
+      // Try to figure out what parameter is at the error position
+      let charCount = 0;
+      let paramCount = 0;
+      for (let i = 0; i < searchQuery.length; i++) {
+        if (searchQuery.charAt(i) === '$') {
+          paramCount++;
+          console.log(`Parameter $${paramCount} starts at position ${charCount + 1}`);
+        }
+        charCount++;
+        if (charCount >= parseInt(queryError.position)) {
+          console.log(`Error position ${queryError.position} is around parameter context:`, searchQuery.substring(Math.max(0, i-50), i+50));
+          break;
+        }
       }
-    });
+      
+             throw queryError;
+     }
 
   } catch (error) {
     console.error('Error in public groups search:', error);
