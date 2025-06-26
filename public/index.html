@@ -143,11 +143,11 @@
         }
         
         .clef-images img {
-            height: 24px;
+            height: 56px;
             width: auto;
             margin: 0;
             padding: 0;
-            display: block;
+            display: inline-block;
         }
         
         /* Minimal Select2 adjustments */
@@ -198,35 +198,47 @@
                     </div>
                 </div>
                 <div class="row g-3 mt-2">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="searchComposers" class="form-label">Composers</label>
                         <select class="form-select" id="searchComposers" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
                         <small class="text-muted">Select multiple options</small>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <label for="searchVoices" class="form-label">Voices</label>
                         <select class="form-select" id="searchVoices" multiple>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
-                            <option value="8">8</option>
-                            <option value="9">9</option>
-                            <option value="10">10</option>
+                            <!-- Options will be populated dynamically -->
                         </select>
                         <small class="text-muted">Select multiple</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="searchFunctions" class="form-label">Functions</label>
                         <select class="form-select" id="searchFunctions" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
                         <small class="text-muted">Select multiple</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchCompositionTypes" class="form-label">Types</label>
+                        <select class="form-select" id="searchCompositionTypes" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Composition types</small>
+                    </div>
+                    <div class="col-md-1">
+                        <label for="searchTones" class="form-label">Tones</label>
+                        <select class="form-select" id="searchTones" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Select multiple</small>
+                    </div>
+                    <div class="col-md-1">
+                        <label for="searchEvenOdd" class="form-label">Even/Odd</label>
+                        <select class="form-select" id="searchEvenOdd" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Verses</small>
                     </div>
                     <div class="col-md-2">
                         <label for="searchLanguages" class="form-label">Languages</label>
@@ -235,7 +247,7 @@
                         </select>
                         <small class="text-muted">Select multiple</small>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-1">
                         <label for="searchCountries" class="form-label">Countries</label>
                         <select class="form-select" id="searchCountries" multiple>
                             <!-- Options will be populated dynamically -->
@@ -265,12 +277,27 @@
                         </select>
                         <small class="text-muted">Cities of publication</small>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label for="searchVoicing" class="form-label">Dynamic Voicing</label>
+                        <select class="form-select" id="searchVoicing" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Select voice types</small>
+                        <div id="voicingMatches" class="mt-1" style="display: none;">
+                            <small class="text-info">
+                                <span id="voicingMatchCount">0</span> clef combinations found
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" onclick="showVoicingDetails()">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-1">
                         <div class="mb-2">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="hasEditions">
                                 <label class="form-check-label" for="hasEditions">
-                                    Has performing editions
+                                    Has editions
                                 </label>
                             </div>
                         </div>
@@ -366,7 +393,7 @@
             performSearch();
             
             // Initialize Select2 for multi-select elements
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').select2({
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
                 width: '100%'
@@ -377,8 +404,11 @@
             document.getElementById('hasEditions').addEventListener('change', debounceSearch);
             document.getElementById('hasRecordings').addEventListener('change', debounceSearch);
             
-            // Set up Select2 change listeners
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').on('change', debounceSearch);
+            // Set up Select2 change listeners  
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').on('change', debounceSearch);
+            
+            // Special handler for voicing to show dynamic matching
+            $('#searchVoicing').on('change', handleVoicingChange);
             
             document.getElementById('pageSize').addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -427,6 +457,10 @@
             const composers = getMultiSelectValues('searchComposers');
             const voices = getMultiSelectValues('searchVoices');
             const functions = getMultiSelectValues('searchFunctions');
+            const compositionTypes = getMultiSelectValues('searchCompositionTypes');
+            const tones = getMultiSelectValues('searchTones');
+            const evenOdd = getMultiSelectValues('searchEvenOdd');
+            const voicingClefs = getMultiSelectValues('searchVoicing');
             const languages = getMultiSelectValues('searchLanguages');
             const countries = getMultiSelectValues('searchCountries');
             const sources = getMultiSelectValues('searchSources');
@@ -439,6 +473,10 @@
             if (composers) params.set('composers', composers);
             if (voices) params.set('voices', voices);
             if (functions) params.set('functions', functions);
+            if (compositionTypes) params.set('composition_types', compositionTypes);
+            if (tones) params.set('tones', tones);
+            if (evenOdd) params.set('even_odd', evenOdd);
+            if (voicingClefs) params.set('voicing_clefs', voicingClefs);
             if (languages) params.set('languages', languages);
             if (countries) params.set('countries', countries);
             if (sources) params.set('sources', sources);
@@ -485,6 +523,48 @@
                         setSelectFromURL('searchFunctions', 'functions');
                     }
 
+                    // Load composition types
+                const compositionTypesResponse = await fetch('/api/search/composition-types');
+                if (compositionTypesResponse.ok) {
+                    const compositionTypes = await compositionTypesResponse.json();
+                    const compositionTypeSelect = document.getElementById('searchCompositionTypes');
+                    compositionTypes.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.id;
+                        option.textContent = type.name;
+                        compositionTypeSelect.appendChild(option);
+                    });
+                    setSelectFromURL('searchCompositionTypes', 'composition_types');
+                }
+
+                    // Load tones
+                const tonesResponse = await fetch('/api/search/tones');
+                if (tonesResponse.ok) {
+                    const tones = await tonesResponse.json();
+                    const toneSelect = document.getElementById('searchTones');
+                    tones.forEach(tone => {
+                        const option = document.createElement('option');
+                        option.value = tone.value;
+                        option.textContent = tone.name;
+                        toneSelect.appendChild(option);
+                    });
+                    setSelectFromURL('searchTones', 'tones');
+                }
+
+                    // Load even/odd values
+                const evenOddResponse = await fetch('/api/search/even-odd');
+                if (evenOddResponse.ok) {
+                    const evenOddValues = await evenOddResponse.json();
+                    const evenOddSelect = document.getElementById('searchEvenOdd');
+                    evenOddValues.forEach(eo => {
+                        const option = document.createElement('option');
+                        option.value = eo.value;
+                        option.textContent = eo.name;
+                        evenOddSelect.appendChild(option);
+                    });
+                    setSelectFromURL('searchEvenOdd', 'even_odd');
+                }
+
                     // Load languages
                 const languagesResponse = await fetch('/api/search/languages');
                 if (languagesResponse.ok) {
@@ -512,6 +592,22 @@
                         });
                         setSelectFromURL('searchCountries', 'countries');
                     }
+
+                    // Load voices
+                const voicesResponse = await fetch('/api/search/voices');
+                if (voicesResponse.ok) {
+                    const voices = await voicesResponse.json();
+                    const voiceSelect = document.getElementById('searchVoices');
+                    // Clear existing hardcoded options
+                    voiceSelect.innerHTML = '';
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.value;
+                        option.textContent = voice.name;
+                        voiceSelect.appendChild(option);
+                    });
+                    setSelectFromURL('searchVoices', 'voices');
+                }
 
                     // Load sources
                 const sourcesResponse = await fetch('/api/search/sources');
@@ -554,9 +650,21 @@
                         });
                         setSelectFromURL('searchCities', 'cities');
                     }
-                    
-                    // Set multi-select values for voices (no API call needed)
-                    setSelectFromURL('searchVoices', 'voices');
+
+                    // Load voicing options
+                const voicingResponse = await fetch('/api/search/voicing-options');
+                if (voicingResponse.ok) {
+                    const voiceTypes = await voicingResponse.json();
+                    const voicingSelect = document.getElementById('searchVoicing');
+                    voiceTypes.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.value;
+                        option.textContent = voice.name;
+                        voicingSelect.appendChild(option);
+                    });
+                    setSelectFromURL('searchVoicing', 'voicing');
+                }
+
                 } catch (error) {
                 console.error('Error loading filters:', error);
             }
@@ -585,6 +693,10 @@
                     composers: getMultiSelectValues('searchComposers'),
                     voices: getMultiSelectValues('searchVoices'),
                     functions: getMultiSelectValues('searchFunctions'),
+                    composition_types: getMultiSelectValues('searchCompositionTypes'),
+                    tones: getMultiSelectValues('searchTones'),
+                    even_odd: getMultiSelectValues('searchEvenOdd'),
+                    voicing_clefs: getMultiSelectValues('searchVoicing'),
                     languages: getMultiSelectValues('searchLanguages'),
                     countries: getMultiSelectValues('searchCountries'),
                     sources: getMultiSelectValues('searchSources'),
@@ -635,7 +747,7 @@
                             <div class="mt-1">
                                 <a href="${edition.file_url}" target="_blank" class="edition-link">
                                     <i class="bi bi-file-earmark-pdf me-1"></i>
-                                    ${edition.editor_name || 'Unknown Editor'} ${edition.voicing ? '(' + edition.voicing + ')' : ''}
+                                    ${edition.editor_name || 'Unknown Editor'} ${edition.voicing || ''}
                                 </a>
                             </div>
                         `).join('')}
@@ -655,64 +767,78 @@
                         ${(group.composer_names || []).join(', ')}
                     </td>
                     <td>
-                        ${(group.voice_counts || []).join(', ')}vv
+                        ${(group.voice_counts || []).join(', ')}
                     </td>
                     <td>
                         ${(group.sources || []).length > 0 ? `
                             ${(group.sources || []).map(source => `
                                 <div class="source-item">
                                     <div class="row">
-                                        <div class="col-md-8">
-                                            <strong>${source.code || ''}</strong>
-                                            ${source.title ? `<br><span class="text-muted">${source.title}</span>` : ''}
-                                            ${source.town || source.from_year || source.to_year ? `
-                                                <br><small>${[
-                                                    source.town,
-                                                    source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
-                                                    source.from_year ? `${source.from_year}` :
-                                                    source.to_year ? `${source.to_year}` : ''
-                                                ].filter(Boolean).join(', ')}</small>
-                                            ` : ''}
-                                            ${source.publishers && source.publishers.length > 0 ? `
-                                                <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
-                                            ` : ''}
-                                            ${source.scribes && source.scribes.length > 0 ? `
-                                                <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
-                                            ` : ''}
-                                            ${source.position ? `<br><small><strong>Position:</strong> ${source.position}</small>` : ''}
-                                            ${source.attribution_texts && source.attribution_texts.length > 0 ? `
-                                                <br><small><strong>Attribution:</strong> ${source.attribution_texts.join(', ')}</small>
-                                            ` : ''}
-                                            ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
-                                            ${source.rism_link ? `
-                                                <br><a href="${source.rism_link}" target="_blank" class="text-primary">
-                                                    <small><i class="bi bi-link-45deg"></i> RISM</small>
-                                                </a>
-                                            ` : ''}
+                                        <div class="col-md-7">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <strong>${source.code || ''}</strong>
+                                                    ${source.title ? `
+                                                        <br><span class="text-muted" ${source.title.length > 50 ? `title="${source.title}"` : ''}>
+                                                            ${source.title.length > 50 ? source.title.substring(0, 50) + '...' : source.title}
+                                                        </span>
+                                                    ` : ''}
+                                                    ${source.town || source.from_year || source.to_year ? `
+                                                        <br><small>${[
+                                                            source.town,
+                                                            source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
+                                                            source.from_year ? `${source.from_year}` :
+                                                            source.to_year ? `${source.to_year}` : ''
+                                                        ].filter(Boolean).join(', ')}</small>
+                                                    ` : ''}
+                                                    ${source.publishers && source.publishers.length > 0 ? `
+                                                        <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
+                                                    ` : ''}
+                                                    ${source.scribes && source.scribes.length > 0 ? `
+                                                        <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
+                                                    ` : ''}
+                                                    ${source.source_images && source.source_images.length > 0 ? `
+                                                        <br><small><strong>Images:</strong> 
+                                                        ${source.source_images.map(img => `
+                                                            <a href="${img.url}" target="_blank" class="text-primary" title="${img.label || 'View image'}">
+                                                                <i class="bi bi-image"></i> ${img.label || 'View'}
+                                                            </a>
+                                                        `).join(', ')}
+                                                        </small>
+                                                    ` : ''}
+                                                    ${source.rism_link ? `
+                                                        <br><a href="${source.rism_link}" target="_blank" class="text-primary">
+                                                            <small><i class="bi bi-link-45deg"></i> RISM</small>
+                                                        </a>
+                                                    ` : ''}
+                                                    ${source.source_notes ? `
+                                                        <br><small><strong>Source notes:</strong> ${source.source_notes}</small>
+                                                    ` : ''}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-5">
                                             ${source.clefs && source.clefs.length > 0 ? `
-                                                <div class="clef-images">
+                                                <div class="clef-images mb-2">
                                                     ${source.clefs.map(clef => {
                                                         if (clef.clef && clef.clef.trim()) {
                                                             const clefName = clef.clef.trim();
                                                             const clefImage = clef.transitions_to && clef.transitions_to.length > 0 ? 
-                                                                `${clefName}-${clef.transitions_to.join('-')}` : clefName;
+                                                                `${clefName}${clef.transitions_to.join('')}` : clefName;
                                                             return `<img src="/clef_images/${clefImage}.png" alt="${clefName}" onerror="this.style.display='none'">`;
                                                         }
                                                         return '';
                                                     }).join('')}
                                                 </div>
                                             ` : ''}
-                                            ${source.source_images && source.source_images.length > 0 ? `
-                                                <div class="mt-2">
-                                                    <small><strong>Images:</strong></small><br>
-                                                    ${source.source_images.map(img => `
-                                                        <a href="${img.url}" target="_blank" class="text-primary d-block">
-                                                            <small><i class="bi bi-image"></i> ${img.label || 'View'}</small>
-                                                        </a>
-                                                    `).join('')}
-                                                </div>
+                                            ${source.attribution_texts && source.attribution_texts.length > 0 ? `
+                                                <div><small><strong>Attribution:</strong> ${source.attribution_texts.join(', ')}</small></div>
+                                            ` : ''}
+                                            ${source.position ? `
+                                                <div><small><strong>Position:</strong> ${source.position}</small></div>
+                                            ` : ''}
+                                            ${source.inclusion_notes ? `
+                                                <div><small><strong>Inclusion notes:</strong> ${source.inclusion_notes}</small></div>
                                             ` : ''}
                                         </div>
                                     </div>
@@ -777,6 +903,72 @@
             currentPage = page;
             performSearch();
         }
+
+        // Dynamic voicing system functions
+        let currentVoicingMatches = [];
+
+        async function handleVoicingChange() {
+            const selectedVoices = $('#searchVoicing').val();
+            const voicingMatchesDiv = document.getElementById('voicingMatches');
+            const voicingMatchCount = document.getElementById('voicingMatchCount');
+
+            if (!selectedVoices || selectedVoices.length === 0) {
+                voicingMatchesDiv.style.display = 'none';
+                currentVoicingMatches = [];
+                debounceSearch();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/search/find-voicing-matches', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selectedVoices })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentVoicingMatches = data.clef_combinations || [];
+                    voicingMatchCount.textContent = currentVoicingMatches.length;
+                    voicingMatchesDiv.style.display = currentVoicingMatches.length > 0 ? 'block' : 'none';
+                    
+                    // Trigger search with new voicing matches
+                    debounceSearch();
+                } else {
+                    console.error('Error fetching voicing matches');
+                    voicingMatchesDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error in voicing matching:', error);
+                voicingMatchesDiv.style.display = 'none';
+            }
+        }
+
+        function showVoicingDetails() {
+            if (currentVoicingMatches.length === 0) return;
+
+            const details = currentVoicingMatches.map(match => 
+                `${match.clefs.join(', ')} ${match.has_optional ? '(with optional clefs)' : ''}`
+            ).join('\n');
+
+            alert(`Found clef combinations:\n\n${details}`);
+        }
+
+        // Override getMultiSelectValues to handle voicing specially
+        const originalGetMultiSelectValues = getMultiSelectValues;
+        getMultiSelectValues = function(selectId) {
+            if (selectId === 'searchVoicing') {
+                // Return the encoded clef combinations for voicing search
+                if (currentVoicingMatches.length > 0) {
+                    const clefCombos = currentVoicingMatches.map(match => match.clefs);
+                    return encodeURIComponent(JSON.stringify(clefCombos));
+                }
+                return '';
+            }
+            return originalGetMultiSelectValues(selectId);
+        };
 
 
     </script>

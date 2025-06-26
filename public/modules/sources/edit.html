@@ -319,6 +319,13 @@
                                 <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
                                 <label class="form-check-label" for="catalogued">Catalogued</label>
                             </div>
+                            
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Source Notes</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                          placeholder="General notes about this source..."></textarea>
+                                <small class="text-muted">Free text notes about the source as a whole</small>
+                            </div>
 
                                 <!-- Publishers -->
                                 <div class="mb-3">
@@ -547,6 +554,7 @@
             document.getElementById('town').value = sourceData.town || '';
             document.getElementById('rism_link').value = sourceData.rism_link || '';
             document.getElementById('catalogued').checked = sourceData.catalogued || false;
+            document.getElementById('notes').value = sourceData.notes || '';
             document.getElementById('from_year').value = sourceData.from_year || '';
             document.getElementById('to_year').value = sourceData.to_year || '';
             document.getElementById('from_year_annotation').value = sourceData.from_year_annotation || '';

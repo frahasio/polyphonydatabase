@@ -197,6 +197,7 @@ router.get('/:id', async (req, res) => {
         s.town,
         s.rism_link,
         s.catalogued,
+        s.notes,
         s.created_at,
         s.updated_at,
         s.from_year,
@@ -396,6 +397,7 @@ router.put('/:id', async (req, res) => {
       town, 
       rism_link, 
       catalogued,
+      notes,
       from_year,
       to_year,
       from_year_annotation,
@@ -406,14 +408,14 @@ router.put('/:id', async (req, res) => {
     const query = `
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
-          rism_link = $6, catalogued = $7, from_year = $8, to_year = $9,
-          from_year_annotation = $10, to_year_annotation = $11, updated_at = $12
-      WHERE id = $13
+          rism_link = $6, catalogued = $7, notes = $8, from_year = $9, to_year = $10,
+          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13
+      WHERE id = $14
       RETURNING *
     `;
 
     const result = await pool.query(query, [
-      code, title, type, format, town, rism_link, catalogued,
+      code, title, type, format, town, rism_link, catalogued, notes,
       from_year, to_year, from_year_annotation, to_year_annotation, now, id
     ]);
 
@@ -476,9 +478,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     const updateSourceQuery = `
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
-          rism_link = $6, catalogued = $7, from_year = $8, to_year = $9,
-          from_year_annotation = $10, to_year_annotation = $11, updated_at = $12
-      WHERE id = $13
+          rism_link = $6, catalogued = $7, notes = $8, from_year = $9, to_year = $10,
+          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13
+      WHERE id = $14
       RETURNING *
     `;
     
@@ -491,6 +493,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       source.town,
       source.rism_link, 
       source.catalogued,
+      source.notes || null,
       source.from_year || null,
       source.to_year || null,
       source.from_year_annotation || null,

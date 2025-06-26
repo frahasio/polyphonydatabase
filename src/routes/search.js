@@ -16,6 +16,10 @@ router.get('/groups', async (req, res) => {
       sources = '',
       publishers = '',
       cities = '',
+      composition_types = '',
+      tones = '',
+      even_odd = '',
+      voicing_clefs = '',
       has_editions = 'false',
       has_recordings = 'false',
       page = 1,
@@ -35,6 +39,10 @@ router.get('/groups', async (req, res) => {
     const sourceIds = sources ? sources.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const publisherIds = publishers ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const cityNames = cities ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
+    const compositionTypeIds = composition_types ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const toneValues = tones ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
+    const evenOddValues = even_odd ? even_odd.split(',').map(eo => eo.trim()).filter(eo => eo) : [];
+    const voicingClefCombinations = voicing_clefs ? JSON.parse(decodeURIComponent(voicing_clefs)) : [];
     const hasEditions = has_editions === 'true';
     const hasRecordings = has_recordings === 'true';
 
@@ -175,6 +183,60 @@ router.get('/groups', async (req, res) => {
       )`);
     }
 
+    // Composition types filter
+    if (compositionTypeIds.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        WHERE c2.group_id = g.id AND c2.composition_type_id = ANY($${paramIndex}::integer[])
+      )`);
+      queryParams.push(compositionTypeIds);
+      paramIndex++;
+    }
+
+    // Tones filter
+    if (toneValues.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
+      )`);
+      queryParams.push(toneValues);
+      paramIndex++;
+    }
+
+    // Even/Odd filter
+    if (evenOddValues.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        WHERE c2.group_id = g.id AND c2.even_odd = ANY($${paramIndex}::text[])
+      )`);
+      queryParams.push(evenOddValues);
+      paramIndex++;
+    }
+
+    // Voicing filter (dynamic clef combinations)
+    if (voicingClefCombinations.length > 0) {
+      const voicingConditions = voicingClefCombinations.map((clefCombo) => {
+        if (!Array.isArray(clefCombo)) return '';
+        
+        const condition = `EXISTS (
+          SELECT 1 FROM compositions c2
+          JOIN inclusions i ON c2.id = i.composition_id
+          WHERE c2.group_id = g.id 
+          AND i.clefs @> $${paramIndex}::jsonb
+        )`;
+        
+        // Convert clef array to the format expected in database
+        const clefObjects = clefCombo.map(clef => ({ clef: clef }));
+        queryParams.push(JSON.stringify(clefObjects));
+        paramIndex++;
+        return condition;
+      }).filter(c => c);
+      
+      if (voicingConditions.length > 0) {
+        whereConditions.push(`(${voicingConditions.join(' OR ')})`);
+      }
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Count query for pagination
@@ -274,9 +336,10 @@ router.get('/groups', async (req, res) => {
             'from_year', s.from_year,
             'to_year', s.to_year,
             'rism_link', s.rism_link,
+            'source_notes', s.notes,
             'position', i.position,
             'attribution_texts', i.attribution_texts,
-            'notes', i.notes,
+            'inclusion_notes', i.notes,
             'clefs', i.clefs,
             'publishers', COALESCE(pubs.publishers, '[]'::json),
             'scribes', COALESCE(scr.scribes, '[]'::json),
@@ -349,10 +412,15 @@ router.get('/groups', async (req, res) => {
 router.get('/composers', async (req, res) => {
   try {
     const query = `
-      SELECT id, name, from_year, to_year
-      FROM composers
-      WHERE name IS NOT NULL
-      ORDER BY name
+      SELECT DISTINCT c.id, c.name, c.from_year, c.to_year
+      FROM composers c
+      INNER JOIN (
+        SELECT DISTINCT unnest(composer_id_list) as composer_id
+        FROM compositions comp
+        INNER JOIN groups g ON comp.group_id = g.id
+      ) comp_composers ON c.id = comp_composers.composer_id
+      WHERE c.name IS NOT NULL
+      ORDER BY c.name
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -365,9 +433,13 @@ router.get('/composers', async (req, res) => {
 router.get('/functions', async (req, res) => {
   try {
     const query = `
-      SELECT id, name
-      FROM functions
-      ORDER BY name
+      SELECT DISTINCT f.id, f.name
+      FROM functions f
+      INNER JOIN functions_titles ft ON f.id = ft.function_id
+      INNER JOIN titles t ON ft.title_id = t.id
+      INNER JOIN compositions c ON t.id = c.title_id
+      INNER JOIN groups g ON c.group_id = g.id
+      ORDER BY f.name
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -380,9 +452,12 @@ router.get('/functions', async (req, res) => {
 router.get('/languages', async (req, res) => {
   try {
     const query = `
-      SELECT id, language as name
-      FROM languages
-      ORDER BY language
+      SELECT DISTINCT l.id, l.language as name
+      FROM languages l
+      INNER JOIN titles t ON l.id = t.language
+      INNER JOIN compositions c ON t.id = c.title_id
+      INNER JOIN groups g ON c.group_id = g.id
+      ORDER BY l.language
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -395,10 +470,15 @@ router.get('/languages', async (req, res) => {
 router.get('/countries', async (req, res) => {
   try {
     const query = `
-      SELECT DISTINCT birthplace_2 as name
-      FROM composers
-      WHERE birthplace_2 IS NOT NULL
-      ORDER BY birthplace_2
+      SELECT DISTINCT comp.birthplace_2 as name
+      FROM composers comp
+      INNER JOIN (
+        SELECT DISTINCT unnest(composer_id_list) as composer_id
+        FROM compositions c
+        INNER JOIN groups g ON c.group_id = g.id
+      ) comp_compositions ON comp.id = comp_compositions.composer_id
+      WHERE comp.birthplace_2 IS NOT NULL
+      ORDER BY comp.birthplace_2
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -413,7 +493,7 @@ router.get('/sources', async (req, res) => {
     const query = `
       SELECT id, code, title
       FROM sources
-      WHERE code IS NOT NULL
+      WHERE code IS NOT NULL AND catalogued = true
       ORDER BY code
     `;
     const result = await pool.query(query);
@@ -427,9 +507,12 @@ router.get('/sources', async (req, res) => {
 router.get('/publishers', async (req, res) => {
   try {
     const query = `
-      SELECT id, name
-      FROM publishers
-      ORDER BY name
+      SELECT DISTINCT p.id, p.name
+      FROM publishers p
+      INNER JOIN publishers_sources ps ON p.id = ps.publisher_id
+      INNER JOIN sources s ON ps.source_id = s.id
+      WHERE s.catalogued = true
+      ORDER BY p.name
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -442,15 +525,215 @@ router.get('/publishers', async (req, res) => {
 router.get('/cities', async (req, res) => {
   try {
     const query = `
-      SELECT DISTINCT town as name
-      FROM sources
-      WHERE town IS NOT NULL AND town != ''
-      ORDER BY town
+      SELECT DISTINCT s.town as name
+      FROM sources s
+      INNER JOIN inclusions i ON s.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
+      WHERE s.town IS NOT NULL AND s.town != '' AND s.catalogued = true
+      ORDER BY s.town
     `;
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching cities:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/voices', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT number_of_voices as voice_count
+      FROM compositions
+      WHERE number_of_voices IS NOT NULL
+      ORDER BY number_of_voices
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(row => ({ value: row.voice_count, name: row.voice_count.toString() })));
+  } catch (error) {
+    console.error('Error fetching voice counts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/composition-types', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT ct.id, ct.name
+      FROM composition_types ct
+      INNER JOIN compositions c ON ct.id = c.composition_type_id
+      INNER JOIN groups g ON c.group_id = g.id
+      ORDER BY ct.name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching composition types:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/tones', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT tone
+      FROM compositions
+      WHERE tone IS NOT NULL AND tone != ''
+      ORDER BY tone
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(row => ({ value: row.tone, name: row.tone })));
+  } catch (error) {
+    console.error('Error fetching tones:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/even-odd', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT even_odd
+      FROM compositions
+      WHERE even_odd IS NOT NULL AND even_odd != ''
+      ORDER BY even_odd
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(row => ({ value: row.even_odd, name: row.even_odd })));
+  } catch (error) {
+    console.error('Error fetching even/odd values:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Dynamic voicing system
+router.get('/voicing-options', async (req, res) => {
+  try {
+    // Return standard voice types for user selection
+    const voiceTypes = [
+      { value: 'S', name: 'Soprano', pitchOrder: 1 },
+      { value: 'Ms', name: 'Mezzo-soprano', pitchOrder: 2 },
+      { value: 'A', name: 'Alto', pitchOrder: 3 },
+      { value: 'T', name: 'Tenor', pitchOrder: 4 },
+      { value: 'BarT', name: 'Baritone', pitchOrder: 5 },
+      { value: 'B', name: 'Bass', pitchOrder: 6 }
+    ];
+    res.json(voiceTypes);
+  } catch (error) {
+    console.error('Error fetching voicing options:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/find-voicing-matches', async (req, res) => {
+  try {
+    const { selectedVoices } = req.body;
+    
+    if (!selectedVoices || !Array.isArray(selectedVoices) || selectedVoices.length === 0) {
+      return res.json({ clef_combinations: [] });
+    }
+
+    // Define clef pitch relationships (higher numbers = higher pitch)
+    const clefPitchOrder = {
+      'g1': 10, 'g2': 9, 'g3': 8, 'c1': 7, 'g4': 6, 'c2': 5, 'g5': 4, 'c3': 3, 
+      'f1': 2, 'g28': 1, 'c4': 0, 'f2': -1, 'c5': -2, 'd1': -3, 'f3': -4, 
+      'd2': -5, 'f4': -6, 'd3': -7, 'y1': -8, 'f5': -9, 'd4': -10, 'y2': -11,
+      'd5': -12, 'y3': -13, 'y4': -14, 'y5': -15, 'x1': -16, 'x2': -17, 
+      'x3': -18, 'x4': -19, 'x5': -20, 'org': -25, 'bc': -26, 'lut': -27
+    };
+
+    // Define voice type to preferred clef ranges
+    const voiceClefRanges = {
+      'S': { min: 6, max: 10, preferred: [7, 8] },     // c1, g3, g2, g1
+      'Ms': { min: 4, max: 8, preferred: [5, 6] },     // c2, g4, g3
+      'A': { min: 2, max: 6, preferred: [3, 4] },      // c3, g5, c2
+      'T': { min: -2, max: 2, preferred: [0, 1] },     // c4, f1, g28
+      'BarT': { min: -4, max: 0, preferred: [-1, -2] }, // f2, c5, c4
+      'B': { min: -9, max: -3, preferred: [-6, -4] }   // f4, f3, f5
+    };
+
+    // Get all unique clef combinations from database
+    const clefQuery = `
+      SELECT DISTINCT clefs, id
+      FROM inclusions
+      WHERE clefs IS NOT NULL AND jsonb_array_length(clefs) > 0
+    `;
+    
+    const clefResult = await pool.query(clefQuery);
+    const matchingCombinations = [];
+
+    for (const row of clefResult.rows) {
+      const clefs = row.clefs;
+      if (!Array.isArray(clefs)) continue;
+
+      // Filter out instrumental clefs and extract main clef names
+      const vocalClefs = clefs
+        .filter(c => c.clef && !['org', 'bc', 'lut'].includes(c.clef.trim()))
+        .map(c => ({
+          clef: c.clef.trim(),
+          optional: c.optional || false,
+          pitch: clefPitchOrder[c.clef.trim()] || 0
+        }))
+        .sort((a, b) => b.pitch - a.pitch); // Sort high to low pitch
+
+      if (vocalClefs.length !== selectedVoices.length) continue;
+
+      // Try to match the clef combination to selected voices
+      let isMatch = true;
+      const mappings = [];
+
+      for (let i = 0; i < selectedVoices.length; i++) {
+        const voice = selectedVoices[i];
+        const clef = vocalClefs[i];
+        const range = voiceClefRanges[voice];
+
+        if (!range || clef.pitch < range.min || clef.pitch > range.max) {
+          isMatch = false;
+          break;
+        }
+
+        // Check adjacent voice spacing (should be reasonable interval)
+        if (i > 0) {
+          const pitchDiff = Math.abs(vocalClefs[i-1].pitch - clef.pitch);
+          if (pitchDiff < 1 || pitchDiff > 4) { // Between unison and 4th
+            isMatch = false;
+            break;
+          }
+        }
+
+        mappings.push({ voice, clef: clef.clef, optional: clef.optional });
+      }
+
+      if (isMatch) {
+        // Create variations if there are optional clefs
+        const hasOptional = vocalClefs.some(c => c.optional);
+        const baseMapping = mappings.map(m => m.clef);
+        
+        matchingCombinations.push({
+          clefs: baseMapping,
+          mappings: mappings,
+          has_optional: hasOptional,
+          example_inclusion_id: row.id
+        });
+      }
+    }
+
+    // Remove duplicates and sort by commonality
+    const uniqueCombinations = matchingCombinations
+      .filter((combo, index, self) => 
+        index === self.findIndex(c => 
+          JSON.stringify(c.clefs.sort()) === JSON.stringify(combo.clefs.sort())
+        )
+      )
+      .slice(0, 20); // Limit results
+
+    res.json({ 
+      clef_combinations: uniqueCombinations,
+      total_found: uniqueCombinations.length 
+    });
+
+  } catch (error) {
+    console.error('Error finding voicing matches:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
