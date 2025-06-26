@@ -293,13 +293,21 @@ router.get('/groups', async (req, res) => {
         (
           SELECT array_agg(func_name ORDER BY func_name)
           FROM (
-            SELECT DISTINCT func.name as func_name
+            SELECT DISTINCT 
+              CASE 
+                WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                WHEN func.name IS NOT NULL THEN func.name
+                ELSE NULL
+              END as func_name
             FROM compositions c
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
             JOIN titles t ON c.title_id = t.id
-            JOIN functions_titles ft ON t.id = ft.title_id
-            JOIN functions func ON ft.function_id = func.id
-            WHERE c.group_id = g.id
+            LEFT JOIN functions_titles ft ON t.id = ft.title_id
+            LEFT JOIN functions func ON ft.function_id = func.id
+            WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
           ) funcs
+          WHERE func_name IS NOT NULL
         ) as function_names,
         -- Get editions for this group
         (
@@ -598,11 +606,19 @@ router.get('/even-odd', async (req, res) => {
     const query = `
       SELECT DISTINCT even_odd
       FROM compositions
-      WHERE even_odd IS NOT NULL AND even_odd != ''
+      WHERE even_odd IS NOT NULL
       ORDER BY even_odd
     `;
     const result = await pool.query(query);
-    res.json(result.rows.map(row => ({ value: row.even_odd, name: row.even_odd })));
+    const evenOddMapping = {
+      0: 'even',
+      1: 'odd', 
+      2: 'both'
+    };
+    res.json(result.rows.map(row => ({ 
+      value: row.even_odd, 
+      name: evenOddMapping[row.even_odd] || row.even_odd 
+    })));
   } catch (error) {
     console.error('Error fetching even/odd values:', error);
     res.status(500).json({ error: 'Internal server error' });

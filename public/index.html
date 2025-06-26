@@ -29,7 +29,7 @@
         
         .search-filters {
             background: white;
-            padding: 1.5rem;
+            padding: 1rem;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
             margin-bottom: 2rem;
@@ -40,6 +40,7 @@
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            width: 100%;
         }
         
         .table th {
@@ -140,6 +141,8 @@
             align-items: center;
             gap: 0;
             margin-top: 0.5rem;
+            flex-wrap: wrap;
+            max-width: 600px;
         }
         
         .clef-images img {
@@ -150,9 +153,41 @@
             display: inline-block;
         }
         
+        /* Clef styling for missing, incomplete, optional */
+        .clef-missing {
+            border: 2px solid #dc3545;
+            opacity: 0.7;
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        
+        .clef-incomplete {
+            border: 2px solid #28a745;
+            opacity: 0.7;
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+        
+        .clef-optional {
+            opacity: 0.5;
+        }
+        
+        .clef-multiple {
+            border: 2px solid #007bff;
+            background-color: rgba(0, 123, 255, 0.1);
+        }
+        
         /* Minimal Select2 adjustments */
         .select2-container {
             width: 100% !important;
+        }
+        
+        /* Full width table */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        .container-fluid {
+            max-width: none !important;
         }
     </style>
 </head>
@@ -191,14 +226,29 @@
                         
                         <p><strong>The best way to help fund the project is to commission performing editions. New editions can be made quickly for as little as £10.</strong></p>
                         
-                        <p><strong>2025 update:</strong> Francis has rewritten everything in Node.js with advanced search capabilities, dynamic voicing matching, and improved cataloguing tools to make this remarkable repertoire even more accessible to performers and researchers worldwide.</p>
+                        <p><strong>2025 update:</strong> Francis has rewritten everything in Node.js with new advanced search capabilities, dynamic voicing matching, and improved cataloguing tools.</p>
                         
                         <h6>Understanding the clef images</h6>
-                        <p><span class="text-danger">■</span> A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.</p>
-                        <p><span class="text-success">■</span> A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.</p>
-                        <p><span class="text-muted">■</span> A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.</p>
-                        <p><span class="text-primary">■</span> A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.</p>
-                        <p><strong>X</strong> clef is used as a placeholder for voices we know are necessary, but haven't yet worked out which!</p>
+                        <p>
+                            <img src="/clef_images/g2.png" alt="g2" class="clef-missing" style="height: 40px; width: auto; margin-right: 8px;">
+                            A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.
+                        </p>
+                        <p>
+                            <img src="/clef_images/c3.png" alt="c3" class="clef-incomplete" style="height: 40px; width: auto; margin-right: 8px;">
+                            A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.
+                        </p>
+                        <p>
+                            <img src="/clef_images/f3.png" alt="f3" class="clef-optional" style="height: 40px; width: auto; margin-right: 8px;">
+                            A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.
+                        </p>
+                        <p>
+                            <img src="/clef_images/c1c2.png" alt="c1c2" class="clef-multiple" style="height: 40px; width: auto; margin-right: 8px;">
+                            A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.
+                        </p>
+                        <p>
+                            <img src="/clef_images/x1.png" alt="x1" style="height: 40px; width: auto; margin-right: 8px;">
+                            <strong>X</strong> clef is used as a placeholder for voices we know are necessary, but haven't yet worked out which!
+                        </p>
                     </div>
                 </div>
             </div>
@@ -214,104 +264,67 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container-fluid px-3">
         <!-- Search Filters -->
         <div class="search-filters">
             <form id="searchForm">
-                                        <div class="row g-3">
-                    <div class="col-md-12">
-                        <label for="searchTitle" class="form-label">Title Search</label>
-                        <input type="text" class="form-control" id="searchTitle" 
+                                        <div class="row g-2">
+                    <div class="col-12">
+                        <label for="searchTitle" class="form-label fw-bold">Title Search</label>
+                        <input type="text" class="form-control form-control-sm" id="searchTitle" 
                                placeholder="Search in group titles and composition titles...">
-                        <small class="text-muted">Searches both group display titles and individual composition titles</small>
                     </div>
                 </div>
-                <div class="row g-3 mt-2">
-                    <div class="col-md-2">
-                        <label for="searchComposers" class="form-label">Composers</label>
-                        <select class="form-select" id="searchComposers" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple options</small>
-                    </div>
-                    <div class="col-md-1">
-                        <label for="searchVoices" class="form-label">Voices</label>
-                        <select class="form-select" id="searchVoices" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple</small>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-3">
+                        <label for="searchComposers" class="form-label small">Composers</label>
+                        <select class="form-select form-select-sm" id="searchComposers" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label for="searchFunctions" class="form-label">Functions</label>
-                        <select class="form-select" id="searchFunctions" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple</small>
+                        <label for="searchFunctions" class="form-label small">Functions</label>
+                        <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label for="searchCompositionTypes" class="form-label">Types</label>
-                        <select class="form-select" id="searchCompositionTypes" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Composition types</small>
+                        <label for="searchCompositionTypes" class="form-label small">Types</label>
+                        <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
                     </div>
                     <div class="col-md-1">
-                        <label for="searchTones" class="form-label">Tones</label>
-                        <select class="form-select" id="searchTones" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple</small>
+                        <label for="searchVoices" class="form-label small">Voices</label>
+                        <select class="form-select form-select-sm" id="searchVoices" multiple></select>
                     </div>
                     <div class="col-md-1">
-                        <label for="searchEvenOdd" class="form-label">Even/Odd</label>
-                        <select class="form-select" id="searchEvenOdd" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Verses</small>
+                        <label for="searchTones" class="form-label small">Tones</label>
+                        <select class="form-select form-select-sm" id="searchTones" multiple></select>
+                    </div>
+                    <div class="col-md-1">
+                        <label for="searchEvenOdd" class="form-label small">Even/Odd</label>
+                        <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label for="searchLanguages" class="form-label">Languages</label>
-                        <select class="form-select" id="searchLanguages" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple</small>
-                    </div>
-                    <div class="col-md-1">
-                        <label for="searchCountries" class="form-label">Countries</label>
-                        <select class="form-select" id="searchCountries" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Birth countries</small>
+                        <label for="searchLanguages" class="form-label small">Languages</label>
+                        <select class="form-select form-select-sm" id="searchLanguages" multiple></select>
                     </div>
                 </div>
-                <div class="row g-3 mt-2">
-                    <div class="col-md-3">
-                        <label for="searchSources" class="form-label">Sources</label>
-                        <select class="form-select" id="searchSources" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Filter by specific sources</small>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="searchPublishers" class="form-label">Publishers</label>
-                        <select class="form-select" id="searchPublishers" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select multiple</small>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="searchCities" class="form-label">Publication Cities</label>
-                        <select class="form-select" id="searchCities" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Cities of publication</small>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-2">
+                        <label for="searchCountries" class="form-label small">Countries</label>
+                        <select class="form-select form-select-sm" id="searchCountries" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label for="searchVoicing" class="form-label">Dynamic Voicing</label>
-                        <select class="form-select" id="searchVoicing" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <small class="text-muted">Select voice types</small>
+                        <label for="searchSources" class="form-label small">Sources</label>
+                        <select class="form-select form-select-sm" id="searchSources" multiple></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchPublishers" class="form-label small">Publishers</label>
+                        <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchCities" class="form-label small">Cities</label>
+                        <select class="form-select form-select-sm" id="searchCities" multiple></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchVoicing" class="form-label small">Dynamic Voicing</label>
+                        <select class="form-select form-select-sm" id="searchVoicing" multiple></select>
                         <div id="voicingMatches" class="mt-1" style="display: none;">
                             <small class="text-info">
                                 <span id="voicingMatchCount">0</span> clef combinations found
@@ -321,22 +334,15 @@
                             </small>
                         </div>
                     </div>
-                    <div class="col-md-1">
-                        <div class="mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="hasEditions">
-                                <label class="form-check-label" for="hasEditions">
-                                    Has editions
-                                </label>
-                            </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Filters</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasEditions">
+                            <label class="form-check-label small" for="hasEditions">Has editions</label>
                         </div>
-                        <div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="hasRecordings">
-                                <label class="form-check-label" for="hasRecordings">
-                                    Has recordings
-                                </label>
-                            </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasRecordings">
+                            <label class="form-check-label small" for="hasRecordings">Has recordings</label>
                         </div>
                     </div>
                 </div>
@@ -854,7 +860,15 @@
                                                             const clefName = clef.clef.trim();
                                                             const clefImage = clef.transitions_to && clef.transitions_to.length > 0 ? 
                                                                 `${clefName}${clef.transitions_to.join('')}` : clefName;
-                                                            return `<img src="/clef_images/${clefImage}.png" alt="${clefName}" onerror="this.style.display='none'">`;
+                                                            
+                                                            // Determine clef styling classes
+                                                            let clefClasses = '';
+                                                            if (clef.missing) clefClasses += 'clef-missing ';
+                                                            if (clef.incomplete) clefClasses += 'clef-incomplete ';
+                                                            if (clef.optional) clefClasses += 'clef-optional ';
+                                                            if (clef.transitions_to && clef.transitions_to.length > 0) clefClasses += 'clef-multiple ';
+                                                            
+                                                            return `<img src="/clef_images/${clefImage}.png" alt="${clefName}" class="${clefClasses.trim()}" onerror="this.style.display='none'">`;
                                                         }
                                                         return '';
                                                     }).join('')}
