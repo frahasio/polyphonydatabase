@@ -238,12 +238,18 @@ router.get('/groups', async (req, res) => {
             .filter(combo => combo && combo.trim());
           
           if (targetClefCombinations.length > 0) {
-            // This uses the indexed column for extremely fast lookups
+            // Check against BOTH clef combination columns to handle optional clefs
+            // This matches inclusions where the target equals either:
+            // 1. Required clefs only (excluding optionals) 
+            // 2. All clefs including optionals
             const condition = `EXISTS (
               SELECT 1 FROM compositions c2
               JOIN inclusions i ON c2.id = i.composition_id
               WHERE c2.group_id = g.id 
-              AND i.sorted_clef_combination = ANY($${paramIndex + 1}::text[])
+              AND (
+                i.sorted_clef_combination_required = ANY($${paramIndex + 1}::text[])
+                OR i.sorted_clef_combination_all = ANY($${paramIndex + 1}::text[])
+              )
             )`;
             
             whereConditions.push(condition);
