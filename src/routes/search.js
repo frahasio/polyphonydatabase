@@ -50,6 +50,13 @@ router.get('/groups', async (req, res) => {
     let queryParams = [];
     let paramIndex = 1;
 
+    // Debug logging input parameters
+    console.log('Input params:', {
+      title, composers, voices, functions, composition_types, 
+      tones, even_odd, voicing, languages, countries, sources, 
+      publishers, cities, has_editions, has_recordings, page, page_size
+    });
+
     // Title search - search both group display_title AND composition titles
     if (title.trim()) {
       whereConditions.push(`(
@@ -441,7 +448,24 @@ router.get('/groups', async (req, res) => {
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    queryParams.push(parseInt(limit), offset);
+    // Ensure limit and offset are valid integers
+    const finalLimit = parseInt(limit) || 25;
+    const finalOffset = parseInt(offset) || 0;
+    
+    queryParams.push(finalLimit, finalOffset);
+
+    // Debug logging
+    console.log('Final query params:', queryParams);
+    console.log('paramIndex:', paramIndex);
+    console.log('limit:', finalLimit, 'offset:', finalOffset);
+    console.log('searchQuery length:', searchQuery.length);
+    
+    // Check for any empty string or NaN values in queryParams
+    queryParams.forEach((param, index) => {
+      if (param === '' || param === null || param === undefined || (typeof param === 'number' && isNaN(param))) {
+        console.error(`Invalid param at index ${index}:`, param);
+      }
+    });
 
     const [countResult, searchResult] = await Promise.all([
       pool.query(countQuery, queryParams.slice(0, -2)),
