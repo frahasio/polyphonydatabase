@@ -232,47 +232,77 @@ router.get('/groups', async (req, res) => {
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
         
         if (voicingClefsResult.rows.length > 0) {
-          // Define clef display order for sorting (from schema reference)
-          const clefDisplayOrder = [
-            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
-          ];
+          // Use the new indexed sorted_clef_combination column for fast matching
+          const targetClefCombinations = voicingClefsResult.rows
+            .map(row => row.clef_combination)
+            .filter(combo => combo && combo.trim());
           
-          const voicingConditions = voicingClefsResult.rows.map((row) => {
-            // Skip invalid clef combinations
-            const targetClefCombination = row.clef_combination;
-            if (!targetClefCombination) return null;
-            
-            // Use PostgreSQL function to sort and compare clef combinations
+          if (targetClefCombinations.length > 0) {
+            // This uses the indexed column for extremely fast lookups
             const condition = `EXISTS (
               SELECT 1 FROM compositions c2
               JOIN inclusions i ON c2.id = i.composition_id
               WHERE c2.group_id = g.id 
-              AND i.clefs IS NOT NULL
-              AND (
-                -- Extract non-optional clefs, sort them, and compare to target combination
-                SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-                  CASE clef_obj->>'clef'
-                    ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
-                    ELSE 999
-                  END
-                )
-                FROM jsonb_array_elements(i.clefs) AS clef_obj
-                WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
-                AND clef_obj->>'clef' IS NOT NULL
-                AND clef_obj->>'clef' != ''
-              ) = '${targetClefCombination}'
+              AND i.sorted_clef_combination = ANY($${paramIndex + 1}::text[])
             )`;
             
-            return condition;
-          }).filter(condition => condition !== null);
-          
-          if (voicingConditions.length > 0) {
-            whereConditions.push(`(${voicingConditions.join(' OR ')})`);
+            whereConditions.push(condition);
+            queryParams.push(targetClefCombinations);
+            paramIndex += 2; // We used two parameters
           }
         }
       } catch (voicingError) {
         console.error('Voicing filter skipped (tables may not exist):', voicingError.message);
-        // Skip voicing filter if tables don't exist yet
+        // Fallback to old logic if new column doesn't exist yet
+        try {
+          const voicingClefsQuery = `
+            SELECT DISTINCT cc.clef_combination
+            FROM clef_combinations_voicings ccv
+            JOIN clef_combinations cc ON ccv.clef_combination_id = cc.id
+            WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
+          `;
+          
+          const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
+          
+          if (voicingClefsResult.rows.length > 0) {
+            // Define clef display order for sorting (fallback logic)
+            const clefDisplayOrder = [
+              'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+            ];
+            
+            const voicingConditions = voicingClefsResult.rows.map((row) => {
+              const targetClefCombination = row.clef_combination;
+              if (!targetClefCombination) return null;
+              
+              const condition = `EXISTS (
+                SELECT 1 FROM compositions c2
+                JOIN inclusions i ON c2.id = i.composition_id
+                WHERE c2.group_id = g.id 
+                AND i.clefs IS NOT NULL
+                AND (
+                  SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                    CASE clef_obj->>'clef'
+                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ELSE 999
+                    END
+                  )
+                  FROM jsonb_array_elements(i.clefs) AS clef_obj
+                  WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+                  AND clef_obj->>'clef' IS NOT NULL
+                  AND clef_obj->>'clef' != ''
+                ) = '${targetClefCombination}'
+              )`;
+              
+              return condition;
+            }).filter(condition => condition !== null);
+            
+            if (voicingConditions.length > 0) {
+              whereConditions.push(`(${voicingConditions.join(' OR ')})`);
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Voicing filter completely failed:', fallbackError.message);
+        }
       }
     }
 

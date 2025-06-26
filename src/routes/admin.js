@@ -76,8 +76,8 @@ router.post('/clef-voicing-mappings', async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO clef_combinations_voicings (clef_combination_id, voicing_id)
-      VALUES ($1, $2)
+      INSERT INTO clef_combinations_voicings (clef_combination_id, voicing_id, created_at, updated_at)
+      VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `;
     
     await pool.query(insertQuery, [clef_combination_id, voicing_id]);
