@@ -425,11 +425,12 @@ router.get('/groups', async (req, res) => {
           ) scr ON s.id = scr.source_id
           LEFT JOIN (
             SELECT si.source_id, json_agg(json_build_object(
-              'id', si.id,
+              'id', NULLIF(si.id, '')::integer,
               'url', si.url,
               'label', si.label
-            ) ORDER BY si.id) as images
+            ) ORDER BY NULLIF(si.id, '')::integer) as images
             FROM source_images si
+            WHERE si.id IS NOT NULL AND si.id != ''
             GROUP BY si.source_id
           ) imgs ON s.id = imgs.source_id
           WHERE comp.group_id = g.id
@@ -447,27 +448,10 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    try {
-      console.log('Running count query first...');
-      const countResult = await pool.query(countQuery, queryParams.slice(0, -2));
-      console.log('Count query successful, count:', countResult.rows[0]?.total);
-      
-      console.log('Running main search query...');
-      const searchResult = await pool.query(searchQuery, queryParams);
-      console.log('Search query successful, rows:', searchResult.rows.length);
-      
-      const results = [countResult, searchResult];
-    } catch (queryError) {
-      console.error('Query error details:', {
-        message: queryError.message,
-        position: queryError.position,
-        code: queryError.code,
-        queryParams: queryParams
-      });
-      throw queryError;
-    }
-    
-    const [countResult, searchResult] = results;
+    const [countResult, searchResult] = await Promise.all([
+      pool.query(countQuery, queryParams.slice(0, -2)),
+      pool.query(searchQuery, queryParams)
+    ]);
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / parseInt(limit));
