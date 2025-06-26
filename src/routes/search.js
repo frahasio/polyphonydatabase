@@ -221,6 +221,8 @@ router.get('/groups', async (req, res) => {
     // Voicing filter (database-driven clef combinations) - skip if tables don't exist
     if (voicingIds.length > 0) {
       try {
+        console.log('Voicing filter: trying fast path with new columns...');
+        
         // Get clef combinations associated with selected voicings
         const voicingClefsQuery = `
           SELECT DISTINCT cc.clef_combination
@@ -230,6 +232,7 @@ router.get('/groups', async (req, res) => {
         `;
         
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
+        console.log('Found clef combinations for voicings:', voicingClefsResult.rows.length);
         
         if (voicingClefsResult.rows.length > 0) {
           // Use the new indexed sorted_clef_combination column for fast matching
@@ -237,24 +240,33 @@ router.get('/groups', async (req, res) => {
             .map(row => row.clef_combination)
             .filter(combo => combo && combo.trim());
           
+          console.log('Target clef combinations:', targetClefCombinations);
+          
           if (targetClefCombinations.length > 0) {
-            // Check against BOTH clef combination columns to handle optional clefs
-            // This matches inclusions where the target equals either:
-            // 1. Required clefs only (excluding optionals) 
-            // 2. All clefs including optionals
-            const condition = `EXISTS (
-              SELECT 1 FROM compositions c2
-              JOIN inclusions i ON c2.id = i.composition_id
-              WHERE c2.group_id = g.id 
-              AND (
-                i.sorted_clef_combination_required = ANY($${paramIndex + 1}::text[])
-                OR i.sorted_clef_combination_all = ANY($${paramIndex + 1}::text[])
-              )
-            )`;
-            
-            whereConditions.push(condition);
-            queryParams.push(targetClefCombinations);
-            paramIndex++; // We only used one parameter (same array for both conditions)
+            // Test if the new columns exist with a simple query first
+            try {
+              await pool.query('SELECT sorted_clef_combination_required FROM inclusions LIMIT 1');
+              console.log('New columns exist, using fast path');
+              
+              // Use the fast indexed approach
+              const clefCombosParam = `$${paramIndex + 1}`;
+              const condition = `EXISTS (
+                SELECT 1 FROM compositions c2
+                JOIN inclusions i ON c2.id = i.composition_id
+                WHERE c2.group_id = g.id 
+                AND (
+                  i.sorted_clef_combination_required = ANY(${clefCombosParam}::text[])
+                  OR i.sorted_clef_combination_all = ANY(${clefCombosParam}::text[])
+                )
+              )`;
+              
+              whereConditions.push(condition);
+              queryParams.push(targetClefCombinations);
+              paramIndex++; // We only used one parameter (same array for both conditions)
+            } catch (columnError) {
+              console.log('New columns do not exist, falling back to old logic');
+              throw columnError; // This will trigger the fallback
+            }
           }
         }
               } catch (voicingError) {
@@ -665,6 +677,21 @@ router.get('/cities', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching cities:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/voicings', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, voicing as name
+      FROM voicings
+      ORDER BY voicing
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching voicings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
