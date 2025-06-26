@@ -447,10 +447,27 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    const [countResult, searchResult] = await Promise.all([
-      pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(searchQuery, queryParams)
-    ]);
+    let countResult, searchResult;
+    try {
+      console.log('=== QUERY DEBUG INFO ===');
+      console.log('Query params:', queryParams);
+      console.log('Query params types:', queryParams.map(p => typeof p));
+      console.log('Search query first 500 chars:', searchQuery.substring(0, 500));
+      console.log('Search query last 500 chars:', searchQuery.substring(searchQuery.length - 500));
+      console.log('========================');
+      
+      [countResult, searchResult] = await Promise.all([
+        pool.query(countQuery, queryParams.slice(0, -2)),
+        pool.query(searchQuery, queryParams)
+      ]);
+    } catch (error) {
+      console.error('=== QUERY ERROR ===');
+      console.error('Error position:', error.position);
+      console.error('Query length:', searchQuery.length);
+      console.error('Error at approx char:', searchQuery.substring(parseInt(error.position) - 50, parseInt(error.position) + 50));
+      console.error('===================');
+      throw error;
+    }
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / parseInt(limit));
