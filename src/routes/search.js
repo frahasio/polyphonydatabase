@@ -17,8 +17,10 @@ router.get('/groups', async (req, res) => {
       publishers = '',
       cities = '',
       page = 1,
-      limit = 20
+      page_size = 25
     } = req.query;
+
+    const limit = parseInt(page_size);
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
@@ -162,7 +164,7 @@ router.get('/groups', async (req, res) => {
       ${whereClause}
     `;
 
-    // Main search query
+    // Main search query with all related data
     const searchQuery = `
       SELECT 
         g.id,
@@ -171,56 +173,98 @@ router.get('/groups', async (req, res) => {
         g.updated_at,
         -- Get aggregated data from compositions in this group
         (
-          SELECT json_agg(comp_names.name ORDER BY comp_names.name) 
-          FROM (
-            SELECT DISTINCT comp.name
-            FROM compositions c
-            JOIN unnest(c.composer_id_list) AS composer_id ON true
-            JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id
-          ) comp_names
+          SELECT array_agg(DISTINCT comp.name ORDER BY comp.name) 
+          FROM compositions c
+          JOIN unnest(c.composer_id_list) AS composer_id ON true
+          JOIN composers comp ON comp.id = composer_id
+          WHERE c.group_id = g.id
         ) as composer_names,
         (
-          SELECT json_agg(comp_info.composer_info ORDER BY comp_info.composer_info->>'name')
-          FROM (
-            SELECT DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'name', comp.name,
-              'dates', CASE 
-                WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
-                THEN concat('(', comp.from_year, '–', comp.to_year, ')')
-                WHEN comp.from_year IS NOT NULL 
-                THEN concat('(', comp.from_year, '–)')
-                WHEN comp.to_year IS NOT NULL 
-                THEN concat('(–', comp.to_year, ')')
-                ELSE ''
-              END
-            ) as composer_info
-            FROM compositions c
-            JOIN unnest(c.composer_id_list) AS composer_id ON true
-            JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id
-          ) comp_info
+          SELECT array_agg(DISTINCT comp.name || CASE 
+            WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
+            THEN ' (' || comp.from_year || '–' || comp.to_year || ')'
+            WHEN comp.from_year IS NOT NULL 
+            THEN ' (' || comp.from_year || '–)'
+            WHEN comp.to_year IS NOT NULL 
+            THEN ' (–' || comp.to_year || ')'
+            ELSE ''
+          END ORDER BY comp.name)
+          FROM compositions c
+          JOIN unnest(c.composer_id_list) AS composer_id ON true
+          JOIN composers comp ON comp.id = composer_id
+          WHERE c.group_id = g.id
         ) as composers_with_dates,
         (
-          SELECT json_agg(voice_count ORDER BY voice_count)
-          FROM (
-            SELECT DISTINCT c.number_of_voices as voice_count
-            FROM compositions c
-            WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
-          ) voices
+          SELECT array_agg(DISTINCT c.number_of_voices ORDER BY c.number_of_voices)
+          FROM compositions c
+          WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
         ) as voice_counts,
         (
-          SELECT json_agg(func.name ORDER BY func.name)
-          FROM (
-            SELECT DISTINCT func.name
-            FROM compositions c
-            JOIN titles t ON c.title_id = t.id
-            JOIN functions_titles ft ON t.id = ft.title_id
-            JOIN functions func ON ft.function_id = func.id
-            WHERE c.group_id = g.id
-          ) func
-        ) as function_names
+          SELECT array_agg(DISTINCT func.name ORDER BY func.name)
+          FROM compositions c
+          JOIN titles t ON c.title_id = t.id
+          JOIN functions_titles ft ON t.id = ft.title_id
+          JOIN functions func ON ft.function_id = func.id
+          WHERE c.group_id = g.id
+        ) as function_names,
+        -- Get editions for this group
+        (
+          SELECT json_agg(json_build_object(
+            'id', e.id,
+            'editor_name', ed.name,
+            'voicing', e.voicing,
+            'file_url', e.file_url
+          ) ORDER BY ed.name)
+          FROM editions e
+          LEFT JOIN editors ed ON e.editor_id = ed.id
+          WHERE e.group_id = g.id
+        ) as editions,
+        -- Get recordings for this group
+        (
+          SELECT json_agg(json_build_object(
+            'id', r.id,
+            'performer_name', p.name,
+            'file_url', r.file_url
+          ) ORDER BY p.name)
+          FROM recordings r
+          LEFT JOIN performers p ON r.performer_id = p.id
+          WHERE r.group_id = g.id
+        ) as recordings,
+        -- Get sources for this group
+        (
+          SELECT json_agg(json_build_object(
+            'id', s.id,
+            'code', s.code,
+            'title', s.title,
+            'type', s.type,
+            'format', s.format,
+            'town', s.town,
+            'from_year', s.from_year,
+            'to_year', s.to_year,
+            'rism_link', s.rism_link,
+            'position', i.position,
+            'attribution', i.attribution,
+            'notes', i.notes,
+            'publishers', COALESCE(pubs.publishers, '[]'::json),
+            'scribes', COALESCE(scr.scribes, '[]'::json)
+          ) ORDER BY s.code, s.title)
+          FROM compositions comp
+          JOIN inclusions i ON comp.id = i.composition_id
+          JOIN sources s ON i.source_id = s.id
+          LEFT JOIN (
+            SELECT ps.source_id, json_agg(p.name ORDER BY p.name) as publishers
+            FROM publishers_sources ps
+            JOIN publishers p ON ps.publisher_id = p.id
+            GROUP BY ps.source_id
+          ) pubs ON s.id = pubs.source_id
+          LEFT JOIN (
+            SELECT ss.source_id, json_agg(sc.name ORDER BY sc.name) as scribes
+            FROM scribes_sources ss
+            JOIN scribes sc ON ss.scribe_id = sc.id
+            GROUP BY ss.source_id
+          ) scr ON s.id = scr.source_id
+          WHERE comp.group_id = g.id
+        ) as sources
       FROM groups g
       ${whereClause}
       GROUP BY g.id, g.display_title, g.created_at, g.updated_at
@@ -256,48 +300,114 @@ router.get('/groups', async (req, res) => {
   }
 });
 
-// Get detailed sources for a specific group (for the expandable sources table)
-router.get('/groups/:id/sources', async (req, res) => {
+
+
+// Public endpoints for filter data (no authentication required)
+router.get('/composers', async (req, res) => {
   try {
-    const groupId = parseInt(req.params.id);
-
     const query = `
-      SELECT DISTINCT
-        s.id,
-        s.code,
-        s.title,
-        s.type,
-        s.format,
-        s.town as place_of_publication,
-        s.from_year,
-        s.to_year,
-        s.rism_link,
-        -- Get publishers for this source
-        (
-          SELECT json_agg(p.name ORDER BY p.name)
-          FROM publishers_sources ps
-          JOIN publishers p ON ps.publisher_id = p.id
-          WHERE ps.source_id = s.id
-        ) as publishers,
-        -- Get scribes for this source  
-        (
-          SELECT json_agg(sc.name ORDER BY sc.name)
-          FROM scribes_sources ss
-          JOIN scribes sc ON ss.scribe_id = sc.id
-          WHERE ss.source_id = s.id
-        ) as scribes
-      FROM sources s
-      JOIN inclusions i ON s.id = i.source_id
-      JOIN compositions c ON i.composition_id = c.id
-      WHERE c.group_id = $1
-      ORDER BY s.code, s.title
+      SELECT id, name, from_year, to_year
+      FROM composers
+      WHERE name IS NOT NULL
+      ORDER BY name
     `;
-
-    const result = await pool.query(query, [groupId]);
-    res.json({ sources: result.rows });
-
+    const result = await pool.query(query);
+    res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching group sources:', error);
+    console.error('Error fetching composers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/functions', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, name
+      FROM functions
+      ORDER BY name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching functions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/languages', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, name
+      FROM languages
+      ORDER BY name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching languages:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/countries', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT birthplace_2 as name
+      FROM composers
+      WHERE birthplace_2 IS NOT NULL
+      ORDER BY birthplace_2
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching countries:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/sources', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, code, title
+      FROM sources
+      WHERE code IS NOT NULL
+      ORDER BY code
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching sources:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/publishers', async (req, res) => {
+  try {
+    const query = `
+      SELECT id, name
+      FROM publishers
+      ORDER BY name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching publishers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/cities', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT town as name
+      FROM sources
+      WHERE town IS NOT NULL AND town != ''
+      ORDER BY town
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cities:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -482,7 +482,7 @@
             }
 
             try {
-                const response = await fetch(`/api/sources/${sourceId}?inclusions_page=${page}&inclusions_limit=${inclusionsPageSize}`);
+                const response = await fetch(`/api/admin/sources/${sourceId}?inclusions_page=${page}&inclusions_limit=${inclusionsPageSize}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch source details');
                 }
@@ -1403,7 +1403,7 @@
         async function initializeInclusionInteractions() {
             // Load composition types
             try {
-                const response = await fetch('/api/sources/composition-types');
+                const response = await fetch('/api/admin/sources/composition-types');
                 compositionTypes = await response.json();
             } catch (error) {
                 console.error('Error loading composition types:', error);
@@ -1418,9 +1418,9 @@
         async function loadPublishersAndScribes() {
             try {
                 const [publishersResponse, scribesResponse, compositionTypesResponse] = await Promise.all([
-                    fetch('/api/sources/publishers'),
-                    fetch('/api/sources/scribes'),
-                    fetch('/api/sources/composition-types')
+                                fetch('/api/admin/sources/publishers'),
+            fetch('/api/admin/sources/scribes'),
+            fetch('/api/admin/sources/composition-types')
                 ]);
                 
                 if (publishersResponse.ok) {
@@ -1461,7 +1461,7 @@
 
         async function searchTitles(query, inputElement) {
             try {
-                const response = await fetch(`/api/sources/titles/autocomplete?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/admin/sources/titles/autocomplete?q=${encodeURIComponent(query)}`);
                 const titles = await response.json();
                 
                 showTitleSuggestions(titles, inputElement);
@@ -1608,7 +1608,7 @@
 
         async function searchSourcesForCopy(query) {
             try {
-                const response = await fetch(`/api/sources?search=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/admin/sources?search=${encodeURIComponent(query)}`);
                 const data = await response.json();
                 const sources = data.sources;
                 
@@ -1692,7 +1692,7 @@
                 document.getElementById('copyInclusionsBtn').disabled = true;
                 
                 // Fetch all inclusions from the selected source
-                const response = await fetch(`/api/sources/${selectedSourceForCopy.id}?inclusions_limit=9999`);
+                const response = await fetch(`/api/admin/sources/${selectedSourceForCopy.id}?inclusions_limit=9999`);
                 const data = await response.json();
                 
                 if (!response.ok) {
@@ -1864,7 +1864,7 @@
                 document.getElementById('saveProgressBar').style.width = '25%';
 
                 const sourceId = document.getElementById('source_id').value;
-                const response = await fetch(`/api/sources/${sourceId}/save-with-inclusions`, {
+                const response = await fetch(`/api/admin/sources/${sourceId}/save-with-inclusions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1946,7 +1946,7 @@
         // Load all composers for select dropdowns
         async function loadAllComposers() {
             try {
-                const response = await fetch('/api/sources/composers');
+                const response = await fetch('/api/admin/sources/composers');
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }

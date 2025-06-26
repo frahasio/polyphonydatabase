@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadLanguages() {
     try {
-        const response = await fetch('/api/functions/languages');
+        const response = await fetch('/api/admin/functions/languages');
         const data = await response.json();
         languages = data.languages;
         
@@ -48,7 +48,7 @@ async function loadLanguages() {
 
 async function loadFunctions() {
     try {
-        const response = await fetch('/api/functions');
+        const response = await fetch('/api/admin/functions');
         const data = await response.json();
         functions = data.functions;
         
@@ -110,7 +110,7 @@ async function searchTitles(page = 1) {
             limit: currentPagination.limit.toString()
         });
 
-        const response = await fetch(`/api/functions/titles/search?${params}`);
+        const response = await fetch(`/api/admin/functions/titles/search?${params}`);
         const data = await response.json();
 
         displayTitles(data.titles);
@@ -283,7 +283,7 @@ async function performMerge() {
     }
 
     try {
-        const response = await fetch('/api/functions/titles/merge', {
+        const response = await fetch('/api/admin/functions/titles/merge', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -343,7 +343,7 @@ async function searchForMerge() {
 async function searchFunctions() {
     const search = document.getElementById('functionSearch')?.value || '';
     try {
-        const response = await fetch(`/api/functions?search=${encodeURIComponent(search)}`);
+        const response = await fetch(`/api/admin/functions?search=${encodeURIComponent(search)}`);
         const data = await response.json();
         displayFunctions(data.functions);
     } catch (error) {
@@ -357,8 +357,8 @@ async function editTitle(titleId) {
     try {
         // Load title details and associated functions
         const [titleResponse, functionsResponse] = await Promise.all([
-            fetch(`/api/functions/titles/search?search=&page=1&limit=1000`),
-            fetch('/api/functions')
+                    fetch(`/api/admin/functions/titles/search?search=&page=1&limit=1000`),
+        fetch('/api/admin/functions')
         ]);
 
         const titleData = await titleResponse.json();
@@ -416,7 +416,7 @@ async function saveTitle() {
 
     try {
         // Update title
-        const updateResponse = await fetch(`/api/functions/titles/${currentEditingTitleId}`, {
+        const updateResponse = await fetch(`/api/admin/functions/titles/${currentEditingTitleId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -439,12 +439,12 @@ async function saveTitle() {
 
             if (isChecked) {
                 // Assign function to title
-                await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
                     method: 'POST'
                 });
             } else {
                 // Unassign function from title
-                await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
                     method: 'DELETE'
                 });
             }
@@ -466,7 +466,7 @@ async function deleteFunction(functionId) {
     }
 
     try {
-        const response = await fetch(`/api/functions/${functionId}`, {
+        const response = await fetch(`/api/admin/functions/${functionId}`, {
             method: 'DELETE'
         });
 
@@ -486,7 +486,7 @@ async function saveFunction() {
     const formData = new FormData(form);
     
     try {
-        const response = await fetch('/api/functions', {
+        const response = await fetch('/api/admin/functions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

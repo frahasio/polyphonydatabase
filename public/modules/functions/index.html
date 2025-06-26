@@ -397,7 +397,7 @@
 
         async function loadLanguages() {
             try {
-                const response = await fetch('/api/functions/languages');
+                const response = await fetch('/api/admin/functions/languages');
                 if (response.ok) {
                     const data = await response.json();
                     languages = data.languages || [];
@@ -438,7 +438,7 @@
 
         async function loadFunctions() {
             try {
-                const response = await fetch('/api/functions');
+                const response = await fetch('/api/admin/functions');
                 if (response.ok) {
                     const data = await response.json();
                     functions = data.functions || [];
@@ -493,7 +493,7 @@
                     limit: currentPagination.limit.toString()
                 });
 
-                const response = await fetch(`/api/functions/titles/search?${params}`);
+                const response = await fetch(`/api/admin/functions/titles/search?${params}`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -689,7 +689,7 @@
 
             try {
                 for (const titleId of selectedTitles) {
-                    await fetch(`/api/functions/titles/${titleId}/functions/${functionId}`, {
+                    await fetch(`/api/admin/functions/titles/${titleId}/functions/${functionId}`, {
                         method: 'POST'
                     });
                 }
@@ -713,7 +713,7 @@
 
             try {
                 for (const titleId of selectedTitles) {
-                    await fetch(`/api/functions/titles/${titleId}`, {
+                    await fetch(`/api/admin/functions/titles/${titleId}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
@@ -748,7 +748,7 @@
             }
 
             try {
-                const response = await fetch('/api/functions/titles/merge', {
+                const response = await fetch('/api/admin/functions/titles/merge', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -826,7 +826,7 @@
 
             try {
                 // Update title
-                const updateResponse = await fetch(`/api/functions/titles/${currentEditingTitleId}`, {
+                const updateResponse = await fetch(`/api/admin/functions/titles/${currentEditingTitleId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -847,12 +847,12 @@
                     
                     if (isChecked) {
                         // Assign function to title
-                        await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                        await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
                             method: 'POST'
                         });
                     } else {
                         // Unassign function from title
-                        await fetch(`/api/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                        await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
                             method: 'DELETE'
                         });
                     }
@@ -992,7 +992,7 @@
             }
 
             try {
-                const response = await fetch('/api/functions', {
+                const response = await fetch('/api/admin/functions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name })
@@ -1035,7 +1035,7 @@
             }
 
             try {
-                const response = await fetch(`/api/functions/${currentEditingFunctionId}`, {
+                const response = await fetch(`/api/admin/functions/${currentEditingFunctionId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name })
@@ -1065,7 +1065,7 @@
             }
 
             try {
-                const response = await fetch(`/api/functions/${functionId}`, {
+                const response = await fetch(`/api/admin/functions/${functionId}`, {
                     method: 'DELETE'
                 });
 

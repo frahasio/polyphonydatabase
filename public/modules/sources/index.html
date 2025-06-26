@@ -132,7 +132,7 @@
         // Fetch and display sources
         async function fetchSources(searchTerm = '') {
             try {
-                const response = await fetch(`/api/sources${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`);
+                const response = await fetch(`/api/admin/sources${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch sources');
                 }
@@ -207,7 +207,7 @@
             };
 
             try {
-                const response = await fetch('/api/sources', {
+                const response = await fetch('/api/admin/sources', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -237,7 +237,7 @@
             }
 
             try {
-                const response = await fetch(`/api/sources/${id}`, {
+                const response = await fetch(`/api/admin/sources/${id}`, {
                     method: 'DELETE'
                 });
 

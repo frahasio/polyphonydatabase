@@ -126,6 +126,16 @@
             color: #6c757d;
         }
         
+        .sources-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .source-item {
+            background: #f8f9fa;
+            font-size: 0.85rem;
+        }
+        
         /* Custom Select2 Styling for Pills */
         .select2-container--default .select2-selection--multiple {
             border: 1px solid #dee2e6;
@@ -572,7 +582,22 @@
                 <tr>
                     <td>
                         <strong>${group.display_title || 'Untitled'}</strong>
-                        <!-- TODO: Add editions and recordings display when available -->
+                        ${(group.editions || []).map(edition => `
+                            <div class="mt-1">
+                                <a href="${edition.file_url}" target="_blank" class="edition-link">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>
+                                    ${edition.editor_name || 'Unknown Editor'} ${edition.voicing ? '(' + edition.voicing + ')' : ''}
+                                </a>
+                            </div>
+                        `).join('')}
+                        ${(group.recordings || []).map(recording => `
+                            <div class="mt-1">
+                                <a href="${recording.file_url}" target="_blank" class="recording-link">
+                                    <i class="bi bi-play-circle me-1"></i>
+                                    ${recording.performer_name || 'Unknown Performer'}
+                                </a>
+                            </div>
+                        `).join('')}
                     </td>
                     <td>
                         ${(group.function_names || []).join(', ')}
@@ -584,9 +609,42 @@
                         ${(group.voice_counts || []).join(', ')}vv
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="showGroupSources(${group.id})">
-                            <i class="bi bi-list-ul me-1"></i>View Sources
-                        </button>
+                        ${(group.sources || []).length > 0 ? `
+                            <div class="sources-container">
+                                ${(group.sources || []).map(source => `
+                                    <div class="source-item mb-2 p-2 border rounded">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <strong>${source.code || ''}</strong>
+                                                ${source.title ? `<br><small class="text-muted">${source.title}</small>` : ''}
+                                                ${source.town || source.from_year || source.to_year ? `
+                                                    <br><small>${[
+                                                        source.town,
+                                                        source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
+                                                        source.from_year ? `${source.from_year}` :
+                                                        source.to_year ? `${source.to_year}` : ''
+                                                    ].filter(Boolean).join(', ')}</small>
+                                                ` : ''}
+                                                ${source.publishers && source.publishers.length > 0 ? `
+                                                    <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
+                                                ` : ''}
+                                                ${source.scribes && source.scribes.length > 0 ? `
+                                                    <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
+                                                ` : ''}
+                                                ${source.position ? `<br><small><strong>Position:</strong> ${source.position}</small>` : ''}
+                                                ${source.attribution ? `<br><small><strong>Attribution:</strong> ${source.attribution}</small>` : ''}
+                                                ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
+                                                ${source.rism_link ? `
+                                                    <br><a href="${source.rism_link}" target="_blank" class="text-primary">
+                                                        <small><i class="bi bi-link-45deg"></i> RISM</small>
+                                                    </a>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<small class="text-muted">No sources</small>'}
                     </td>
                 </tr>
             `).join('');
@@ -646,21 +704,7 @@
             performSearch();
         }
 
-        async function showGroupSources(groupId) {
-            try {
-                const response = await fetch(`/api/search/groups/${groupId}/sources`);
-                if (response.ok) {
-                    const data = await response.json();
-                    // For now, just alert with source count - TODO: implement modal display
-                    alert(`This group has ${data.sources.length} sources.`);
-                } else {
-                    alert('Error loading sources');
-                }
-            } catch (error) {
-                console.error('Error loading sources:', error);
-                alert('Error loading sources');
-            }
-        }
+
     </script>
 </body>
 </html> 

@@ -69,7 +69,7 @@
         // Fetch and display publishers
         async function fetchPublishers() {
             try {
-                const response = await fetch('/api/publishers');
+                const response = await fetch('/api/admin/publishers');
                 if (!response.ok) {
                     throw new Error('Failed to fetch publishers');
                 }
@@ -115,7 +115,7 @@
             }
 
             try {
-                const url = editingId ? `/api/publishers/${editingId}` : '/api/publishers';
+                const url = editingId ? `/api/admin/publishers/${editingId}` : '/api/admin/publishers';
                 const method = editingId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -151,7 +151,7 @@
         // Handle edit
         async function editPublisher(id) {
             try {
-                const response = await fetch(`/api/publishers/${id}`);
+                const response = await fetch(`/api/admin/publishers/${id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch publisher details');
                 }
@@ -185,7 +185,7 @@
             }
 
             try {
-                const response = await fetch(`/api/publishers/${id}`, {
+                const response = await fetch(`/api/admin/publishers/${id}`, {
                     method: 'DELETE'
                 });
 

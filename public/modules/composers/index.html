@@ -234,7 +234,7 @@
 
         async function fetchComposers() {
             try {
-                const response = await fetch(`/api/composers`);
+                const response = await fetch(`/api/admin/composers`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch composers');
                 }
@@ -309,7 +309,7 @@
             };
 
             try {
-                const url = editingId ? `/api/composers/${editingId}` : '/api/composers';
+                const url = editingId ? `/api/admin/composers/${editingId}` : '/api/admin/composers';
                 const method = editingId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -349,7 +349,7 @@
             }
 
             try {
-                const response = await fetch(`/api/composers/${id}`, {
+                const response = await fetch(`/api/admin/composers/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -382,7 +382,7 @@
         // Handle edit
         async function editComposer(id) {
             try {
-                const response = await fetch(`/api/composers/${id}`);
+                const response = await fetch(`/api/admin/composers/${id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch composer details');
                 }

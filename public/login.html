@@ -184,9 +184,9 @@
         </div>
 
         <div class="links">
-            <a href="/register.html">Create Account</a>
+            <a href="/admin/register">Create Account</a>
             <span>|</span>
-            <a href="/forgot-password.html">Forgot Password?</a>
+            <a href="/admin/forgot-password">Forgot Password?</a>
         </div>
     </div>
 
@@ -200,7 +200,7 @@
         fetch('/api/auth/me')
             .then(response => {
                 if (response.ok) {
-                    window.location.href = '/';
+                    window.location.href = '/admin';
                 }
             })
             .catch(() => {
@@ -236,7 +236,7 @@
                 if (response.ok) {
                     showMessage('Login successful! Redirecting...', 'success');
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/admin';
                     }, 1000);
                 } else {
                     showMessage(data.error || 'Login failed', 'error');

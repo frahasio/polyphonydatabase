@@ -84,7 +84,7 @@
 
         async function fetchEditors() {
             try {
-                const response = await fetch('/api/editors');
+                const response = await fetch('/api/admin/editors');
                 if (!response.ok) {
                     throw new Error('Failed to fetch editors');
                 }
@@ -133,7 +133,7 @@
             }
 
             try {
-                const url = editingId ? `/api/editors/${editingId}` : '/api/editors';
+                const url = editingId ? `/api/admin/editors/${editingId}` : '/api/admin/editors';
                 const method = editingId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -172,7 +172,7 @@
         // Handle edit
         async function editEditor(id) {
             try {
-                const response = await fetch(`/api/editors/${id}`);
+                const response = await fetch(`/api/admin/editors/${id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch editor details');
                 }
@@ -207,7 +207,7 @@
             }
 
             try {
-                const response = await fetch(`/api/editors/${id}`, {
+                const response = await fetch(`/api/admin/editors/${id}`, {
                     method: 'DELETE'
                 });
 

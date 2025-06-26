@@ -68,7 +68,7 @@
         // Fetch and display scribes
         async function fetchScribes() {
             try {
-                const response = await fetch('/api/scribes');
+                const response = await fetch('/api/admin/scribes');
                 if (!response.ok) {
                     throw new Error('Failed to fetch scribes');
                 }
@@ -114,7 +114,7 @@
             }
 
             try {
-                const url = editingId ? `/api/scribes/${editingId}` : '/api/scribes';
+                const url = editingId ? `/api/admin/scribes/${editingId}` : '/api/admin/scribes';
                 const method = editingId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -150,7 +150,7 @@
         // Handle edit
         async function editScribe(id) {
             try {
-                const response = await fetch(`/api/scribes/${id}`);
+                const response = await fetch(`/api/admin/scribes/${id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch scribe details');
                 }
@@ -184,7 +184,7 @@
             }
 
             try {
-                const response = await fetch(`/api/scribes/${id}`, {
+                const response = await fetch(`/api/admin/scribes/${id}`, {
                     method: 'DELETE'
                 });
 

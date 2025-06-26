@@ -68,7 +68,7 @@
     <script>
         async function fetchPerformers() {
             try {
-                const response = await fetch('/api/performers');
+                const response = await fetch('/api/admin/performers');
                 if (!response.ok) {
                     throw new Error('Failed to fetch performers');
                 }
@@ -114,7 +114,7 @@
             }
 
             try {
-                const url = editingId ? `/api/performers/${editingId}` : '/api/performers';
+                const url = editingId ? `/api/admin/performers/${editingId}` : '/api/admin/performers';
                 const method = editingId ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
@@ -150,7 +150,7 @@
         // Handle edit
         async function editPerformer(id) {
             try {
-                const response = await fetch(`/api/performers/${id}`);
+                const response = await fetch(`/api/admin/performers/${id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch performer details');
                 }
@@ -184,7 +184,7 @@
             }
 
             try {
-                const response = await fetch(`/api/performers/${id}`, {
+                const response = await fetch(`/api/admin/performers/${id}`, {
                     method: 'DELETE'
                 });
 
