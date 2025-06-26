@@ -5,7 +5,7 @@
 ### clef_combinations
 ```sql
 id (PK, INTEGER, AUTO)
-clefcombo (VARCHAR, NOT NULL, UNIQUE) -- e.g., "g2c2c3f3", "c1c1c2c4f4"
+clef_combination (VARCHAR, NOT NULL, UNIQUE) -- e.g., "g2c2c3f3", "c1c1c2c4f4"
 ```
 Automatically populated by source editor when new clef combinations are created.
 
@@ -16,9 +16,9 @@ voicing (VARCHAR, NOT NULL, UNIQUE) -- e.g., "SATB", "SSAATBarB", "SSA"
 ```
 Manually maintained list of voicing types.
 
-### clef_combos_voicings (Many-to-Many)
+### clef_combinations_voicings (Many-to-Many)
 ```sql
-clef_combo_id (FK -> clef_combinations.id)
+clef_combination_id (FK -> clef_combinations.id)
 voicing_id (FK -> voicings.id)
 PRIMARY KEY (clef_combo_id, voicing_id)
 ```

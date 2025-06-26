@@ -3,26 +3,33 @@ import { pool } from '../db.js';
 
 const router = express.Router();
 
-// Convert tone strings to integers for database storage
-function convertToneToInteger(toneValue) {
-  if (typeof toneValue === 'number') return toneValue;
+// Convert tone values to standardized string format for database storage
+function convertToneToString(toneValue) {
   if (!toneValue) return null;
   
-  const toneStr = String(toneValue).toLowerCase();
+  const toneStr = String(toneValue).toLowerCase().trim();
   
-  // Handle numeric strings
+  // Handle numeric strings - convert old integer format to new string format if needed
   if (/^\d+$/.test(toneStr)) {
-    return parseInt(toneStr);
+    const intValue = parseInt(toneStr);
+    const intToStringMapping = {
+      0: '1', 1: '2', 2: '3', 3: '4', 4: '5', 5: '6', 6: '7', 7: '8', 8: '9',
+      9: '12', 10: 'mix', 11: 'per', 12: 'pro', 13: 'pro'
+    };
+    return intToStringMapping[intValue] || toneStr;
   }
   
   // Handle special tone strings
   const specialTones = {
-    'mix': 10,
-    'per': 11,
-    'pro': 13
+    'mix': 'mix',
+    'mixti': 'mix',
+    'per': 'per', 
+    'peregrini': 'per',
+    'pro': 'pro',
+    'proprii': 'pro'
   };
   
-  return specialTones[toneStr] || null;
+  return specialTones[toneStr] || toneStr;
 }
 
 // Get list of sources
@@ -729,10 +736,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
       if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
         const compositionId = tempInclusion.rows[0].composition_id;
-        // Convert tone string to integer for database storage
+        // Convert tone value to standardized string for database storage
         let tone = originalInclusion.composition.tone || null;
         if (tone !== null) {
-          tone = convertToneToInteger(tone);
+          tone = convertToneToString(tone);
         }
         
         // Convert even_odd string to integer if needed
@@ -825,11 +832,11 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         }
       }
 
-      // Get tone and even_odd from original inclusion data
-      let tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
-      if (tone !== null) {
-        tone = convertToneToInteger(tone);
-      }
+              // Get tone and even_odd from original inclusion data
+        let tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
+        if (tone !== null) {
+          tone = convertToneToString(tone);
+        }
       
       // Convert even_odd string to integer if needed
       let evenOdd = originalInclusion?.composition?.even_odd ?? tempInclusion.even_odd ?? null;

@@ -77,7 +77,9 @@
                 // Test if voicing system is available
                 const [voicingsResponse, clefCombosResponse] = await Promise.all([
                     fetch('/api/search/voicings'),
-                    fetch('/api/admin/clef-combinations')
+                    fetch('/api/admin/clef-combinations', {
+                        credentials: 'include' // Include session cookies for authentication
+                    })
                 ]);
 
                 let statusHtml = '';
@@ -107,6 +109,13 @@
                             <strong>Clef combinations table:</strong> Available (${clefCombos.length} combinations found)
                         </div>
                     `;
+                } else if (clefCombosResponse.status === 401 || clefCombosResponse.status === 403) {
+                    statusHtml += `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Authentication Error:</strong> You are not logged in as an admin. Please <a href="/admin/login">login</a> first.
+                        </div>
+                    `;
                 } else {
                     statusHtml += `
                         <div class="alert alert-warning">
@@ -120,6 +129,7 @@
                     <div class="mt-3">
                         <h6>Next Steps:</h6>
                         <ul>
+                            <li>If you see an authentication error, please login as an admin first</li>
                             <li>If tables are missing, run the voicing system database migration</li>
                             <li>Once tables exist, this interface will allow managing clef-voicing relationships</li>
                             <li>The public search will then support voicing-based filtering</li>
@@ -134,7 +144,9 @@
                 statusDiv.innerHTML = `
                     <div class="alert alert-danger">
                         <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Error:</strong> Could not check system status. The voicing system tables may not exist yet.
+                        <strong>Error:</strong> Could not check system status. This may be due to authentication issues or missing database tables.
+                        <br><br>
+                        Please ensure you are <a href="/admin/login">logged in as an admin</a> and that the voicing system tables exist.
                     </div>
                 `;
             }

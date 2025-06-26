@@ -138,45 +138,47 @@
 
         // Check authentication
         function checkAuth() {
-            const token = localStorage.getItem('auth_token');
-            if (!token) {
-                window.location.href = 'login.html';
-                return false;
-            }
-            return token;
+            // For session-based auth, we'll just try to load data
+            // If it fails due to auth, we'll redirect to login
+            return true;
         }
 
         function logout() {
-            localStorage.removeItem('auth_token');
-            window.location.href = 'login.html';
+            fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+                .then(() => {
+                    window.location.href = '/admin/login';
+                })
+                .catch(() => {
+                    window.location.href = '/admin/login';
+                });
         }
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const token = checkAuth();
-            if (token) {
-                loadData();
-            }
+            loadData();
         });
 
         async function loadData() {
             try {
-                const token = localStorage.getItem('auth_token');
-                
-                // Load voicings and clef combinations
+                // Load voicings and clef combinations with session credentials
                 const [voicingsResponse, clefCombosResponse, mappingsResponse] = await Promise.all([
                     fetch('/api/search/voicings', {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include'
                     }),
                     fetch('/api/admin/clef-combinations', {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include'
                     }),
                     fetch('/api/admin/clef-voicing-mappings', {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                        credentials: 'include'
                     })
                 ]);
 
                 if (!voicingsResponse.ok || !clefCombosResponse.ok || !mappingsResponse.ok) {
+                    // Check if it's an authentication error
+                    if (clefCombosResponse.status === 401 || clefCombosResponse.status === 403) {
+                        window.location.href = '/admin/login';
+                        return;
+                    }
                     throw new Error('Failed to load data');
                 }
 
@@ -187,10 +189,10 @@
                 // Build mappings lookup
                 const mappingsLookup = {};
                 mappings.forEach(mapping => {
-                    if (!mappingsLookup[mapping.clef_combo_id]) {
-                        mappingsLookup[mapping.clef_combo_id] = [];
+                    if (!mappingsLookup[mapping.clef_combination_id]) {
+                        mappingsLookup[mapping.clef_combination_id] = [];
                     }
-                    mappingsLookup[mapping.clef_combo_id].push(mapping.voicing_id);
+                    mappingsLookup[mapping.clef_combination_id].push(mapping.voicing_id);
                 });
 
                 renderClefCombinations(mappingsLookup);
@@ -244,18 +246,17 @@
             const statusElement = document.getElementById(`status-${clefComboId}`);
             
             try {
-                const token = localStorage.getItem('auth_token');
                 const method = isSelected ? 'DELETE' : 'POST';
                 const endpoint = `/api/admin/clef-voicing-mappings`;
                 
                 const response = await fetch(endpoint, {
                     method: method,
+                    credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        clef_combo_id: clefComboId,
+                        clef_combination_id: clefComboId,
                         voicing_id: voicingId
                     })
                 });
@@ -298,12 +299,11 @@
             }
 
             try {
-                const token = localStorage.getItem('auth_token');
                 const response = await fetch('/api/admin/voicings', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ voicing: voicingName })
                 });

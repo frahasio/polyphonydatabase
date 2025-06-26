@@ -27,9 +27,9 @@ router.get('/clef-combinations', async (req, res) => {
 router.get('/clef-voicing-mappings', async (req, res) => {
   try {
     const query = `
-      SELECT clef_combo_id, voicing_id
-      FROM clef_combos_voicings
-      ORDER BY clef_combo_id, voicing_id
+      SELECT clef_combination_id, voicing_id
+      FROM clef_combinations_voicings
+      ORDER BY clef_combination_id, voicing_id
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -42,19 +42,19 @@ router.get('/clef-voicing-mappings', async (req, res) => {
 // Add a clef combination to voicing mapping
 router.post('/clef-voicing-mappings', async (req, res) => {
   try {
-    const { clef_combo_id, voicing_id } = req.body;
+    const { clef_combination_id, voicing_id } = req.body;
 
-    if (!clef_combo_id || !voicing_id) {
-      return res.status(400).json({ error: 'clef_combo_id and voicing_id are required' });
+    if (!clef_combination_id || !voicing_id) {
+      return res.status(400).json({ error: 'clef_combination_id and voicing_id are required' });
     }
 
     const query = `
-      INSERT INTO clef_combos_voicings (clef_combo_id, voicing_id)
+      INSERT INTO clef_combinations_voicings (clef_combination_id, voicing_id)
       VALUES ($1, $2)
-      ON CONFLICT (clef_combo_id, voicing_id) DO NOTHING
+      ON CONFLICT (clef_combination_id, voicing_id) DO NOTHING
     `;
     
-    await pool.query(query, [clef_combo_id, voicing_id]);
+    await pool.query(query, [clef_combination_id, voicing_id]);
     res.json({ success: true, message: 'Mapping added successfully' });
   } catch (error) {
     console.error('Error adding clef-voicing mapping:', error);
@@ -65,18 +65,18 @@ router.post('/clef-voicing-mappings', async (req, res) => {
 // Remove a clef combination to voicing mapping
 router.delete('/clef-voicing-mappings', async (req, res) => {
   try {
-    const { clef_combo_id, voicing_id } = req.body;
+    const { clef_combination_id, voicing_id } = req.body;
 
-    if (!clef_combo_id || !voicing_id) {
-      return res.status(400).json({ error: 'clef_combo_id and voicing_id are required' });
+    if (!clef_combination_id || !voicing_id) {
+      return res.status(400).json({ error: 'clef_combination_id and voicing_id are required' });
     }
 
     const query = `
-      DELETE FROM clef_combos_voicings
-      WHERE clef_combo_id = $1 AND voicing_id = $2
+      DELETE FROM clef_combinations_voicings
+      WHERE clef_combination_id = $1 AND voicing_id = $2
     `;
     
-    const result = await pool.query(query, [clef_combo_id, voicing_id]);
+    const result = await pool.query(query, [clef_combination_id, voicing_id]);
     
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Mapping not found' });
@@ -129,34 +129,34 @@ router.post('/voicings', async (req, res) => {
 // Add a new clef combination (will be auto-populated by source editor, but also manual admin option)
 router.post('/clef-combinations', async (req, res) => {
   try {
-    const { clefcombo } = req.body;
+    const { clef_combination } = req.body;
 
-    if (!clefcombo || !clefcombo.trim()) {
-      return res.status(400).json({ error: 'clefcombo is required' });
+    if (!clef_combination || !clef_combination.trim()) {
+      return res.status(400).json({ error: 'clef_combination is required' });
     }
 
-    const trimmedClefcombo = clefcombo.trim();
+    const trimmedClefCombo = clef_combination.trim();
 
     // Validate clef combination format (basic validation)
-    if (!/^[a-z0-9]+$/.test(trimmedClefcombo)) {
+    if (!/^[a-z0-9]+$/.test(trimmedClefCombo)) {
       return res.status(400).json({ error: 'Invalid clef combination format' });
     }
 
     // Check if clef combination already exists
-    const checkQuery = 'SELECT id FROM clef_combinations WHERE clefcombo = $1';
-    const checkResult = await pool.query(checkQuery, [trimmedClefcombo]);
+    const checkQuery = 'SELECT id FROM clef_combinations WHERE clef_combination = $1';
+    const checkResult = await pool.query(checkQuery, [trimmedClefCombo]);
     
     if (checkResult.rows.length > 0) {
       return res.status(409).json({ error: 'Clef combination already exists' });
     }
 
     const insertQuery = `
-      INSERT INTO clef_combinations (clefcombo)
+      INSERT INTO clef_combinations (clef_combination)
       VALUES ($1)
-      RETURNING id, clefcombo
+      RETURNING id, clef_combination
     `;
     
-    const result = await pool.query(insertQuery, [trimmedClefcombo]);
+    const result = await pool.query(insertQuery, [trimmedClefCombo]);
     res.json({ 
       success: true, 
       message: 'Clef combination added successfully',
@@ -262,59 +262,43 @@ router.get('/data-quality-alerts', async (req, res) => {
   try {
     const alerts = [];
 
-    // Clef combinations without voicings
-    const clefCombosWithoutVoicings = await pool.query(`
-      SELECT cc.id, cc.clef_combination
+    // Count clef combinations without voicings
+    const clefCombosWithoutVoicingsCount = await pool.query(`
+      SELECT COUNT(*) as count
       FROM clef_combinations cc
       LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
       WHERE ccv.clef_combination_id IS NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM ignored_alerts ia
-        WHERE ia.alert_type = 'clef_combo_no_voicing'
-        AND ia.entity_type = 'clef_combination'
-        AND ia.entity_id = cc.id
-      )
-      ORDER BY cc.clef_combination
     `);
 
-    clefCombosWithoutVoicings.rows.forEach(row => {
+    const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
+    if (clefCombosCount > 0) {
       alerts.push({
-        type: 'clef_combo_no_voicing',
+        type: 'clef_combos_no_voicings',
         severity: 'warning',
-        title: 'Clef combination without voicings',
-        description: `Clef combination "${row.clef_combination}" has no assigned voicings`,
-        entity_type: 'clef_combination',
-        entity_id: row.id,
-        entity_name: row.clef_combination
+        title: 'Clef combinations not matched to voicings',
+        description: `${clefCombosCount} clef combinations are not matched to voicings`,
+        count: clefCombosCount
       });
-    });
+    }
 
-    // Voicings without clef combinations
-    const voicingsWithoutClefCombos = await pool.query(`
-      SELECT v.id, v.voicing
+    // Count voicings without clef combinations  
+    const voicingsWithoutClefCombosCount = await pool.query(`
+      SELECT COUNT(*) as count
       FROM voicings v
       LEFT JOIN clef_combinations_voicings ccv ON v.id = ccv.voicing_id
       WHERE ccv.voicing_id IS NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM ignored_alerts ia
-        WHERE ia.alert_type = 'voicing_no_clef_combo'
-        AND ia.entity_type = 'voicing'
-        AND ia.entity_id = v.id
-      )
-      ORDER BY v.voicing
     `);
 
-    voicingsWithoutClefCombos.rows.forEach(row => {
+    const voicingsCount = parseInt(voicingsWithoutClefCombosCount.rows[0].count);
+    if (voicingsCount > 0) {
       alerts.push({
-        type: 'voicing_no_clef_combo',
-        severity: 'warning',
-        title: 'Voicing without clef combinations',
-        description: `Voicing "${row.voicing}" has no assigned clef combinations`,
-        entity_type: 'voicing',
-        entity_id: row.id,
-        entity_name: row.voicing
+        type: 'voicings_no_clef_combos',
+        severity: 'warning', 
+        title: 'Voicings not matched to clef combinations',
+        description: `${voicingsCount} voicings are not matched to clef combinations`,
+        count: voicingsCount
       });
-    });
+    }
 
     res.json(alerts);
   } catch (error) {
@@ -390,8 +374,8 @@ router.post('/cleanup', async (req, res) => {
       try {
         const unusedClefCombos = await client.query(`
           DELETE FROM clef_combinations 
-          WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
-          RETURNING id, clefcombo
+          WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
+          RETURNING id, clef_combination
         `);
         results.removed_clef_combinations = unusedClefCombos.rowCount;
       } catch (error) {
@@ -403,7 +387,7 @@ router.post('/cleanup', async (req, res) => {
       try {
         const unusedVoicings = await client.query(`
           DELETE FROM voicings 
-          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
           RETURNING id, voicing
         `);
         results.removed_voicings = unusedVoicings.rowCount;
@@ -433,8 +417,8 @@ router.post('/cleanup', async (req, res) => {
       try {
         const unusedClefCombos = await client.query(`
           DELETE FROM clef_combinations 
-          WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
-          RETURNING id, clefcombo
+          WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
+          RETURNING id, clef_combination
         `);
         results.removed_clef_combinations = unusedClefCombos.rowCount;
       } catch (error) {
@@ -445,7 +429,7 @@ router.post('/cleanup', async (req, res) => {
       try {
         const unusedVoicings = await client.query(`
           DELETE FROM voicings 
-          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
           RETURNING id, voicing
         `);
         results.removed_voicings = unusedVoicings.rowCount;
@@ -506,7 +490,7 @@ router.get('/cleanup-preview', async (req, res) => {
       const unusedClefCombos = await pool.query(`
         SELECT COUNT(*) as count
         FROM clef_combinations 
-        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+        WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
       `);
       results.unused_clef_combinations = parseInt(unusedClefCombos.rows[0].count);
     } catch (error) {
@@ -519,7 +503,7 @@ router.get('/cleanup-preview', async (req, res) => {
       const unusedVoicings = await pool.query(`
         SELECT COUNT(*) as count
         FROM voicings 
-        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
       `);
       results.unused_voicings = parseInt(unusedVoicings.rows[0].count);
     } catch (error) {

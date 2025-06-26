@@ -230,9 +230,9 @@ router.get('/groups', async (req, res) => {
       try {
         // Get clef combinations associated with selected voicings
         const voicingClefsQuery = `
-          SELECT DISTINCT cc.clefcombo
-          FROM clef_combos_voicings ccv
-          JOIN clef_combinations cc ON ccv.clef_combo_id = cc.id
+          SELECT DISTINCT cc.clef_combination
+          FROM clef_combinations_voicings ccv
+          JOIN clef_combinations cc ON ccv.clef_combination_id = cc.id
           WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
         `;
         
@@ -242,7 +242,7 @@ router.get('/groups', async (req, res) => {
           const voicingConditions = voicingClefsResult.rows.map((row) => {
             paramIndex++;
             // Convert clef combo string to clef array for JSON matching
-            const clefArray = row.clefcombo.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g);
+            const clefArray = row.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g);
             const clefObjects = clefArray.map(clef => ({ clef }));
             
             const condition = `EXISTS (
@@ -666,19 +666,19 @@ router.get('/tones', async (req, res) => {
     const result = await pool.query(query);
     
     const toneMapping = {
-      0: "primi toni",
-      1: "secundi toni", 
-      2: "tertii toni",
-      3: "quarti toni",
-      4: "quinti toni",
-      5: "sexti toni",
-      6: "septimi toni",
-      7: "octavi toni",
-      8: "noni toni",
-      9: "duodecimi toni",
-      10: "mixti toni",
-      11: "peregrini toni",
-      12: "proprii toni"
+      "1": "primi toni",
+      "2": "secundi toni", 
+      "3": "tertii toni",
+      "4": "quarti toni",
+      "5": "quinti toni",
+      "6": "sexti toni",
+      "7": "septimi toni",
+      "8": "octavi toni",
+      "9": "noni toni",
+      "12": "duodecimi toni",
+      "mix": "mixti toni",
+      "per": "peregrini toni",
+      "pro": "proprii toni"
     };
     
     res.json(result.rows.map(row => ({ 
