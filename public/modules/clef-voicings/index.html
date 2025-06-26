@@ -271,8 +271,12 @@
         }
 
         function initializeSelect2Components() {
-            // Destroy existing Select2 instances first
-            $('.voicing-select').select2('destroy');
+            // Destroy existing Select2 instances first (only if they exist)
+            $('.voicing-select').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2('destroy');
+                }
+            });
             
             // Initialize Select2 for all voicing selects
             $('.voicing-select').select2({
