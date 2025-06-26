@@ -260,7 +260,10 @@
                 placeholder: 'Select voicings...',
                 allowClear: true,
                 width: '100%'
-            }).on('change', function() {
+            }).on('change', function(e) {
+                // Skip if this is a programmatic change from updateVoicingMappings
+                if (e.isTrigger && e.namespace === 'select2') return;
+                
                 const comboId = $(this).data('combo-id');
                 const selectedVoicings = $(this).val() || [];
                 updateVoicingMappings(comboId, selectedVoicings);
@@ -340,12 +343,23 @@
 
         async function updateVoicingMappings(clefComboId, selectedVoicingIds) {
             const statusElement = document.getElementById(`status-${clefComboId}`);
+            const selectElement = $(`#voicings-${clefComboId}`);
+            
+            // Show saving status
+            statusElement.textContent = 'Saving...';
+            statusElement.className = 'save-status';
+            statusElement.style.display = 'inline';
             
             try {
                 // Get current mappings for this clef combination
                 const response = await fetch('/api/admin/clef-voicing-mappings', {
                     credentials: 'include'
                 });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch current mappings');
+                }
+                
                 const allMappings = await response.json();
                 const currentMappings = allMappings
                     .filter(m => m.clef_combination_id === clefComboId)
@@ -358,7 +372,7 @@
 
                 // Add new mappings
                 for (const voicingId of toAdd) {
-                    await fetch('/api/admin/clef-voicing-mappings', {
+                    const addResponse = await fetch('/api/admin/clef-voicing-mappings', {
                         method: 'POST',
                         credentials: 'include',
                         headers: {
@@ -369,11 +383,16 @@
                             voicing_id: voicingId
                         })
                     });
+                    
+                    if (!addResponse.ok) {
+                        const error = await addResponse.json();
+                        throw new Error(error.error || 'Failed to add mapping');
+                    }
                 }
 
                 // Remove old mappings
                 for (const voicingId of toRemove) {
-                    await fetch('/api/admin/clef-voicing-mappings', {
+                    const removeResponse = await fetch('/api/admin/clef-voicing-mappings', {
                         method: 'DELETE',
                         credentials: 'include',
                         headers: {
@@ -383,6 +402,33 @@
                             clef_combination_id: clefComboId,
                             voicing_id: voicingId
                         })
+                    });
+                    
+                    if (!removeResponse.ok) {
+                        const error = await removeResponse.json();
+                        throw new Error(error.error || 'Failed to remove mapping');
+                    }
+                }
+
+                // Refresh the current mappings from server to verify success
+                const verifyResponse = await fetch('/api/admin/clef-voicing-mappings', {
+                    credentials: 'include'
+                });
+                
+                if (verifyResponse.ok) {
+                    const updatedMappings = await verifyResponse.json();
+                    const updatedCurrentMappings = updatedMappings
+                        .filter(m => m.clef_combination_id === clefComboId)
+                        .map(m => m.voicing_id);
+                    
+                    // Update the select element with the server state (prevent triggering change event)
+                    selectElement.off('change').val(updatedCurrentMappings).select2().on('change', function(e) {
+                        // Skip if this is a programmatic change from updateVoicingMappings
+                        if (e.isTrigger && e.namespace === 'select2') return;
+                        
+                        const comboId = $(this).data('combo-id');
+                        const selectedVoicings = $(this).val() || [];
+                        updateVoicingMappings(comboId, selectedVoicings);
                     });
                 }
 
@@ -397,13 +443,37 @@
 
             } catch (error) {
                 console.error('Error updating mappings:', error);
-                statusElement.textContent = 'Error';
+                
+                // Revert the select to previous state by refreshing from server
+                try {
+                    const revertResponse = await fetch('/api/admin/clef-voicing-mappings', {
+                        credentials: 'include'
+                    });
+                    if (revertResponse.ok) {
+                        const allMappings = await revertResponse.json();
+                        const currentMappings = allMappings
+                            .filter(m => m.clef_combination_id === clefComboId)
+                            .map(m => m.voicing_id);
+                        selectElement.off('change').val(currentMappings).select2().on('change', function(e) {
+                            // Skip if this is a programmatic change from updateVoicingMappings
+                            if (e.isTrigger && e.namespace === 'select2') return;
+                            
+                            const comboId = $(this).data('combo-id');
+                            const selectedVoicings = $(this).val() || [];
+                            updateVoicingMappings(comboId, selectedVoicings);
+                        });
+                    }
+                } catch (revertError) {
+                    console.error('Error reverting select state:', revertError);
+                }
+                
+                statusElement.textContent = 'Error: ' + error.message;
                 statusElement.className = 'save-status error';
                 statusElement.style.display = 'inline';
                 
                 setTimeout(() => {
                     statusElement.style.display = 'none';
-                }, 3000);
+                }, 4000);
             }
         }
 

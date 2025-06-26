@@ -257,7 +257,7 @@ router.get('/groups', async (req, res) => {
             paramIndex += 2; // We used two parameters
           }
         }
-      } catch (voicingError) {
+              } catch (voicingError) {
         console.error('Voicing filter skipped (tables may not exist):', voicingError.message);
         // Fallback to old logic if new column doesn't exist yet
         try {
@@ -269,6 +269,7 @@ router.get('/groups', async (req, res) => {
           `;
           
           const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
+          paramIndex++; // Increment parameter index for fallback query
           
           if (voicingClefsResult.rows.length > 0) {
             // Define clef display order for sorting (fallback logic)
