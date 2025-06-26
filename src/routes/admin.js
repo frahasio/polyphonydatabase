@@ -11,9 +11,9 @@ router.use(requireAdmin);
 router.get('/clef-combinations', async (req, res) => {
   try {
     const query = `
-      SELECT id, clefcombo
+      SELECT id, clef_combination
       FROM clef_combinations
-      ORDER BY clefcombo
+      ORDER BY clef_combination
     `;
     const result = await pool.query(query);
     res.json(result.rows);
