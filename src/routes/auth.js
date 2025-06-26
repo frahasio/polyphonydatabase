@@ -195,6 +195,13 @@ router.post('/logout', (req, res) => {
   });
 });
 
+// Check authentication status (no authentication required)
+router.get('/status', (req, res) => {
+  // Check if user has a valid session token
+  const authenticated = !!(req.session?.token && req.session?.userId);
+  res.json({ authenticated });
+});
+
 // Get current user info
 router.get('/me', requireAuth, async (req, res) => {
   res.json({

@@ -9,15 +9,8 @@ function convertToneToString(toneValue) {
   
   const toneStr = String(toneValue).toLowerCase().trim();
   
-  // Handle numeric strings - convert old integer format to new string format if needed
-  if (/^\d+$/.test(toneStr)) {
-    const intValue = parseInt(toneStr);
-    const intToStringMapping = {
-      0: '1', 1: '2', 2: '3', 3: '4', 4: '5', 5: '6', 6: '7', 7: '8', 8: '9',
-      9: '12', 10: 'mix', 11: 'per', 12: 'pro', 13: 'pro'
-    };
-    return intToStringMapping[intValue] || toneStr;
-  }
+  // Valid tone values
+  const validTones = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '12'];
   
   // Handle special tone strings
   const specialTones = {
@@ -29,7 +22,17 @@ function convertToneToString(toneValue) {
     'proprii': 'pro'
   };
   
-  return specialTones[toneStr] || null;
+  // Check if it's a special tone
+  if (specialTones[toneStr]) {
+    return specialTones[toneStr];
+  }
+  
+  // Check if it's a valid numeric tone
+  if (validTones.includes(toneStr)) {
+    return toneStr;
+  }
+  
+  return null;
 }
 
 // Get list of sources

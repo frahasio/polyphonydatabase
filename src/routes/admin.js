@@ -48,13 +48,23 @@ router.post('/clef-voicing-mappings', async (req, res) => {
       return res.status(400).json({ error: 'clef_combination_id and voicing_id are required' });
     }
 
-    const query = `
+    // Check if mapping already exists
+    const checkQuery = `
+      SELECT 1 FROM clef_combinations_voicings 
+      WHERE clef_combination_id = $1 AND voicing_id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [clef_combination_id, voicing_id]);
+    
+    if (checkResult.rows.length > 0) {
+      return res.json({ success: true, message: 'Mapping already exists' });
+    }
+
+    const insertQuery = `
       INSERT INTO clef_combinations_voicings (clef_combination_id, voicing_id)
       VALUES ($1, $2)
-      ON CONFLICT (clef_combination_id, voicing_id) DO NOTHING
     `;
     
-    await pool.query(query, [clef_combination_id, voicing_id]);
+    await pool.query(insertQuery, [clef_combination_id, voicing_id]);
     res.json({ success: true, message: 'Mapping added successfully' });
   } catch (error) {
     console.error('Error adding clef-voicing mapping:', error);
@@ -464,14 +474,42 @@ router.post('/cleanup', async (req, res) => {
       `);
       results.removed_compositions = orphanedCompositions.rowCount;
 
-      // Clean up unused clef combinations (skip if table doesn't exist)
+      // Clean up unused clef combinations (check if they're actually used in inclusions)
       try {
-        const unusedClefCombos = await client.query(`
-          DELETE FROM clef_combinations 
-          WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
-          RETURNING id, clef_combination
+        // Find clef combinations that are not actually used in any inclusions
+        const clefCombosResult = await client.query(`
+          SELECT id, clef_combination FROM clef_combinations
         `);
-        results.removed_clef_combinations = unusedClefCombos.rowCount;
+        
+        let removedUnused = 0;
+        for (const combo of clefCombosResult.rows) {
+          // Parse clef combination string
+          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          
+          if (clefArray.length === 0) continue; // Skip invalid combinations
+          
+          // Build query to check if this clef combination is used in inclusions
+          const clefChecks = clefArray.map((clef) => {
+            return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
+          });
+          
+          const usageQuery = `
+            SELECT 1 FROM inclusions i
+            WHERE i.clefs IS NOT NULL
+            AND jsonb_array_length(i.clefs) = ${clefArray.length}
+            AND ${clefChecks.join(' AND ')}
+            LIMIT 1
+          `;
+          
+          const usageResult = await client.query(usageQuery);
+          
+          // If not used in any inclusions, delete it
+          if (usageResult.rows.length === 0) {
+            await client.query('DELETE FROM clef_combinations WHERE id = $1', [combo.id]);
+            removedUnused++;
+          }
+        }
+        results.removed_clef_combinations = removedUnused;
       } catch (error) {
         console.log('Clef combinations cleanup skipped:', error.message);
         results.removed_clef_combinations = 0;
@@ -533,12 +571,40 @@ router.post('/cleanup', async (req, res) => {
 
     } else if (cleanup_type === 'voicings') {
       try {
-        const unusedClefCombos = await client.query(`
-          DELETE FROM clef_combinations 
-          WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
-          RETURNING id, clef_combination
+        // Find clef combinations that are not actually used in any inclusions
+        const clefCombosResult = await client.query(`
+          SELECT id, clef_combination FROM clef_combinations
         `);
-        results.removed_clef_combinations = unusedClefCombos.rowCount;
+        
+        let removedUnused = 0;
+        for (const combo of clefCombosResult.rows) {
+          // Parse clef combination string
+          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          
+          if (clefArray.length === 0) continue; // Skip invalid combinations
+          
+          // Build query to check if this clef combination is used in inclusions
+          const clefChecks = clefArray.map((clef) => {
+            return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
+          });
+          
+          const usageQuery = `
+            SELECT 1 FROM inclusions i
+            WHERE i.clefs IS NOT NULL
+            AND jsonb_array_length(i.clefs) = ${clefArray.length}
+            AND ${clefChecks.join(' AND ')}
+            LIMIT 1
+          `;
+          
+          const usageResult = await client.query(usageQuery);
+          
+          // If not used in any inclusions, delete it
+          if (usageResult.rows.length === 0) {
+            await client.query('DELETE FROM clef_combinations WHERE id = $1', [combo.id]);
+            removedUnused++;
+          }
+        }
+        results.removed_clef_combinations = removedUnused;
       } catch (error) {
         console.log('Clef combinations cleanup skipped:', error.message);
         results.removed_clef_combinations = 0;
@@ -627,14 +693,43 @@ router.get('/cleanup-preview', async (req, res) => {
     `);
     results.orphaned_compositions = parseInt(orphanedCompositions.rows[0].count);
 
-    // Preview unused clef combinations (skip if table doesn't exist)
+    // Preview unused clef combinations (check if they're actually used in inclusions)
     try {
-      const unusedClefCombos = await pool.query(`
-        SELECT COUNT(*) as count
-        FROM clef_combinations 
-        WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
+      const clefCombosResult = await pool.query(`
+        SELECT id, clef_combination FROM clef_combinations
       `);
-      results.unused_clef_combinations = parseInt(unusedClefCombos.rows[0].count);
+      
+      let unusedCount = 0;
+      for (const combo of clefCombosResult.rows) {
+        // Parse clef combination string
+        const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+        
+        if (clefArray.length === 0) {
+          unusedCount++; // Invalid combinations count as unused
+          continue;
+        }
+        
+        // Build query to check if this clef combination is used in inclusions
+        const clefChecks = clefArray.map((clef) => {
+          return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
+        });
+        
+        const usageQuery = `
+          SELECT 1 FROM inclusions i
+          WHERE i.clefs IS NOT NULL
+          AND jsonb_array_length(i.clefs) = ${clefArray.length}
+          AND ${clefChecks.join(' AND ')}
+          LIMIT 1
+        `;
+        
+        const usageResult = await pool.query(usageQuery);
+        
+        // If not used in any inclusions, count as unused
+        if (usageResult.rows.length === 0) {
+          unusedCount++;
+        }
+      }
+      results.unused_clef_combinations = unusedCount;
     } catch (error) {
       console.log('Clef combinations table not found or error:', error.message);
       results.unused_clef_combinations = 0;

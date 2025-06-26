@@ -210,6 +210,19 @@
             word-wrap: break-word;
             white-space: normal;
         }
+        
+        /* Edit link styling */
+        .edit-link {
+            font-size: 0.875rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            text-decoration: none;
+        }
+        
+        .edit-link:hover {
+            opacity: 1;
+            color: #0d6efd !important;
+        }
     </style>
 </head>
 <body>
@@ -437,7 +450,10 @@
         let currentPageSize = 25;
         let searchTimeout;
 
+        let isUserLoggedIn = false;
+
         document.addEventListener('DOMContentLoaded', function() {
+            checkAuthStatus();
             loadFiltersFromURL();
             loadFilters();
             performSearch();
@@ -464,6 +480,21 @@
                 updateURL();
             });
         });
+
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth/status', {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    isUserLoggedIn = data.authenticated;
+                }
+            } catch (error) {
+                console.log('Auth check failed, user not logged in');
+                isUserLoggedIn = false;
+            }
+        }
 
         function debounceSearch() {
             clearTimeout(searchTimeout);
@@ -850,7 +881,16 @@
                                         <div class="col-md-7">
                                             <div class="d-flex justify-content-between align-items-start">
                                                 <div class="flex-grow-1">
-                                                    <strong>${source.code || ''}</strong>
+                                                    <div class="d-flex align-items-center">
+                                                        <strong>${source.code || ''}</strong>
+                                                        ${isUserLoggedIn && source.id ? `
+                                                            <a href="/modules/sources/edit.html?id=${source.id}" 
+                                                               class="ms-2 text-primary edit-link" 
+                                                               title="Edit source">
+                                                                <i class="bi bi-pencil-square"></i>
+                                                            </a>
+                                                        ` : ''}
+                                                    </div>
                                                     ${source.title ? `
                                                         <br><span class="text-muted" ${source.title.length > 35 ? `title="${source.title}"` : ''}>
                                                             ${source.title.length > 35 ? source.title.substring(0, 35) + '...' : source.title}
