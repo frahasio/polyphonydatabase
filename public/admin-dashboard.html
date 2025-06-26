@@ -321,7 +321,7 @@
                             <i class="bi bi-music-note-list text-primary me-2"></i>Clef & Voicings
                         </h5>
                         <p class="card-text">Assign voicing types to clef combinations for enhanced search functionality.</p>
-                        <a href="/admin/clef-voicings" class="btn btn-primary">
+                        <a href="/modules/clef-voicings/index.html" class="btn btn-primary">
                             <i class="bi bi-arrow-right me-2"></i>Manage Mappings
                         </a>
                     </div>
@@ -472,6 +472,12 @@
                             <strong>Groups Only</strong> - Remove empty groups
                         </label>
                     </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="cleanupType" id="cleanupVoicings" value="voicings">
+                        <label class="form-check-label" for="cleanupVoicings">
+                            <strong>Voicings Only</strong> - Remove unused clef combinations and voicings
+                        </label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -522,10 +528,10 @@
 
         async function loadDashboardAlerts() {
             try {
-                const response = await fetch('/api/admin/functions/dashboard/alerts');
+                const response = await fetch('/api/admin/data-quality-alerts');
                 if (response.ok) {
-                    const data = await response.json();
-                    displayDashboardAlerts(data.alerts);
+                    const alerts = await response.json();
+                    displayDashboardAlerts(alerts);
                 }
             } catch (error) {
                 console.error('Error loading dashboard alerts:', error);
@@ -544,27 +550,32 @@
             alertsContainer.style.display = 'block';
             
             alertsList.innerHTML = alerts.map(alert => {
-                const alertClass = alert.type === 'warning' ? 'alert-warning' : 
-                                 alert.type === 'info' ? 'alert-info' : 'alert-secondary';
-                const iconClass = alert.type === 'warning' ? 'bi-exclamation-triangle' : 
-                                alert.type === 'info' ? 'bi-info-circle' : 'bi-bell';
+                const alertClass = alert.severity === 'warning' ? 'alert-warning' : 
+                                 alert.severity === 'info' ? 'alert-info' : 
+                                 alert.severity === 'error' ? 'alert-danger' : 'alert-secondary';
+                const iconClass = alert.severity === 'warning' ? 'bi-exclamation-triangle' : 
+                                alert.severity === 'error' ? 'bi-exclamation-octagon' : 
+                                alert.severity === 'info' ? 'bi-info-circle' : 'bi-bell';
 
                 return `
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="alert ${alertClass} mb-0">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="alert-heading mb-1">
                                         <i class="bi ${iconClass} me-2"></i>${alert.title}
                                     </h6>
-                                    <p class="mb-2">
-                                        <strong>${alert.count}</strong> ${alert.description}
-                                    </p>
-                                    <a href="${alert.action_url}" class="btn btn-sm btn-outline-dark">
-                                        ${alert.action_text}
-                                    </a>
+                                    <p class="mb-2">${alert.description}</p>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/modules/clef-voicings/index.html" class="btn btn-outline-dark">
+                                            <i class="bi bi-gear me-1"></i>Manage
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="ignoreAlert('${alert.type}', '${alert.entity_type}', ${alert.entity_id})">
+                                            <i class="bi bi-x me-1"></i>Ignore
+                                        </button>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn-close btn-close-sm" onclick="dismissAlert(this.closest('.col-md-4'))"></button>
+                                <button type="button" class="btn-close btn-close-sm" onclick="dismissAlert(this.closest('.col-md-6'))"></button>
                             </div>
                         </div>
                     </div>
@@ -576,9 +587,37 @@
             alertElement.style.display = 'none';
             
             // Hide entire dashboard if no alerts remain visible
-            const remainingAlerts = document.querySelectorAll('#alertsList .col-md-4:not([style*="display: none"])');
+            const remainingAlerts = document.querySelectorAll('#alertsList .col-md-6:not([style*="display: none"])');
             if (remainingAlerts.length === 0) {
                 document.getElementById('dashboardAlerts').style.display = 'none';
+            }
+        }
+
+        async function ignoreAlert(alertType, entityType, entityId) {
+            const reason = prompt('Optional: Enter a reason for ignoring this alert:');
+            
+            try {
+                const response = await fetch('/api/admin/ignore-alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alert_type: alertType,
+                        entity_type: entityType,
+                        entity_id: parseInt(entityId),
+                        reason: reason || null
+                    })
+                });
+
+                if (response.ok) {
+                    // Reload alerts to reflect the change
+                    loadDashboardAlerts();
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to ignore alert: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error ignoring alert:', error);
+                alert('Network error occurred.');
             }
         }
 
@@ -640,7 +679,7 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const total = data.sources.length + data.editions.length + data.recordings.length;
+                    const total = data.activity ? data.activity.length : 0;
                     summaryDiv.innerHTML = `
                         <small class="text-muted">
                             <strong>${total}</strong> recent activities found
@@ -702,11 +741,7 @@
 
         function displayAuditTrail(data) {
             const contentDiv = document.getElementById('auditTrailContent');
-            const allActivities = [
-                ...data.sources.map(s => ({ ...s, type: 'source' })),
-                ...data.editions.map(e => ({ ...e, type: 'edition' })),
-                ...data.recordings.map(r => ({ ...r, type: 'recording' }))
-            ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const allActivities = data.activity || [];
 
             if (allActivities.length === 0) {
                 contentDiv.innerHTML = `
@@ -760,7 +795,7 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0);
+                    const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0) + (data.unused_clef_combinations || 0) + (data.unused_voicings || 0);
                     if (totalItems > 0) {
                         summaryDiv.innerHTML = `
                             <small class="text-warning">
@@ -832,7 +867,7 @@
 
         function displayCleanupPreview(data) {
             const contentDiv = document.getElementById('cleanupPreviewContent');
-            const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0);
+            const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0) + (data.unused_clef_combinations || 0) + (data.unused_voicings || 0);
 
             if (totalItems === 0) {
                 contentDiv.innerHTML = `
@@ -889,6 +924,32 @@
                             </div>
                         </div>
                     ` : ''}
+                    
+                    ${data.unused_clef_combinations > 0 ? `
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-warning">
+                                        <i class="bi bi-music-note-list me-2"></i>${data.unused_clef_combinations}
+                                    </h5>
+                                    <p class="card-text">Unused Clef Combinations</p>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.unused_voicings > 0 ? `
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-warning">
+                                        <i class="bi bi-mic me-2"></i>${data.unused_voicings}
+                                    </h5>
+                                    <p class="card-text">Unused Voicings</p>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="mt-3">
@@ -897,6 +958,8 @@
                         ${data.unused_titles > 0 ? '<li>Title entries not referenced by any compositions</li>' : ''}
                         ${data.empty_groups > 0 ? '<li>Groups containing no compositions</li>' : ''}
                         ${data.orphaned_compositions > 0 ? '<li>Compositions not assigned to any group</li>' : ''}
+                        ${data.unused_clef_combinations > 0 ? '<li>Clef combinations not assigned to any voicings</li>' : ''}
+                        ${data.unused_voicings > 0 ? '<li>Voicings not assigned to any clef combinations</li>' : ''}
                     </ul>
                 </div>
             `;
@@ -932,9 +995,11 @@
                 if (response.ok) {
                     const data = await response.json();
                     let message = 'Cleanup completed successfully!\n\n';
-                    if (data.removed_titles) message += `Removed ${data.removed_titles} unused titles\n`;
-                    if (data.removed_groups) message += `Removed ${data.removed_groups} empty groups\n`;
-                    if (data.removed_compositions) message += `Removed ${data.removed_compositions} orphaned compositions\n`;
+                    if (data.results.removed_titles) message += `Removed ${data.results.removed_titles} unused titles\n`;
+                    if (data.results.removed_groups) message += `Removed ${data.results.removed_groups} empty groups\n`;
+                    if (data.results.removed_compositions) message += `Removed ${data.results.removed_compositions} orphaned compositions\n`;
+                    if (data.results.removed_clef_combinations) message += `Removed ${data.results.removed_clef_combinations} unused clef combinations\n`;
+                    if (data.results.removed_voicings) message += `Removed ${data.results.removed_voicings} unused voicings\n`;
                     
                     alert(message);
                     

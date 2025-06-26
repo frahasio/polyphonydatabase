@@ -31,18 +31,18 @@ router.get('/groups', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     // Parse multi-select parameters (comma-separated)
-    const composerIds = composers ? composers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const voiceOptions = voices ? voices.split(',').map(v => parseInt(v)).filter(v => !isNaN(v)) : [];
-    const functionIds = functions ? functions.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const languageIds = languages ? languages.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const countryNames = countries ? countries.split(',').map(country => country.trim()).filter(country => country) : [];
-    const sourceIds = sources ? sources.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const publisherIds = publishers ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const cityNames = cities ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
-    const compositionTypeIds = composition_types ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const toneValues = tones ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
-    const evenOddValues = even_odd ? even_odd.split(',').map(eo => eo.trim()).filter(eo => eo) : [];
-    const voicingIds = voicing ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const composerIds = composers && composers.trim() ? composers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const voiceOptions = voices && voices.trim() ? voices.split(',').map(v => parseInt(v)).filter(v => !isNaN(v)) : [];
+    const functionIds = functions && functions.trim() ? functions.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const languageIds = languages && languages.trim() ? languages.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const countryNames = countries && countries.trim() ? countries.split(',').map(country => country.trim()).filter(country => country) : [];
+    const sourceIds = sources && sources.trim() ? sources.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const publisherIds = publishers && publishers.trim() ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const cityNames = cities && cities.trim() ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
+    const compositionTypeIds = composition_types && composition_types.trim() ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const toneValues = tones && tones.trim() ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
+    const evenOddValues = even_odd && even_odd.trim() ? even_odd.split(',').map(eo => eo.trim()).filter(eo => eo && !isNaN(parseInt(eo))) : [];
+    const voicingIds = voicing && voicing.trim() ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const hasEditions = has_editions === 'true';
     const hasRecordings = has_recordings === 'true';
 
@@ -214,12 +214,15 @@ router.get('/groups', async (req, res) => {
 
     // Even/Odd filter
     if (evenOddValues.length > 0) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM compositions c2
-        WHERE c2.group_id = g.id AND c2.even_odd = ANY($${paramIndex}::integer[])
-      )`);
-      queryParams.push(evenOddValues.map(val => parseInt(val)));
-      paramIndex++;
+      const validEvenOddIntegers = evenOddValues.map(val => parseInt(val)).filter(val => !isNaN(val));
+      if (validEvenOddIntegers.length > 0) {
+        whereConditions.push(`EXISTS (
+          SELECT 1 FROM compositions c2
+          WHERE c2.group_id = g.id AND c2.even_odd = ANY($${paramIndex}::integer[])
+        )`);
+        queryParams.push(validEvenOddIntegers);
+        paramIndex++;
+      }
     }
 
     // Voicing filter (database-driven clef combinations) - skip if tables don't exist
@@ -651,19 +654,19 @@ router.get('/tones', async (req, res) => {
     const result = await pool.query(query);
     
     const toneMapping = {
-      1: "primi toni",
-      2: "secundi toni", 
-      3: "tertii toni",
-      4: "quarti toni",
-      5: "quinti toni",
-      6: "sexti toni",
-      7: "septimi toni",
-      8: "octavi toni",
-      9: "noni toni",
+      0: "primi toni",
+      1: "secundi toni", 
+      2: "tertii toni",
+      3: "quarti toni",
+      4: "quinti toni",
+      5: "sexti toni",
+      6: "septimi toni",
+      7: "octavi toni",
+      8: "noni toni",
+      9: "duodecimi toni",
       10: "mixti toni",
       11: "peregrini toni",
-      12: "duodecimi toni",
-      13: "proprii toni"
+      12: "proprii toni"
     };
     
     res.json(result.rows.map(row => ({ 
