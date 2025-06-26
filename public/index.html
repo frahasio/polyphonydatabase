@@ -219,6 +219,12 @@
                 <i class="bi bi-music-note-beamed me-2"></i>
                 The Polyphony Database
             </a>
+            <div class="navbar-text text-white">
+                <small>
+                    <i class="bi bi-envelope me-1"></i>
+                    <a href="mailto:polyphonydatabase@gmail.com" class="text-white">polyphonydatabase@gmail.com</a>
+                </small>
+            </div>
         </div>
     </nav>
 
@@ -419,13 +425,7 @@
         </div>
 
         <footer class="text-center mt-5 pt-4 border-top">
-            <p class="text-muted">&copy; 2024 Polyphony Database. All rights reserved.</p>
-            <p class="text-muted">
-                <small>
-                    Contact: <a href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a> | 
-                    <a href="https://polyphonydatabase.com/about" target="_blank">About the Database</a>
-                </small>
-            </p>
+            <p class="text-muted">&copy; 2025 Polyphony Database. All rights reserved.</p>
         </footer>
     </div>
 
@@ -704,7 +704,7 @@
                     voicings.forEach(voicing => {
                         const option = document.createElement('option');
                         option.value = voicing.id;
-                        option.textContent = `${voicing.name} (${voicing.voice_count}vv)`;
+                        option.textContent = voicing.name;
                         voicingSelect.appendChild(option);
                     });
                     setSelectFromURL('searchVoicing', 'voicing');

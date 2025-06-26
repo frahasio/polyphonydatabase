@@ -207,9 +207,9 @@ router.get('/groups', async (req, res) => {
     if (evenOddValues.length > 0) {
       whereConditions.push(`EXISTS (
         SELECT 1 FROM compositions c2
-        WHERE c2.group_id = g.id AND c2.even_odd = ANY($${paramIndex}::text[])
+        WHERE c2.group_id = g.id AND c2.even_odd = ANY($${paramIndex}::integer[])
       )`);
-      queryParams.push(evenOddValues);
+      queryParams.push(evenOddValues.map(val => parseInt(val)));
       paramIndex++;
     }
 
@@ -506,11 +506,12 @@ router.get('/countries', async (req, res) => {
     const query = `
       SELECT DISTINCT comp.birthplace_2 as name
       FROM composers comp
+      INNER JOIN (
+        SELECT DISTINCT unnest(composer_id_list) as composer_id
+        FROM compositions
+        WHERE composer_id_list IS NOT NULL
+      ) used_composers ON comp.id = used_composers.composer_id
       WHERE comp.birthplace_2 IS NOT NULL AND comp.birthplace_2 != ''
-      AND EXISTS (
-        SELECT 1 FROM compositions c
-        WHERE comp.id = ANY(c.composer_id_list)
-      )
       ORDER BY comp.birthplace_2
     `;
     const result = await pool.query(query);
@@ -524,10 +525,13 @@ router.get('/countries', async (req, res) => {
 router.get('/sources', async (req, res) => {
   try {
     const query = `
-      SELECT id, code
-      FROM sources
-      WHERE code IS NOT NULL AND catalogued = true
-      ORDER BY code
+      SELECT DISTINCT s.id, s.code
+      FROM sources s
+      INNER JOIN inclusions i ON s.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
+      WHERE s.code IS NOT NULL AND s.catalogued = true
+      ORDER BY s.code
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -544,6 +548,9 @@ router.get('/publishers', async (req, res) => {
       FROM publishers p
       INNER JOIN publishers_sources ps ON p.id = ps.publisher_id
       INNER JOIN sources s ON ps.source_id = s.id
+      INNER JOIN inclusions i ON s.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
       WHERE s.catalogued = true
       ORDER BY p.name
     `;
@@ -612,8 +619,14 @@ router.get('/tones', async (req, res) => {
     const query = `
       SELECT DISTINCT tone
       FROM compositions
-      WHERE tone IS NOT NULL AND tone != '' AND tone != '0' AND LENGTH(tone) > 0 AND tone ~ '^[1-9][0-9]*$|^[a-zA-Z]+$'
-      ORDER BY tone
+      WHERE tone IS NOT NULL 
+      AND tone != '' 
+      AND tone != '0'
+      AND LENGTH(trim(tone)) > 0
+      AND (tone ~ '^[1-9][0-9]*$' OR tone ~ '^[a-zA-Z]+$')
+      ORDER BY 
+        CASE WHEN tone ~ '^[0-9]+$' THEN tone::integer ELSE 999 END,
+        tone
     `;
     const result = await pool.query(query);
     res.json(result.rows.map(row => ({ value: row.tone, name: row.tone })));

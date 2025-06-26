@@ -2,6 +2,43 @@
 
 ## Core Tables
 
+### clef_combinations
+```sql
+id (PK, INTEGER, AUTO)
+clefcombo (VARCHAR, NOT NULL, UNIQUE) -- e.g., "g2c2c3f3", "c1c1c2c4f4"
+```
+Automatically populated by source editor when new clef combinations are created.
+
+### voicings
+```sql
+id (PK, INTEGER, AUTO) 
+voicing (VARCHAR, NOT NULL, UNIQUE) -- e.g., "SATB", "SSAATBarB", "SSA"
+```
+Manually maintained list of voicing types.
+
+### clef_combos_voicings (Many-to-Many)
+```sql
+clef_combo_id (FK -> clef_combinations.id)
+voicing_id (FK -> voicings.id)
+PRIMARY KEY (clef_combo_id, voicing_id)
+```
+Associates voicing types with clef combinations through admin interface.
+
+### ignored_alerts
+```sql
+id (PK, INTEGER, AUTO)
+alert_type (VARCHAR, NOT NULL) -- e.g., 'clef_combo_no_voicing', 'voicing_no_clef_combo'
+entity_type (VARCHAR, NOT NULL) -- e.g., 'clef_combination', 'voicing', 'composer', 'group'
+entity_id (INTEGER, NOT NULL) -- ID of the entity to ignore
+ignored_by (INTEGER, FK -> users.id)
+ignored_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+reason (TEXT)
+UNIQUE(alert_type, entity_type, entity_id)
+```
+Tracks permanently dismissed data quality alerts.
+
+## Legacy Tables
+
 ### sources
 ```sql
 id (PK, INTEGER, AUTO)
@@ -498,6 +535,71 @@ router.get('/:id', ...);           // Parameterized route comes last
 #### Database Constraints
 - The `functions_titles` table may not have unique constraints in all environments
 - Always use explicit existence checks instead of `ON CONFLICT` clauses:
+
+## Voicing & Clef Combination System
+
+### Overview
+The voicing system provides a simplified, database-driven approach to match search filters with clef combinations. It replaces the complex algorithmic approach with a straightforward admin-managed mapping system.
+
+### Core Components
+
+#### 1. Clef Combinations (`clef_combinations`)
+- **Auto-populated**: Created automatically when source editor encounters new clef combinations
+- **Format**: Simple string concatenation (e.g., "g2c2c3f3")
+- **Variants**: Includes all possible combinations considering optional, missing, incomplete, and transitional clefs
+- **Example**: An inclusion with clefs `c1, (c1), c2/c3, c4, f4` creates entries for:
+  - `c1c1c2c4f4` (with optional c1)
+  - `c1c2c4f4` (without optional c1)
+  - `c1c1c3c4f4` (with transition c2→c3)
+  - `c1c3c4f4` (without optional, with transition)
+
+#### 2. Voicings (`voicings`)
+- **Manually maintained**: Admins add voicing types as needed
+- **Examples**: SATB, SSAATBarB, SSA, TTBB, etc.
+- **Flexible naming**: Supports complex voicing descriptions like "SATB (Canonic)"
+
+#### 3. Admin Interface (`/admin/clef-voicings`)
+- **Pill-style interface**: Click voicing pills to toggle assignment to clef combinations
+- **Real-time updates**: Immediate visual feedback and database updates
+- **Add new voicings**: Simple form to add custom voicing types
+- **Data management**: View all clef combinations with their assigned voicings
+
+### API Integration
+
+#### Search Endpoints
+- `GET /api/search/voicings` - Returns available voicing options for public search
+- Uses many-to-many relationships to filter compositions by clef combinations
+
+#### Admin Endpoints
+- `GET /api/admin/clef-combinations` - List all clef combinations
+- `GET /api/admin/clef-voicing-mappings` - Get current mappings
+- `POST /api/admin/clef-voicing-mappings` - Create new mapping
+- `DELETE /api/admin/clef-voicing-mappings` - Remove mapping
+- `POST /api/admin/voicings` - Add new voicing type
+
+#### Data Quality
+- `GET /api/admin/data-quality-alerts` - Reports unmapped clef combinations and unused voicings
+- Ignorable alerts system prevents permanent dismissal of known issues
+
+### Search Logic
+1. User selects voicing(s) in public search interface
+2. System queries `clef_combos_voicings` to find associated clef combinations  
+3. Converts clef combo strings to clef objects for JSON matching against `inclusions.clefs`
+4. Returns compositions where inclusions match any of the clef combinations
+
+### Migration Notes
+- Created via `voicing-migration.sql`
+- Pre-populated with common voicings (SATB, SSA, etc.)
+- Sample clef combinations and mappings included for immediate functionality
+- Indexes optimized for search performance
+
+### Benefits Over Previous System
+- **Simplicity**: No complex algorithmic matching
+- **Flexibility**: Easy to add new voicing types and mappings
+- **Performance**: Direct database queries instead of calculations
+- **Maintainability**: Clear admin interface for ongoing management
+- **Accuracy**: Human-verified mappings instead of algorithmic guessing
+
 ```javascript
 // ❌ Don't use - may fail if constraint doesn't exist
 INSERT ... ON CONFLICT (function_id, title_id) DO NOTHING
