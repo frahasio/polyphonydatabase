@@ -421,6 +421,46 @@ Only if no exact match found in Phase 2.
    - Calculation: `clefs.filter(c => c.clef && c.clef.trim() && !c.optional).length`
    - Must be converted to INTEGER before database storage
 
+### 🚨 Search Query Integer Casting Issues
+
+**Problem**: Empty strings in database fields cause "invalid input syntax for type integer" errors when cast to INTEGER in complex SQL queries.
+
+**Common Fields with Empty String Issues:**
+- `sources.from_year`, `sources.to_year` (should be INTEGER but may contain empty strings)
+- `inclusions.position` (should be INTEGER but may contain empty strings)  
+- `source_images.id` (should be INTEGER but may contain empty strings)
+
+**Safe Casting Pattern:**
+```sql
+-- Instead of: s.from_year::integer (FAILS on empty strings)
+-- Use: CASE WHEN s.from_year IS NOT NULL AND s.from_year != '' THEN s.from_year::integer ELSE NULL END
+
+-- Or simpler PostgreSQL approach:
+-- NULLIF(s.from_year, '')::integer
+```
+
+**Search Debug Pattern:**
+```javascript
+// Add to search endpoints for troubleshooting:
+console.log('=== SEARCH DEBUG ===');
+console.log('Query parameters:', queryParams);
+console.log('Parameter count:', queryParams.length);
+console.log('Where conditions:', whereConditions.length);
+```
+
+**Error Signatures to Watch For:**
+- Error code: `22P02` 
+- Message: `"invalid input syntax for type integer: ""`
+- Position: Various (moves as issues are fixed)
+- File: `numutils.c`, routine: `pg_strtoint32_safe`
+
+**Progressive Debugging Approach:**
+1. Identify error position in SQL query
+2. Count characters to locate problematic field
+3. Apply safe casting to that specific field only
+4. Re-test and repeat for next issue
+5. Avoid over-engineering - fix only what's broken
+
 ### Frontend-Backend Data Flow
 
 **Load (Backend → Frontend):**
