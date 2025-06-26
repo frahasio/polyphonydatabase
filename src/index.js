@@ -10,6 +10,8 @@ import publishersRouter from './routes/publishers.js';
 import scribesRouter from './routes/scribes.js';
 import functionsRouter from './routes/functions.js';
 import authRouter from './routes/auth.js';
+import searchRouter from './routes/search.js';
+import groupsRouter from './routes/groups.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -32,48 +34,71 @@ app.use(session({
 // Middleware
 app.use(express.json());
 
-// Serve static files with authentication for admin modules
-app.use('/modules', requireAuthWeb, express.static('public/modules'));
-app.use('/js', requireAuthWeb, express.static('public/js'));
-app.use('/css', requireAuthWeb, express.static('public/css'));
-
-// Serve public static files (login, registration, etc.) without authentication
-app.use(express.static('public', {
-  ignore: ['modules', 'js', 'css'] // These are handled above with auth
-}));
-
 // Simple favicon handler to prevent 404s
 app.get('/favicon.ico', (req, res) => res.status(204).send());
 
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
-// API routes (require authentication)
-app.use('/api/sources', requireAuthWeb, sourcesRouter);
-app.use('/api/composers', requireAuthWeb, composersRouter);
-app.use('/api/editors', requireAuthWeb, editorsRouter);
-app.use('/api/performers', requireAuthWeb, performersRouter);
-app.use('/api/publishers', requireAuthWeb, publishersRouter);
-app.use('/api/scribes', requireAuthWeb, scribesRouter);
-app.use('/api/functions', requireAuthWeb, functionsRouter);
+// Serve public static files without authentication
+app.use(express.static('public'));
 
-// Protect the main admin page - redirect to login if not authenticated
-app.get('/', requireAuthWeb, (req, res) => {
+// PUBLIC ROUTES (no authentication required)
+// Root URL serves the public search interface
+app.get('/', (req, res) => {
   res.sendFile('index.html', { root: 'public' });
 });
 
-// Public routes that don't require authentication
-app.get('/login.html', (req, res) => {
+// Public API routes for search
+app.use('/api/search', searchRouter);
+
+// ADMIN ROUTES (authentication required)
+// Admin login pages (no auth required)
+app.get('/admin/login', (req, res) => {
   res.sendFile('login.html', { root: 'public' });
 });
 
-app.get('/register.html', (req, res) => {
+app.get('/admin/register', (req, res) => {
   res.sendFile('register.html', { root: 'public' });
 });
 
-app.get('/forgot-password.html', (req, res) => {
+app.get('/admin/forgot-password', (req, res) => {
   res.sendFile('forgot-password.html', { root: 'public' });
 });
+
+// Admin dashboard and pages (authentication required)
+app.get('/admin', requireAuthWeb, (req, res) => {
+  res.sendFile('admin-dashboard.html', { root: 'public' });
+});
+
+app.get('/admin/users', requireAuthWeb, (req, res) => {
+  res.sendFile('user-management.html', { root: 'public' });
+});
+
+app.get('/admin/groups', requireAuthWeb, (req, res) => {
+  res.sendFile('group-management.html', { root: 'public' });
+});
+
+// Admin module pages
+app.get('/admin/sources*', requireAuthWeb, (req, res, next) => {
+  req.url = req.url.replace('/admin', '');
+  express.static('public')(req, res, next);
+});
+
+app.get('/admin/modules*', requireAuthWeb, (req, res, next) => {
+  req.url = req.url.replace('/admin', '');
+  express.static('public')(req, res, next);
+});
+
+// Admin API routes (require authentication)
+app.use('/api/admin/sources', requireAuthWeb, sourcesRouter);
+app.use('/api/admin/composers', requireAuthWeb, composersRouter);
+app.use('/api/admin/editors', requireAuthWeb, editorsRouter);
+app.use('/api/admin/performers', requireAuthWeb, performersRouter);
+app.use('/api/admin/publishers', requireAuthWeb, publishersRouter);
+app.use('/api/admin/scribes', requireAuthWeb, scribesRouter);
+app.use('/api/admin/functions', requireAuthWeb, functionsRouter);
+app.use('/api/admin/groups', requireAuthWeb, groupsRouter);
 
 // Start server
 app.listen(port, () => {

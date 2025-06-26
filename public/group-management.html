@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Management - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .group-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .group-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+        }
+
+        .group-card.selected {
+            border-color: #007bff;
+            background-color: #f8f9ff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+        }
+
+        .composition-item {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .merge-panel {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px dashed #007bff;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .merge-panel.active {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-color: #28a745;
+        }
+
+        .search-results {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .media-form {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .selected-groups-display {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .compatibility-check {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .compatibility-check.compatible {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .compatibility-check.incompatible {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .group-info {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .quick-actions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .btn-float {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/admin">
+                <i class="bi bi-music-note-beamed me-2"></i>
+                Admin Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="bi bi-globe2 me-1"></i>Public Site
+                </a>
+                <a class="nav-link" href="#" onclick="logout()">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row">
+            <!-- Search Panel -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-search me-2"></i>Search Groups
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="searchInput" 
+                                   placeholder="Search by title or composer..." 
+                                   autocomplete="off">
+                        </div>
+                        <div class="mb-3">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <select class="form-select form-select-sm" id="voicesFilter">
+                                        <option value="">Any voices</option>
+                                        <option value="2">2vv</option>
+                                        <option value="3">3vv</option>
+                                        <option value="4">4vv</option>
+                                        <option value="5">5vv</option>
+                                        <option value="6">6vv</option>
+                                        <option value="7">7vv</option>
+                                        <option value="8">8vv</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select class="form-select form-select-sm" id="composerFilter">
+                                        <option value="">Any composer</option>
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Search Results -->
+                        <div class="search-results" id="searchResults">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-search display-4"></i>
+                                <p>Enter search terms to find groups</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Panel -->
+            <div class="col-lg-8">
+                <!-- Selected Groups Panel -->
+                <div id="selectedGroupsPanel" style="display: none;">
+                    <div class="selected-groups-display">
+                        <h6><i class="bi bi-check-square me-2"></i>Selected Groups for Merging</h6>
+                        <div id="selectedGroupsList"></div>
+                        <div id="compatibilityStatus"></div>
+                    </div>
+                </div>
+
+                <!-- Merge Panel -->
+                <div class="merge-panel" id="mergePanel">
+                    <div id="mergePrompt">
+                        <i class="bi bi-collection display-4 text-primary mb-3"></i>
+                        <h4>Group Management</h4>
+                        <p class="text-muted">Search and select groups to merge them together, or add editions and recordings to existing groups.</p>
+                        <small class="text-muted">
+                            <strong>Note:</strong> Groups can only be merged if all compositions have the same number of voices, composition type, tone, and even/odd values.
+                        </small>
+                    </div>
+
+                    <div id="mergeControls" style="display: none;">
+                        <h5>Merge Selected Groups</h5>
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="mb-3">
+                                    <label for="newDisplayTitle" class="form-label">Display Title for Merged Group</label>
+                                    <input type="text" class="form-control" id="newDisplayTitle" 
+                                           placeholder="Enter the new display title...">
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                    <button class="btn btn-success me-md-2" onclick="performMerge()">
+                                        <i class="bi bi-check-lg me-2"></i>Merge Groups
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="clearSelection()">
+                                        <i class="bi bi-x-lg me-2"></i>Clear Selection
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Media Management Panel -->
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="mediaTabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#editionsTab">
+                                    <i class="bi bi-file-earmark-pdf me-2"></i>Editions
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#recordingsTab">
+                                    <i class="bi bi-play-circle me-2"></i>Recordings
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <!-- Editions Tab -->
+                            <div class="tab-pane fade show active" id="editionsTab">
+                                <h6>Add Edition to Group</h6>
+                                <form id="editionForm" class="media-form">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="editionGroupSearch" class="form-label">Search Group</label>
+                                            <input type="text" class="form-control" id="editionGroupSearch" 
+                                                   placeholder="Search for group...">
+                                            <div id="editionGroupResults" class="list-group mt-2" style="display: none;"></div>
+                                            <input type="hidden" id="selectedGroupIdForEdition">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editorSelect" class="form-label">Editor</label>
+                                            <select class="form-select" id="editorSelect">
+                                                <option value="">Select editor...</option>
+                                                <!-- Populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="voicingInput" class="form-label">Voicing</label>
+                                            <input type="text" class="form-control" id="voicingInput" 
+                                                   placeholder="e.g., SATB, ATB, etc.">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editionFileUrl" class="form-label">File URL</label>
+                                            <input type="url" class="form-control" id="editionFileUrl" 
+                                                   placeholder="https://example.com/edition.pdf">
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-plus-lg me-2"></i>Add Edition
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Recordings Tab -->
+                            <div class="tab-pane fade" id="recordingsTab">
+                                <h6>Add Recording to Group</h6>
+                                <form id="recordingForm" class="media-form">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="recordingGroupSearch" class="form-label">Search Group</label>
+                                            <input type="text" class="form-control" id="recordingGroupSearch" 
+                                                   placeholder="Search for group...">
+                                            <div id="recordingGroupResults" class="list-group mt-2" style="display: none;"></div>
+                                            <input type="hidden" id="selectedGroupIdForRecording">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="performerSelect" class="form-label">Performer</label>
+                                            <select class="form-select" id="performerSelect">
+                                                <option value="">Select performer...</option>
+                                                <!-- Populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label for="recordingFileUrl" class="form-label">File URL</label>
+                                            <input type="url" class="form-control" id="recordingFileUrl" 
+                                                   placeholder="https://example.com/recording.mp3">
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-plus-lg me-2"></i>Add Recording
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <button class="btn btn-primary btn-float" onclick="refreshSearch()" title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedGroups = [];
+        let searchTimeout;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFilters();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', debounceSearch);
+            document.getElementById('voicesFilter').addEventListener('change', performSearch);
+            document.getElementById('composerFilter').addEventListener('change', performSearch);
+
+            // Media forms
+            document.getElementById('editionForm').addEventListener('submit', handleEditionSubmit);
+            document.getElementById('recordingForm').addEventListener('submit', handleRecordingSubmit);
+
+            // Group search for media
+            document.getElementById('editionGroupSearch').addEventListener('input', () => searchGroupsForMedia('edition'));
+            document.getElementById('recordingGroupSearch').addEventListener('input', () => searchGroupsForMedia('recording'));
+        }
+
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 300);
+        }
+
+        async function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            const voices = document.getElementById('voicesFilter').value;
+            const composer = document.getElementById('composerFilter').value;
+
+            if (!searchTerm && !voices && !composer) {
+                document.getElementById('searchResults').innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-search display-4"></i>
+                        <p>Enter search terms to find groups</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    title: searchTerm,
+                    voices: voices,
+                    composer: composer,
+                    page_size: 50
+                });
+
+                const response = await fetch(`/api/search/groups?${params}`);
+                const data = await response.json();
+
+                displaySearchResults(data.groups);
+            } catch (error) {
+                console.error('Search error:', error);
+                document.getElementById('searchResults').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error searching groups
+                    </div>
+                `;
+            }
+        }
+
+        function displaySearchResults(groups) {
+            const resultsContainer = document.getElementById('searchResults');
+
+            if (groups.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p>No groups found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            resultsContainer.innerHTML = groups.map(group => `
+                <div class="group-card" onclick="toggleGroupSelection(${group.id})" data-group-id="${group.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-2">${group.display_title}</h6>
+                            <div class="group-info">
+                                <span class="badge bg-secondary me-2">${group.voices}vv</span>
+                                <span class="text-muted">${group.composer}</span>
+                                ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
+                            </div>
+                            ${group.functions.length > 0 ? `
+                                <div class="mt-2">
+                                    <small class="text-muted">Functions: ${group.functions.join(', ')}</small>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="text-end">
+                            <i class="bi bi-plus-circle text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleGroupSelection(groupId) {
+            const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+            const isSelected = selectedGroups.some(g => g.id === groupId);
+
+            if (isSelected) {
+                // Remove from selection
+                selectedGroups = selectedGroups.filter(g => g.id !== groupId);
+                groupCard.classList.remove('selected');
+            } else {
+                // Add to selection
+                const groupData = extractGroupData(groupCard);
+                selectedGroups.push({ id: groupId, ...groupData });
+                groupCard.classList.add('selected');
+            }
+
+            updateSelectedGroupsDisplay();
+            updateMergePanel();
+        }
+
+        function extractGroupData(groupCard) {
+            const title = groupCard.querySelector('h6').textContent;
+            const voicesBadge = groupCard.querySelector('.badge.bg-secondary');
+            const voices = voicesBadge ? parseInt(voicesBadge.textContent) : null;
+            const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
+            const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
+
+            return { title, voices, compositionType };
+        }
+
+        function updateSelectedGroupsDisplay() {
+            const panel = document.getElementById('selectedGroupsPanel');
+            const list = document.getElementById('selectedGroupsList');
+
+            if (selectedGroups.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            list.innerHTML = selectedGroups.map(group => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span><strong>${group.title}</strong> (${group.voices}vv)</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            `).join('');
+
+            updateCompatibilityStatus();
+        }
+
+        function updateCompatibilityStatus() {
+            const statusDiv = document.getElementById('compatibilityStatus');
+
+            if (selectedGroups.length < 2) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+
+            const isCompatible = checkGroupCompatibility();
+            const statusClass = isCompatible ? 'compatible' : 'incompatible';
+            const icon = isCompatible ? 'bi-check-circle' : 'bi-x-circle';
+            const message = isCompatible ? 
+                'These groups are compatible and can be merged.' : 
+                'These groups cannot be merged due to incompatible properties (voices, composition type, etc.).';
+
+            statusDiv.innerHTML = `
+                <div class="compatibility-check ${statusClass}">
+                    <i class="bi ${icon} me-2"></i>${message}
+                </div>
+            `;
+        }
+
+        function checkGroupCompatibility() {
+            if (selectedGroups.length < 2) return true;
+
+            const first = selectedGroups[0];
+            return selectedGroups.every(group => 
+                group.voices === first.voices && 
+                group.compositionType === first.compositionType
+            );
+        }
+
+        function updateMergePanel() {
+            const panel = document.getElementById('mergePanel');
+            const prompt = document.getElementById('mergePrompt');
+            const controls = document.getElementById('mergeControls');
+
+            if (selectedGroups.length < 2) {
+                panel.classList.remove('active');
+                prompt.style.display = 'block';
+                controls.style.display = 'none';
+                return;
+            }
+
+            panel.classList.add('active');
+            prompt.style.display = 'none';
+            controls.style.display = 'block';
+
+            // Suggest a display title
+            const suggestedTitle = selectedGroups[0].title;
+            document.getElementById('newDisplayTitle').value = suggestedTitle;
+        }
+
+        function removeFromSelection(groupId) {
+            selectedGroups = selectedGroups.filter(g => g.id !== groupId);
+            const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
+            if (groupCard) groupCard.classList.remove('selected');
+            
+            updateSelectedGroupsDisplay();
+            updateMergePanel();
+        }
+
+        function clearSelection() {
+            selectedGroups = [];
+            document.querySelectorAll('.group-card.selected').forEach(card => {
+                card.classList.remove('selected');
+            });
+            updateSelectedGroupsDisplay();
+            updateMergePanel();
+        }
+
+        async function performMerge() {
+            if (selectedGroups.length < 2) {
+                alert('Please select at least 2 groups to merge.');
+                return;
+            }
+
+            if (!checkGroupCompatibility()) {
+                alert('Selected groups are not compatible for merging.');
+                return;
+            }
+
+            const displayTitle = document.getElementById('newDisplayTitle').value.trim();
+            if (!displayTitle) {
+                alert('Please enter a display title for the merged group.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/merge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupIds: selectedGroups.map(g => g.id),
+                        displayTitle: displayTitle
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Groups merged successfully!');
+                    clearSelection();
+                    refreshSearch();
+                } else {
+                    const error = await response.json();
+                    alert(`Error merging groups: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Merge error:', error);
+                alert('Network error occurred while merging groups.');
+            }
+        }
+
+        async function loadFilters() {
+            try {
+                // Load composers
+                const composersResponse = await fetch('/api/search/composers');
+                if (composersResponse.ok) {
+                    const composers = await composersResponse.json();
+                    const composerSelect = document.getElementById('composerFilter');
+                    composers.forEach(composer => {
+                        const option = document.createElement('option');
+                        option.value = composer.id;
+                        option.textContent = composer.name;
+                        composerSelect.appendChild(option);
+                    });
+                }
+
+                // Load editors
+                const editorsResponse = await fetch('/api/admin/editors');
+                if (editorsResponse.ok) {
+                    const editors = await editorsResponse.json();
+                    const editorSelect = document.getElementById('editorSelect');
+                    editors.forEach(editor => {
+                        const option = document.createElement('option');
+                        option.value = editor.id;
+                        option.textContent = editor.name;
+                        editorSelect.appendChild(option);
+                    });
+                }
+
+                // Load performers
+                const performersResponse = await fetch('/api/admin/performers');
+                if (performersResponse.ok) {
+                    const performers = await performersResponse.json();
+                    const performerSelect = document.getElementById('performerSelect');
+                    performers.forEach(performer => {
+                        const option = document.createElement('option');
+                        option.value = performer.id;
+                        option.textContent = performer.name;
+                        performerSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading filters:', error);
+            }
+        }
+
+        function refreshSearch() {
+            performSearch();
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/admin/login';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/admin/login';
+            }
+        }
+
+        // Media management functions
+        async function searchGroupsForMedia(type) {
+            const searchInput = document.getElementById(`${type}GroupSearch`);
+            const resultsDiv = document.getElementById(`${type}GroupResults`);
+            const searchTerm = searchInput.value.trim();
+
+            if (searchTerm.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({ title: searchTerm, page_size: 10 });
+                const response = await fetch(`/api/search/groups?${params}`);
+                const data = await response.json();
+
+                if (data.groups.length > 0) {
+                    resultsDiv.innerHTML = data.groups.map(group => `
+                        <a href="#" class="list-group-item list-group-item-action" 
+                           onclick="selectGroupForMedia('${type}', ${group.id}, '${group.display_title}')">
+                            <strong>${group.display_title}</strong>
+                            <small class="text-muted d-block">${group.composer} - ${group.voices}vv</small>
+                        </a>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error searching groups:', error);
+                resultsDiv.style.display = 'none';
+            }
+        }
+
+        function selectGroupForMedia(type, groupId, title) {
+            document.getElementById(`${type}GroupSearch`).value = title;
+            document.getElementById(`selectedGroupIdFor${type.charAt(0).toUpperCase() + type.slice(1)}`).value = groupId;
+            document.getElementById(`${type}GroupResults`).style.display = 'none';
+        }
+
+        async function handleEditionSubmit(e) {
+            e.preventDefault();
+            
+            const groupId = document.getElementById('selectedGroupIdForEdition').value;
+            const editorId = document.getElementById('editorSelect').value;
+            const voicing = document.getElementById('voicingInput').value.trim();
+            const fileUrl = document.getElementById('editionFileUrl').value.trim();
+
+            if (!groupId || !fileUrl) {
+                alert('Please select a group and provide a file URL.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/editions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: parseInt(groupId),
+                        editorId: editorId ? parseInt(editorId) : null,
+                        voicing: voicing,
+                        fileUrl: fileUrl
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Edition added successfully!');
+                    document.getElementById('editionForm').reset();
+                    document.getElementById('selectedGroupIdForEdition').value = '';
+                } else {
+                    const error = await response.json();
+                    alert(`Error adding edition: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error adding edition:', error);
+                alert('Network error occurred while adding edition.');
+            }
+        }
+
+        async function handleRecordingSubmit(e) {
+            e.preventDefault();
+            
+            const groupId = document.getElementById('selectedGroupIdForRecording').value;
+            const performerId = document.getElementById('performerSelect').value;
+            const fileUrl = document.getElementById('recordingFileUrl').value.trim();
+
+            if (!groupId || !fileUrl) {
+                alert('Please select a group and provide a file URL.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/recordings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: parseInt(groupId),
+                        performerId: performerId ? parseInt(performerId) : null,
+                        fileUrl: fileUrl
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Recording added successfully!');
+                    document.getElementById('recordingForm').reset();
+                    document.getElementById('selectedGroupIdForRecording').value = '';
+                } else {
+                    const error = await response.json();
+                    alert(`Error adding recording: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error adding recording:', error);
+                alert('Network error occurred while adding recording.');
+            }
+        }
+    </script>
+</body>
+</html> 

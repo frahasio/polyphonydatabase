@@ -3,231 +3,507 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polyphony Database - Administration</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>The Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
     <style>
-        .auth-info {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            font-size: 14px;
-            z-index: 1000;
+        .navbar {
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-
-        .auth-info .user-name {
-            font-weight: bold;
-            color: #333;
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white !important;
         }
-
-        .auth-info .logout-btn {
-            color: #007bff;
-            text-decoration: none;
-            margin-left: 10px;
-            cursor: pointer;
+        
+        .search-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 3rem 0;
+            margin-bottom: 2rem;
         }
-
-        .auth-info .logout-btn:hover {
-            text-decoration: underline;
+        
+        .search-filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
         }
-
-        .admin-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #007bff;
+        
+        .results-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
         }
-
-        .admin-links {
+        
+        .table th {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: none;
+            font-weight: 600;
+            color: #495057;
+            padding: 1rem;
+        }
+        
+        .table td {
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+        
+        .sources-subtable {
+            font-size: 0.9rem;
+        }
+        
+        .sources-subtable td {
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+        }
+        
+        .clef-images {
             display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
+            gap: 2px;
         }
-
-        .admin-links a {
+        
+        .clef-images img {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .edition-link, .recording-link {
             display: inline-block;
-            padding: 10px 15px;
-            background: #007bff;
+            margin: 0.2rem 0;
+            padding: 0.3rem 0.6rem;
+            background: #e3f2fd;
+            color: #1976d2;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .edition-link:hover, .recording-link:hover {
+            background: #bbdefb;
+            color: #1565c0;
+        }
+        
+        .recording-link {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        
+        .recording-link:hover {
+            background: #e1bee7;
+            color: #6a1b9a;
+        }
+        
+        .admin-link {
             color: white;
             text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.2s;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            transition: all 0.3s ease;
         }
-
-        .admin-links a:hover {
-            background: #0056b3;
+        
+        .admin-link:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
         }
-
-        .welcome-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
+        
+        .pagination-info {
+            margin: 2rem 0;
+            color: #6c757d;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
         }
     </style>
 </head>
 <body>
-    <div class="auth-info" id="authInfo" style="display: none;">
-        <span class="user-name" id="userName"></span>
-        <span class="logout-btn" onclick="logout()">Logout</span>
+    <nav class="navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-music-note-beamed me-2"></i>
+                The Polyphony Database
+            </a>
+            <div>
+                <a href="/admin" class="admin-link">
+                    <i class="bi bi-shield-lock me-2"></i>Admin Login
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="search-header">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="display-5 fw-bold mb-3">Search the Database</h1>
+                    <p class="lead mb-4">Discover Renaissance polyphonic music from manuscripts and prints</p>
+                    <div class="search-info text-muted">
+                        <small><strong id="totalResults">0</strong> groups found</small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="container">
-        <header>
-            <h1>Polyphony Database</h1>
-            <p>Medieval and Renaissance Polyphonic Music Administration</p>
-        </header>
-
-        <div id="welcomeMessage" class="welcome-message" style="display: none;">
-            <strong>Welcome!</strong> You are successfully logged in to the Polyphony Database administration system.
+        <!-- Search Filters -->
+        <div class="search-filters">
+            <form id="searchForm">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="searchTitle" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="searchTitle" placeholder="Search titles...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchComposer" class="form-label">Composer</label>
+                        <select class="form-select" id="searchComposer">
+                            <option value="">All composers</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchVoices" class="form-label">Voices</label>
+                        <select class="form-select" id="searchVoices">
+                            <option value="">Any</option>
+                            <option value="2">2vv</option>
+                            <option value="3">3vv</option>
+                            <option value="4">4vv</option>
+                            <option value="5">5vv</option>
+                            <option value="6">6vv</option>
+                            <option value="7">7vv</option>
+                            <option value="8">8vv</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchFunction" class="form-label">Function</label>
+                        <select class="form-select" id="searchFunction">
+                            <option value="">All functions</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasEditions">
+                            <label class="form-check-label" for="hasEditions">
+                                Has performing editions
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasRecordings">
+                            <label class="form-check-label" for="hasRecordings">
+                                Has recordings
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
 
-        <div id="adminSection" class="admin-section" style="display: none;">
-            <h3>Administrative Functions</h3>
-            <div class="admin-links">
-                <a href="/user-management.html">Manage Users</a>
-                <a href="#" onclick="changePassword()">Change Password</a>
+        <!-- Results Table -->
+        <div class="results-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%">Title</th>
+                            <th style="width: 20%">Function(s)</th>
+                            <th style="width: 15%">Composer</th>
+                            <th style="width: 5%">#</th>
+                            <th style="width: 35%">Sources</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <!-- Results will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <main>
-            <div class="modules-grid">
-                <div class="module-card">
-                    <h2>Sources</h2>
-                    <p>Manage manuscript and print sources with detailed cataloguing information.</p>
-                    <a href="modules/sources/index.html" class="btn">Access Sources</a>
-                </div>
+        <!-- Loading indicator -->
+        <div id="loadingIndicator" class="loading-spinner" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Searching database...</p>
+        </div>
 
-                <div class="module-card">
-                    <h2>Composers</h2>
-                    <p>Maintain composer information and attributions.</p>
-                    <a href="modules/composers/index.html" class="btn">Access Composers</a>
+        <!-- Pagination -->
+        <div class="pagination-info text-center" id="paginationInfo" style="display: none;">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <small class="text-muted">
+                        Showing <span id="resultsStart">1</span>-<span id="resultsEnd">25</span> 
+                        of <span id="resultsTotal">0</span> results
+                    </small>
                 </div>
-
-                <div class="module-card">
-                    <h2>Editors</h2>
-                    <p>Manage editor information for modern editions.</p>
-                    <a href="modules/editors/index.html" class="btn">Access Editors</a>
+                <div class="col-md-4">
+                    <nav>
+                        <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination">
+                            <!-- Pagination will be populated here -->
+                        </ul>
+                    </nav>
                 </div>
-
-                <div class="module-card">
-                    <h2>Performers</h2>
-                    <p>Catalog performance information and recordings.</p>
-                    <a href="modules/performers/index.html" class="btn">Access Performers</a>
-                </div>
-
-                <div class="module-card">
-                    <h2>Publishers</h2>
-                    <p>Manage publisher details for historical and modern publications.</p>
-                    <a href="modules/publishers/index.html" class="btn">Access Publishers</a>
-                </div>
-
-                <div class="module-card">
-                    <h2>Scribes</h2>
-                    <p>Catalog scribe information for manuscript sources.</p>
-                    <a href="modules/scribes/index.html" class="btn">Access Scribes</a>
-                </div>
-
-                <div class="module-card">
-                    <h2>Functions & Titles</h2>
-                    <p>Manage liturgical functions and composition titles with language support.</p>
-                    <a href="modules/functions/index.html" class="btn">Access Functions</a>
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm d-inline-block w-auto" id="pageSize">
+                        <option value="25">25 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
                 </div>
             </div>
-        </main>
+        </div>
 
-        <footer>
-            <p>&copy; 2024 Polyphony Database. All rights reserved.</p>
+        <footer class="text-center mt-5 pt-4 border-top">
+            <p class="text-muted">&copy; 2024 Polyphony Database. All rights reserved.</p>
+            <p class="text-muted">
+                <small>
+                    Contact: <a href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a> | 
+                    <a href="https://polyphonydatabase.com/about" target="_blank">About the Database</a>
+                </small>
+            </p>
         </footer>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let currentPage = 1;
+        let currentPageSize = 25;
+        let searchTimeout;
+
         document.addEventListener('DOMContentLoaded', function() {
-            loadUserInfo();
+            loadFilters();
+            performSearch();
+            
+            // Set up search event listeners
+            ['searchTitle', 'searchComposer', 'searchVoices', 'searchFunction', 'hasEditions', 'hasRecordings'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element.type === 'checkbox') {
+                    element.addEventListener('change', debounceSearch);
+                } else {
+                    element.addEventListener('input', debounceSearch);
+                }
+            });
+            
+            document.getElementById('pageSize').addEventListener('change', function() {
+                currentPageSize = parseInt(this.value);
+                currentPage = 1;
+                performSearch();
+            });
         });
 
-        async function loadUserInfo() {
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentPage = 1;
+                performSearch();
+            }, 300);
+        }
+
+        async function loadFilters() {
             try {
-                const response = await fetch('/api/auth/me');
-                if (response.ok) {
-                    const data = await response.json();
-                    const user = data.user;
-                    
-                    // Show auth info
-                    document.getElementById('userName').textContent = user.name;
-                    document.getElementById('authInfo').style.display = 'block';
-                    
-                    // Show welcome message
-                    document.getElementById('welcomeMessage').style.display = 'block';
-                    
-                    // Show admin section if user is admin
-                    if (user.role === 'admin') {
-                        document.getElementById('adminSection').style.display = 'block';
-                    }
-                } else {
-                    // Not authenticated, redirect to login
-                    window.location.href = '/login.html';
+                // Load composers
+                const composersResponse = await fetch('/api/search/composers');
+                if (composersResponse.ok) {
+                    const composers = await composersResponse.json();
+                    const composerSelect = document.getElementById('searchComposer');
+                    composers.forEach(composer => {
+                        const option = document.createElement('option');
+                        option.value = composer.id;
+                        option.textContent = composer.name;
+                        composerSelect.appendChild(option);
+                    });
+                }
+
+                // Load functions
+                const functionsResponse = await fetch('/api/search/functions');
+                if (functionsResponse.ok) {
+                    const functions = await functionsResponse.json();
+                    const functionSelect = document.getElementById('searchFunction');
+                    functions.forEach(func => {
+                        const option = document.createElement('option');
+                        option.value = func.id;
+                        option.textContent = func.name;
+                        functionSelect.appendChild(option);
+                    });
                 }
             } catch (error) {
-                console.error('Error loading user info:', error);
-                window.location.href = '/login.html';
+                console.error('Error loading filters:', error);
             }
         }
 
-        async function logout() {
+        async function performSearch() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsBody = document.getElementById('resultsBody');
+            const paginationInfo = document.getElementById('paginationInfo');
+            
+            loadingIndicator.style.display = 'block';
+            resultsBody.innerHTML = '';
+            paginationInfo.style.display = 'none';
+
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/login.html';
-            } catch (error) {
-                console.error('Logout error:', error);
-                window.location.href = '/login.html';
-            }
-        }
-
-        function changePassword() {
-            const currentPassword = prompt('Enter your current password:');
-            if (!currentPassword) return;
-            
-            const newPassword = prompt('Enter your new password (minimum 8 characters):');
-            if (!newPassword || newPassword.length < 8) {
-                alert('New password must be at least 8 characters long.');
-                return;
-            }
-            
-            const confirmPassword = prompt('Confirm your new password:');
-            if (newPassword !== confirmPassword) {
-                alert('Passwords do not match.');
-                return;
-            }
-            
-            changePasswordAPI(currentPassword, newPassword);
-        }
-
-        async function changePasswordAPI(currentPassword, newPassword) {
-            try {
-                const response = await fetch('/api/auth/change-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ currentPassword, newPassword })
+                const searchParams = new URLSearchParams({
+                    page: currentPage,
+                    page_size: currentPageSize,
+                    title: document.getElementById('searchTitle').value,
+                    composer: document.getElementById('searchComposer').value,
+                    voices: document.getElementById('searchVoices').value,
+                    function: document.getElementById('searchFunction').value,
+                    has_editions: document.getElementById('hasEditions').checked,
+                    has_recordings: document.getElementById('hasRecordings').checked
                 });
 
-                const data = await response.json();
-
+                const response = await fetch(`/api/search/groups?${searchParams}`);
+                
                 if (response.ok) {
-                    alert('Password changed successfully!');
+                    const data = await response.json();
+                    displayResults(data);
                 } else {
-                    alert(data.error || 'Failed to change password');
+                    throw new Error('Search failed');
                 }
             } catch (error) {
-                console.error('Password change error:', error);
-                alert('Network error. Please try again.');
+                console.error('Search error:', error);
+                resultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading results. Please try again.</td></tr>';
             }
+            
+            loadingIndicator.style.display = 'none';
+        }
+
+        function displayResults(data) {
+            const resultsBody = document.getElementById('resultsBody');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const totalResults = document.getElementById('totalResults');
+            
+            totalResults.textContent = data.total.toLocaleString();
+            
+            if (data.groups.length === 0) {
+                resultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No results found. Try adjusting your search criteria.</td></tr>';
+                return;
+            }
+            
+            resultsBody.innerHTML = data.groups.map(group => `
+                <tr>
+                    <td>
+                        <strong>${group.display_title}</strong>
+                        ${group.editions.map(edition => `
+                            <div>
+                                <a href="${edition.file_url}" target="_blank" class="edition-link">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>
+                                    ${edition.editor_name} (${edition.voicing})
+                                </a>
+                            </div>
+                        `).join('')}
+                        ${group.recordings.map(recording => `
+                            <div>
+                                <a href="${recording.file_url}" target="_blank" class="recording-link">
+                                    <i class="bi bi-play-circle me-1"></i>
+                                    ${recording.performer_name}
+                                </a>
+                            </div>
+                        `).join('')}
+                    </td>
+                    <td>
+                        ${group.composition_type ? `(${group.composition_type}) ` : ''}
+                        ${group.functions.join(', ')}
+                    </td>
+                    <td>${group.composer}</td>
+                    <td>${group.voices}</td>
+                    <td>
+                        <table class="sources-subtable w-100">
+                            ${group.sources.map(source => `
+                                <tr>
+                                    <td>
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <strong title="${source.full_title}">${source.short_title}</strong><br>
+                                                <small class="text-muted">${source.code}</small><br>
+                                                <small>${source.publication_details}</small>
+                                                ${source.rism_link ? `<br><a href="${source.rism_link}" target="_blank" class="text-primary"><small>RISM</small></a>` : ''}
+                                                ${source.images.map(img => `
+                                                    <a href="${img.url}" target="_blank" title="${img.comment || 'View image'}" class="text-primary ms-2">
+                                                        <small><i class="bi bi-image"></i></small>
+                                                    </a>
+                                                `).join('')}
+                                                <br><small><strong>Position:</strong> ${source.position}</small>
+                                                ${source.attribution ? `<br><small><strong>Attribution:</strong> ${source.attribution}</small>` : ''}
+                                                ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
+                                            </div>
+                                            <div class="clef-images">
+                                                ${source.clefs.map(clef => `<img src="/assets/clefs/${clef}" alt="clef">`).join('')}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Update pagination
+            updatePagination(data);
+            paginationInfo.style.display = 'block';
+        }
+
+        function updatePagination(data) {
+            const start = (currentPage - 1) * currentPageSize + 1;
+            const end = Math.min(currentPage * currentPageSize, data.total);
+            
+            document.getElementById('resultsStart').textContent = start.toLocaleString();
+            document.getElementById('resultsEnd').textContent = end.toLocaleString();
+            document.getElementById('resultsTotal').textContent = data.total.toLocaleString();
+            
+            const totalPages = Math.ceil(data.total / currentPageSize);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            // Previous button
+            if (currentPage > 1) {
+                pagination.innerHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(${currentPage - 1})">Previous</a>
+                    </li>
+                `;
+            }
+            
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                pagination.innerHTML += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="goToPage(${i})">${i}</a>
+                    </li>
+                `;
+            }
+            
+            // Next button
+            if (currentPage < totalPages) {
+                pagination.innerHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="goToPage(${currentPage + 1})">Next</a>
+                    </li>
+                `;
+            }
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            performSearch();
         }
     </script>
 </body>
