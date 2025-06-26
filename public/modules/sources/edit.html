@@ -965,8 +965,11 @@
         }
 
         function buildClefInputs(clefs, inclusionIndex) {
+            // Sort clefs by standard display order before displaying
+            const sortedClefs = sortClefsByDisplayOrder(clefs);
+            
             // Ensure we have at least 8 clef inputs, in rows of 8
-            const totalClefs = Math.max(8, Math.ceil(clefs.length / 8) * 8);
+            const totalClefs = Math.max(8, Math.ceil(sortedClefs.length / 8) * 8);
             const rows = Math.ceil(totalClefs / 8);
             
             let html = '';
@@ -974,7 +977,7 @@
                 html += '<div class="clef-row mb-1">';
                 for (let col = 0; col < 8; col++) {
                     const clefIndex = row * 8 + col;
-                    const clef = clefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] };
+                    const clef = sortedClefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] };
                     const displayValue = formatClefDisplay(clef);
                     
                     const clefClass = clef.optional ? 'form-control form-control-sm clef-input optional' : 'form-control form-control-sm clef-input';
@@ -993,7 +996,58 @@
                 }
                 html += '</div>';
             }
+            
+            // Update the inclusion data with sorted clefs (for when the page is saved)
+            if (inclusionsData[inclusionIndex]) {
+                inclusionsData[inclusionIndex].clefs = sortedClefs;
+            }
+            
             return html;
+        }
+
+        function sortClefsByDisplayOrder(clefs) {
+            // Define clef display order (from schema reference)
+            const clefDisplayOrder = [
+                'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+            ];
+            
+            if (!clefs || clefs.length === 0) {
+                return [];
+            }
+            
+            // Separate non-optional clefs from optional ones
+            const nonOptionalClefs = clefs.filter(clef => clef.clef && !clef.optional);
+            const optionalClefs = clefs.filter(clef => clef.clef && clef.optional);
+            const emptyClefs = clefs.filter(clef => !clef.clef);
+            
+            // Sort non-optional clefs by display order
+            const sortedNonOptional = nonOptionalClefs.sort((a, b) => {
+                const aIndex = clefDisplayOrder.indexOf(a.clef);
+                const bIndex = clefDisplayOrder.indexOf(b.clef);
+                
+                // Handle unknown clefs (put them at the end)
+                if (aIndex === -1 && bIndex === -1) return 0;
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                
+                return aIndex - bIndex;
+            });
+            
+            // Sort optional clefs by display order
+            const sortedOptional = optionalClefs.sort((a, b) => {
+                const aIndex = clefDisplayOrder.indexOf(a.clef);
+                const bIndex = clefDisplayOrder.indexOf(b.clef);
+                
+                // Handle unknown clefs (put them at the end)
+                if (aIndex === -1 && bIndex === -1) return 0;
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                
+                return aIndex - bIndex;
+            });
+            
+            // Return sorted clefs: non-optional first, then optional, then empty slots
+            return [...sortedNonOptional, ...sortedOptional, ...emptyClefs];
         }
 
         function formatClefDisplay(clef) {
@@ -1082,20 +1136,48 @@
             const clefData = parseClefInput(value);
             inclusionsData[inclusionIndex].clefs[clefIndex] = clefData;
             
-            // Update the input styling
-            const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
-            if (input) {
-                input.style.cssText = getClefInputStyle(clefData);
+            // Re-sort clefs after update to maintain consistent ordering
+            if (inclusionsData[inclusionIndex].clefs.some(clef => clef.clef)) {
+                inclusionsData[inclusionIndex].clefs = sortClefsByDisplayOrder(inclusionsData[inclusionIndex].clefs);
                 
-                // Update tooltip to show validation error
-                if (clefData.valid === false) {
-                    input.title = clefData.error;
-                    input.setAttribute('data-bs-toggle', 'tooltip');
-                } else {
-                    input.title = '';
-                    input.removeAttribute('data-bs-toggle');
+                // Refresh the entire clef section for this inclusion to reflect new sorting
+                setTimeout(() => {
+                    const clefContainer = document.querySelector(`[data-index="${inclusionIndex}"] .col-5`);
+                    if (clefContainer) {
+                        const labelElement = clefContainer.querySelector('.form-label');
+                        if (labelElement) {
+                            // Replace just the clef inputs part, keeping the label and add button
+                            const newClefInputsHTML = buildClefInputs(inclusionsData[inclusionIndex].clefs, inclusionIndex);
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = newClefInputsHTML;
+                            
+                            // Remove old clef rows and add new ones
+                            clefContainer.querySelectorAll('.clef-row').forEach(row => row.remove());
+                            const addButton = clefContainer.querySelector('.btn');
+                            if (addButton) {
+                                addButton.parentNode.insertBefore(tempDiv, addButton);
+                            }
+                        }
+                    }
+                }, 10);
+            } else {
+                // No clefs with content, just update styling for current input
+                const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
+                if (input) {
+                    input.style.cssText = getClefInputStyle(clefData);
+                    
+                    // Update tooltip to show validation error
+                    if (clefData.valid === false) {
+                        input.title = clefData.error;
+                        input.setAttribute('data-bs-toggle', 'tooltip');
+                    } else {
+                        input.title = '';
+                        input.removeAttribute('data-bs-toggle');
+                    }
                 }
             }
+            
+            markAsUnsaved();
         }
 
         function parseClefInput(value) {
@@ -1722,7 +1804,7 @@
                     attribution_texts: [...(inclusion.attribution_texts || [''])],
                     composer_ids: [...(inclusion.composer_ids || [])],
                     notes: inclusion.notes || '',
-                    clefs: [...(inclusion.clefs || [])],
+                    clefs: sortClefsByDisplayOrder(inclusion.clefs || []), // Sort clefs when copying
                     composition: {
                         title_text: inclusion.composition?.title_text || '',
                         composition_type_name: inclusion.composition?.composition_type_name || '',

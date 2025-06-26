@@ -11,7 +11,7 @@ router.use(requireAdmin);
 router.get('/clef-combinations', async (req, res) => {
   try {
     const query = `
-      SELECT id, clef_combination
+      SELECT DISTINCT id, clef_combination
       FROM clef_combinations
       ORDER BY clef_combination
     `;
@@ -48,7 +48,23 @@ router.post('/clef-voicing-mappings', async (req, res) => {
       return res.status(400).json({ error: 'clef_combination_id and voicing_id are required' });
     }
 
-    // Check if mapping already exists
+    // Try INSERT with ON CONFLICT first (if constraint exists)
+    try {
+      const insertQuery = `
+        INSERT INTO clef_combinations_voicings (clef_combination_id, voicing_id)
+        VALUES ($1, $2)
+        ON CONFLICT (clef_combination_id, voicing_id) DO NOTHING
+      `;
+      
+      await pool.query(insertQuery, [clef_combination_id, voicing_id]);
+      res.json({ success: true, message: 'Mapping added successfully' });
+      return;
+    } catch (conflictError) {
+      // If ON CONFLICT fails (no constraint), fall back to manual check
+      console.log('ON CONFLICT failed, using manual duplicate check:', conflictError.message);
+    }
+
+    // Fallback: Check if mapping already exists manually
     const checkQuery = `
       SELECT 1 FROM clef_combinations_voicings 
       WHERE clef_combination_id = $1 AND voicing_id = $2
@@ -119,8 +135,8 @@ router.post('/voicings', async (req, res) => {
     }
 
     const insertQuery = `
-      INSERT INTO voicings (voicing)
-      VALUES ($1)
+      INSERT INTO voicings (voicing, created_at, updated_at)
+      VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, voicing
     `;
     
@@ -147,26 +163,49 @@ router.post('/clef-combinations', async (req, res) => {
 
     const trimmedClefCombo = clef_combination.trim();
 
-    // Validate clef combination format (basic validation)
-    if (!/^[a-z0-9]+$/.test(trimmedClefCombo)) {
-      return res.status(400).json({ error: 'Invalid clef combination format' });
+    // Define clef display order for sorting and validation
+    const clefDisplayOrder = [
+      'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+    ];
+
+    // Parse and validate individual clefs
+    const clefArray = trimmedClefCombo.match(/(g[0-9]+|g28|c[0-9]+|f[0-9]+|x[0-9]+|y[0-9]+|d[0-9]+|lut|org|bc)/g) || [];
+    
+    if (clefArray.length === 0) {
+      return res.status(400).json({ error: 'No valid clefs found in combination' });
     }
 
-    // Check if clef combination already exists
+    // Validate each clef exists in our valid list
+    for (const clef of clefArray) {
+      if (!clefDisplayOrder.includes(clef)) {
+        return res.status(400).json({ error: `Invalid clef: ${clef}` });
+      }
+    }
+
+    // Sort clefs according to display order to ensure consistency
+    const sortedClefs = clefArray.sort((a, b) => {
+      const aIndex = clefDisplayOrder.indexOf(a);
+      const bIndex = clefDisplayOrder.indexOf(b);
+      return aIndex - bIndex;
+    });
+
+    const sortedClefCombo = sortedClefs.join('');
+
+    // Check if clef combination already exists (use sorted version)
     const checkQuery = 'SELECT id FROM clef_combinations WHERE clef_combination = $1';
-    const checkResult = await pool.query(checkQuery, [trimmedClefCombo]);
+    const checkResult = await pool.query(checkQuery, [sortedClefCombo]);
     
     if (checkResult.rows.length > 0) {
       return res.status(409).json({ error: 'Clef combination already exists' });
     }
 
     const insertQuery = `
-      INSERT INTO clef_combinations (clef_combination)
-      VALUES ($1)
+      INSERT INTO clef_combinations (clef_combination, created_at, updated_at)
+      VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id, clef_combination
     `;
     
-    const result = await pool.query(insertQuery, [trimmedClefCombo]);
+    const result = await pool.query(insertQuery, [sortedClefCombo]);
     res.json({ 
       success: true, 
       message: 'Clef combination added successfully',
@@ -476,6 +515,11 @@ router.post('/cleanup', async (req, res) => {
 
       // Clean up unused clef combinations (check if they're actually used in inclusions)
       try {
+        // Define clef display order for sorting
+        const clefDisplayOrder = [
+          'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+        ];
+        
         // Find clef combinations that are not actually used in any inclusions
         const clefCombosResult = await client.query(`
           SELECT id, clef_combination FROM clef_combinations
@@ -483,21 +527,31 @@ router.post('/cleanup', async (req, res) => {
         
         let removedUnused = 0;
         for (const combo of clefCombosResult.rows) {
-          // Parse clef combination string
-          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          // Skip invalid clef combinations
+          const targetClefCombination = combo.clef_combination;
+          if (!targetClefCombination) {
+            await client.query('DELETE FROM clef_combinations WHERE id = $1', [combo.id]);
+            removedUnused++;
+            continue;
+          }
           
-          if (clefArray.length === 0) continue; // Skip invalid combinations
-          
-          // Build query to check if this clef combination is used in inclusions
-          const clefChecks = clefArray.map((clef) => {
-            return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
-          });
-          
+          // Check if this sorted clef combination is used in any inclusions
           const usageQuery = `
             SELECT 1 FROM inclusions i
             WHERE i.clefs IS NOT NULL
-            AND jsonb_array_length(i.clefs) = ${clefArray.length}
-            AND ${clefChecks.join(' AND ')}
+            AND (
+              -- Extract non-optional clefs, sort them, and compare to target combination
+              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                CASE clef_obj->>'clef'
+                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                  ELSE 999
+                END
+              )
+              FROM jsonb_array_elements(i.clefs) AS clef_obj
+              WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+              AND clef_obj->>'clef' IS NOT NULL
+              AND clef_obj->>'clef' != ''
+            ) = '${targetClefCombination}'
             LIMIT 1
           `;
           
@@ -695,30 +749,41 @@ router.get('/cleanup-preview', async (req, res) => {
 
     // Preview unused clef combinations (check if they're actually used in inclusions)
     try {
+      // Define clef display order for sorting
+      const clefDisplayOrder = [
+        'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+      ];
+      
       const clefCombosResult = await pool.query(`
         SELECT id, clef_combination FROM clef_combinations
       `);
       
       let unusedCount = 0;
       for (const combo of clefCombosResult.rows) {
-        // Parse clef combination string
-        const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
-        
-        if (clefArray.length === 0) {
+        // Skip invalid clef combinations
+        const targetClefCombination = combo.clef_combination;
+        if (!targetClefCombination) {
           unusedCount++; // Invalid combinations count as unused
           continue;
         }
         
-        // Build query to check if this clef combination is used in inclusions
-        const clefChecks = clefArray.map((clef) => {
-          return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
-        });
-        
+        // Check if this sorted clef combination is used in any inclusions
         const usageQuery = `
           SELECT 1 FROM inclusions i
           WHERE i.clefs IS NOT NULL
-          AND jsonb_array_length(i.clefs) = ${clefArray.length}
-          AND ${clefChecks.join(' AND ')}
+          AND (
+            -- Extract non-optional clefs, sort them, and compare to target combination
+            SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+              CASE clef_obj->>'clef'
+                ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                ELSE 999
+              END
+            )
+            FROM jsonb_array_elements(i.clefs) AS clef_obj
+            WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+            AND clef_obj->>'clef' IS NOT NULL
+            AND clef_obj->>'clef' != ''
+          ) = '${targetClefCombination}'
           LIMIT 1
         `;
         

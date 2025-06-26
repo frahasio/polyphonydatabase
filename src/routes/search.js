@@ -232,25 +232,35 @@ router.get('/groups', async (req, res) => {
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
         
         if (voicingClefsResult.rows.length > 0) {
+          // Define clef display order for sorting (from schema reference)
+          const clefDisplayOrder = [
+            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+          ];
+          
           const voicingConditions = voicingClefsResult.rows.map((row) => {
-            // Convert clef combo string to clef array and check if all clefs are present
-            const clefArray = row.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+            // Skip invalid clef combinations
+            const targetClefCombination = row.clef_combination;
+            if (!targetClefCombination) return null;
             
-            if (clefArray.length === 0) return null; // Skip invalid clef combinations
-            
-            // Build a condition that checks if the inclusion contains all the required clefs
-            // regardless of additional properties like optional, missing, etc.
-            const clefChecks = clefArray.map((clef) => {
-              return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
-            });
-            
+            // Use PostgreSQL function to sort and compare clef combinations
             const condition = `EXISTS (
               SELECT 1 FROM compositions c2
               JOIN inclusions i ON c2.id = i.composition_id
               WHERE c2.group_id = g.id 
               AND i.clefs IS NOT NULL
-              AND jsonb_array_length(i.clefs) = ${clefArray.length}
-              AND ${clefChecks.join(' AND ')}
+              AND (
+                -- Extract non-optional clefs, sort them, and compare to target combination
+                SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                  CASE clef_obj->>'clef'
+                    ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                    ELSE 999
+                  END
+                )
+                FROM jsonb_array_elements(i.clefs) AS clef_obj
+                WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+                AND clef_obj->>'clef' IS NOT NULL
+                AND clef_obj->>'clef' != ''
+              ) = '${targetClefCombination}'
             )`;
             
             return condition;
