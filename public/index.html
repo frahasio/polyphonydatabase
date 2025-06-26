@@ -158,28 +158,29 @@
             border: 1px solid #dc3545;
             opacity: 0.7;
             background-color: rgba(220, 53, 69, 0.1);
-            margin-right: -1px;
         }
         
         .clef-incomplete {
             border: 1px solid #28a745;
             opacity: 0.7;
             background-color: rgba(40, 167, 69, 0.1);
-            margin-right: -1px;
         }
         
         .clef-optional {
             opacity: 0.5;
-            margin-right: -1px;
         }
         
         .clef-multiple {
             /* No additional styling needed - blue is built into the image */
-            margin-right: -1px;
         }
         
-        .clef-images img:last-child {
-            margin-right: 0;
+        /* Remove right border from clefs that have the same class as the next one */
+        .clef-missing + .clef-missing {
+            border-left: none;
+        }
+        
+        .clef-incomplete + .clef-incomplete {
+            border-left: none;
         }
         
         /* Minimal Select2 adjustments */
@@ -343,16 +344,10 @@
                         <select class="form-select form-select-sm" id="searchCities" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small">Voice Quantities</label>
-                        <div id="voiceQuantityControls"></div>
-                        <div id="voicingMatches" class="mt-1" style="display: none;">
-                            <small class="text-info">
-                                <span id="voicingMatchCount">0</span> clef combinations found
-                                <button type="button" class="btn btn-link btn-sm p-0 ms-1" onclick="showVoicingDetails()">
-                                    <i class="bi bi-info-circle"></i>
-                                </button>
-                            </small>
-                        </div>
+                        <label for="searchVoicing" class="form-label small">Voicing</label>
+                        <select class="form-select form-select-sm" id="searchVoicing" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small">Filters</label>
@@ -448,7 +443,7 @@
             performSearch();
             
             // Initialize Select2 for multi-select elements
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').select2({
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
                 width: '100%'
@@ -460,7 +455,7 @@
             document.getElementById('hasRecordings').addEventListener('change', debounceSearch);
             
             // Set up Select2 change listeners  
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').on('change', debounceSearch);
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').on('change', debounceSearch);
             
             document.getElementById('pageSize').addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -512,7 +507,7 @@
             const compositionTypes = getMultiSelectValues('searchCompositionTypes');
             const tones = getMultiSelectValues('searchTones');
             const evenOdd = getMultiSelectValues('searchEvenOdd');
-            const voiceQuantities = getVoiceQuantities();
+            const voicing = getMultiSelectValues('searchVoicing');
             const languages = getMultiSelectValues('searchLanguages');
             const countries = getMultiSelectValues('searchCountries');
             const sources = getMultiSelectValues('searchSources');
@@ -528,7 +523,7 @@
             if (compositionTypes) params.set('composition_types', compositionTypes);
             if (tones) params.set('tones', tones);
             if (evenOdd) params.set('even_odd', evenOdd);
-            if (voiceQuantities) params.set('voice_quantities', voiceQuantities);
+            if (voicing) params.set('voicing', voicing);
             if (languages) params.set('languages', languages);
             if (countries) params.set('countries', countries);
             if (sources) params.set('sources', sources);
@@ -701,32 +696,18 @@
                         setSelectFromURL('searchCities', 'cities');
                     }
 
-                    // Load voicing options - create quantity controls
-                const voicingResponse = await fetch('/api/search/voicing-options');
+                    // Load voicing options
+                const voicingResponse = await fetch('/api/search/voicings');
                 if (voicingResponse.ok) {
-                    const voiceTypes = await voicingResponse.json();
-                    const voicingContainer = document.getElementById('voiceQuantityControls');
-                    voiceTypes.forEach(voice => {
-                        const controlDiv = document.createElement('div');
-                        controlDiv.className = 'd-flex align-items-center mb-1';
-                        controlDiv.innerHTML = `
-                            <label class="form-label small mb-0 me-2" style="min-width: 40px;">${voice.name}</label>
-                            <select class="form-select form-select-sm voice-quantity" data-voice="${voice.value}" style="width: 60px;">
-                                <option value="0">0</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                            </select>
-                        `;
-                        voicingContainer.appendChild(controlDiv);
+                    const voicings = await voicingResponse.json();
+                    const voicingSelect = document.getElementById('searchVoicing');
+                    voicings.forEach(voicing => {
+                        const option = document.createElement('option');
+                        option.value = voicing.id;
+                        option.textContent = `${voicing.name} (${voicing.voice_count}vv)`;
+                        voicingSelect.appendChild(option);
                     });
-                    
-                    // Add event listeners to quantity controls
-                    document.querySelectorAll('.voice-quantity').forEach(select => {
-                        select.addEventListener('change', handleVoicingChange);
-                    });
+                    setSelectFromURL('searchVoicing', 'voicing');
                 }
 
                 } catch (error) {
@@ -740,18 +721,7 @@
             return Array.isArray(values) ? values.join(',') : '';
         }
 
-        // Helper function to get voice quantities
-        function getVoiceQuantities() {
-            const quantities = {};
-            document.querySelectorAll('.voice-quantity').forEach(select => {
-                const voice = select.getAttribute('data-voice');
-                const quantity = parseInt(select.value);
-                if (quantity > 0) {
-                    quantities[voice] = quantity;
-                }
-            });
-            return Object.keys(quantities).length > 0 ? JSON.stringify(quantities) : '';
-        }
+
 
         async function performSearch() {
             const loadingIndicator = document.getElementById('loadingIndicator');
@@ -773,7 +743,7 @@
                     composition_types: getMultiSelectValues('searchCompositionTypes'),
                     tones: getMultiSelectValues('searchTones'),
                     even_odd: getMultiSelectValues('searchEvenOdd'),
-                    voice_quantities: getVoiceQuantities(),
+                    voicing: getMultiSelectValues('searchVoicing'),
                     languages: getMultiSelectValues('searchLanguages'),
                     countries: getMultiSelectValues('searchCountries'),
                     sources: getMultiSelectValues('searchSources'),
@@ -990,65 +960,7 @@
             performSearch();
         }
 
-        // Dynamic voicing system functions
-        let currentVoicingMatches = [];
 
-        async function handleVoicingChange() {
-            const voiceQuantities = {};
-            document.querySelectorAll('.voice-quantity').forEach(select => {
-                const voice = select.getAttribute('data-voice');
-                const quantity = parseInt(select.value);
-                if (quantity > 0) {
-                    voiceQuantities[voice] = quantity;
-                }
-            });
-
-            const voicingMatchesDiv = document.getElementById('voicingMatches');
-            const voicingMatchCount = document.getElementById('voicingMatchCount');
-
-            if (Object.keys(voiceQuantities).length === 0) {
-                voicingMatchesDiv.style.display = 'none';
-                currentVoicingMatches = [];
-                debounceSearch();
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/search/find-voicing-matches', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ voiceQuantities })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    currentVoicingMatches = data.clef_combinations || [];
-                    voicingMatchCount.textContent = currentVoicingMatches.length;
-                    voicingMatchesDiv.style.display = currentVoicingMatches.length > 0 ? 'block' : 'none';
-                    
-                    // Trigger search with new voicing matches
-                    debounceSearch();
-                } else {
-                    console.error('Error fetching voicing matches');
-                    voicingMatchesDiv.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Error in voicing matching:', error);
-                voicingMatchesDiv.style.display = 'none';
-            }
-        }
-
-        function showVoicingDetails() {
-            if (currentVoicingMatches.length === 0) return;
-
-            const details = currentVoicingMatches.map(match => 
-                `${match.clefs.join(', ')} ${match.has_optional ? '(with optional clefs)' : ''}`
-            ).join('\n');
-
-            alert(`Found clef combinations:\n\n${details}`);
-        }
 
 
 

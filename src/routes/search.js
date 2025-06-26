@@ -19,7 +19,7 @@ router.get('/groups', async (req, res) => {
       composition_types = '',
       tones = '',
       even_odd = '',
-      voice_quantities = '',
+      voicing = '',
       has_editions = 'false',
       has_recordings = 'false',
       page = 1,
@@ -42,7 +42,7 @@ router.get('/groups', async (req, res) => {
     const compositionTypeIds = composition_types ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const toneValues = tones ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
     const evenOddValues = even_odd ? even_odd.split(',').map(eo => eo.trim()).filter(eo => eo) : [];
-    const voiceQuantitiesData = voice_quantities ? JSON.parse(voice_quantities) : {};
+    const voicingIds = voicing ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const hasEditions = has_editions === 'true';
     const hasRecordings = has_recordings === 'true';
 
@@ -213,55 +213,39 @@ router.get('/groups', async (req, res) => {
       paramIndex++;
     }
 
-    // Voicing filter (voice quantity-based clef combinations)
-    if (Object.keys(voiceQuantitiesData).length > 0) {
-      // Define which clefs can represent each voice type (same as in find-voicing-matches)
-      const voiceToClefs = {
-        'S': ['g1', 'g2', 'c1'],
-        'Mz': ['g2', 'c1', 'c2'],
-        'A': ['c2', 'c3'],
-        'T': ['c3', 'c4'],
-        'Bar': ['c4', 'f3'],
-        'B': ['f3', 'f4']
-      };
-
-      // Generate possible clef combinations (simplified version)
-      const clefCombinations = [];
-      const requiredVoices = [];
+    // Voicing filter (database-driven clef combinations)
+    if (voicingIds.length > 0) {
+      // Get clef combinations associated with selected voicings
+      const voicingClefsQuery = `
+        SELECT DISTINCT cc.clefs
+        FROM voicing_clef_combinations vcc
+        JOIN clef_combinations cc ON vcc.clef_combination_id = cc.id
+        WHERE vcc.voicing_id = ANY($${paramIndex}::integer[])
+      `;
       
-      for (const [voiceType, quantity] of Object.entries(voiceQuantitiesData)) {
-        if (quantity > 0) {
-          for (let i = 0; i < quantity; i++) {
-            requiredVoices.push(voiceType);
+      try {
+        const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
+        
+        if (voicingClefsResult.rows.length > 0) {
+          const voicingConditions = voicingClefsResult.rows.map((row) => {
+            paramIndex++;
+            const condition = `EXISTS (
+              SELECT 1 FROM compositions c2
+              JOIN inclusions i ON c2.id = i.composition_id
+              WHERE c2.group_id = g.id 
+              AND i.clefs @> $${paramIndex}::jsonb
+            )`;
+            
+            queryParams.push(JSON.stringify(row.clefs));
+            return condition;
+          });
+          
+          if (voicingConditions.length > 0) {
+            whereConditions.push(`(${voicingConditions.join(' OR ')})`);
           }
         }
-      }
-
-      if (requiredVoices.length > 0) {
-        // Generate a few common clef combinations for this voice setup
-        const firstCombination = requiredVoices.map(voice => voiceToClefs[voice]?.[0]).filter(c => c);
-        if (firstCombination.length === requiredVoices.length) {
-          clefCombinations.push(firstCombination);
-        }
-
-        const voicingConditions = clefCombinations.map((clefCombo) => {
-          const condition = `EXISTS (
-            SELECT 1 FROM compositions c2
-            JOIN inclusions i ON c2.id = i.composition_id
-            WHERE c2.group_id = g.id 
-            AND i.clefs @> $${paramIndex}::jsonb
-          )`;
-          
-          // Convert clef array to the format expected in database
-          const clefObjects = clefCombo.map(clef => ({ clef: clef }));
-          queryParams.push(JSON.stringify(clefObjects));
-          paramIndex++;
-          return condition;
-        });
-        
-        if (voicingConditions.length > 0) {
-          whereConditions.push(`(${voicingConditions.join(' OR ')})`);
-        }
+      } catch (voicingError) {
+        console.error('Error processing voicing filter:', voicingError);
       }
     }
 
@@ -662,147 +646,21 @@ router.get('/even-odd', async (req, res) => {
   }
 });
 
-// Dynamic voicing system - quantity-based voice selection
-router.get('/voicing-options', async (req, res) => {
+router.get('/voicings', async (req, res) => {
   try {
-    // Return voice types with quantity options (0-10 for each type)
-    const voiceTypes = [
-      { value: 'S', name: 'Soprano' },
-      { value: 'Mz', name: 'Mezzo-soprano' },
-      { value: 'A', name: 'Alto' },
-      { value: 'T', name: 'Tenor' },
-      { value: 'Bar', name: 'Baritone' },
-      { value: 'B', name: 'Bass' }
-    ];
-    res.json(voiceTypes);
+    const query = `
+      SELECT id, name, voice_count, description
+      FROM voicings
+      ORDER BY voice_count, name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching voicing options:', error);
+    console.error('Error fetching voicings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.post('/find-voicing-matches', async (req, res) => {
-  try {
-    const { voiceQuantities } = req.body; // e.g., { S: 2, A: 2, T: 1, B: 1 }
-    
-    if (!voiceQuantities || Object.keys(voiceQuantities).length === 0) {
-      return res.json({ clef_combinations: [] });
-    }
 
-    // Define which clefs can represent each voice type
-    const voiceToClefs = {
-      'S': ['g1', 'g2', 'c1'],
-      'Mz': ['g2', 'c1', 'c2'],
-      'A': ['c2', 'c3'],
-      'T': ['c3', 'c4'],
-      'Bar': ['c4', 'f3'],
-      'B': ['f3', 'f4']
-    };
-
-    // Generate all possible clef combinations for the requested voice quantities
-    function generateClefCombinations(voiceQuantities) {
-      const combinations = [];
-      
-      // Convert voice quantities to a list of required voices
-      const requiredVoices = [];
-      for (const [voiceType, quantity] of Object.entries(voiceQuantities)) {
-        if (quantity > 0) {
-          for (let i = 0; i < quantity; i++) {
-            requiredVoices.push(voiceType);
-          }
-        }
-      }
-
-      if (requiredVoices.length === 0) return [];
-
-      // Generate all possible clef assignments for these voices
-      function generateAssignments(voiceIndex, currentAssignment) {
-        if (voiceIndex >= requiredVoices.length) {
-          combinations.push([...currentAssignment]);
-          return;
-        }
-
-        const voiceType = requiredVoices[voiceIndex];
-        const possibleClefs = voiceToClefs[voiceType] || [];
-        
-        for (const clef of possibleClefs) {
-          currentAssignment[voiceIndex] = clef;
-          generateAssignments(voiceIndex + 1, currentAssignment);
-        }
-      }
-
-      generateAssignments(0, []);
-      return combinations;
-    }
-
-    const possibleCombinations = generateClefCombinations(voiceQuantities);
-    
-    if (possibleCombinations.length === 0) {
-      return res.json({ clef_combinations: [] });
-    }
-
-    // Find inclusions that match these exact clef combinations
-    const matchingCombinations = [];
-    
-    for (const clefCombo of possibleCombinations.slice(0, 50)) { // Limit to prevent too many queries
-      const clefQuery = `
-        SELECT DISTINCT clefs, id
-        FROM inclusions
-        WHERE clefs IS NOT NULL 
-        AND jsonb_array_length(clefs) >= $1
-      `;
-      
-      const result = await pool.query(clefQuery, [clefCombo.length]);
-      
-      for (const row of result.rows) {
-        const clefs = row.clefs;
-        if (!Array.isArray(clefs)) continue;
-
-        // Extract just the vocal clefs (exclude instrumental)
-        const vocalClefs = clefs
-          .filter(c => c.clef && !['org', 'bc', 'lut'].includes(c.clef.trim()) && !c.optional)
-          .map(c => c.clef.trim())
-          .sort();
-
-        if (vocalClefs.length === clefCombo.length && 
-            clefCombo.slice().sort().join(',') === vocalClefs.join(',')) {
-          
-          const instrumentalClefs = clefs
-            .filter(c => c.clef && ['org', 'bc', 'lut'].includes(c.clef.trim()))
-            .map(c => c.clef.trim());
-
-          matchingCombinations.push({
-            clefs: clefCombo.concat(instrumentalClefs),
-            voice_combination: Object.entries(voiceQuantities)
-              .filter(([voice, qty]) => qty > 0)
-              .map(([voice, qty]) => qty > 1 ? `${qty}${voice}` : voice)
-              .join(''),
-            has_instrumental: instrumentalClefs.length > 0,
-            example_inclusion_id: row.id
-          });
-          break; // Found a match for this combination
-        }
-      }
-    }
-
-    // Remove duplicates and sort by commonality
-    const uniqueCombinations = matchingCombinations
-      .filter((combo, index, self) => 
-        index === self.findIndex(c => 
-          JSON.stringify(c.clefs.sort()) === JSON.stringify(combo.clefs.sort())
-        )
-      )
-      .slice(0, 20); // Limit results
-
-    res.json({ 
-      clef_combinations: uniqueCombinations,
-      total_found: uniqueCombinations.length 
-    });
-
-  } catch (error) {
-    console.error('Error finding voicing matches:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router; 

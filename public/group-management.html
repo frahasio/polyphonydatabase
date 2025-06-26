@@ -228,95 +228,40 @@
                     </div>
                 </div>
 
-                <!-- Media Management Panel -->
+                <!-- Quick Selection Panel -->
                 <div class="card">
                     <div class="card-header">
-                        <ul class="nav nav-tabs card-header-tabs" id="mediaTabs">
-                            <li class="nav-item">
-                                <a class="nav-link active" data-bs-toggle="tab" href="#editionsTab">
-                                    <i class="bi bi-file-earmark-pdf me-2"></i>Editions
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#recordingsTab">
-                                    <i class="bi bi-play-circle me-2"></i>Recordings
-                                </a>
-                            </li>
-                        </ul>
+                        <h5 class="mb-0">
+                            <i class="bi bi-lightning me-2"></i>Quick Actions
+                        </h5>
                     </div>
                     <div class="card-body">
-                        <div class="tab-content">
-                            <!-- Editions Tab -->
-                            <div class="tab-pane fade show active" id="editionsTab">
-                                <h6>Add Edition to Group</h6>
-                                <form id="editionForm" class="media-form">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="editionGroupSearch" class="form-label">Search Group</label>
-                                            <input type="text" class="form-control" id="editionGroupSearch" 
-                                                   placeholder="Search for group...">
-                                            <div id="editionGroupResults" class="list-group mt-2" style="display: none;"></div>
-                                            <input type="hidden" id="selectedGroupIdForEdition">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="editorSelect" class="form-label">Editor</label>
-                                            <select class="form-select" id="editorSelect">
-                                                <option value="">Select editor...</option>
-                                                <!-- Populated dynamically -->
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="voicingInput" class="form-label">Voicing</label>
-                                            <input type="text" class="form-control" id="voicingInput" 
-                                                   placeholder="e.g., SATB, ATB, etc.">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="editionFileUrl" class="form-label">File URL</label>
-                                            <input type="url" class="form-control" id="editionFileUrl" 
-                                                   placeholder="https://example.com/edition.pdf">
-                                        </div>
-                                        <div class="col-12">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-plus-lg me-2"></i>Add Edition
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="editorSelect" class="form-label">Default Editor</label>
+                                <select class="form-select" id="editorSelect">
+                                    <option value="">Select editor...</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                                <small class="text-muted">Used when adding editions</small>
                             </div>
-
-                            <!-- Recordings Tab -->
-                            <div class="tab-pane fade" id="recordingsTab">
-                                <h6>Add Recording to Group</h6>
-                                <form id="recordingForm" class="media-form">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="recordingGroupSearch" class="form-label">Search Group</label>
-                                            <input type="text" class="form-control" id="recordingGroupSearch" 
-                                                   placeholder="Search for group...">
-                                            <div id="recordingGroupResults" class="list-group mt-2" style="display: none;"></div>
-                                            <input type="hidden" id="selectedGroupIdForRecording">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="performerSelect" class="form-label">Performer</label>
-                                            <select class="form-select" id="performerSelect">
-                                                <option value="">Select performer...</option>
-                                                <!-- Populated dynamically -->
-                                            </select>
-                                        </div>
-                                        <div class="col-12">
-                                            <label for="recordingFileUrl" class="form-label">File URL</label>
-                                            <input type="url" class="form-control" id="recordingFileUrl" 
-                                                   placeholder="https://example.com/recording.mp3">
-                                        </div>
-                                        <div class="col-12">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-plus-lg me-2"></i>Add Recording
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
+                            <div class="col-md-6">
+                                <label for="performerSelect" class="form-label">Default Performer</label>
+                                <select class="form-select" id="performerSelect">
+                                    <option value="">Select performer...</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                                <small class="text-muted">Used when adding recordings</small>
                             </div>
                         </div>
+                        <hr>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Use the buttons next to each group to: 
+                            <span class="badge bg-primary ms-1">Merge</span>
+                            <span class="badge bg-success ms-1">Add Edition</span>
+                            <span class="badge bg-info ms-1">Add Recording</span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -346,13 +291,7 @@
             document.getElementById('voicesFilter').addEventListener('change', performSearch);
             document.getElementById('composerFilter').addEventListener('change', performSearch);
 
-            // Media forms
-            document.getElementById('editionForm').addEventListener('submit', handleEditionSubmit);
-            document.getElementById('recordingForm').addEventListener('submit', handleRecordingSubmit);
 
-            // Group search for media
-            document.getElementById('editionGroupSearch').addEventListener('input', () => searchGroupsForMedia('edition'));
-            document.getElementById('recordingGroupSearch').addEventListener('input', () => searchGroupsForMedia('recording'));
         }
 
         function debounceSearch() {
@@ -417,22 +356,42 @@
                         <div class="flex-grow-1">
                             <h6 class="mb-2">${group.display_title}</h6>
                             <div class="group-info">
-                                <span class="badge bg-secondary me-2">${group.voices}vv</span>
-                                <span class="text-muted">${group.composer}</span>
-                                ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
+                                <span class="badge bg-secondary me-2">${(group.voice_counts || []).join('/')}</span>
+                                <span class="text-muted">${group.composer_display || 'Unknown'}</span>
+                                ${group.function_names && group.function_names.length > 0 ? `<span class="badge bg-info ms-2">${group.function_names[0]}</span>` : ''}
                             </div>
-                            ${group.functions && group.functions.length > 0 ? `
+                            ${group.sources && group.sources.length > 0 ? `
                                 <div class="mt-2">
-                                    <small class="text-muted">Functions: ${group.functions.join(', ')}</small>
+                                    <small class="text-muted">Sources: ${group.sources.map(s => s.code).filter(c => c).join(', ')}</small>
                                 </div>
                             ` : ''}
                         </div>
                         <div class="text-end">
-                            <i class="bi bi-plus-circle text-primary"></i>
+                            <div class="btn-group-vertical">
+                                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'merge')" title="Select for merge">
+                                    <i class="bi bi-collection"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edition')" title="Add edition">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'recording')" title="Add recording">
+                                    <i class="bi bi-play-circle"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function selectGroupForAction(groupId, action) {
+            if (action === 'merge') {
+                toggleGroupSelection(groupId);
+            } else if (action === 'edition') {
+                showEditionModal(groupId);
+            } else if (action === 'recording') {
+                showRecordingModal(groupId);
+            }
         }
 
         function toggleGroupSelection(groupId) {
@@ -457,11 +416,89 @@
         function extractGroupData(groupCard) {
             const title = groupCard.querySelector('h6').textContent;
             const voicesBadge = groupCard.querySelector('.badge.bg-secondary');
-            const voices = voicesBadge ? parseInt(voicesBadge.textContent) : null;
+            const voices = voicesBadge ? voicesBadge.textContent : null;
             const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
             const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
 
             return { title, voices, compositionType };
+        }
+
+        async function showEditionModal(groupId) {
+            const group = await getGroupDetails(groupId);
+            if (!group) return;
+
+            const editorId = document.getElementById('editorSelect').value;
+            const voicing = prompt(`Add edition for "${group.display_title}"\n\nEnter voicing (e.g., SATB):`);
+            if (!voicing) return;
+
+            const fileUrl = prompt('Enter file URL:');
+            if (!fileUrl) return;
+
+            try {
+                const response = await fetch('/api/admin/groups/editions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: groupId,
+                        editorId: editorId ? parseInt(editorId) : null,
+                        voicing: voicing,
+                        fileUrl: fileUrl
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Edition added successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Error adding edition: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error adding edition:', error);
+                alert('Network error occurred while adding edition.');
+            }
+        }
+
+        async function showRecordingModal(groupId) {
+            const group = await getGroupDetails(groupId);
+            if (!group) return;
+
+            const performerId = document.getElementById('performerSelect').value;
+            const fileUrl = prompt(`Add recording for "${group.display_title}"\n\nEnter file URL:`);
+            if (!fileUrl) return;
+
+            try {
+                const response = await fetch('/api/admin/groups/recordings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: groupId,
+                        performerId: performerId ? parseInt(performerId) : null,
+                        fileUrl: fileUrl
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Recording added successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Error adding recording: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error adding recording:', error);
+                alert('Network error occurred while adding recording.');
+            }
+        }
+
+        async function getGroupDetails(groupId) {
+            try {
+                const response = await fetch(`/api/admin/groups/${groupId}`);
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (error) {
+                console.error('Error getting group details:', error);
+            }
+            return null;
         }
 
         function updateSelectedGroupsDisplay() {
@@ -659,121 +696,7 @@
             }
         }
 
-        // Media management functions
-        async function searchGroupsForMedia(type) {
-            const searchInput = document.getElementById(`${type}GroupSearch`);
-            const resultsDiv = document.getElementById(`${type}GroupResults`);
-            const searchTerm = searchInput.value.trim();
 
-            if (searchTerm.length < 2) {
-                resultsDiv.style.display = 'none';
-                return;
-            }
-
-            try {
-                const params = new URLSearchParams({ title: searchTerm, page_size: 10 });
-                const response = await fetch(`/api/search/groups?${params}`);
-                const data = await response.json();
-
-                if (data.groups.length > 0) {
-                    resultsDiv.innerHTML = data.groups.map(group => `
-                        <a href="#" class="list-group-item list-group-item-action" 
-                           onclick="selectGroupForMedia('${type}', ${group.id}, '${group.display_title}')">
-                            <strong>${group.display_title}</strong>
-                            <small class="text-muted d-block">${group.composer} - ${group.voices}vv</small>
-                        </a>
-                    `).join('');
-                    resultsDiv.style.display = 'block';
-                } else {
-                    resultsDiv.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Error searching groups:', error);
-                resultsDiv.style.display = 'none';
-            }
-        }
-
-        function selectGroupForMedia(type, groupId, title) {
-            document.getElementById(`${type}GroupSearch`).value = title;
-            document.getElementById(`selectedGroupIdFor${type.charAt(0).toUpperCase() + type.slice(1)}`).value = groupId;
-            document.getElementById(`${type}GroupResults`).style.display = 'none';
-        }
-
-        async function handleEditionSubmit(e) {
-            e.preventDefault();
-            
-            const groupId = document.getElementById('selectedGroupIdForEdition').value;
-            const editorId = document.getElementById('editorSelect').value;
-            const voicing = document.getElementById('voicingInput').value.trim();
-            const fileUrl = document.getElementById('editionFileUrl').value.trim();
-
-            if (!groupId || !fileUrl) {
-                alert('Please select a group and provide a file URL.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/admin/groups/editions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupId: parseInt(groupId),
-                        editorId: editorId ? parseInt(editorId) : null,
-                        voicing: voicing,
-                        fileUrl: fileUrl
-                    })
-                });
-
-                if (response.ok) {
-                    alert('Edition added successfully!');
-                    document.getElementById('editionForm').reset();
-                    document.getElementById('selectedGroupIdForEdition').value = '';
-                } else {
-                    const error = await response.json();
-                    alert(`Error adding edition: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error adding edition:', error);
-                alert('Network error occurred while adding edition.');
-            }
-        }
-
-        async function handleRecordingSubmit(e) {
-            e.preventDefault();
-            
-            const groupId = document.getElementById('selectedGroupIdForRecording').value;
-            const performerId = document.getElementById('performerSelect').value;
-            const fileUrl = document.getElementById('recordingFileUrl').value.trim();
-
-            if (!groupId || !fileUrl) {
-                alert('Please select a group and provide a file URL.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/admin/groups/recordings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupId: parseInt(groupId),
-                        performerId: performerId ? parseInt(performerId) : null,
-                        fileUrl: fileUrl
-                    })
-                });
-
-                if (response.ok) {
-                    alert('Recording added successfully!');
-                    document.getElementById('recordingForm').reset();
-                    document.getElementById('selectedGroupIdForRecording').value = '';
-                } else {
-                    const error = await response.json();
-                    alert(`Error adding recording: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error adding recording:', error);
-                alert('Network error occurred while adding recording.');
-            }
-        }
     </script>
 </body>
 </html> 
