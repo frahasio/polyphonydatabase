@@ -272,7 +272,6 @@ router.get('/groups', async (req, res) => {
     const countQuery = `
       SELECT COUNT(DISTINCT g.id) as total
       FROM groups g
-      ${whereClause}
     `;
 
     // Simplified search query to identify core issues
@@ -292,20 +291,17 @@ router.get('/groups', async (req, res) => {
         NULL as recordings,
         NULL as sources
       FROM groups g
-      ${whereClause}
       ORDER BY g.display_title
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      LIMIT $1 OFFSET $2
     `;
 
     // Ensure limit and offset are valid integers
     const finalLimit = parseInt(limit) || 25;
     const finalOffset = parseInt(offset) || 0;
     
-        queryParams.push(finalLimit, finalOffset);
-
-        const [countResult, searchResult] = await Promise.all([
-      pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(searchQuery, queryParams)
+    const [countResult, searchResult] = await Promise.all([
+      pool.query(countQuery),
+      pool.query(searchQuery, [finalLimit, finalOffset])
     ]);
 
     const total = parseInt(countResult.rows[0].total);
