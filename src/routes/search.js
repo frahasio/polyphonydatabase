@@ -275,168 +275,24 @@ router.get('/groups', async (req, res) => {
       ${whereClause}
     `;
 
-    // Main search query with all related data
+    // Simplified search query to identify core issues
     const searchQuery = `
       SELECT 
         g.id,
         g.display_title,
         g.created_at,
         g.updated_at,
-        -- Get composer information with conflict detection
-        (
-          WITH group_composers AS (
-            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL AND composer_id IS NOT NULL
-          )
-          SELECT 
-            CASE 
-              WHEN COUNT(*) > 1 THEN 'conflicting attributions'
-              ELSE MAX(name)
-            END
-          FROM group_composers
-        ) as composer_display,
-        (
-          WITH group_composers AS (
-            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year, 
-                   comp.from_year_annotation, comp.to_year_annotation
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL AND composer_id IS NOT NULL
-          )
-          SELECT 
-            CASE 
-              WHEN COUNT(*) > 1 THEN NULL
-              ELSE MAX(CASE 
-                WHEN NULLIF(from_year, '') IS NOT NULL AND NULLIF(to_year, '') IS NOT NULL 
-                THEN '(' || 
-                     COALESCE(from_year_annotation || ' ', '') || NULLIF(from_year, '') || '–' || 
-                     COALESCE(to_year_annotation || ' ', '') || NULLIF(to_year, '') || ')'
-                WHEN NULLIF(from_year, '') IS NOT NULL 
-                THEN '(' || COALESCE(from_year_annotation || ' ', '') || NULLIF(from_year, '') || '–)'
-                WHEN NULLIF(to_year, '') IS NOT NULL 
-                THEN '(–' || COALESCE(to_year_annotation || ' ', '') || NULLIF(to_year, '') || ')'
-                ELSE NULL
-              END)
-            END
-          FROM group_composers
-        ) as composer_dates,
-        (
-          SELECT array_agg(voice_count ORDER BY voice_count)
-          FROM (
-            SELECT DISTINCT c.number_of_voices as voice_count
-            FROM compositions c
-            WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
-          ) voices
-        ) as voice_counts,
-        -- Get tone and even/odd information
-        (
-          SELECT DISTINCT c.tone
-          FROM compositions c
-          WHERE c.group_id = g.id AND c.tone IS NOT NULL 
-          LIMIT 1
-        ) as tone,
-        (
-          SELECT DISTINCT c.even_odd
-          FROM compositions c
-          WHERE c.group_id = g.id AND c.even_odd IS NOT NULL
-          LIMIT 1
-        ) as even_odd,
-        (
-          SELECT array_agg(func_name ORDER BY func_name)
-          FROM (
-            SELECT DISTINCT 
-              CASE 
-                WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
-                WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
-                WHEN func.name IS NOT NULL THEN func.name
-                ELSE NULL
-              END as func_name
-            FROM compositions c
-            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
-            JOIN titles t ON c.title_id = t.id
-            LEFT JOIN functions_titles ft ON t.id = ft.title_id
-            LEFT JOIN functions func ON ft.function_id = func.id
-            WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
-          ) funcs
-          WHERE func_name IS NOT NULL
-        ) as function_names,
-        -- Get editions for this group
-        (
-          SELECT json_agg(json_build_object(
-            'id', e.id,
-            'editor_name', ed.name,
-            'voicing', e.voicing,
-            'file_url', e.file_url
-          ) ORDER BY ed.name)
-          FROM editions e
-          LEFT JOIN editors ed ON e.editor_id = ed.id
-          WHERE e.group_id = g.id
-        ) as editions,
-        -- Get recordings for this group
-        (
-          SELECT json_agg(json_build_object(
-            'id', r.id,
-            'performer_name', p.name,
-            'file_url', r.file_url
-          ) ORDER BY p.name)
-          FROM recordings r
-          LEFT JOIN performers p ON r.performer_id = p.id
-          WHERE r.group_id = g.id
-        ) as recordings,
-        -- Get sources for this group
-        (
-          SELECT json_agg(json_build_object(
-            'id', s.id,
-            'code', s.code,
-            'title', s.title,
-            'type', s.type,
-            'format', s.format,
-            'town', s.town,
-            'from_year', CASE WHEN NULLIF(s.from_year, '') IS NOT NULL THEN NULLIF(s.from_year, '')::integer ELSE NULL END,
-            'to_year', CASE WHEN NULLIF(s.to_year, '') IS NOT NULL THEN NULLIF(s.to_year, '')::integer ELSE NULL END,
-            'rism_link', s.rism_link,
-            'source_notes', s.notes,
-            'position', CASE WHEN NULLIF(i.position, '') IS NOT NULL THEN NULLIF(i.position, '')::integer ELSE NULL END,
-            'attribution_texts', i.attribution_texts,
-            'inclusion_notes', i.notes,
-            'clefs', i.clefs,
-            'publishers', COALESCE(pubs.publishers, '[]'::json),
-            'scribes', COALESCE(scr.scribes, '[]'::json),
-            'source_images', COALESCE(imgs.images, '[]'::json)
-          ) ORDER BY s.code, s.title)
-          FROM compositions comp
-          JOIN inclusions i ON comp.id = i.composition_id
-          JOIN sources s ON i.source_id = s.id
-          LEFT JOIN (
-            SELECT ps.source_id, json_agg(p.name ORDER BY p.name) as publishers
-            FROM publishers_sources ps
-            JOIN publishers p ON ps.publisher_id = p.id
-            GROUP BY ps.source_id
-          ) pubs ON s.id = pubs.source_id
-          LEFT JOIN (
-            SELECT ss.source_id, json_agg(sc.name ORDER BY sc.name) as scribes
-            FROM scribes_sources ss
-            JOIN scribes sc ON ss.scribe_id = sc.id
-            GROUP BY ss.source_id
-          ) scr ON s.id = scr.source_id
-          LEFT JOIN (
-            SELECT si.source_id, json_agg(json_build_object(
-              'id', si.id,
-              'url', si.url,
-              'label', si.label
-            ) ORDER BY si.id) as images
-            FROM source_images si
-            GROUP BY si.source_id
-          ) imgs ON s.id = imgs.source_id
-          WHERE comp.group_id = g.id
-        ) as sources
+        'Simplified query' as composer_display,
+        NULL as composer_dates,
+        NULL as voice_counts,
+        NULL as tone,
+        NULL as even_odd,
+        NULL as function_names,
+        NULL as editions,
+        NULL as recordings,
+        NULL as sources
       FROM groups g
       ${whereClause}
-      GROUP BY g.id, g.display_title, g.created_at, g.updated_at
       ORDER BY g.display_title
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
