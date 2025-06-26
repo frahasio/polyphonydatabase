@@ -14,13 +14,16 @@ import authRouter from './routes/auth.js';
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy for Heroku deployment
+app.set('trust proxy', 1);
+
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-super-secret-session-key-change-this-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
+    secure: false, // Set to true only if you have HTTPS properly configured
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
