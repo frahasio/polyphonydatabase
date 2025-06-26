@@ -255,7 +255,7 @@ router.get('/groups', async (req, res) => {
             'to_year', s.to_year,
             'rism_link', s.rism_link,
             'position', i.position,
-            'attribution', i.attribution,
+            'attribution_texts', i.attribution_texts,
             'notes', i.notes,
             'publishers', COALESCE(pubs.publishers, '[]'::json),
             'scribes', COALESCE(scr.scribes, '[]'::json)
