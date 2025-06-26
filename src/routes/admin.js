@@ -168,6 +168,71 @@ router.post('/clef-combinations', async (req, res) => {
   }
 });
 
+// Get recent activity/audit trail  
+router.get('/recent-activity', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    
+    // Get recent sources added/updated
+    const recentSources = await pool.query(`
+      SELECT 'source' as type, id, code as title, created_at, updated_at
+      FROM sources 
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [Math.floor(limit / 4)]);
+
+    // Get recent editions added
+    const recentEditions = await pool.query(`
+      SELECT 'edition' as type, e.id, 
+             CONCAT(ed.name, ' - ', g.display_title) as title,
+             e.created_at, e.updated_at
+      FROM editions e
+      LEFT JOIN editors ed ON e.editor_id = ed.id
+      LEFT JOIN groups g ON e.group_id = g.id
+      WHERE e.created_at >= NOW() - INTERVAL '30 days'
+      ORDER BY e.created_at DESC
+      LIMIT $1
+    `, [Math.floor(limit / 4)]);
+
+    // Get recent recordings added
+    const recentRecordings = await pool.query(`
+      SELECT 'recording' as type, r.id,
+             CONCAT(p.name, ' - ', g.display_title) as title,
+             r.created_at, r.updated_at
+      FROM recordings r
+      LEFT JOIN performers p ON r.performer_id = p.id
+      LEFT JOIN groups g ON r.group_id = g.id
+      WHERE r.created_at >= NOW() - INTERVAL '30 days'
+      ORDER BY r.created_at DESC
+      LIMIT $1
+    `, [Math.floor(limit / 4)]);
+
+    // Get recent groups created/updated
+    const recentGroups = await pool.query(`
+      SELECT 'group' as type, id, display_title as title, created_at, updated_at
+      FROM groups
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [Math.floor(limit / 4)]);
+
+    // Combine all activities
+    const allActivity = [
+      ...recentSources.rows,
+      ...recentEditions.rows,
+      ...recentRecordings.rows,
+      ...recentGroups.rows
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+     .slice(0, limit);
+
+    res.json({ activity: allActivity });
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get data quality alerts
 router.get('/data-quality-alerts', async (req, res) => {
   try {
@@ -257,6 +322,160 @@ router.post('/ignore-alert', async (req, res) => {
     res.json({ success: true, message: 'Alert ignored successfully' });
   } catch (error) {
     console.error('Error ignoring alert:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Database cleanup routines
+router.post('/cleanup', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const { cleanup_type } = req.body;
+    let results = {};
+
+    if (!cleanup_type || cleanup_type === 'all') {
+      // Clean up unused titles
+      const unusedTitles = await client.query(`
+        DELETE FROM titles 
+        WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+        AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+        RETURNING id, text
+      `);
+      results.removed_titles = unusedTitles.rowCount;
+
+      // Clean up empty groups (groups with no compositions)
+      const emptyGroups = await client.query(`
+        DELETE FROM groups 
+        WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+        RETURNING id, display_title
+      `);
+      results.removed_groups = emptyGroups.rowCount;
+
+      // Clean up orphaned compositions (compositions referencing non-existent groups)
+      const orphanedCompositions = await client.query(`
+        DELETE FROM compositions 
+        WHERE group_id NOT IN (SELECT id FROM groups)
+        RETURNING id
+      `);
+      results.removed_compositions = orphanedCompositions.rowCount;
+
+      // Clean up unused clef combinations
+      const unusedClefCombos = await client.query(`
+        DELETE FROM clef_combinations 
+        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+        RETURNING id, clefcombo
+      `);
+      results.removed_clef_combinations = unusedClefCombos.rowCount;
+
+      // Clean up unused voicings
+      const unusedVoicings = await client.query(`
+        DELETE FROM voicings 
+        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+        RETURNING id, voicing
+      `);
+      results.removed_voicings = unusedVoicings.rowCount;
+
+    } else if (cleanup_type === 'titles') {
+      const unusedTitles = await client.query(`
+        DELETE FROM titles 
+        WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+        AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+        RETURNING id, text
+      `);
+      results.removed_titles = unusedTitles.rowCount;
+
+    } else if (cleanup_type === 'groups') {
+      const emptyGroups = await client.query(`
+        DELETE FROM groups 
+        WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+        RETURNING id, display_title
+      `);
+      results.removed_groups = emptyGroups.rowCount;
+
+    } else if (cleanup_type === 'voicings') {
+      const unusedClefCombos = await client.query(`
+        DELETE FROM clef_combinations 
+        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+        RETURNING id, clefcombo
+      `);
+      results.removed_clef_combinations = unusedClefCombos.rowCount;
+
+      const unusedVoicings = await client.query(`
+        DELETE FROM voicings 
+        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+        RETURNING id, voicing
+      `);
+      results.removed_voicings = unusedVoicings.rowCount;
+    }
+
+    await client.query('COMMIT');
+    res.json({ 
+      success: true, 
+      message: 'Cleanup completed successfully',
+      results 
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error during cleanup:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get cleanup preview (shows what would be deleted without actually deleting)
+router.get('/cleanup-preview', async (req, res) => {
+  try {
+    const results = {};
+
+    // Preview unused titles
+    const unusedTitles = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles 
+      WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+      AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+    `);
+    results.unused_titles = parseInt(unusedTitles.rows[0].count);
+
+    // Preview empty groups
+    const emptyGroups = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM groups 
+      WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+    `);
+    results.empty_groups = parseInt(emptyGroups.rows[0].count);
+
+    // Preview orphaned compositions
+    const orphanedCompositions = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM compositions 
+      WHERE group_id NOT IN (SELECT id FROM groups)
+    `);
+    results.orphaned_compositions = parseInt(orphanedCompositions.rows[0].count);
+
+    // Preview unused clef combinations
+    const unusedClefCombos = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM clef_combinations 
+      WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+    `);
+    results.unused_clef_combinations = parseInt(unusedClefCombos.rows[0].count);
+
+    // Preview unused voicings
+    const unusedVoicings = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM voicings 
+      WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+    `);
+    results.unused_voicings = parseInt(unusedVoicings.rows[0].count);
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error getting cleanup preview:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

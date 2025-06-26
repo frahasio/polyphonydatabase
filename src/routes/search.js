@@ -112,16 +112,13 @@ router.get('/groups', async (req, res) => {
       paramIndex++;
     }
 
-    // Countries filter (composer birth countries)
+    // Countries filter (composer birth countries) - optimized
     if (countryNames.length > 0) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM compositions c2
-        WHERE c2.group_id = g.id 
-        AND EXISTS (
-          SELECT 1 FROM unnest(c2.composer_id_list) AS composer_id
-          JOIN composers comp ON comp.id = composer_id
-          WHERE comp.birthplace_2 = ANY($${paramIndex}::text[])
-        )
+      whereConditions.push(`g.id IN (
+        SELECT DISTINCT c2.group_id
+        FROM compositions c2
+        JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
+        WHERE comp.birthplace_2 = ANY($${paramIndex}::text[])
       )`);
       queryParams.push(countryNames);
       paramIndex++;
@@ -199,7 +196,7 @@ router.get('/groups', async (req, res) => {
         SELECT 1 FROM compositions c2
         WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
       )`);
-      queryParams.push(toneValues);
+      queryParams.push(toneValues.map(val => String(val)));
       paramIndex++;
     }
 
@@ -287,7 +284,8 @@ router.get('/groups', async (req, res) => {
         ) as composer_display,
         (
           WITH group_composers AS (
-            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year
+            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year, 
+                   comp.from_year_annotation, comp.to_year_annotation
             FROM compositions c
             JOIN unnest(c.composer_id_list) AS composer_id ON true
             JOIN composers comp ON comp.id = composer_id
@@ -298,11 +296,13 @@ router.get('/groups', async (req, res) => {
               WHEN COUNT(*) > 1 THEN NULL
               ELSE MAX(CASE 
                 WHEN from_year IS NOT NULL AND to_year IS NOT NULL 
-                THEN '(' || from_year || '–' || to_year || ')'
+                THEN '(' || 
+                     COALESCE(from_year_annotation || ' ', '') || from_year || '–' || 
+                     COALESCE(to_year_annotation || ' ', '') || to_year || ')'
                 WHEN from_year IS NOT NULL 
-                THEN '(' || from_year || '–)'
+                THEN '(' || COALESCE(from_year_annotation || ' ', '') || from_year || '–)'
                 WHEN to_year IS NOT NULL 
-                THEN '(–' || to_year || ')'
+                THEN '(–' || COALESCE(to_year_annotation || ' ', '') || to_year || ')'
                 ELSE NULL
               END)
             END
@@ -316,6 +316,19 @@ router.get('/groups', async (req, res) => {
             WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
           ) voices
         ) as voice_counts,
+        -- Get tone and even/odd information
+        (
+          SELECT DISTINCT c.tone
+          FROM compositions c
+          WHERE c.group_id = g.id AND c.tone IS NOT NULL AND c.tone != ''
+          LIMIT 1
+        ) as tone,
+        (
+          SELECT DISTINCT c.even_odd
+          FROM compositions c
+          WHERE c.group_id = g.id AND c.even_odd IS NOT NULL
+          LIMIT 1
+        ) as even_odd,
         (
           SELECT array_agg(func_name ORDER BY func_name)
           FROM (
@@ -620,12 +633,34 @@ router.get('/tones', async (req, res) => {
       SELECT DISTINCT tone
       FROM compositions
       WHERE tone IS NOT NULL 
+      AND tone != ''
       AND tone != '0'
       ORDER BY 
+        CASE WHEN tone ~ '^[0-9]+$' THEN tone::integer ELSE 999 END,
         tone
     `;
     const result = await pool.query(query);
-    res.json(result.rows.map(row => ({ value: row.tone, name: row.tone })));
+    
+    const toneMapping = {
+      "1": "primi toni",
+      "2": "secundi toni", 
+      "3": "tertii toni",
+      "4": "quarti toni",
+      "5": "quinti toni",
+      "6": "sexti toni",
+      "7": "septimi toni",
+      "8": "octavi toni",
+      "9": "noni toni",
+      "12": "duodecimi toni",
+      "mix": "mixti toni",
+      "per": "peregrini toni",
+      "pro": "proprii toni"
+    };
+    
+    res.json(result.rows.map(row => ({ 
+      value: row.tone, 
+      name: toneMapping[row.tone] || row.tone 
+    })));
   } catch (error) {
     console.error('Error fetching tones:', error);
     res.status(500).json({ error: 'Internal server error' });

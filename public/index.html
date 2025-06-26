@@ -324,7 +324,7 @@
                         <select class="form-select form-select-sm" id="searchTones" multiple></select>
                     </div>
                     <div class="col-md-1">
-                        <label for="searchEvenOdd" class="form-label small">Even/Odd</label>
+                        <label for="searchEvenOdd" class="form-label small">Verses</label>
                         <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
                     </div>
                     <div class="col-md-2">
@@ -786,10 +786,35 @@
                 return;
             }
             
+            // Tone mapping for display
+            const toneMapping = {
+                "1": "primi toni",
+                "2": "secundi toni", 
+                "3": "tertii toni",
+                "4": "quarti toni",
+                "5": "quinti toni",
+                "6": "sexti toni",
+                "7": "septimi toni",
+                "8": "octavi toni",
+                "9": "noni toni",
+                "12": "duodecimi toni",
+                "mix": "mixti toni",
+                "per": "peregrini toni",
+                "pro": "proprii toni"
+            };
+            
+            const evenOddMapping = {
+                0: "pares",
+                1: "impares", 
+                2: "pares et impares"
+            };
+            
             resultsBody.innerHTML = groups.map(group => `
                 <tr>
                     <td>
                         <strong>${group.display_title || 'Untitled'}</strong>
+                        ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                        ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
                         ${(group.editions || []).map(edition => `
                             <div class="mt-1">
                                 <a href="${edition.file_url}" target="_blank" class="edition-link">
