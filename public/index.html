@@ -3,204 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polyphony Database</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-    <div class="container-fluid py-4">
-        <div class="text-center mb-5">
-            <h1 class="display-4">Polyphony Database</h1>
-            <p class="lead">A comprehensive database of Renaissance polyphonic music</p>
-        </div>
-
-        <!-- Dashboard Alerts -->
-        <div id="dashboardAlerts" class="mb-4" style="display: none;">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">
-                        <i class="bi bi-exclamation-triangle"></i> Data Quality Alerts
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="alertsList" class="row g-3">
-                        <!-- Alerts will be populated here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row g-4">
-            <!-- Composers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-music-note-beamed"></i> Composers
-                        </h5>
-                        <p class="card-text">People who have written music for multiple voices.</p>
-                        <a href="/modules/composers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Composers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Editors Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-pencil-square"></i> Modern editors
-                        </h5>
-                        <p class="card-text">People who have made modern editions of Renaissance polyphonic music.</p>
-                        <a href="/modules/editors/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Editors
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scribes Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-pen"></i> Scribes, Editors etc
-                        </h5>
-                        <p class="card-text">People who have transcribed, edited, or colalted the original sources of Renaissance polyphonic music.</p>
-                        <a href="/modules/scribes/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Scribes
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Publishers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-building"></i> Publishers
-                        </h5>
-                        <p class="card-text">Publishing houses and organizations that have published Renaissance polyphonic music.</p>
-                        <a href="/modules/publishers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Publishers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Performers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-person-video3"></i> Performers
-                        </h5>
-                        <p class="card-text">People who have performed Renaissance polyphonic music.</p>
-                        <a href="/modules/performers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Performers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sources Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-book"></i> Sources
-                        </h5>
-                        <p class="card-text">Musical sources, including manuscripts and prints.</p>
-                        <a href="/modules/sources/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Sources
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Titles Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-card-text"></i> Titles
-                        </h5>
-                        <p class="card-text">Manage title texts, functions, and languages. Search, merge duplicates, and assign functions in bulk.</p>
-                        <a href="/modules/functions/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right"></i> Manage Titles
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Load dashboard alerts on page load
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch('/api/functions/dashboard/alerts');
-                if (response.ok) {
-                    const data = await response.json();
-                    displayDashboardAlerts(data.alerts);
-                }
-            } catch (error) {
-                console.error('Error loading dashboard alerts:', error);
-            }
-        });
-
-        function displayDashboardAlerts(alerts) {
-            const alertsContainer = document.getElementById('dashboardAlerts');
-            const alertsList = document.getElementById('alertsList');
-
-            if (!alerts || alerts.length === 0) {
-                alertsContainer.style.display = 'none';
-                return;
-            }
-
-            alertsContainer.style.display = 'block';
-            
-            alertsList.innerHTML = alerts.map(alert => {
-                const alertClass = alert.type === 'warning' ? 'alert-warning' : 
-                                 alert.type === 'info' ? 'alert-info' : 'alert-secondary';
-                const iconClass = alert.type === 'warning' ? 'bi-exclamation-triangle' : 
-                                alert.type === 'info' ? 'bi-info-circle' : 'bi-bell';
-
-                return `
-                    <div class="col-md-4">
-                        <div class="alert ${alertClass} mb-0">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="alert-heading mb-1">
-                                        <i class="bi ${iconClass}"></i> ${alert.title}
-                                    </h6>
-                                    <p class="mb-2">
-                                        <strong>${alert.count}</strong> ${alert.description}
-                                    </p>
-                                    <a href="${alert.action_url}" class="btn btn-sm btn-outline-dark">
-                                        ${alert.action_text}
-                                    </a>
-                                </div>
-                                <button type="button" class="btn-close btn-close-sm" onclick="dismissAlert(this.closest('.col-md-4'))"></button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+    <title>Polyphony Database - Administration</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .auth-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 14px;
+            z-index: 1000;
         }
 
-        function dismissAlert(alertElement) {
-            alertElement.style.display = 'none';
+        .auth-info .user-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .auth-info .logout-btn {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .auth-info .logout-btn:hover {
+            text-decoration: underline;
+        }
+
+        .admin-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .admin-links {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .admin-links a {
+            display: inline-block;
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        .admin-links a:hover {
+            background: #0056b3;
+        }
+
+        .welcome-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-info" id="authInfo" style="display: none;">
+        <span class="user-name" id="userName"></span>
+        <span class="logout-btn" onclick="logout()">Logout</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Polyphony Database</h1>
+            <p>Medieval and Renaissance Polyphonic Music Administration</p>
+        </header>
+
+        <div id="welcomeMessage" class="welcome-message" style="display: none;">
+            <strong>Welcome!</strong> You are successfully logged in to the Polyphony Database administration system.
+        </div>
+
+        <div id="adminSection" class="admin-section" style="display: none;">
+            <h3>Administrative Functions</h3>
+            <div class="admin-links">
+                <a href="/user-management.html">Manage Users</a>
+                <a href="#" onclick="changePassword()">Change Password</a>
+            </div>
+        </div>
+
+        <main>
+            <div class="modules-grid">
+                <div class="module-card">
+                    <h2>Sources</h2>
+                    <p>Manage manuscript and print sources with detailed cataloguing information.</p>
+                    <a href="modules/sources/index.html" class="btn">Access Sources</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Composers</h2>
+                    <p>Maintain composer information and attributions.</p>
+                    <a href="modules/composers/index.html" class="btn">Access Composers</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Editors</h2>
+                    <p>Manage editor information for modern editions.</p>
+                    <a href="modules/editors/index.html" class="btn">Access Editors</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Performers</h2>
+                    <p>Catalog performance information and recordings.</p>
+                    <a href="modules/performers/index.html" class="btn">Access Performers</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Publishers</h2>
+                    <p>Manage publisher details for historical and modern publications.</p>
+                    <a href="modules/publishers/index.html" class="btn">Access Publishers</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Scribes</h2>
+                    <p>Catalog scribe information for manuscript sources.</p>
+                    <a href="modules/scribes/index.html" class="btn">Access Scribes</a>
+                </div>
+
+                <div class="module-card">
+                    <h2>Functions & Titles</h2>
+                    <p>Manage liturgical functions and composition titles with language support.</p>
+                    <a href="modules/functions/index.html" class="btn">Access Functions</a>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Polyphony Database. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    // Show auth info
+                    document.getElementById('userName').textContent = user.name;
+                    document.getElementById('authInfo').style.display = 'block';
+                    
+                    // Show welcome message
+                    document.getElementById('welcomeMessage').style.display = 'block';
+                    
+                    // Show admin section if user is admin
+                    if (user.role === 'admin') {
+                        document.getElementById('adminSection').style.display = 'block';
+                    }
+                } else {
+                    // Not authenticated, redirect to login
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/login.html';
+            }
+        }
+
+        function changePassword() {
+            const currentPassword = prompt('Enter your current password:');
+            if (!currentPassword) return;
             
-            // Hide entire dashboard if no alerts remain visible
-            const remainingAlerts = document.querySelectorAll('#alertsList .col-md-4:not([style*="display: none"])');
-            if (remainingAlerts.length === 0) {
-                document.getElementById('dashboardAlerts').style.display = 'none';
+            const newPassword = prompt('Enter your new password (minimum 8 characters):');
+            if (!newPassword || newPassword.length < 8) {
+                alert('New password must be at least 8 characters long.');
+                return;
+            }
+            
+            const confirmPassword = prompt('Confirm your new password:');
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match.');
+                return;
+            }
+            
+            changePasswordAPI(currentPassword, newPassword);
+        }
+
+        async function changePasswordAPI(currentPassword, newPassword) {
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Password changed successfully!');
+                } else {
+                    alert(data.error || 'Failed to change password');
+                }
+            } catch (error) {
+                console.error('Password change error:', error);
+                alert('Network error. Please try again.');
             }
         }
     </script>

@@ -236,6 +236,11 @@ updated_at (TIMESTAMP)
 - publishers/scribes many-to-many relationships
 - Source CRUD operations (GET, PUT)
 - Frontend source editing form
+- **Functions & Titles Management Module** (Complete CRUD interface)
+- Functions table with many-to-many relationship to titles
+- Languages table integration
+- Dashboard alerts system for data quality monitoring
+- Bulk operations for title management (assign functions/languages, merge duplicates)
 
 ### 🚧 In Progress
 - Inclusions/compositions structure definition
@@ -419,6 +424,157 @@ console.log('Final composition data:', {
 - Transaction-based approach ensures data consistency
 - Single-pass processing minimizes database round trips
 
+## Functions & Titles Module
+
+### Database Tables
+
+#### functions
+```sql
+id (PK, INTEGER, AUTO)
+name (TEXT, NOT NULL)
+created_at (TIMESTAMP)
+updated_at (TIMESTAMP)
+```
+
+#### functions_titles (Many-to-Many Junction Table)
+```sql
+function_id (FK -> functions.id)
+title_id (FK -> titles.id)
+PRIMARY KEY (function_id, title_id)
+```
+
+**Important**: This table may NOT have a unique constraint in all environments. Always use explicit existence checks rather than `ON CONFLICT` clauses.
+
+#### languages
+```sql
+id (PK, INTEGER, AUTO)
+language (TEXT, NOT NULL) -- Note: column name is 'language', not 'name'
+```
+
+### API Endpoints
+
+#### Functions Management
+- `GET /api/functions` - List all functions with title counts
+- `GET /api/functions/:id` - Get function with associated titles
+- `POST /api/functions` - Create new function
+- `PUT /api/functions/:id` - Update function name
+- `DELETE /api/functions/:id` - Delete function (removes all title associations)
+
+#### Titles Management
+- `GET /api/functions/titles/search` - Advanced search with filters
+  - Supports special filters: `*no_functions*`, `*no_language*`
+  - Similarity search for duplicate detection
+  - Pagination (default 50 per page)
+  - Language and function filtering
+- `POST /api/functions/titles` - Create new title
+- `PUT /api/functions/titles/:id` - Update title text and language
+- `POST /api/functions/titles/merge` - Merge multiple titles into one
+
+#### Title-Function Associations
+- `POST /api/functions/titles/:titleId/functions/:functionId` - Assign function to title
+- `DELETE /api/functions/titles/:titleId/functions/:functionId` - Remove function from title
+
+#### System Endpoints
+- `GET /api/functions/languages` - Get all available languages (with fallback)
+- `GET /api/functions/dashboard/alerts` - Data quality alerts for dashboard
+
+### Critical Implementation Notes
+
+#### Route Ordering
+**CRITICAL**: In Express.js, specific routes MUST come before parameterized routes:
+```javascript
+router.get('/languages', ...);     // MUST come first
+router.get('/dashboard/alerts', ...); // MUST come first
+router.get('/:id', ...);           // Parameterized route comes last
+```
+
+#### Database Constraints
+- The `functions_titles` table may not have unique constraints in all environments
+- Always use explicit existence checks instead of `ON CONFLICT` clauses:
+```javascript
+// ❌ Don't use - may fail if constraint doesn't exist
+INSERT ... ON CONFLICT (function_id, title_id) DO NOTHING
+
+// ✅ Use this pattern instead
+const existing = await pool.query(`
+  SELECT 1 FROM functions_titles 
+  WHERE function_id = $1 AND title_id = $2
+`, [functionId, titleId]);
+
+if (existing.rows.length === 0) {
+  await pool.query(`
+    INSERT INTO functions_titles (function_id, title_id)
+    VALUES ($1, $2)
+  `, [functionId, titleId]);
+}
+```
+
+#### Title Merging
+- Updates all `compositions.title_id` references to point to merged title
+- Merges function associations from all source titles
+- Handles duplicate final text by merging with existing title
+- Transactional operation ensures data integrity
+- Deletes source titles after successful merge
+
+#### Language Handling
+- Languages table uses column name `language` (not `name`)
+- API returns as `{ id, name }` for frontend compatibility
+- Robust fallback to hardcoded languages if table doesn't exist
+- Never returns 500 errors - always provides fallback data
+
+### Frontend Features
+
+#### Titles Management Tab
+- Advanced search with similarity matching for duplicate detection
+- Bulk selection with checkbox interface
+- Bulk operations: assign functions, assign languages, merge titles
+- Individual title editing with inline function assignment
+- Special dashboard filters for data quality issues
+- Pagination with 50 items per page
+
+#### Functions Management Tab
+- CRUD operations for functions
+- Card-based interface with dropdown menus
+- Function deletion with cascade warning
+
+#### Dashboard Integration
+- Data quality alerts with actionable links
+- Counts of problematic records (titles without functions, etc.)
+- Direct links to filtered views for remediation
+
+### Data Quality Checks
+
+The system monitors these data quality issues:
+1. **Titles without functions assigned** - Links to `?filter=no_functions`
+2. **Functions without titles assigned** - Links to `?filter=empty_functions` 
+3. **Titles without language assigned** - Links to `?filter=no_language`
+
+### Error Handling Patterns
+
+#### API Error Handling
+```javascript
+// Pattern for robust language/reference data loading
+try {
+  const result = await pool.query('SELECT ...');
+  languages = result.rows;
+} catch (dbError) {
+  console.log('Table not found:', dbError.message);
+}
+
+// Always provide fallback data
+if (languages.length === 0) {
+  languages = [...fallbackData];
+}
+
+res.json({ languages }); // Never return 500 for reference data
+```
+
+#### Frontend Error Handling
+- Graceful degradation when APIs fail
+- Fallback data for dropdown populations
+- User-friendly error messages for failed operations
+- Retry mechanisms for transient failures
+
 ## Notes
 
 - PostgreSQL: TEXT and VARCHAR have identical performance characteristics
@@ -426,4 +582,7 @@ console.log('Final composition data:', {
 - Foreign key constraints should be enforced
 - Consider adding indexes on frequently queried fields (code, name fields)
 - Unique constraint on compositions table ensures no duplicates
-- composer_id_list array allows multiple composers per composition 
+- composer_id_list array allows multiple composers per composition
+- **Route order matters**: Specific routes must come before parameterized routes in Express.js
+- **Constraint assumptions**: Never assume unique constraints exist - always check explicitly
+- **Reference data robustness**: Language/dropdown APIs should never fail - always provide fallbacks 
