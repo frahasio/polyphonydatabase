@@ -362,21 +362,31 @@ router.post('/cleanup', async (req, res) => {
       `);
       results.removed_compositions = orphanedCompositions.rowCount;
 
-      // Clean up unused clef combinations
-      const unusedClefCombos = await client.query(`
-        DELETE FROM clef_combinations 
-        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
-        RETURNING id, clefcombo
-      `);
-      results.removed_clef_combinations = unusedClefCombos.rowCount;
+      // Clean up unused clef combinations (skip if table doesn't exist)
+      try {
+        const unusedClefCombos = await client.query(`
+          DELETE FROM clef_combinations 
+          WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+          RETURNING id, clefcombo
+        `);
+        results.removed_clef_combinations = unusedClefCombos.rowCount;
+      } catch (error) {
+        console.log('Clef combinations cleanup skipped:', error.message);
+        results.removed_clef_combinations = 0;
+      }
 
-      // Clean up unused voicings
-      const unusedVoicings = await client.query(`
-        DELETE FROM voicings 
-        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
-        RETURNING id, voicing
-      `);
-      results.removed_voicings = unusedVoicings.rowCount;
+      // Clean up unused voicings (skip if table doesn't exist)
+      try {
+        const unusedVoicings = await client.query(`
+          DELETE FROM voicings 
+          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+          RETURNING id, voicing
+        `);
+        results.removed_voicings = unusedVoicings.rowCount;
+      } catch (error) {
+        console.log('Voicings cleanup skipped:', error.message);
+        results.removed_voicings = 0;
+      }
 
     } else if (cleanup_type === 'titles') {
       const unusedTitles = await client.query(`
@@ -396,19 +406,29 @@ router.post('/cleanup', async (req, res) => {
       results.removed_groups = emptyGroups.rowCount;
 
     } else if (cleanup_type === 'voicings') {
-      const unusedClefCombos = await client.query(`
-        DELETE FROM clef_combinations 
-        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
-        RETURNING id, clefcombo
-      `);
-      results.removed_clef_combinations = unusedClefCombos.rowCount;
+      try {
+        const unusedClefCombos = await client.query(`
+          DELETE FROM clef_combinations 
+          WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+          RETURNING id, clefcombo
+        `);
+        results.removed_clef_combinations = unusedClefCombos.rowCount;
+      } catch (error) {
+        console.log('Clef combinations cleanup skipped:', error.message);
+        results.removed_clef_combinations = 0;
+      }
 
-      const unusedVoicings = await client.query(`
-        DELETE FROM voicings 
-        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
-        RETURNING id, voicing
-      `);
-      results.removed_voicings = unusedVoicings.rowCount;
+      try {
+        const unusedVoicings = await client.query(`
+          DELETE FROM voicings 
+          WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+          RETURNING id, voicing
+        `);
+        results.removed_voicings = unusedVoicings.rowCount;
+      } catch (error) {
+        console.log('Voicings cleanup skipped:', error.message);
+        results.removed_voicings = 0;
+      }
     }
 
     await client.query('COMMIT');
@@ -457,21 +477,31 @@ router.get('/cleanup-preview', async (req, res) => {
     `);
     results.orphaned_compositions = parseInt(orphanedCompositions.rows[0].count);
 
-    // Preview unused clef combinations
-    const unusedClefCombos = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM clef_combinations 
-      WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
-    `);
-    results.unused_clef_combinations = parseInt(unusedClefCombos.rows[0].count);
+    // Preview unused clef combinations (skip if table doesn't exist)
+    try {
+      const unusedClefCombos = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM clef_combinations 
+        WHERE id NOT IN (SELECT DISTINCT clef_combo_id FROM clef_combos_voicings WHERE clef_combo_id IS NOT NULL)
+      `);
+      results.unused_clef_combinations = parseInt(unusedClefCombos.rows[0].count);
+    } catch (error) {
+      console.log('Clef combinations table not found or error:', error.message);
+      results.unused_clef_combinations = 0;
+    }
 
-    // Preview unused voicings
-    const unusedVoicings = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM voicings 
-      WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
-    `);
-    results.unused_voicings = parseInt(unusedVoicings.rows[0].count);
+    // Preview unused voicings (skip if table doesn't exist)
+    try {
+      const unusedVoicings = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM voicings 
+        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combos_voicings WHERE voicing_id IS NOT NULL)
+      `);
+      results.unused_voicings = parseInt(unusedVoicings.rows[0].count);
+    } catch (error) {
+      console.log('Voicings table not found or error:', error.message);
+      results.unused_voicings = 0;
+    }
 
     res.json(results);
   } catch (error) {

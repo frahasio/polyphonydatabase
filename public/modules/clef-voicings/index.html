@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clef-Voicing Management - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/admin">
+                <i class="bi bi-music-note-beamed me-2"></i>
+                Admin Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/admin">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                </a>
+                <a class="nav-link" href="/">
+                    <i class="bi bi-globe2 me-1"></i>Public Site
+                </a>
+                <a class="nav-link" href="#" onclick="logout()">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-music-note-list me-2"></i>Clef-Voicing Management</h2>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Note:</strong> This interface manages relationships between clef combinations and voicing types. 
+                    If the voicing system tables don't exist yet, they will need to be created via database migration first.
+                </div>
+
+                <!-- Status Display -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>System Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="systemStatus">
+                            <div class="text-center py-4">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Checking system status...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+        });
+
+        async function checkSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            
+            try {
+                // Test if voicing system is available
+                const [voicingsResponse, clefCombosResponse] = await Promise.all([
+                    fetch('/api/search/voicings'),
+                    fetch('/api/admin/clef-combinations')
+                ]);
+
+                let statusHtml = '';
+                
+                if (voicingsResponse.ok) {
+                    const voicings = await voicingsResponse.json();
+                    statusHtml += `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Voicings table:</strong> Available (${voicings.length} voicings found)
+                        </div>
+                    `;
+                } else {
+                    statusHtml += `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Voicings table:</strong> Not available - needs database migration
+                        </div>
+                    `;
+                }
+
+                if (clefCombosResponse.ok) {
+                    const clefCombos = await clefCombosResponse.json();
+                    statusHtml += `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Clef combinations table:</strong> Available (${clefCombos.length} combinations found)
+                        </div>
+                    `;
+                } else {
+                    statusHtml += `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Clef combinations table:</strong> Not available - needs database migration
+                        </div>
+                    `;
+                }
+
+                statusHtml += `
+                    <div class="mt-3">
+                        <h6>Next Steps:</h6>
+                        <ul>
+                            <li>If tables are missing, run the voicing system database migration</li>
+                            <li>Once tables exist, this interface will allow managing clef-voicing relationships</li>
+                            <li>The public search will then support voicing-based filtering</li>
+                        </ul>
+                    </div>
+                `;
+
+                statusDiv.innerHTML = statusHtml;
+
+            } catch (error) {
+                console.error('Error checking system status:', error);
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Error:</strong> Could not check system status. The voicing system tables may not exist yet.
+                    </div>
+                `;
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/admin/login';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/admin/login';
+            }
+        }
+    </script>
+</body>
+</html> 

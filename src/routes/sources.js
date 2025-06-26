@@ -3,6 +3,28 @@ import { pool } from '../db.js';
 
 const router = express.Router();
 
+// Convert tone strings to integers for database storage
+function convertToneToInteger(toneValue) {
+  if (typeof toneValue === 'number') return toneValue;
+  if (!toneValue) return null;
+  
+  const toneStr = String(toneValue).toLowerCase();
+  
+  // Handle numeric strings
+  if (/^\d+$/.test(toneStr)) {
+    return parseInt(toneStr);
+  }
+  
+  // Handle special tone strings
+  const specialTones = {
+    'mix': 10,
+    'per': 11,
+    'pro': 13
+  };
+  
+  return specialTones[toneStr] || null;
+}
+
 // Get list of sources
 router.get('/', async (req, res) => {
   try {
@@ -707,7 +729,11 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
       if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
         const compositionId = tempInclusion.rows[0].composition_id;
-        const tone = originalInclusion.composition.tone || null;
+        // Convert tone string to integer for database storage
+        let tone = originalInclusion.composition.tone || null;
+        if (tone !== null) {
+          tone = convertToneToInteger(tone);
+        }
         
         // Convert even_odd string to integer if needed
         let evenOdd = originalInclusion.composition.even_odd ?? null;
@@ -800,7 +826,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
 
       // Get tone and even_odd from original inclusion data
-      const tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
+      let tone = originalInclusion?.composition?.tone || tempInclusion.tone || null;
+      if (tone !== null) {
+        tone = convertToneToInteger(tone);
+      }
       
       // Convert even_odd string to integer if needed
       let evenOdd = originalInclusion?.composition?.even_odd ?? tempInclusion.even_odd ?? null;

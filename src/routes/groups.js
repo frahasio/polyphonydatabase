@@ -59,8 +59,8 @@ router.post('/merge', async (req, res) => {
 
         // Create new group for the merge
         const newGroupResult = await client.query(`
-            INSERT INTO groups (display_title) 
-            VALUES ($1) 
+            INSERT INTO groups (display_title, created_at, updated_at) 
+            VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
             RETURNING id
         `, [displayTitle.trim()]);
 
@@ -127,8 +127,8 @@ router.post('/editions', async (req, res) => {
 
         // Insert edition
         const result = await pool.query(`
-            INSERT INTO editions (group_id, editor_id, voicing, file_url) 
-            VALUES ($1, $2, $3, $4) 
+            INSERT INTO editions (group_id, editor_id, voicing, file_url, created_at, updated_at) 
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
             RETURNING id
         `, [groupId, editorId || null, voicing || null, fileUrl]);
 
@@ -161,8 +161,8 @@ router.post('/recordings', async (req, res) => {
 
         // Insert recording
         const result = await pool.query(`
-            INSERT INTO recordings (group_id, performer_id, file_url) 
-            VALUES ($1, $2, $3) 
+            INSERT INTO recordings (group_id, performer_id, file_url, created_at, updated_at) 
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
             RETURNING id
         `, [groupId, performerId || null, fileUrl]);
 
@@ -460,8 +460,8 @@ router.post('/:groupId/remove-composition', async (req, res) => {
         const newGroupTitleToUse = newGroupTitle?.trim() || composition.title || 'Untitled Group';
         
         const newGroupResult = await client.query(`
-            INSERT INTO groups (display_title) 
-            VALUES ($1) 
+            INSERT INTO groups (display_title, created_at, updated_at) 
+            VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
             RETURNING id
         `, [newGroupTitleToUse]);
 

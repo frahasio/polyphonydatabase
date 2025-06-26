@@ -190,14 +190,26 @@ router.get('/groups', async (req, res) => {
       paramIndex++;
     }
 
-    // Tones filter
+    // Tones filter  
     if (toneValues.length > 0) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM compositions c2
-        WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
-      )`);
-      queryParams.push(toneValues.map(val => String(val)));
-      paramIndex++;
+      // Convert tone values to integers for database query
+      const toneIntegers = toneValues.map(val => {
+        if (!val) return null;
+        // If it's already a number, use it
+        if (!isNaN(val)) return parseInt(val);
+        // Handle special string values
+        const specialTones = { 'mix': 10, 'per': 11, 'pro': 13 };
+        return specialTones[val] || parseInt(val) || null;
+      }).filter(val => val !== null);
+      
+      if (toneIntegers.length > 0) {
+        whereConditions.push(`EXISTS (
+          SELECT 1 FROM compositions c2
+          WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::integer[])
+        )`);
+        queryParams.push(toneIntegers);
+        paramIndex++;
+      }
     }
 
     // Even/Odd filter
@@ -210,17 +222,17 @@ router.get('/groups', async (req, res) => {
       paramIndex++;
     }
 
-    // Voicing filter (database-driven clef combinations)
+    // Voicing filter (database-driven clef combinations) - skip if tables don't exist
     if (voicingIds.length > 0) {
-      // Get clef combinations associated with selected voicings
-      const voicingClefsQuery = `
-        SELECT DISTINCT cc.clefcombo
-        FROM clef_combos_voicings ccv
-        JOIN clef_combinations cc ON ccv.clef_combo_id = cc.id
-        WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
-      `;
-      
       try {
+        // Get clef combinations associated with selected voicings
+        const voicingClefsQuery = `
+          SELECT DISTINCT cc.clefcombo
+          FROM clef_combos_voicings ccv
+          JOIN clef_combinations cc ON ccv.clef_combo_id = cc.id
+          WHERE ccv.voicing_id = ANY($${paramIndex}::integer[])
+        `;
+        
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
         
         if (voicingClefsResult.rows.length > 0) {
@@ -246,7 +258,8 @@ router.get('/groups', async (req, res) => {
           }
         }
       } catch (voicingError) {
-        console.error('Error processing voicing filter:', voicingError);
+        console.error('Voicing filter skipped (tables may not exist):', voicingError.message);
+        // Skip voicing filter if tables don't exist yet
       }
     }
 
@@ -633,33 +646,29 @@ router.get('/tones', async (req, res) => {
       SELECT DISTINCT tone
       FROM compositions
       WHERE tone IS NOT NULL 
-      AND tone != ''
-      AND tone != '0'
-      ORDER BY 
-        CASE WHEN tone ~ '^[0-9]+$' THEN tone::integer ELSE 999 END,
-        tone
+      ORDER BY tone
     `;
     const result = await pool.query(query);
     
     const toneMapping = {
-      "1": "primi toni",
-      "2": "secundi toni", 
-      "3": "tertii toni",
-      "4": "quarti toni",
-      "5": "quinti toni",
-      "6": "sexti toni",
-      "7": "septimi toni",
-      "8": "octavi toni",
-      "9": "noni toni",
-      "12": "duodecimi toni",
-      "mix": "mixti toni",
-      "per": "peregrini toni",
-      "pro": "proprii toni"
+      1: "primi toni",
+      2: "secundi toni", 
+      3: "tertii toni",
+      4: "quarti toni",
+      5: "quinti toni",
+      6: "sexti toni",
+      7: "septimi toni",
+      8: "octavi toni",
+      9: "noni toni",
+      10: "mixti toni",
+      11: "peregrini toni",
+      12: "duodecimi toni",
+      13: "proprii toni"
     };
     
     res.json(result.rows.map(row => ({ 
       value: row.tone, 
-      name: toneMapping[row.tone] || row.tone 
+      name: toneMapping[row.tone] || `Tone ${row.tone}` 
     })));
   } catch (error) {
     console.error('Error fetching tones:', error);
@@ -701,8 +710,9 @@ router.get('/voicings', async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching voicings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.log('Voicings table not found, returning empty array:', error.message);
+    // Return empty array if voicings table doesn't exist yet
+    res.json([]);
   }
 });
 
