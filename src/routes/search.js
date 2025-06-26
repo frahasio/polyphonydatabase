@@ -245,21 +245,28 @@ router.get('/groups', async (req, res) => {
         
         if (voicingClefsResult.rows.length > 0) {
           const voicingConditions = voicingClefsResult.rows.map((row) => {
-            paramIndex++;
-            // Convert clef combo string to clef array for JSON matching
-            const clefArray = row.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g);
-            const clefObjects = clefArray.map(clef => ({ clef }));
+            // Convert clef combo string to clef array and check if all clefs are present
+            const clefArray = row.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+            
+            if (clefArray.length === 0) return null; // Skip invalid clef combinations
+            
+            // Build a condition that checks if the inclusion contains all the required clefs
+            // regardless of additional properties like optional, missing, etc.
+            const clefChecks = clefArray.map((clef) => {
+              return `jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "${clef}")')`;
+            });
             
             const condition = `EXISTS (
               SELECT 1 FROM compositions c2
               JOIN inclusions i ON c2.id = i.composition_id
               WHERE c2.group_id = g.id 
-              AND i.clefs @> $${paramIndex}::jsonb
+              AND i.clefs IS NOT NULL
+              AND jsonb_array_length(i.clefs) = ${clefArray.length}
+              AND ${clefChecks.join(' AND ')}
             )`;
             
-            queryParams.push(JSON.stringify(clefObjects));
             return condition;
-          });
+          }).filter(condition => condition !== null);
           
           if (voicingConditions.length > 0) {
             whereConditions.push(`(${voicingConditions.join(' OR ')})`);

@@ -20,9 +20,33 @@ Manually maintained list of voicing types.
 ```sql
 clef_combination_id (FK -> clef_combinations.id)
 voicing_id (FK -> voicings.id)
-PRIMARY KEY (clef_combo_id, voicing_id)
+PRIMARY KEY (clef_combination_id, voicing_id)
 ```
 Associates voicing types with clef combinations through admin interface.
+
+#### Voicing Filter Implementation
+The public search voicing filter works by:
+
+1. **Clef Combination Lookup**: Gets all clef combinations associated with selected voicings from `clef_combinations_voicings`
+2. **Clef Parsing**: Parses the `clef_combination` string (e.g., "g2c2c3f3") into individual clef identifiers
+3. **JSONB Path Matching**: Uses PostgreSQL's `jsonb_path_exists()` to match against the `clefs` JSONB field in inclusions
+4. **Count Validation**: Ensures the inclusion has exactly the same number of clefs as the combination
+
+**SQL Pattern:**
+```sql
+EXISTS (
+  SELECT 1 FROM compositions c2
+  JOIN inclusions i ON c2.id = i.composition_id
+  WHERE c2.group_id = g.id 
+  AND i.clefs IS NOT NULL
+  AND jsonb_array_length(i.clefs) = [clef_count]
+  AND jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "g2")')
+  AND jsonb_path_exists(i.clefs, '$[*] ? (@.clef == "c2")')
+  [... for each clef in combination]
+)
+```
+
+This approach is robust against clef object properties like `optional`, `missing`, `incomplete`, or `transitions_to`.
 
 ### ignored_alerts
 ```sql
@@ -36,6 +60,24 @@ reason (TEXT)
 UNIQUE(alert_type, entity_type, entity_id)
 ```
 Tracks permanently dismissed data quality alerts.
+
+#### Data Quality Management
+The system automatically detects and reports:
+- **Unused clef combinations**: Clef combinations not linked to any voicings
+- **Unused voicings**: Voicings not linked to any clef combinations  
+- **Invalid clef combinations**: Combinations containing non-existent clef names
+- **Unused titles**: Titles not linked to compositions or functions
+- **Empty groups**: Groups with no compositions
+- **Orphaned compositions**: Compositions referencing non-existent groups
+
+**Valid Clef Names:**
+`g1`, `g2`, `g3`, `g4`, `g5`, `g28`, `c1`, `c2`, `c3`, `c4`, `c5`, `f1`, `f2`, `f3`, `f4`, `f5`, `d1`, `d2`, `d3`, `d4`, `d5`, `x1`, `x2`, `x3`, `x4`, `x5`, `y1`, `y2`, `y3`, `y4`, `y5`, `org`, `bc`, `lut`
+
+**Cleanup Operations:**
+- Can be run individually by type or all together
+- Include preview mode to show what would be deleted
+- Support both unused and invalid data cleanup
+- Transaction-safe with rollback on error
 
 ## Legacy Tables
 

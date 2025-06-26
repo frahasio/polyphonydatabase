@@ -308,6 +308,37 @@ router.get('/data-quality-alerts', async (req, res) => {
       console.log('Voicings alerts skipped (tables may not exist):', error.message);
     }
 
+    // Count invalid clef combinations
+    try {
+      const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
+      
+      const allClefCombos = await pool.query(`
+        SELECT id, clef_combination FROM clef_combinations
+      `);
+      
+      let invalidCount = 0;
+      for (const combo of allClefCombos.rows) {
+        const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+        const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+        
+        if (hasInvalidClef || clefArray.length === 0) {
+          invalidCount++;
+        }
+      }
+
+      if (invalidCount > 0) {
+        alerts.push({
+          type: 'invalid_clef_combinations',
+          severity: 'warning',
+          title: 'Invalid clef combinations',
+          description: `${invalidCount} clef combinations contain invalid or non-existent clefs`,
+          count: invalidCount
+        });
+      }
+    } catch (error) {
+      console.log('Invalid clef combinations alerts skipped (tables may not exist):', error.message);
+    }
+
     // Count unused titles
     const unusedTitlesCount = await pool.query(`
       SELECT COUNT(*) as count
@@ -446,6 +477,30 @@ router.post('/cleanup', async (req, res) => {
         results.removed_clef_combinations = 0;
       }
 
+      // Clean up invalid clef combinations (containing non-existent clefs)
+      try {
+        const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
+        
+        const invalidClefCombos = await client.query(`
+          SELECT id, clef_combination FROM clef_combinations
+        `);
+        
+        let removedInvalid = 0;
+        for (const combo of invalidClefCombos.rows) {
+          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+          
+          if (hasInvalidClef || clefArray.length === 0) {
+            await client.query('DELETE FROM clef_combinations WHERE id = $1', [combo.id]);
+            removedInvalid++;
+          }
+        }
+        results.removed_invalid_clef_combinations = removedInvalid;
+      } catch (error) {
+        console.log('Invalid clef combinations cleanup skipped:', error.message);
+        results.removed_invalid_clef_combinations = 0;
+      }
+
       // Clean up unused voicings (skip if table doesn't exist)
       try {
         const unusedVoicings = await client.query(`
@@ -487,6 +542,30 @@ router.post('/cleanup', async (req, res) => {
       } catch (error) {
         console.log('Clef combinations cleanup skipped:', error.message);
         results.removed_clef_combinations = 0;
+      }
+
+      // Clean up invalid clef combinations
+      try {
+        const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
+        
+        const invalidClefCombos = await client.query(`
+          SELECT id, clef_combination FROM clef_combinations
+        `);
+        
+        let removedInvalid = 0;
+        for (const combo of invalidClefCombos.rows) {
+          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+          
+          if (hasInvalidClef || clefArray.length === 0) {
+            await client.query('DELETE FROM clef_combinations WHERE id = $1', [combo.id]);
+            removedInvalid++;
+          }
+        }
+        results.removed_invalid_clef_combinations = removedInvalid;
+      } catch (error) {
+        console.log('Invalid clef combinations cleanup skipped:', error.message);
+        results.removed_invalid_clef_combinations = 0;
       }
 
       try {
@@ -559,6 +638,29 @@ router.get('/cleanup-preview', async (req, res) => {
     } catch (error) {
       console.log('Clef combinations table not found or error:', error.message);
       results.unused_clef_combinations = 0;
+    }
+
+    // Preview invalid clef combinations
+    try {
+      const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
+      
+      const allClefCombos = await pool.query(`
+        SELECT id, clef_combination FROM clef_combinations
+      `);
+      
+      let invalidCount = 0;
+      for (const combo of allClefCombos.rows) {
+        const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+        const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+        
+        if (hasInvalidClef || clefArray.length === 0) {
+          invalidCount++;
+        }
+      }
+      results.invalid_clef_combinations = invalidCount;
+    } catch (error) {
+      console.log('Invalid clef combinations preview skipped:', error.message);
+      results.invalid_clef_combinations = 0;
     }
 
     // Preview unused voicings (skip if table doesn't exist)

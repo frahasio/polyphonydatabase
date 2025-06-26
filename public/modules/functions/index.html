@@ -949,17 +949,39 @@
                 return;
             }
 
-            container.innerHTML = functions.map(func => {
+            // Sort functions to show ones with no titles first
+            const sortedFunctions = [...functions].sort((a, b) => {
+                const aCount = a.title_count || 0;
+                const bCount = b.title_count || 0;
+                if (aCount === 0 && bCount > 0) return -1;
+                if (aCount > 0 && bCount === 0) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            const functionsWithNoTitles = functions.filter(f => (f.title_count || 0) === 0).length;
+            
+            let headerHTML = '';
+            if (functionsWithNoTitles > 0) {
+                headerHTML = `
+                    <div class="alert alert-warning mb-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Attention:</strong> ${functionsWithNoTitles} function${functionsWithNoTitles === 1 ? ' has' : 's have'} no titles assigned and ${functionsWithNoTitles === 1 ? 'is' : 'are'} highlighted below.
+                        Consider removing unused functions or assigning them to relevant titles.
+                    </div>
+                `;
+            }
+
+            container.innerHTML = headerHTML + sortedFunctions.map(func => {
                 const titleCount = func.title_count || 0;
                 const hasNoTitles = titleCount === 0;
-                const cardClass = hasNoTitles ? 'border-warning' : '';
+                const cardClass = hasNoTitles ? 'border-warning border-2 bg-warning bg-opacity-10' : '';
                 
                 return `
                     <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100 ${cardClass}">
+                        <div class="card h-100 ${cardClass}" ${hasNoTitles ? 'style="box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);"' : ''}>
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="card-title mb-0">${func.name}</h6>
+                                    <h6 class="card-title mb-0 ${hasNoTitles ? 'text-warning-emphasis' : ''}">${func.name}</h6>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                             <i class="bi bi-three-dots"></i>
@@ -972,7 +994,7 @@
                                 </div>
                                 <div class="mb-2">
                                     ${hasNoTitles 
-                                        ? '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> No Titles</span>'
+                                        ? '<span class="badge bg-warning text-dark fs-6"><i class="bi bi-exclamation-triangle-fill me-1"></i> No Titles Assigned</span>'
                                         : `<span class="badge bg-primary"><i class="bi bi-card-text"></i> ${titleCount} title${titleCount === 1 ? '' : 's'}</span>`
                                     }
                                 </div>
