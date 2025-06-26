@@ -29,7 +29,7 @@ function convertToneToString(toneValue) {
     'proprii': 'pro'
   };
   
-  return specialTones[toneStr] || toneStr;
+  return specialTones[toneStr] || null;
 }
 
 // Get list of sources

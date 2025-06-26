@@ -40,7 +40,19 @@ router.get('/groups', async (req, res) => {
     const publisherIds = publishers && publishers.trim() ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const cityNames = cities && cities.trim() ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
     const compositionTypeIds = composition_types && composition_types.trim() ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const toneValues = tones && tones.trim() ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
+    const toneValues = tones && tones.trim() ? tones.split(',').map(tone => {
+      const trimmed = tone.trim();
+      // Convert old integer format to new string format for backward compatibility
+      if (/^\d+$/.test(trimmed)) {
+        const intValue = parseInt(trimmed);
+        const intToStringMapping = {
+          0: '1', 1: '2', 2: '3', 3: '4', 4: '5', 5: '6', 6: '7', 7: '8', 8: '9',
+          9: '12', 10: 'mix', 11: 'per', 12: 'pro', 13: 'pro'
+        };
+        return intToStringMapping[intValue] || trimmed;
+      }
+      return trimmed;
+    }).filter(tone => tone) : [];
     const evenOddValues = even_odd && even_odd.trim() ? even_odd.split(',').map(eo => eo.trim()).filter(eo => eo && !isNaN(parseInt(eo))) : [];
     const voicingIds = voicing && voicing.trim() ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const hasEditions = has_editions === 'true';
@@ -192,22 +204,15 @@ router.get('/groups', async (req, res) => {
 
     // Tones filter  
     if (toneValues.length > 0) {
-      // Convert tone values to integers for database query
-      const toneIntegers = toneValues.map(val => {
-        if (!val) return null;
-        // If it's already a number, use it
-        if (!isNaN(val)) return parseInt(val);
-        // Handle special string values
-        const specialTones = { 'mix': 10, 'per': 11, 'pro': 13 };
-        return specialTones[val] || parseInt(val) || null;
-      }).filter(val => val !== null);
+      // Use tone values directly as strings for database query
+      const validToneValues = toneValues.filter(val => val && val.trim());
       
-      if (toneIntegers.length > 0) {
+      if (validToneValues.length > 0) {
         whereConditions.push(`EXISTS (
           SELECT 1 FROM compositions c2
-          WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::integer[])
+          WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
         )`);
-        queryParams.push(toneIntegers);
+        queryParams.push(validToneValues);
         paramIndex++;
       }
     }

@@ -263,40 +263,103 @@ router.get('/data-quality-alerts', async (req, res) => {
     const alerts = [];
 
     // Count clef combinations without voicings
-    const clefCombosWithoutVoicingsCount = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM clef_combinations cc
-      LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
-      WHERE ccv.clef_combination_id IS NULL
-    `);
+    try {
+      const clefCombosWithoutVoicingsCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM clef_combinations cc
+        LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
+        WHERE ccv.clef_combination_id IS NULL
+      `);
 
-    const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
-    if (clefCombosCount > 0) {
-      alerts.push({
-        type: 'clef_combos_no_voicings',
-        severity: 'warning',
-        title: 'Clef combinations not matched to voicings',
-        description: `${clefCombosCount} clef combinations are not matched to voicings`,
-        count: clefCombosCount
-      });
+      const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
+      if (clefCombosCount > 0) {
+        alerts.push({
+          type: 'clef_combos_no_voicings',
+          severity: 'warning',
+          title: 'Clef combinations not matched to voicings',
+          description: `${clefCombosCount} clef combinations are not matched to voicings`,
+          count: clefCombosCount
+        });
+      }
+    } catch (error) {
+      console.log('Clef combinations alerts skipped (tables may not exist):', error.message);
     }
 
     // Count voicings without clef combinations  
-    const voicingsWithoutClefCombosCount = await pool.query(`
+    try {
+      const voicingsWithoutClefCombosCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM voicings v
+        LEFT JOIN clef_combinations_voicings ccv ON v.id = ccv.voicing_id
+        WHERE ccv.voicing_id IS NULL
+      `);
+
+      const voicingsCount = parseInt(voicingsWithoutClefCombosCount.rows[0].count);
+      if (voicingsCount > 0) {
+        alerts.push({
+          type: 'voicings_no_clef_combos',
+          severity: 'warning', 
+          title: 'Voicings not matched to clef combinations',
+          description: `${voicingsCount} voicings are not matched to clef combinations`,
+          count: voicingsCount
+        });
+      }
+    } catch (error) {
+      console.log('Voicings alerts skipped (tables may not exist):', error.message);
+    }
+
+    // Count unused titles
+    const unusedTitlesCount = await pool.query(`
       SELECT COUNT(*) as count
-      FROM voicings v
-      LEFT JOIN clef_combinations_voicings ccv ON v.id = ccv.voicing_id
-      WHERE ccv.voicing_id IS NULL
+      FROM titles 
+      WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+      AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
     `);
 
-    const voicingsCount = parseInt(voicingsWithoutClefCombosCount.rows[0].count);
-    if (voicingsCount > 0) {
+    const titlesCount = parseInt(unusedTitlesCount.rows[0].count);
+    if (titlesCount > 0) {
       alerts.push({
-        type: 'voicings_no_clef_combos',
-        severity: 'warning', 
-        title: 'Voicings not matched to clef combinations',
-        description: `${voicingsCount} voicings are not matched to clef combinations`,
-        count: voicingsCount
+        type: 'unused_titles',
+        severity: 'info',
+        title: 'Unused titles in database',
+        description: `${titlesCount} titles are not linked to any compositions or functions`,
+        count: titlesCount
+      });
+    }
+
+    // Count empty groups
+    const emptyGroupsCount = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM groups 
+      WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+    `);
+
+    const groupsCount = parseInt(emptyGroupsCount.rows[0].count);
+    if (groupsCount > 0) {
+      alerts.push({
+        type: 'empty_groups',
+        severity: 'warning',
+        title: 'Empty groups in database',
+        description: `${groupsCount} groups have no associated compositions`,
+        count: groupsCount
+      });
+    }
+
+    // Count orphaned compositions
+    const orphanedCompositionsCount = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM compositions 
+      WHERE group_id NOT IN (SELECT id FROM groups)
+    `);
+
+    const orphanedCount = parseInt(orphanedCompositionsCount.rows[0].count);
+    if (orphanedCount > 0) {
+      alerts.push({
+        type: 'orphaned_compositions',
+        severity: 'error',
+        title: 'Orphaned compositions',
+        description: `${orphanedCount} compositions reference non-existent groups`,
+        count: orphanedCount
       });
     }
 
