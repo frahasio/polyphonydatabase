@@ -155,24 +155,31 @@
         
         /* Clef styling for missing, incomplete, optional */
         .clef-missing {
-            border: 2px solid #dc3545;
+            border: 1px solid #dc3545;
             opacity: 0.7;
             background-color: rgba(220, 53, 69, 0.1);
+            margin-right: -1px;
         }
         
         .clef-incomplete {
-            border: 2px solid #28a745;
+            border: 1px solid #28a745;
             opacity: 0.7;
             background-color: rgba(40, 167, 69, 0.1);
+            margin-right: -1px;
         }
         
         .clef-optional {
             opacity: 0.5;
+            margin-right: -1px;
         }
         
         .clef-multiple {
-            border: 2px solid #007bff;
-            background-color: rgba(0, 123, 255, 0.1);
+            /* No additional styling needed - blue is built into the image */
+            margin-right: -1px;
+        }
+        
+        .clef-images img:last-child {
+            margin-right: 0;
         }
         
         /* Minimal Select2 adjustments */
@@ -188,6 +195,19 @@
         
         .container-fluid {
             max-width: none !important;
+        }
+        
+        /* Table column widths */
+        .table th:nth-child(1), .table td:nth-child(1) { width: 20%; } /* Title */
+        .table th:nth-child(2), .table td:nth-child(2) { width: 15%; } /* Function */
+        .table th:nth-child(3), .table td:nth-child(3) { width: 15%; } /* Composer */
+        .table th:nth-child(4), .table td:nth-child(4) { width: 5%; }  /* # */
+        .table th:nth-child(5), .table td:nth-child(5) { width: 45%; } /* Sources */
+        
+        /* Allow text wrapping in smaller columns */
+        .table td:nth-child(1), .table td:nth-child(2), .table td:nth-child(3) {
+            word-wrap: break-word;
+            white-space: normal;
         }
     </style>
 </head>
@@ -323,8 +343,8 @@
                         <select class="form-select form-select-sm" id="searchCities" multiple></select>
                     </div>
                     <div class="col-md-2">
-                        <label for="searchVoicing" class="form-label small">Dynamic Voicing</label>
-                        <select class="form-select form-select-sm" id="searchVoicing" multiple></select>
+                        <label class="form-label small">Voice Quantities</label>
+                        <div id="voiceQuantityControls"></div>
                         <div id="voicingMatches" class="mt-1" style="display: none;">
                             <small class="text-info">
                                 <span id="voicingMatchCount">0</span> clef combinations found
@@ -428,7 +448,7 @@
             performSearch();
             
             // Initialize Select2 for multi-select elements
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').select2({
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
                 width: '100%'
@@ -441,9 +461,6 @@
             
             // Set up Select2 change listeners  
             $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities').on('change', debounceSearch);
-            
-            // Special handler for voicing to show dynamic matching
-            $('#searchVoicing').on('change', handleVoicingChange);
             
             document.getElementById('pageSize').addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -495,7 +512,7 @@
             const compositionTypes = getMultiSelectValues('searchCompositionTypes');
             const tones = getMultiSelectValues('searchTones');
             const evenOdd = getMultiSelectValues('searchEvenOdd');
-            const voicingClefs = getMultiSelectValues('searchVoicing');
+            const voiceQuantities = getVoiceQuantities();
             const languages = getMultiSelectValues('searchLanguages');
             const countries = getMultiSelectValues('searchCountries');
             const sources = getMultiSelectValues('searchSources');
@@ -511,7 +528,7 @@
             if (compositionTypes) params.set('composition_types', compositionTypes);
             if (tones) params.set('tones', tones);
             if (evenOdd) params.set('even_odd', evenOdd);
-            if (voicingClefs) params.set('voicing_clefs', voicingClefs);
+            if (voiceQuantities) params.set('voice_quantities', voiceQuantities);
             if (languages) params.set('languages', languages);
             if (countries) params.set('countries', countries);
             if (sources) params.set('sources', sources);
@@ -536,9 +553,7 @@
                                             composers.forEach(composer => {
                             const option = document.createElement('option');
                             option.value = composer.id;
-                            const dates = composer.from_year || composer.to_year ? 
-                                ` (${composer.from_year || '?'}–${composer.to_year || '?'})` : '';
-                            option.textContent = composer.name + dates;
+                            option.textContent = composer.name;
                             composerSelect.appendChild(option);
                         });
                         setSelectFromURL('searchComposers', 'composers');
@@ -652,7 +667,7 @@
                                             sources.forEach(source => {
                             const option = document.createElement('option');
                             option.value = source.id;
-                            option.textContent = `${source.code} - ${source.title}`;
+                            option.textContent = source.code;
                             sourceSelect.appendChild(option);
                         });
                         setSelectFromURL('searchSources', 'sources');
@@ -686,18 +701,32 @@
                         setSelectFromURL('searchCities', 'cities');
                     }
 
-                    // Load voicing options
+                    // Load voicing options - create quantity controls
                 const voicingResponse = await fetch('/api/search/voicing-options');
                 if (voicingResponse.ok) {
                     const voiceTypes = await voicingResponse.json();
-                    const voicingSelect = document.getElementById('searchVoicing');
+                    const voicingContainer = document.getElementById('voiceQuantityControls');
                     voiceTypes.forEach(voice => {
-                        const option = document.createElement('option');
-                        option.value = voice.value;
-                        option.textContent = voice.name;
-                        voicingSelect.appendChild(option);
+                        const controlDiv = document.createElement('div');
+                        controlDiv.className = 'd-flex align-items-center mb-1';
+                        controlDiv.innerHTML = `
+                            <label class="form-label small mb-0 me-2" style="min-width: 40px;">${voice.name}</label>
+                            <select class="form-select form-select-sm voice-quantity" data-voice="${voice.value}" style="width: 60px;">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                            </select>
+                        `;
+                        voicingContainer.appendChild(controlDiv);
                     });
-                    setSelectFromURL('searchVoicing', 'voicing');
+                    
+                    // Add event listeners to quantity controls
+                    document.querySelectorAll('.voice-quantity').forEach(select => {
+                        select.addEventListener('change', handleVoicingChange);
+                    });
                 }
 
                 } catch (error) {
@@ -709,6 +738,19 @@
         function getMultiSelectValues(selectId) {
             const values = $(`#${selectId}`).val();
             return Array.isArray(values) ? values.join(',') : '';
+        }
+
+        // Helper function to get voice quantities
+        function getVoiceQuantities() {
+            const quantities = {};
+            document.querySelectorAll('.voice-quantity').forEach(select => {
+                const voice = select.getAttribute('data-voice');
+                const quantity = parseInt(select.value);
+                if (quantity > 0) {
+                    quantities[voice] = quantity;
+                }
+            });
+            return Object.keys(quantities).length > 0 ? JSON.stringify(quantities) : '';
         }
 
         async function performSearch() {
@@ -731,7 +773,7 @@
                     composition_types: getMultiSelectValues('searchCompositionTypes'),
                     tones: getMultiSelectValues('searchTones'),
                     even_odd: getMultiSelectValues('searchEvenOdd'),
-                    voicing_clefs: getMultiSelectValues('searchVoicing'),
+                    voice_quantities: getVoiceQuantities(),
                     languages: getMultiSelectValues('searchLanguages'),
                     countries: getMultiSelectValues('searchCountries'),
                     sources: getMultiSelectValues('searchSources'),
@@ -799,7 +841,8 @@
                         ${(group.function_names || []).join(', ')}
                     </td>
                     <td>
-                        ${(group.composer_names || []).join(', ')}
+                        ${group.composer_display || 'Unknown'}
+                        ${group.composer_dates ? `<br><small class="text-muted fst-italic">${group.composer_dates}</small>` : ''}
                     </td>
                     <td>
                         ${(group.voice_counts || []).join(', ')}
@@ -814,8 +857,8 @@
                                                 <div class="flex-grow-1">
                                                     <strong>${source.code || ''}</strong>
                                                     ${source.title ? `
-                                                        <br><span class="text-muted" ${source.title.length > 50 ? `title="${source.title}"` : ''}>
-                                                            ${source.title.length > 50 ? source.title.substring(0, 50) + '...' : source.title}
+                                                        <br><span class="text-muted" ${source.title.length > 35 ? `title="${source.title}"` : ''}>
+                                                            ${source.title.length > 35 ? source.title.substring(0, 35) + '...' : source.title}
                                                         </span>
                                                     ` : ''}
                                                     ${source.town || source.from_year || source.to_year ? `
@@ -881,7 +924,7 @@
                                                 <div><small><strong>Position:</strong> ${source.position}</small></div>
                                             ` : ''}
                                             ${source.inclusion_notes ? `
-                                                <div><small><strong>Inclusion notes:</strong> ${source.inclusion_notes}</small></div>
+                                                <div><small><strong>Notes:</strong> ${source.inclusion_notes}</small></div>
                                             ` : ''}
                                         </div>
                                     </div>
@@ -951,11 +994,19 @@
         let currentVoicingMatches = [];
 
         async function handleVoicingChange() {
-            const selectedVoices = $('#searchVoicing').val();
+            const voiceQuantities = {};
+            document.querySelectorAll('.voice-quantity').forEach(select => {
+                const voice = select.getAttribute('data-voice');
+                const quantity = parseInt(select.value);
+                if (quantity > 0) {
+                    voiceQuantities[voice] = quantity;
+                }
+            });
+
             const voicingMatchesDiv = document.getElementById('voicingMatches');
             const voicingMatchCount = document.getElementById('voicingMatchCount');
 
-            if (!selectedVoices || selectedVoices.length === 0) {
+            if (Object.keys(voiceQuantities).length === 0) {
                 voicingMatchesDiv.style.display = 'none';
                 currentVoicingMatches = [];
                 debounceSearch();
@@ -968,7 +1019,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ selectedVoices })
+                    body: JSON.stringify({ voiceQuantities })
                 });
 
                 if (response.ok) {
@@ -999,19 +1050,7 @@
             alert(`Found clef combinations:\n\n${details}`);
         }
 
-        // Override getMultiSelectValues to handle voicing specially
-        const originalGetMultiSelectValues = getMultiSelectValues;
-        getMultiSelectValues = function(selectId) {
-            if (selectId === 'searchVoicing') {
-                // Return the encoded clef combinations for voicing search
-                if (currentVoicingMatches.length > 0) {
-                    const clefCombos = currentVoicingMatches.map(match => match.clefs);
-                    return encodeURIComponent(JSON.stringify(clefCombos));
-                }
-                return '';
-            }
-            return originalGetMultiSelectValues(selectId);
-        };
+
 
         // Clef display order (from schema reference)
         function sortClefsInDisplayOrder(clefs) {
