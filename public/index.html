@@ -159,22 +159,26 @@
         <!-- Search Filters -->
         <div class="search-filters">
             <form id="searchForm">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="searchTitle" class="form-label">Title</label>
-                        <input type="text" class="form-control" id="searchTitle" placeholder="Search titles...">
+                                        <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="searchTitle" class="form-label">Title Search</label>
+                        <input type="text" class="form-control" id="searchTitle" 
+                               placeholder="Search in group titles and composition titles...">
+                        <small class="text-muted">Searches both group display titles and individual composition titles</small>
                     </div>
+                </div>
+                <div class="row g-3 mt-2">
                     <div class="col-md-3">
-                        <label for="searchComposer" class="form-label">Composer</label>
-                        <select class="form-select" id="searchComposer">
-                            <option value="">All composers</option>
+                        <label for="searchComposers" class="form-label">Composers</label>
+                        <select class="form-select" id="searchComposers" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
                     </div>
                     <div class="col-md-2">
                         <label for="searchVoices" class="form-label">Voices</label>
-                        <select class="form-select" id="searchVoices">
-                            <option value="">Any</option>
+                        <select class="form-select" id="searchVoices" multiple>
+                            <option value="1">1vv</option>
                             <option value="2">2vv</option>
                             <option value="3">3vv</option>
                             <option value="4">4vv</option>
@@ -182,31 +186,71 @@
                             <option value="6">6vv</option>
                             <option value="7">7vv</option>
                             <option value="8">8vv</option>
+                            <option value="9">9vv</option>
+                            <option value="10">10vv</option>
                         </select>
+                        <small class="text-muted">Multiple select</small>
                     </div>
                     <div class="col-md-3">
-                        <label for="searchFunction" class="form-label">Function</label>
-                        <select class="form-select" id="searchFunction">
-                            <option value="">All functions</option>
+                        <label for="searchFunctions" class="form-label">Functions</label>
+                        <select class="form-select" id="searchFunctions" multiple>
                             <!-- Options will be populated dynamically -->
                         </select>
+                        <small class="text-muted">Multiple select</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchLanguages" class="form-label">Languages</label>
+                        <select class="form-select" id="searchLanguages" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Multiple select</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="searchCountries" class="form-label">Countries</label>
+                        <select class="form-select" id="searchCountries" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Birth countries</small>
                     </div>
                 </div>
                 <div class="row g-3 mt-2">
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="hasEditions">
-                            <label class="form-check-label" for="hasEditions">
-                                Has performing editions
-                            </label>
-                        </div>
+                    <div class="col-md-3">
+                        <label for="searchSources" class="form-label">Sources</label>
+                        <select class="form-select" id="searchSources" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Filter by specific sources</small>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="hasRecordings">
-                            <label class="form-check-label" for="hasRecordings">
-                                Has recordings
-                            </label>
+                    <div class="col-md-3">
+                        <label for="searchPublishers" class="form-label">Publishers</label>
+                        <select class="form-select" id="searchPublishers" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Multiple select</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchCities" class="form-label">Publication Cities</label>
+                        <select class="form-select" id="searchCities" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <small class="text-muted">Cities of publication</small>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="hasEditions">
+                                <label class="form-check-label" for="hasEditions">
+                                    Has performing editions
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="hasRecordings">
+                                <label class="form-check-label" for="hasRecordings">
+                                    Has recordings
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -289,9 +333,12 @@
             performSearch();
             
             // Set up search event listeners
-            ['searchTitle', 'searchComposer', 'searchVoices', 'searchFunction', 'hasEditions', 'hasRecordings'].forEach(id => {
+            ['searchTitle', 'searchComposers', 'searchVoices', 'searchFunctions', 'searchLanguages', 
+             'searchCountries', 'searchSources', 'searchPublishers', 'searchCities', 'hasEditions', 'hasRecordings'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element.type === 'checkbox') {
+                    element.addEventListener('change', debounceSearch);
+                } else if (element.tagName === 'SELECT') {
                     element.addEventListener('change', debounceSearch);
                 } else {
                     element.addEventListener('input', debounceSearch);
@@ -319,11 +366,13 @@
                 const composersResponse = await fetch('/api/search/composers');
                 if (composersResponse.ok) {
                     const composers = await composersResponse.json();
-                    const composerSelect = document.getElementById('searchComposer');
+                    const composerSelect = document.getElementById('searchComposers');
                     composers.forEach(composer => {
                         const option = document.createElement('option');
                         option.value = composer.id;
-                        option.textContent = composer.name;
+                        const dates = composer.from_year || composer.to_year ? 
+                            ` (${composer.from_year || '?'}–${composer.to_year || '?'})` : '';
+                        option.textContent = composer.name + dates;
                         composerSelect.appendChild(option);
                     });
                 }
@@ -332,7 +381,7 @@
                 const functionsResponse = await fetch('/api/search/functions');
                 if (functionsResponse.ok) {
                     const functions = await functionsResponse.json();
-                    const functionSelect = document.getElementById('searchFunction');
+                    const functionSelect = document.getElementById('searchFunctions');
                     functions.forEach(func => {
                         const option = document.createElement('option');
                         option.value = func.id;
@@ -340,9 +389,80 @@
                         functionSelect.appendChild(option);
                     });
                 }
+
+                // Load languages
+                const languagesResponse = await fetch('/api/search/languages');
+                if (languagesResponse.ok) {
+                    const languages = await languagesResponse.json();
+                    const languageSelect = document.getElementById('searchLanguages');
+                    languages.forEach(lang => {
+                        const option = document.createElement('option');
+                        option.value = lang.id;
+                        option.textContent = lang.name;
+                        languageSelect.appendChild(option);
+                    });
+                }
+
+                // Load countries
+                const countriesResponse = await fetch('/api/search/countries');
+                if (countriesResponse.ok) {
+                    const countries = await countriesResponse.json();
+                    const countrySelect = document.getElementById('searchCountries');
+                    countries.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country.name;
+                        option.textContent = country.name;
+                        countrySelect.appendChild(option);
+                    });
+                }
+
+                // Load sources
+                const sourcesResponse = await fetch('/api/search/sources');
+                if (sourcesResponse.ok) {
+                    const sources = await sourcesResponse.json();
+                    const sourceSelect = document.getElementById('searchSources');
+                    sources.forEach(source => {
+                        const option = document.createElement('option');
+                        option.value = source.id;
+                        option.textContent = `${source.code} - ${source.title}`;
+                        sourceSelect.appendChild(option);
+                    });
+                }
+
+                // Load publishers
+                const publishersResponse = await fetch('/api/search/publishers');
+                if (publishersResponse.ok) {
+                    const publishers = await publishersResponse.json();
+                    const publisherSelect = document.getElementById('searchPublishers');
+                    publishers.forEach(pub => {
+                        const option = document.createElement('option');
+                        option.value = pub.id;
+                        option.textContent = pub.name;
+                        publisherSelect.appendChild(option);
+                    });
+                }
+
+                // Load cities
+                const citiesResponse = await fetch('/api/search/cities');
+                if (citiesResponse.ok) {
+                    const cities = await citiesResponse.json();
+                    const citySelect = document.getElementById('searchCities');
+                    cities.forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city.name;
+                        option.textContent = city.name;
+                        citySelect.appendChild(option);
+                    });
+                }
             } catch (error) {
                 console.error('Error loading filters:', error);
             }
+        }
+
+        // Helper function to get selected values from multi-select
+        function getMultiSelectValues(selectId) {
+            const select = document.getElementById(selectId);
+            return Array.from(select.selectedOptions).map(option => option.value).join(',');
         }
 
         async function performSearch() {
@@ -359,9 +479,14 @@
                     page: currentPage,
                     page_size: currentPageSize,
                     title: document.getElementById('searchTitle').value,
-                    composer: document.getElementById('searchComposer').value,
-                    voices: document.getElementById('searchVoices').value,
-                    function: document.getElementById('searchFunction').value,
+                    composers: getMultiSelectValues('searchComposers'),
+                    voices: getMultiSelectValues('searchVoices'),
+                    functions: getMultiSelectValues('searchFunctions'),
+                    languages: getMultiSelectValues('searchLanguages'),
+                    countries: getMultiSelectValues('searchCountries'),
+                    sources: getMultiSelectValues('searchSources'),
+                    publishers: getMultiSelectValues('searchPublishers'),
+                    cities: getMultiSelectValues('searchCities'),
                     has_editions: document.getElementById('hasEditions').checked,
                     has_recordings: document.getElementById('hasRecordings').checked
                 });
