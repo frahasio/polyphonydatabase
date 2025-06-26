@@ -173,39 +173,51 @@ router.get('/groups', async (req, res) => {
         g.updated_at,
         -- Get aggregated data from compositions in this group
         (
-          SELECT array_agg(DISTINCT comp.name ORDER BY comp.name) 
-          FROM compositions c
-          JOIN unnest(c.composer_id_list) AS composer_id ON true
-          JOIN composers comp ON comp.id = composer_id
-          WHERE c.group_id = g.id
+          SELECT array_agg(comp.name ORDER BY comp.name) 
+          FROM (
+            SELECT DISTINCT comp.name
+            FROM compositions c
+            JOIN unnest(c.composer_id_list) AS composer_id ON true
+            JOIN composers comp ON comp.id = composer_id
+            WHERE c.group_id = g.id
+          ) comp
         ) as composer_names,
         (
-          SELECT array_agg(DISTINCT comp.name || CASE 
-            WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
-            THEN ' (' || comp.from_year || '–' || comp.to_year || ')'
-            WHEN comp.from_year IS NOT NULL 
-            THEN ' (' || comp.from_year || '–)'
-            WHEN comp.to_year IS NOT NULL 
-            THEN ' (–' || comp.to_year || ')'
-            ELSE ''
-          END ORDER BY comp.name)
-          FROM compositions c
-          JOIN unnest(c.composer_id_list) AS composer_id ON true
-          JOIN composers comp ON comp.id = composer_id
-          WHERE c.group_id = g.id
+          SELECT array_agg(comp_with_dates ORDER BY comp_with_dates)
+          FROM (
+            SELECT DISTINCT comp.name || CASE 
+              WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
+              THEN ' (' || comp.from_year || '–' || comp.to_year || ')'
+              WHEN comp.from_year IS NOT NULL 
+              THEN ' (' || comp.from_year || '–)'
+              WHEN comp.to_year IS NOT NULL 
+              THEN ' (–' || comp.to_year || ')'
+              ELSE ''
+            END as comp_with_dates
+            FROM compositions c
+            JOIN unnest(c.composer_id_list) AS composer_id ON true
+            JOIN composers comp ON comp.id = composer_id
+            WHERE c.group_id = g.id
+          ) comp
         ) as composers_with_dates,
         (
-          SELECT array_agg(DISTINCT c.number_of_voices ORDER BY c.number_of_voices)
-          FROM compositions c
-          WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
+          SELECT array_agg(voice_count ORDER BY voice_count)
+          FROM (
+            SELECT DISTINCT c.number_of_voices as voice_count
+            FROM compositions c
+            WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
+          ) voices
         ) as voice_counts,
         (
-          SELECT array_agg(DISTINCT func.name ORDER BY func.name)
-          FROM compositions c
-          JOIN titles t ON c.title_id = t.id
-          JOIN functions_titles ft ON t.id = ft.title_id
-          JOIN functions func ON ft.function_id = func.id
-          WHERE c.group_id = g.id
+          SELECT array_agg(func_name ORDER BY func_name)
+          FROM (
+            SELECT DISTINCT func.name as func_name
+            FROM compositions c
+            JOIN titles t ON c.title_id = t.id
+            JOIN functions_titles ft ON t.id = ft.title_id
+            JOIN functions func ON ft.function_id = func.id
+            WHERE c.group_id = g.id
+          ) funcs
         ) as function_names,
         -- Get editions for this group
         (
@@ -337,9 +349,9 @@ router.get('/functions', async (req, res) => {
 router.get('/languages', async (req, res) => {
   try {
     const query = `
-      SELECT id, name
+      SELECT id, language as name
       FROM languages
-      ORDER BY name
+      ORDER BY language
     `;
     const result = await pool.query(query);
     res.json(result.rows);
