@@ -477,4 +477,32 @@ router.get('/debug/admin-user', async (req, res) => {
   }
 });
 
+// Route to reset admin password (remove in production)
+router.post('/debug/reset-admin-password', async (req, res) => {
+  try {
+    const password = 'tempPassword123!';
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1, login_attempts = 0, locked_until = NULL WHERE email = $2 RETURNING id, email',
+      [passwordHash, 'admin@polyphony.local']
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'Admin user not found' });
+    }
+
+    console.log('Admin password reset successfully');
+    res.json({ 
+      success: true, 
+      message: 'Admin password reset to tempPassword123! and account unlocked' 
+    });
+
+  } catch (error) {
+    console.error('Reset admin password error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
 export default router; 
