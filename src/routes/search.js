@@ -16,6 +16,8 @@ router.get('/groups', async (req, res) => {
       sources = '',
       publishers = '',
       cities = '',
+      has_editions = 'false',
+      has_recordings = 'false',
       page = 1,
       page_size = 25
     } = req.query;
@@ -26,13 +28,15 @@ router.get('/groups', async (req, res) => {
     
     // Parse multi-select parameters (comma-separated)
     const composerIds = composers ? composers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const voiceOptions = voices ? voices.split(',') : [];
+    const voiceOptions = voices ? voices.split(',').map(v => parseInt(v)).filter(v => !isNaN(v)) : [];
     const functionIds = functions ? functions.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const languageIds = languages ? languages.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const countryIds = countries ? countries.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const countryNames = countries ? countries.split(',').map(country => country.trim()).filter(country => country) : [];
     const sourceIds = sources ? sources.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const publisherIds = publishers ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const cityNames = cities ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
+    const hasEditions = has_editions === 'true';
+    const hasRecordings = has_recordings === 'true';
 
     let whereConditions = [];
     let queryParams = [];
@@ -65,12 +69,12 @@ router.get('/groups', async (req, res) => {
 
     // Voices filter
     if (voiceOptions.length > 0) {
-      const voiceConditions = voiceOptions.map(() => {
+      const voiceConditions = voiceOptions.map((voiceCount, index) => {
         const condition = `EXISTS (
           SELECT 1 FROM compositions c2
           WHERE c2.group_id = g.id AND c2.number_of_voices = $${paramIndex}
         )`;
-        queryParams.push(parseInt(voiceOptions[voiceConditions.length]));
+        queryParams.push(voiceCount);
         paramIndex++;
         return condition;
       });
@@ -101,17 +105,17 @@ router.get('/groups', async (req, res) => {
     }
 
     // Countries filter (composer birth countries)
-    if (countryIds.length > 0) {
+    if (countryNames.length > 0) {
       whereConditions.push(`EXISTS (
         SELECT 1 FROM compositions c2
         WHERE c2.group_id = g.id 
         AND EXISTS (
           SELECT 1 FROM unnest(c2.composer_id_list) AS composer_id
           JOIN composers comp ON comp.id = composer_id
-          WHERE comp.birthplace_2 = ANY($${paramIndex}::integer[])
+          WHERE comp.birthplace_2 = ANY($${paramIndex}::text[])
         )
       )`);
-      queryParams.push(countryIds);
+      queryParams.push(countryNames);
       paramIndex++;
     }
 
@@ -141,18 +145,34 @@ router.get('/groups', async (req, res) => {
 
     // Cities filter (publication places)
     if (cityNames.length > 0) {
-      const cityConditions = cityNames.map(() => {
+      const cityConditions = cityNames.map((cityName, index) => {
         const condition = `EXISTS (
           SELECT 1 FROM compositions c2
           JOIN inclusions i ON c2.id = i.composition_id
           JOIN sources s ON i.source_id = s.id
           WHERE c2.group_id = g.id AND s.town ILIKE $${paramIndex}
         )`;
-        queryParams.push(`%${cityNames[cityConditions.length]}%`);
+        queryParams.push(`%${cityName}%`);
         paramIndex++;
         return condition;
       });
       whereConditions.push(`(${cityConditions.join(' OR ')})`);
+    }
+
+    // Has editions filter
+    if (hasEditions) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM editions e
+        WHERE e.group_id = g.id
+      )`);
+    }
+
+    // Has recordings filter
+    if (hasRecordings) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM recordings r
+        WHERE r.group_id = g.id
+      )`);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -257,8 +277,10 @@ router.get('/groups', async (req, res) => {
             'position', i.position,
             'attribution_texts', i.attribution_texts,
             'notes', i.notes,
+            'clefs', i.clefs,
             'publishers', COALESCE(pubs.publishers, '[]'::json),
-            'scribes', COALESCE(scr.scribes, '[]'::json)
+            'scribes', COALESCE(scr.scribes, '[]'::json),
+            'source_images', COALESCE(imgs.images, '[]'::json)
           ) ORDER BY s.code, s.title)
           FROM compositions comp
           JOIN inclusions i ON comp.id = i.composition_id
@@ -275,6 +297,15 @@ router.get('/groups', async (req, res) => {
             JOIN scribes sc ON ss.scribe_id = sc.id
             GROUP BY ss.source_id
           ) scr ON s.id = scr.source_id
+          LEFT JOIN (
+            SELECT si.source_id, json_agg(json_build_object(
+              'id', si.id,
+              'url', si.url,
+              'label', si.label
+            ) ORDER BY si.id) as images
+            FROM source_images si
+            GROUP BY si.source_id
+          ) imgs ON s.id = imgs.source_id
           WHERE comp.group_id = g.id
         ) as sources
       FROM groups g

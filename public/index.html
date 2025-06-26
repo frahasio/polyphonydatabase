@@ -126,14 +126,28 @@
             color: #6c757d;
         }
         
-        .sources-container {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
         .source-item {
             background: #f8f9fa;
             font-size: 0.85rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .clef-images {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-top: 0.5rem;
+        }
+        
+        .clef-images img {
+            height: 24px;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            display: block;
         }
         
         /* Minimal Select2 adjustments */
@@ -194,16 +208,16 @@
                     <div class="col-md-2">
                         <label for="searchVoices" class="form-label">Voices</label>
                         <select class="form-select" id="searchVoices" multiple>
-                            <option value="1">1vv</option>
-                            <option value="2">2vv</option>
-                            <option value="3">3vv</option>
-                            <option value="4">4vv</option>
-                            <option value="5">5vv</option>
-                            <option value="6">6vv</option>
-                            <option value="7">7vv</option>
-                            <option value="8">8vv</option>
-                            <option value="9">9vv</option>
-                            <option value="10">10vv</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
                         </select>
                         <small class="text-muted">Select multiple</small>
                     </div>
@@ -279,11 +293,11 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 25%">Title</th>
-                            <th style="width: 20%">Function(s)</th>
-                            <th style="width: 15%">Composer</th>
-                            <th style="width: 5%">#</th>
-                            <th style="width: 35%">Sources</th>
+                            <th>Title</th>
+                            <th>Function(s)</th>
+                            <th>Composer</th>
+                            <th>#</th>
+                            <th>Sources</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -645,40 +659,65 @@
                     </td>
                     <td>
                         ${(group.sources || []).length > 0 ? `
-                            <div class="sources-container">
-                                ${(group.sources || []).map(source => `
-                                    <div class="source-item mb-2 p-2 border rounded">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <strong>${source.code || ''}</strong>
-                                                ${source.title ? `<br><small class="text-muted">${source.title}</small>` : ''}
-                                                ${source.town || source.from_year || source.to_year ? `
-                                                    <br><small>${[
-                                                        source.town,
-                                                        source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
-                                                        source.from_year ? `${source.from_year}` :
-                                                        source.to_year ? `${source.to_year}` : ''
-                                                    ].filter(Boolean).join(', ')}</small>
-                                                ` : ''}
-                                                ${source.publishers && source.publishers.length > 0 ? `
-                                                    <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
-                                                ` : ''}
-                                                ${source.scribes && source.scribes.length > 0 ? `
-                                                    <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
-                                                ` : ''}
-                                                ${source.position ? `<br><small><strong>Position:</strong> ${source.position}</small>` : ''}
-                                                ${source.attribution ? `<br><small><strong>Attribution:</strong> ${source.attribution}</small>` : ''}
-                                                ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
-                                                ${source.rism_link ? `
-                                                    <br><a href="${source.rism_link}" target="_blank" class="text-primary">
-                                                        <small><i class="bi bi-link-45deg"></i> RISM</small>
-                                                    </a>
-                                                ` : ''}
-                                            </div>
+                            ${(group.sources || []).map(source => `
+                                <div class="source-item">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <strong>${source.code || ''}</strong>
+                                            ${source.title ? `<br><span class="text-muted">${source.title}</span>` : ''}
+                                            ${source.town || source.from_year || source.to_year ? `
+                                                <br><small>${[
+                                                    source.town,
+                                                    source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
+                                                    source.from_year ? `${source.from_year}` :
+                                                    source.to_year ? `${source.to_year}` : ''
+                                                ].filter(Boolean).join(', ')}</small>
+                                            ` : ''}
+                                            ${source.publishers && source.publishers.length > 0 ? `
+                                                <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
+                                            ` : ''}
+                                            ${source.scribes && source.scribes.length > 0 ? `
+                                                <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
+                                            ` : ''}
+                                            ${source.position ? `<br><small><strong>Position:</strong> ${source.position}</small>` : ''}
+                                            ${source.attribution_texts && source.attribution_texts.length > 0 ? `
+                                                <br><small><strong>Attribution:</strong> ${source.attribution_texts.join(', ')}</small>
+                                            ` : ''}
+                                            ${source.notes ? `<br><small><strong>Notes:</strong> ${source.notes}</small>` : ''}
+                                            ${source.rism_link ? `
+                                                <br><a href="${source.rism_link}" target="_blank" class="text-primary">
+                                                    <small><i class="bi bi-link-45deg"></i> RISM</small>
+                                                </a>
+                                            ` : ''}
+                                        </div>
+                                        <div class="col-md-4">
+                                            ${source.clefs && source.clefs.length > 0 ? `
+                                                <div class="clef-images">
+                                                    ${source.clefs.map(clef => {
+                                                        if (clef.clef && clef.clef.trim()) {
+                                                            const clefName = clef.clef.trim();
+                                                            const clefImage = clef.transitions_to && clef.transitions_to.length > 0 ? 
+                                                                `${clefName}-${clef.transitions_to.join('-')}` : clefName;
+                                                            return `<img src="/clef_images/${clefImage}.png" alt="${clefName}" onerror="this.style.display='none'">`;
+                                                        }
+                                                        return '';
+                                                    }).join('')}
+                                                </div>
+                                            ` : ''}
+                                            ${source.source_images && source.source_images.length > 0 ? `
+                                                <div class="mt-2">
+                                                    <small><strong>Images:</strong></small><br>
+                                                    ${source.source_images.map(img => `
+                                                        <a href="${img.url}" target="_blank" class="text-primary d-block">
+                                                            <small><i class="bi bi-image"></i> ${img.label || 'View'}</small>
+                                                        </a>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
                                         </div>
                                     </div>
-                                `).join('')}
-                            </div>
+                                </div>
+                            `).join('')}
                         ` : '<small class="text-muted">No sources</small>'}
                     </td>
                 </tr>
