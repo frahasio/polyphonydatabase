@@ -766,6 +766,254 @@ res.json({ languages }); // Never return 500 for reference data
 - User-friendly error messages for failed operations
 - Retry mechanisms for transient failures
 
+## Technical Implementation Details
+
+### Authentication System
+
+#### Session-Based Authentication
+All admin interfaces use session-based authentication with `credentials: 'include'` for proper cookie handling:
+
+```javascript
+// ✅ Correct authentication pattern
+const response = await fetch('/api/admin/endpoint', {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+});
+
+// Handle authentication errors
+if (response.status === 401 || response.status === 403) {
+    window.location.href = '/login';
+    return;
+}
+```
+
+#### Authentication Troubleshooting
+- **302 Redirects**: Usually indicate missing `credentials: 'include'` in fetch requests
+- **401/403 Errors**: Check session validity and admin privileges
+- **CORS Issues**: Ensure credentials are included in cross-origin requests
+
+### Search Parameter Indexing
+
+#### Critical Parameter Management
+**Problem**: PostgreSQL parameter indexing must be sequential and consistent across queries.
+
+**Solution Pattern:**
+```javascript
+// ✅ Correct parameter indexing
+let paramIndex = 1;
+let queryParams = [];
+
+// Each filter increments paramIndex consistently
+if (composers.length > 0) {
+    whereConditions.push(`composers && $${paramIndex}::integer[]`);
+    queryParams.push(composers);
+    paramIndex++;
+}
+
+// Voicing filter uses separate query with fixed parameters
+const voicingQuery = `SELECT clef_combination FROM ... WHERE voicing_id = ANY($1::integer[])`;
+const voicingResult = await pool.query(voicingQuery, [voicingIds]);
+```
+
+**Common Pitfalls:**
+- Using `$${paramIndex + 1}` without incrementing by 1
+- Reusing parameter indexes across sub-queries
+- Forgetting to increment `paramIndex` after adding parameters
+
+### Select2 Integration
+
+#### Safe Initialization Pattern
+```javascript
+function initializeSelect2Components() {
+    // ✅ Check for existing instances before destroying
+    $('.voicing-select').each(function() {
+        if ($(this).hasClass('select2-hidden-accessible')) {
+            $(this).select2('destroy');
+        }
+    });
+    
+    // Initialize fresh instances
+    $('.voicing-select').select2({
+        placeholder: 'Select voicings...',
+        allowClear: true,
+        width: '100%'
+    });
+}
+```
+
+**Error Prevention:**
+- Always check for `select2-hidden-accessible` class before destroying
+- Reinitialize Select2 after DOM changes (pagination, content updates)
+- Handle programmatic value changes to prevent infinite loops
+
+### URL State Management
+
+#### Public Search Pagination
+```javascript
+// ✅ Complete URL state management
+function updateURL() {
+    const params = new URLSearchParams();
+    
+    // Include all filter states
+    if (title) params.set('title', title);
+    if (composers) params.set('composers', composers);
+    if (currentPage !== 1) params.set('page', currentPage);
+    if (currentPageSize !== 25) params.set('page_size', currentPageSize);
+    
+    // Update URL without page reload
+    const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.replaceState({}, document.title, newURL);
+}
+
+// Load state from URL on page load
+function loadFiltersFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('page')) {
+        currentPage = parseInt(params.get('page')) || 1;
+    }
+    // ... load other parameters
+}
+```
+
+### Data Quality Management Enhancements
+
+#### Enhanced Cleanup Operations
+```sql
+-- Preview unused clef combinations
+SELECT cc.id, cc.clef_combination, 
+       CASE WHEN used.clef_combination_id IS NULL THEN 'unused' ELSE 'used' END as status
+FROM clef_combinations cc
+LEFT JOIN (
+    SELECT DISTINCT ccv.clef_combination_id 
+    FROM clef_combinations_voicings ccv
+) used ON cc.id = used.clef_combination_id
+WHERE used.clef_combination_id IS NULL;
+
+-- Validate clef combinations against official clef list
+SELECT id, clef_combination
+FROM clef_combinations 
+WHERE NOT EXISTS (
+    SELECT 1 WHERE validate_clef_combination(clef_combination) = true
+);
+```
+
+#### Invalid Data Detection
+- **Invalid clef names**: Check against 35 official clef types
+- **Unused relationships**: Clef combinations without voicings, voicings without clef combinations
+- **Orphaned records**: Compositions without groups, titles without usage
+- **Data integrity**: Automatic constraint validation and cleanup suggestions
+
+### Performance Optimization
+
+#### Voicing Filter Performance Enhancement
+Create optional performance optimization with indexed columns:
+
+```sql
+-- voicing-performance-migration.sql
+-- Add indexed columns for fast clef combination matching
+ALTER TABLE inclusions 
+ADD COLUMN sorted_clef_combination_required TEXT,
+ADD COLUMN sorted_clef_combination_all TEXT;
+
+-- Create specialized indexes
+CREATE INDEX idx_inclusions_sorted_clef_required 
+ON inclusions USING btree (sorted_clef_combination_required);
+
+CREATE INDEX idx_inclusions_sorted_clef_all 
+ON inclusions USING btree (sorted_clef_combination_all);
+
+-- Automatic trigger to maintain columns
+CREATE OR REPLACE FUNCTION update_sorted_clef_combinations()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.sorted_clef_combination_required := sort_clef_combination(NEW.clefs, false);
+    NEW.sorted_clef_combination_all := sort_clef_combination(NEW.clefs, true);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**Benefits:**
+- 10-100x faster voicing searches on large datasets
+- Automatic maintenance via triggers
+- Backward compatibility with existing search logic
+
+### Source Editor Clef Management
+
+#### Clef Sorting Implementation
+```javascript
+// Consistent clef display order
+const clefDisplayOrder = [
+    'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 
+    'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 
+    'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 
+    'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+];
+
+function sortClefs(clefs) {
+    return clefs.sort((a, b) => {
+        const indexA = clefDisplayOrder.indexOf(a.clef?.trim());
+        const indexB = clefDisplayOrder.indexOf(b.clef?.trim());
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+    });
+}
+```
+
+**Migration Strategy:**
+- UI automatically sorts clefs for display
+- Database gradually updates as sources are re-edited
+- No breaking changes to existing data
+- Consistent clef ordering improves voicing matching accuracy
+
+### Troubleshooting Common Issues
+
+#### Parameter Type Errors
+```
+Error: could not determine data type of parameter $1
+```
+**Cause**: Parameter indexing mismatch or type confusion
+**Solution**: Check parameter order and ensure sequential numbering
+
+#### Select2 Destruction Errors
+```
+The select2('destroy') method was called on an element that is not using Select2
+```
+**Cause**: Attempting to destroy non-initialized Select2 instances
+**Solution**: Check for `select2-hidden-accessible` class before destroying
+
+#### Voicing Filter Not Working with Other Filters
+**Cause**: Parameter conflicts between separate query contexts
+**Solution**: Use fixed parameter positions (`$1`) for sub-queries, maintain separate parameter tracking
+
+#### Authentication 302 Redirects
+**Cause**: Missing session credentials in API requests
+**Solution**: Add `credentials: 'include'` to all admin fetch requests
+
+### Development Best Practices
+
+#### Admin Interface Development
+1. **Authentication**: Always include session credentials
+2. **Error Handling**: Graceful degradation and user feedback
+3. **State Management**: Maintain UI state during operations
+4. **Performance**: Use pagination for large datasets
+5. **Accessibility**: Proper ARIA labels and keyboard navigation
+
+#### Search API Development
+1. **Parameter Validation**: Sanitize and validate all inputs
+2. **Query Optimization**: Use indexes and efficient joins
+3. **Error Recovery**: Fallback mechanisms for failed sub-queries
+4. **Debugging**: Comprehensive logging for complex queries
+5. **Pagination**: Consistent pagination across all endpoints
+
+#### Database Migration Planning
+1. **Backward Compatibility**: New features don't break existing functionality
+2. **Performance Testing**: Index impact analysis before deployment
+3. **Rollback Strategy**: Clear rollback procedures for schema changes
+4. **Data Validation**: Comprehensive validation before and after migrations
+5. **Gradual Deployment**: Staged rollouts for major changes
+
 ## Notes
 
 - PostgreSQL: TEXT and VARCHAR have identical performance characteristics
@@ -776,7 +1024,12 @@ res.json({ languages }); // Never return 500 for reference data
 - composer_id_list array allows multiple composers per composition
 - **Route order matters**: Specific routes must come before parameterized routes in Express.js
 - **Constraint assumptions**: Never assume unique constraints exist - always check explicitly
-- **Reference data robustness**: Language/dropdown APIs should never fail - always provide fallbacks 
+- **Reference data robustness**: Language/dropdown APIs should never fail - always provide fallbacks
+- **Parameter indexing**: PostgreSQL parameters must be sequential ($1, $2, $3...) within each query context
+- **Session authentication**: All admin interfaces require `credentials: 'include'` for proper session handling
+- **Select2 management**: Always check for existing instances before destroying to prevent console errors
+- **URL state**: Include pagination and filter state in URLs for bookmarkable searches
+- **Performance optimization**: Consider indexed columns for frequently filtered large datasets 
 
 ## New Media Tables
 
