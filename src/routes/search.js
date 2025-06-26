@@ -336,7 +336,7 @@ router.get('/groups', async (req, res) => {
         (
           SELECT DISTINCT c.tone
           FROM compositions c
-          WHERE c.group_id = g.id AND c.tone IS NOT NULL AND c.tone != ''
+          WHERE c.group_id = g.id AND c.tone IS NOT NULL 
           LIMIT 1
         ) as tone,
         (
@@ -396,11 +396,11 @@ router.get('/groups', async (req, res) => {
             'type', s.type,
             'format', s.format,
             'town', s.town,
-            'from_year', s.from_year,
-            'to_year', s.to_year,
+            'from_year', NULLIF(s.from_year, '')::integer,
+            'to_year', NULLIF(s.to_year, '')::integer,
             'rism_link', s.rism_link,
             'source_notes', s.notes,
-            'position', i.position,
+            'position', NULLIF(i.position, '')::integer,
             'attribution_texts', i.attribution_texts,
             'inclusion_notes', i.notes,
             'clefs', i.clefs,
@@ -447,10 +447,27 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    const [countResult, searchResult] = await Promise.all([
-      pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(searchQuery, queryParams)
-    ]);
+    try {
+      console.log('Running count query first...');
+      const countResult = await pool.query(countQuery, queryParams.slice(0, -2));
+      console.log('Count query successful, count:', countResult.rows[0]?.total);
+      
+      console.log('Running main search query...');
+      const searchResult = await pool.query(searchQuery, queryParams);
+      console.log('Search query successful, rows:', searchResult.rows.length);
+      
+      const results = [countResult, searchResult];
+    } catch (queryError) {
+      console.error('Query error details:', {
+        message: queryError.message,
+        position: queryError.position,
+        code: queryError.code,
+        queryParams: queryParams
+      });
+      throw queryError;
+    }
+    
+    const [countResult, searchResult] = results;
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / parseInt(limit));
