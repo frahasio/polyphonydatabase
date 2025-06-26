@@ -469,6 +469,18 @@ router.get('/groups', async (req, res) => {
 
   } catch (error) {
     console.error('Error in public groups search:', error);
+    if (error.position) {
+      console.error('Error position:', error.position);
+      // Find context around the error position
+      let charCount = 0;
+      for (let i = 0; i < searchQuery.length; i++) {
+        charCount++;
+        if (charCount >= parseInt(error.position)) {
+          console.error(`Error position ${error.position} context:`, searchQuery.substring(Math.max(0, i-100), i+100));
+          break;
+        }
+      }
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
