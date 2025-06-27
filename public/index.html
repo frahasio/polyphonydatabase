@@ -415,7 +415,7 @@
     <div class="container-fluid px-3">
         <!-- Search Filters -->
         <div class="search-filters">
-            <!-- Mobile collapsible filters (below 800px) -->
+            <!-- Mobile collapsible layout (below 800px) -->
             <div class="d-block d-custom-lg-none">
                 <div class="accordion" id="filtersAccordion">
                     <div class="accordion-item">
@@ -427,49 +427,124 @@
                         </h2>
                         <div id="filtersCollapse" class="accordion-collapse collapse show" data-bs-parent="#filtersAccordion">
                             <div class="accordion-body">
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <label for="searchTitle" class="form-label fw-bold">Title Search</label>
-                                        <input type="text" class="form-control form-control-sm" id="searchTitle" 
-                                               placeholder="Search in group titles and composition titles...">
+                                <form id="searchForm">
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <label for="searchTitle" class="form-label fw-bold">Title Search</label>
+                                            <input type="text" class="form-control form-control-sm" id="searchTitle" 
+                                                   placeholder="Search in group titles and composition titles...">
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="row g-2 mt-1">
-                                    <div class="col-12">
-                                        <label for="sortBy" class="form-label small">Sort by</label>
-                                        <select class="form-select form-select-sm" id="sortBy">
-                                            <option value="">Default order</option>
-                                            <option value="title">Title (A-Z)</option>
-                                            <option value="title_desc">Title (Z-A)</option>
-                                            <option value="function">Function (A-Z)</option>
-                                            <option value="function_desc">Function (Z-A)</option>
-                                            <option value="composer">Composer (A-Z)</option>
-                                            <option value="composer_desc">Composer (Z-A)</option>
-                                            <option value="voices">Voices (ascending)</option>
-                                            <option value="voices_desc">Voices (descending)</option>
-                                            <option value="sources_earliest">Sources (earliest first)</option>
-                                            <option value="sources_latest">Sources (latest first)</option>
-                                        </select>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-12">
+                                            <label for="sortBy" class="form-label small">Sort by</label>
+                                            <select class="form-select form-select-sm" id="sortBy">
+                                                <option value="">Default order</option>
+                                                <option value="title">Title (A-Z)</option>
+                                                <option value="title_desc">Title (Z-A)</option>
+                                                <option value="function">Function (A-Z)</option>
+                                                <option value="function_desc">Function (Z-A)</option>
+                                                <option value="composer">Composer (A-Z)</option>
+                                                <option value="composer_desc">Composer (Z-A)</option>
+                                                <option value="voices">Voices (ascending)</option>
+                                                <option value="voices_desc">Voices (descending)</option>
+                                                <option value="sources_earliest">Sources (earliest first)</option>
+                                                <option value="sources_latest">Sources (latest first)</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchComposers" class="form-label small">Composers</label>
+                                            <select class="form-select form-select-sm" id="searchComposers" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchFunctions" class="form-label small">Functions</label>
+                                            <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchCompositionTypes" class="form-label small">Types</label>
+                                            <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchVoices" class="form-label small">Voices</label>
+                                            <select class="form-select form-select-sm" id="searchVoices" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchTones" class="form-label small">Tones</label>
+                                            <select class="form-select form-select-sm" id="searchTones" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchEvenOdd" class="form-label small">Verses</label>
+                                            <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchLanguages" class="form-label small">Languages</label>
+                                            <select class="form-select form-select-sm" id="searchLanguages" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchCountries" class="form-label small">Countries</label>
+                                            <select class="form-select form-select-sm" id="searchCountries" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchSources" class="form-label small">Sources</label>
+                                            <select class="form-select form-select-sm" id="searchSources" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchPublishers" class="form-label small">Publishers</label>
+                                            <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-md-6">
+                                            <label for="searchCities" class="form-label small">Cities</label>
+                                            <select class="form-select form-select-sm" id="searchCities" multiple></select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="searchVoicing" class="form-label small">Voicing</label>
+                                            <select class="form-select form-select-sm" id="searchVoicing" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-12">
+                                            <label class="form-label small">Filters</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="hasEditions">
+                                                <label class="form-check-label small" for="hasEditions">Has editions</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="hasRecordings">
+                                                <label class="form-check-label small" for="hasRecordings">Has recordings</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Desktop filters (800px and above) -->
+            <!-- Desktop layout (800px and above) - same form, different layout -->
             <div class="d-none d-custom-lg-block">
-                <form id="searchForm">
+                <form id="searchFormDesktop">
                     <div class="row g-2">
                         <div class="col-10">
-                            <label for="searchTitle" class="form-label fw-bold">Title Search</label>
-                            <input type="text" class="form-control form-control-sm" id="searchTitle" 
+                            <label for="searchTitleDesktop" class="form-label fw-bold">Title Search</label>
+                            <input type="text" class="form-control form-control-sm" id="searchTitleDesktop" 
                                    placeholder="Search in group titles and composition titles...">
                         </div>
                         <div class="col-2">
-                            <label for="sortBy" class="form-label small">Sort by</label>
-                            <select class="form-select form-select-sm" id="sortBy">
+                            <label for="sortByDesktop" class="form-label small">Sort by</label>
+                            <select class="form-select form-select-sm" id="sortByDesktop">
                                 <option value="">Default order</option>
                                 <option value="title">Title (A-Z)</option>
                                 <option value="title_desc">Title (Z-A)</option>
@@ -486,66 +561,64 @@
                     </div>
                     <div class="row g-2 mt-1">
                         <div class="col-md-3">
-                            <label for="searchComposers" class="form-label small">Composers</label>
-                            <select class="form-select form-select-sm" id="searchComposers" multiple></select>
+                            <label for="searchComposersDesktop" class="form-label small">Composers</label>
+                            <select class="form-select form-select-sm" id="searchComposersDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchFunctions" class="form-label small">Functions</label>
-                            <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
+                            <label for="searchFunctionsDesktop" class="form-label small">Functions</label>
+                            <select class="form-select form-select-sm" id="searchFunctionsDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchCompositionTypes" class="form-label small">Types</label>
-                            <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
+                            <label for="searchCompositionTypesDesktop" class="form-label small">Types</label>
+                            <select class="form-select form-select-sm" id="searchCompositionTypesDesktop" multiple></select>
                         </div>
                         <div class="col-md-1">
-                            <label for="searchVoices" class="form-label small">Voices</label>
-                            <select class="form-select form-select-sm" id="searchVoices" multiple></select>
+                            <label for="searchVoicesDesktop" class="form-label small">Voices</label>
+                            <select class="form-select form-select-sm" id="searchVoicesDesktop" multiple></select>
                         </div>
                         <div class="col-md-1">
-                            <label for="searchTones" class="form-label small">Tones</label>
-                            <select class="form-select form-select-sm" id="searchTones" multiple></select>
+                            <label for="searchTonesDesktop" class="form-label small">Tones</label>
+                            <select class="form-select form-select-sm" id="searchTonesDesktop" multiple></select>
                         </div>
                         <div class="col-md-1">
-                            <label for="searchEvenOdd" class="form-label small">Verses</label>
-                            <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
+                            <label for="searchEvenOddDesktop" class="form-label small">Verses</label>
+                            <select class="form-select form-select-sm" id="searchEvenOddDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchLanguages" class="form-label small">Languages</label>
-                            <select class="form-select form-select-sm" id="searchLanguages" multiple></select>
+                            <label for="searchLanguagesDesktop" class="form-label small">Languages</label>
+                            <select class="form-select form-select-sm" id="searchLanguagesDesktop" multiple></select>
                         </div>
                     </div>
                     <div class="row g-2 mt-1">
                         <div class="col-md-2">
-                            <label for="searchCountries" class="form-label small">Countries</label>
-                            <select class="form-select form-select-sm" id="searchCountries" multiple></select>
+                            <label for="searchCountriesDesktop" class="form-label small">Countries</label>
+                            <select class="form-select form-select-sm" id="searchCountriesDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchSources" class="form-label small">Sources</label>
-                            <select class="form-select form-select-sm" id="searchSources" multiple></select>
+                            <label for="searchSourcesDesktop" class="form-label small">Sources</label>
+                            <select class="form-select form-select-sm" id="searchSourcesDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchPublishers" class="form-label small">Publishers</label>
-                            <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
+                            <label for="searchPublishersDesktop" class="form-label small">Publishers</label>
+                            <select class="form-select form-select-sm" id="searchPublishersDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchCities" class="form-label small">Cities</label>
-                            <select class="form-select form-select-sm" id="searchCities" multiple></select>
+                            <label for="searchCitiesDesktop" class="form-label small">Cities</label>
+                            <select class="form-select form-select-sm" id="searchCitiesDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
-                            <label for="searchVoicing" class="form-label small">Voicing</label>
-                            <select class="form-select form-select-sm" id="searchVoicing" multiple>
-                                <!-- Options will be populated dynamically -->
-                            </select>
+                            <label for="searchVoicingDesktop" class="form-label small">Voicing</label>
+                            <select class="form-select form-select-sm" id="searchVoicingDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small">Filters</label>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="hasEditions">
-                                <label class="form-check-label small" for="hasEditions">Has editions</label>
+                                <input class="form-check-input" type="checkbox" id="hasEditionsDesktop">
+                                <label class="form-check-label small" for="hasEditionsDesktop">Has editions</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="hasRecordings">
-                                <label class="form-check-label small" for="hasRecordings">Has recordings</label>
+                                <input class="form-check-input" type="checkbox" id="hasRecordingsDesktop">
+                                <label class="form-check-label small" for="hasRecordingsDesktop">Has recordings</label>
                             </div>
                         </div>
                     </div>
@@ -629,24 +702,63 @@
         });
 
         async function initializeInterface() {
-            // Initialize Select2 for multi-select elements
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').select2({
+            // Initialize Select2 for all multi-select elements (both mobile and desktop)
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchSourcesDesktop, #searchPublishersDesktop, #searchCitiesDesktop, #searchVoicingDesktop').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
                 width: '100%'
             });
             
-            // Set up search event listeners
-            document.getElementById('searchTitle').addEventListener('input', debounceSearch);
+            // Set up search event listeners for mobile form
+            document.getElementById('searchTitle').addEventListener('input', function() {
+                syncSearchFields('searchTitle', 'searchTitleDesktop');
+                debounceSearch();
+            });
             document.getElementById('sortBy').addEventListener('change', function() {
+                syncSearchFields('sortBy', 'sortByDesktop');
                 currentSort = this.value;
                 debounceSearch();
             });
-            document.getElementById('hasEditions').addEventListener('change', debounceSearch);
-            document.getElementById('hasRecordings').addEventListener('change', debounceSearch);
+            document.getElementById('hasEditions').addEventListener('change', function() {
+                syncCheckboxFields('hasEditions', 'hasEditionsDesktop');
+                debounceSearch();
+            });
+            document.getElementById('hasRecordings').addEventListener('change', function() {
+                syncCheckboxFields('hasRecordings', 'hasRecordingsDesktop');
+                debounceSearch();
+            });
             
-            // Set up Select2 change listeners
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').on('change', debounceSearch);
+            // Set up search event listeners for desktop form
+            document.getElementById('searchTitleDesktop').addEventListener('input', function() {
+                syncSearchFields('searchTitleDesktop', 'searchTitle');
+                debounceSearch();
+            });
+            document.getElementById('sortByDesktop').addEventListener('change', function() {
+                syncSearchFields('sortByDesktop', 'sortBy');
+                currentSort = this.value;
+                debounceSearch();
+            });
+            document.getElementById('hasEditionsDesktop').addEventListener('change', function() {
+                syncCheckboxFields('hasEditionsDesktop', 'hasEditions');
+                debounceSearch();
+            });
+            document.getElementById('hasRecordingsDesktop').addEventListener('change', function() {
+                syncCheckboxFields('hasRecordingsDesktop', 'hasRecordings');
+                debounceSearch();
+            });
+            
+            // Set up Select2 change listeners for mobile
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').on('change', function() {
+                syncMultiSelectFields(this.id, this.id + 'Desktop');
+                debounceSearch();
+            });
+            
+            // Set up Select2 change listeners for desktop
+            $('#searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchSourcesDesktop, #searchPublishersDesktop, #searchCitiesDesktop, #searchVoicingDesktop').on('change', function() {
+                let mobileId = this.id.replace('Desktop', '');
+                syncMultiSelectFields(this.id, mobileId);
+                debounceSearch();
+            });
             
             document.getElementById('pageSize').addEventListener('change', function() {
                 currentPageSize = parseInt(this.value);
@@ -659,6 +771,27 @@
             await loadFilters();
             loadFiltersFromURL();
             performSearch();
+        }
+
+        function syncSearchFields(sourceId, targetId) {
+            const sourceEl = document.getElementById(sourceId);
+            const targetEl = document.getElementById(targetId);
+            if (sourceEl && targetEl) {
+                targetEl.value = sourceEl.value;
+            }
+        }
+
+        function syncCheckboxFields(sourceId, targetId) {
+            const sourceEl = document.getElementById(sourceId);
+            const targetEl = document.getElementById(targetId);
+            if (sourceEl && targetEl) {
+                targetEl.checked = sourceEl.checked;
+            }
+        }
+
+        function syncMultiSelectFields(sourceId, targetId) {
+            const sourceValues = $(`#${sourceId}`).val();
+            $(`#${targetId}`).val(sourceValues).trigger('change.select2');
         }
 
         async function checkAuthStatus() {
@@ -688,13 +821,15 @@
         function loadFiltersFromURL() {
             const params = new URLSearchParams(window.location.search);
             
-            // Set form values from URL parameters
+            // Set form values from URL parameters - sync both forms
             if (params.get('title')) {
                 document.getElementById('searchTitle').value = params.get('title');
+                document.getElementById('searchTitleDesktop').value = params.get('title');
             }
             if (params.get('sort')) {
                 currentSort = params.get('sort');
                 document.getElementById('sortBy').value = currentSort;
+                document.getElementById('sortByDesktop').value = currentSort;
             }
             if (params.get('page')) {
                 currentPage = parseInt(params.get('page')) || 1;
@@ -705,25 +840,62 @@
             }
             if (params.get('has_editions') === 'true') {
                 document.getElementById('hasEditions').checked = true;
+                document.getElementById('hasEditionsDesktop').checked = true;
             }
             if (params.get('has_recordings') === 'true') {
                 document.getElementById('hasRecordings').checked = true;
+                document.getElementById('hasRecordingsDesktop').checked = true;
             }
             
-            // Set multi-select filters from URL parameters
-            // Note: This will be called after filters are loaded from API
-            if (params.get('composers')) setSelectFromURL('searchComposers', 'composers');
-            if (params.get('voices')) setSelectFromURL('searchVoices', 'voices');
-            if (params.get('functions')) setSelectFromURL('searchFunctions', 'functions');
-            if (params.get('composition_types')) setSelectFromURL('searchCompositionTypes', 'composition_types');
-            if (params.get('tones')) setSelectFromURL('searchTones', 'tones');
-            if (params.get('even_odd')) setSelectFromURL('searchEvenOdd', 'even_odd');
-            if (params.get('voicing')) setSelectFromURL('searchVoicing', 'voicing');
-            if (params.get('languages')) setSelectFromURL('searchLanguages', 'languages');
-            if (params.get('countries')) setSelectFromURL('searchCountries', 'countries');
-            if (params.get('sources')) setSelectFromURL('searchSources', 'sources');
-            if (params.get('publishers')) setSelectFromURL('searchPublishers', 'publishers');
-            if (params.get('cities')) setSelectFromURL('searchCities', 'cities');
+            // Set multi-select filters from URL parameters for both forms
+            if (params.get('composers')) {
+                setSelectFromURL('searchComposers', 'composers');
+                setSelectFromURL('searchComposersDesktop', 'composers');
+            }
+            if (params.get('voices')) {
+                setSelectFromURL('searchVoices', 'voices');
+                setSelectFromURL('searchVoicesDesktop', 'voices');
+            }
+            if (params.get('functions')) {
+                setSelectFromURL('searchFunctions', 'functions');
+                setSelectFromURL('searchFunctionsDesktop', 'functions');
+            }
+            if (params.get('composition_types')) {
+                setSelectFromURL('searchCompositionTypes', 'composition_types');
+                setSelectFromURL('searchCompositionTypesDesktop', 'composition_types');
+            }
+            if (params.get('tones')) {
+                setSelectFromURL('searchTones', 'tones');
+                setSelectFromURL('searchTonesDesktop', 'tones');
+            }
+            if (params.get('even_odd')) {
+                setSelectFromURL('searchEvenOdd', 'even_odd');
+                setSelectFromURL('searchEvenOddDesktop', 'even_odd');
+            }
+            if (params.get('voicing')) {
+                setSelectFromURL('searchVoicing', 'voicing');
+                setSelectFromURL('searchVoicingDesktop', 'voicing');
+            }
+            if (params.get('languages')) {
+                setSelectFromURL('searchLanguages', 'languages');
+                setSelectFromURL('searchLanguagesDesktop', 'languages');
+            }
+            if (params.get('countries')) {
+                setSelectFromURL('searchCountries', 'countries');
+                setSelectFromURL('searchCountriesDesktop', 'countries');
+            }
+            if (params.get('sources')) {
+                setSelectFromURL('searchSources', 'sources');
+                setSelectFromURL('searchSourcesDesktop', 'sources');
+            }
+            if (params.get('publishers')) {
+                setSelectFromURL('searchPublishers', 'publishers');
+                setSelectFromURL('searchPublishersDesktop', 'publishers');
+            }
+            if (params.get('cities')) {
+                setSelectFromURL('searchCities', 'cities');
+                setSelectFromURL('searchCitiesDesktop', 'cities');
+            }
         }
 
         function setSelectFromURL(selectId, paramName) {
@@ -786,6 +958,7 @@
                 if (composersResponse.ok) {
                     const composers = await composersResponse.json();
                     populateSelectOptions('searchComposers', composers, 'id', 'name');
+                    populateSelectOptions('searchComposersDesktop', composers, 'id', 'name');
                 }
 
                 // Load functions
@@ -793,6 +966,7 @@
                 if (functionsResponse.ok) {
                     const functions = await functionsResponse.json();
                     populateSelectOptions('searchFunctions', functions, 'id', 'name');
+                    populateSelectOptions('searchFunctionsDesktop', functions, 'id', 'name');
                 }
 
                 // Load composition types
@@ -800,6 +974,7 @@
                 if (compositionTypesResponse.ok) {
                     const compositionTypes = await compositionTypesResponse.json();
                     populateSelectOptions('searchCompositionTypes', compositionTypes, 'id', 'name');
+                    populateSelectOptions('searchCompositionTypesDesktop', compositionTypes, 'id', 'name');
                 }
 
                 // Load tones
@@ -807,6 +982,7 @@
                 if (tonesResponse.ok) {
                     const tones = await tonesResponse.json();
                     populateSelectOptions('searchTones', tones, 'value', 'name');
+                    populateSelectOptions('searchTonesDesktop', tones, 'value', 'name');
                 }
 
                 // Load even/odd values
@@ -814,6 +990,7 @@
                 if (evenOddResponse.ok) {
                     const evenOddValues = await evenOddResponse.json();
                     populateSelectOptions('searchEvenOdd', evenOddValues, 'value', 'name');
+                    populateSelectOptions('searchEvenOddDesktop', evenOddValues, 'value', 'name');
                 }
 
                 // Load languages
@@ -821,6 +998,7 @@
                 if (languagesResponse.ok) {
                     const languages = await languagesResponse.json();
                     populateSelectOptions('searchLanguages', languages, 'id', 'name');
+                    populateSelectOptions('searchLanguagesDesktop', languages, 'id', 'name');
                 }
 
                 // Load countries
@@ -828,6 +1006,7 @@
                 if (countriesResponse.ok) {
                     const countries = await countriesResponse.json();
                     populateSelectOptions('searchCountries', countries, 'name', 'name');
+                    populateSelectOptions('searchCountriesDesktop', countries, 'name', 'name');
                 }
 
                 // Load voices
@@ -836,8 +1015,11 @@
                     const voices = await voicesResponse.json();
                     // Clear existing hardcoded options first
                     const voiceSelect = document.getElementById('searchVoices');
+                    const voiceSelectDesktop = document.getElementById('searchVoicesDesktop');
                     if (voiceSelect) voiceSelect.innerHTML = '';
+                    if (voiceSelectDesktop) voiceSelectDesktop.innerHTML = '';
                     populateSelectOptions('searchVoices', voices, 'value', 'name');
+                    populateSelectOptions('searchVoicesDesktop', voices, 'value', 'name');
                 }
 
                 // Load sources
@@ -845,6 +1027,7 @@
                 if (sourcesResponse.ok) {
                     const sources = await sourcesResponse.json();
                     populateSelectOptions('searchSources', sources, 'id', 'code');
+                    populateSelectOptions('searchSourcesDesktop', sources, 'id', 'code');
                 }
 
                 // Load publishers
@@ -852,6 +1035,7 @@
                 if (publishersResponse.ok) {
                     const publishers = await publishersResponse.json();
                     populateSelectOptions('searchPublishers', publishers, 'id', 'name');
+                    populateSelectOptions('searchPublishersDesktop', publishers, 'id', 'name');
                 }
 
                 // Load cities
@@ -859,6 +1043,7 @@
                 if (citiesResponse.ok) {
                     const cities = await citiesResponse.json();
                     populateSelectOptions('searchCities', cities, 'name', 'name');
+                    populateSelectOptions('searchCitiesDesktop', cities, 'name', 'name');
                 }
 
                 // Load voicing options
@@ -866,6 +1051,7 @@
                 if (voicingResponse.ok) {
                     const voicings = await voicingResponse.json();
                     populateSelectOptions('searchVoicing', voicings, 'id', 'name');
+                    populateSelectOptions('searchVoicingDesktop', voicings, 'id', 'name');
                 }
 
                 } catch (error) {

@@ -336,10 +336,10 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY g.display_title DESC';
         break;
       case 'function':
-        orderByClause = 'ORDER BY COALESCE(array_to_string(function_names, \', \'), \'\')';
+        orderByClause = 'ORDER BY (SELECT string_agg(name, \', \' ORDER BY name) FROM unnest(function_names) AS name)';
         break;
       case 'function_desc':
-        orderByClause = 'ORDER BY COALESCE(array_to_string(function_names, \', \'), \'\') DESC';
+        orderByClause = 'ORDER BY (SELECT string_agg(name, \', \' ORDER BY name) FROM unnest(function_names) AS name) DESC';
         break;
       case 'composer':
         orderByClause = 'ORDER BY composer_display';
@@ -348,10 +348,10 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY composer_display DESC';
         break;
       case 'voices':
-        orderByClause = 'ORDER BY COALESCE((SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count), 0)';
+        orderByClause = 'ORDER BY (SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count)';
         break;
       case 'voices_desc':
-        orderByClause = 'ORDER BY COALESCE((SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count), 0) DESC';
+        orderByClause = 'ORDER BY (SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count) DESC';
         break;
       case 'sources_earliest':
         orderByClause = `ORDER BY (
