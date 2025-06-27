@@ -354,3 +354,214 @@ footer a:hover {
 .select2-container--default .select2-search--inline .select2-search__field {
     min-height:26px !important;
 }
+
+/* Common Admin Dashboard Styles */
+.auth-info {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 14px;
+    z-index: 1000;
+    border: 1px solid #dee2e6;
+}
+
+.auth-info .user-name {
+    font-weight: bold;
+    color: #333;
+}
+
+.auth-info .logout-btn {
+    color: #007bff;
+    text-decoration: none;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+.auth-info .logout-btn:hover {
+    text-decoration: underline;
+}
+
+.admin-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border-left: 4px solid #007bff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.welcome-message {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border: 1px solid #c3e6cb;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Enhanced card hover effects */
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+/* Loading and spinner styles */
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Group management styles */
+.group-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background-color: #fefefe;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.group-card:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+}
+
+.group-card.selected {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.selected-groups-display {
+    background-color: #e8f5e8;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.merge-panel {
+    background-color: #fefefe;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+}
+
+/* Quick actions floating button */
+.quick-actions {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.btn-float {
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Clef image styling */
+.clef-images img {
+    height: 40px;
+    width: auto;
+    margin-right: 8px;
+    border-radius: 4px;
+}
+
+.clef-missing {
+    opacity: 0.4;
+    filter: grayscale(100%);
+}
+
+.clef-incomplete {
+    opacity: 0.7;
+    border: 2px dashed #ffc107;
+}
+
+.clef-optional {
+    opacity: 0.8;
+    border: 2px dotted #17a2b8;
+}
+
+.clef-multiple {
+    border: 2px solid #28a745;
+}
+
+/* Source item styling */
+.source-item {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Edition and recording links */
+.edition-link, .recording-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+.edition-link:hover, .recording-link:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Search results styling */
+.search-results {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+/* Pagination styling */
+.pagination-info {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+/* Common display and visibility utilities */
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+
+/* Status badges */
+.badge {
+    font-size: 0.75em;
+    padding: 0.375em 0.5em;
+}
+
+/* Form enhancements */
+.form-select:focus,
+.form-control:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+
+/* Button group styling */
+.btn-group-vertical .btn {
+    margin-bottom: 2px;
+}
+
+.btn-group-vertical .btn:last-child {
+    margin-bottom: 0;
+}

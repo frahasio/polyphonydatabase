@@ -1278,45 +1278,7 @@
             return `${Math.floor(days / 30)} months ago`;
         }
 
-        // Legacy cleanup summary function for compatibility
-        async function loadCleanupPreviewSummary() {
-            try {
-                const response = await fetch('/api/admin/cleanup-preview');
-                const summaryDiv = document.getElementById('cleanupPreviewSummary');
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const totalItems = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0);
-                    if (totalItems > 0) {
-                        summaryDiv.innerHTML = `
-                            <small class="text-warning">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                <strong>${totalItems}</strong> items need cleanup
-                            </small>
-                        `;
-                    } else {
-                        summaryDiv.innerHTML = `
-                            <small class="text-success">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Database looks clean
-                            </small>
-                        `;
-                    }
-                } else {
-                    summaryDiv.innerHTML = `
-                        <small class="text-warning">
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            Could not check cleanup status
-                        </small>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading cleanup summary:', error);
-                document.getElementById('cleanupPreviewSummary').innerHTML = `
-                    <small class="text-danger">Error checking cleanup</small>
-                `;
-            }
-        }
+
 
         async function showCleanupPreview() {
             const modal = new bootstrap.Modal(document.getElementById('cleanupPreviewModal'));
@@ -1494,17 +1456,23 @@
                     
                     alert(message);
                     
-                    // Hide modals and refresh summaries
+                    // Hide modals properly to avoid focus issues
                     const modals = ['cleanupModal', 'cleanupPreviewModal'];
                     modals.forEach(modalId => {
                         const modalElement = document.getElementById(modalId);
                         if (modalElement) {
                             const modal = bootstrap.Modal.getInstance(modalElement);
-                            if (modal) modal.hide();
+                            if (modal) {
+                                modal.hide();
+                            }
                         }
                     });
                     
-                    loadCleanupPreviewSummary();
+                    // Refresh the main cleanup preview and data quality alerts
+                    setTimeout(() => {
+                        loadCleanupPreview();
+                        loadDataQualityAlerts();
+                    }, 300);
                 } else {
                     const error = await response.json();
                     alert(`Cleanup failed: ${error.error}`);

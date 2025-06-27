@@ -350,6 +350,40 @@
         </div>
     </div>
 
+    <!-- Edit Display Title Modal -->
+    <div class="modal fade" id="editTitleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil me-2"></i>Edit Display Title
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTitleForm">
+                        <input type="hidden" id="editTitleGroupId">
+                        <div class="mb-3">
+                            <label for="editTitleCurrent" class="form-label">Current Display Title</label>
+                            <input type="text" class="form-control" id="editTitleCurrent" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTitleNew" class="form-label">New Display Title</label>
+                            <input type="text" class="form-control" id="editTitleNew" placeholder="Enter new display title..." required>
+                            <div class="form-text">This title will be displayed in search results and listings</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitTitleUpdate()">
+                        <i class="bi bi-check-lg me-1"></i>Update Title
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div class="quick-actions">
         <button class="btn btn-primary btn-float" onclick="refreshSearch()" title="Refresh">
@@ -464,6 +498,9 @@
                                 <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'split')" title="View/Split compositions">
                                     <i class="bi bi-scissors"></i>
                                 </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edit_title')" title="Edit display title">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -480,6 +517,8 @@
                 showRecordingModal(groupId);
             } else if (action === 'split') {
                 showSplitModal(groupId);
+            } else if (action === 'edit_title') {
+                showEditTitleModal(groupId);
             }
         }
 
@@ -626,6 +665,61 @@
                 console.error('Error getting group details:', error);
             }
             return null;
+        }
+
+        async function showEditTitleModal(groupId) {
+            const group = await getGroupDetails(groupId);
+            if (!group) return;
+
+            // Set up modal
+            document.getElementById('editTitleGroupId').value = groupId;
+            document.getElementById('editTitleCurrent').value = group.display_title;
+            document.getElementById('editTitleNew').value = group.display_title;
+            
+            // Show modal and focus on new title field
+            const modal = new bootstrap.Modal(document.getElementById('editTitleModal'));
+            modal.show();
+            
+            // Focus and select the new title field after modal is shown
+            document.getElementById('editTitleModal').addEventListener('shown.bs.modal', function() {
+                const newTitleField = document.getElementById('editTitleNew');
+                newTitleField.focus();
+                newTitleField.select();
+            }, { once: true });
+        }
+
+        async function submitTitleUpdate() {
+            const groupId = document.getElementById('editTitleGroupId').value;
+            const newTitle = document.getElementById('editTitleNew').value.trim();
+
+            if (!newTitle) {
+                alert('Please enter a display title');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/groups/${groupId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        display_title: newTitle
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Display title updated successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('editTitleModal')).hide();
+                    
+                    // Refresh search results to show updated title
+                    performSearch();
+                } else {
+                    const error = await response.json();
+                    alert(`Error updating title: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error updating title:', error);
+                alert('Network error occurred while updating title.');
+            }
         }
 
         function updateSelectedGroupsDisplay() {

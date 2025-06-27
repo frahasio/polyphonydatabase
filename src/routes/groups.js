@@ -296,6 +296,63 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// PUT /api/admin/groups/:id - Update group display title
+router.put('/:id', async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.id);
+        const { display_title } = req.body;
+
+        if (!display_title || display_title.trim().length === 0) {
+            return res.status(400).json({ error: 'Display title is required' });
+        }
+
+        // Get old group data for audit trail
+        const oldGroupResult = await pool.query('SELECT * FROM groups WHERE id = $1', [groupId]);
+        if (oldGroupResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+        const oldGroup = oldGroupResult.rows[0];
+
+        // Update group
+        const result = await pool.query(`
+            UPDATE groups 
+            SET display_title = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING id, display_title, updated_at
+        `, [display_title.trim(), groupId]);
+
+        const updatedGroup = result.rows[0];
+
+        // Log audit entry
+        try {
+            await pool.query(
+                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    req.user?.id || null,
+                    req.user?.email || 'unknown@system.local',
+                    'UPDATE',
+                    'groups',
+                    groupId,
+                    JSON.stringify({ display_title: oldGroup.display_title }),
+                    JSON.stringify({ display_title: updatedGroup.display_title })
+                ]
+            );
+        } catch (auditError) {
+            console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+        }
+
+        res.json({ 
+            success: true, 
+            group: updatedGroup,
+            message: 'Group display title updated successfully' 
+        });
+
+    } catch (error) {
+        console.error('Update group error:', error);
+        res.status(500).json({ error: 'Failed to update group' });
+    }
+});
+
 // GET /api/admin/groups - Search/list groups with admin details
 router.get('/', async (req, res) => {
     try {
@@ -319,7 +376,14 @@ router.get('/', async (req, res) => {
 
         if (title.trim()) {
             paramCount++;
-            conditions.push(`g.display_title ILIKE $${paramCount}`);
+            conditions.push(`(
+                g.display_title ILIKE $${paramCount} OR 
+                EXISTS (
+                    SELECT 1 FROM compositions c2
+                    JOIN titles t2 ON c2.title_id = t2.id
+                    WHERE c2.group_id = g.id AND t2.text ILIKE $${paramCount}
+                )
+            )`);
             params.push(`%${title.trim()}%`);
         }
 

@@ -61,6 +61,23 @@ UNIQUE(alert_type, entity_type, entity_id)
 ```
 Tracks permanently dismissed data quality alerts.
 
+### audit_log
+```sql
+id (PK, INTEGER, AUTO)
+user_id (INTEGER, FK -> users.id)
+user_email (VARCHAR, NOT NULL)
+action (VARCHAR, NOT NULL) -- 'CREATE', 'UPDATE', 'DELETE'
+table_name (VARCHAR, NOT NULL)
+record_id (INTEGER, NOT NULL)
+record_title (VARCHAR) -- Smart title extraction
+old_values (JSONB) -- Previous state for updates/deletes
+new_values (JSONB) -- New state for creates/updates
+changes (JSONB) -- Combined changes for UI display
+created_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+ip_address (INET)
+```
+Comprehensive audit trail for all database changes with user attribution.
+
 #### Data Quality Management
 The system automatically detects and reports:
 - **Unused clef combinations**: Clef combinations not linked to any voicings
@@ -164,9 +181,50 @@ updated_at (TIMESTAMP)
 ### groups
 ```sql
 id (PK, INTEGER, AUTO)
-display_title (TEXT)
-created_at (TIMESTAMP)
-updated_at (TIMESTAMP)
+display_title (TEXT, NOT NULL)
+created_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+updated_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+```
+
+Groups represent logical collections of compositions that share common musical characteristics. The system supports:
+
+#### Group Management Features
+- **Merging**: Combine multiple groups with compatible compositions
+- **Splitting**: Extract individual compositions into new groups  
+- **Display Title Updates**: Edit group titles with audit logging
+- **Media Management**: Attach editions (PDFs) and recordings to groups
+
+#### Compatibility Rules for Merging
+Groups can only be merged if ALL compositions have identical:
+- `number_of_voices`
+- `composition_type_id`  
+- `tone`
+- `even_odd` values
+
+#### Group Search Enhancement
+Group search now includes both:
+- Group `display_title` matching
+- Constituent composition title matching (via `titles.text`)
+
+### editions
+```sql
+id (PK, INTEGER, AUTO)
+voicing (VARCHAR) -- e.g., "SATB", "SSAATBarB"
+file_url (VARCHAR, NOT NULL)
+group_id (INTEGER, FK -> groups.id, ON DELETE CASCADE)
+editor_id (INTEGER, FK -> editors.id, ON DELETE SET NULL)
+created_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+updated_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+```
+
+### recordings
+```sql
+id (PK, INTEGER, AUTO)
+file_url (VARCHAR, NOT NULL)
+group_id (INTEGER, FK -> groups.id, ON DELETE CASCADE)
+performer_id (INTEGER, FK -> performers.id, ON DELETE SET NULL)
+created_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+updated_at (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
 ```
 
 ### compositions
