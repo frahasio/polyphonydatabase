@@ -1172,44 +1172,18 @@
             const clefData = parseClefInput(value);
             inclusionsData[inclusionIndex].clefs[clefIndex] = clefData;
             
-            // Re-sort clefs after update to maintain consistent ordering
-            if (inclusionsData[inclusionIndex].clefs.some(clef => clef.clef)) {
-                inclusionsData[inclusionIndex].clefs = sortClefsByDisplayOrder(inclusionsData[inclusionIndex].clefs);
+            // Update styling for current input only (no dynamic sorting)
+            const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
+            if (input) {
+                input.style.cssText = getClefInputStyle(clefData);
                 
-                // Refresh the entire clef section for this inclusion to reflect new sorting
-                setTimeout(() => {
-                    const clefContainer = document.querySelector(`[data-index="${inclusionIndex}"] .col-5`);
-                    if (clefContainer) {
-                        const labelElement = clefContainer.querySelector('.form-label');
-                        if (labelElement) {
-                            // Replace just the clef inputs part, keeping the label and add button
-                            const newClefInputsHTML = buildClefInputs(inclusionsData[inclusionIndex].clefs, inclusionIndex);
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = newClefInputsHTML;
-                            
-                            // Remove old clef rows and add new ones
-                            clefContainer.querySelectorAll('.clef-row').forEach(row => row.remove());
-                            const addButton = clefContainer.querySelector('.btn');
-                            if (addButton) {
-                                addButton.parentNode.insertBefore(tempDiv, addButton);
-                            }
-                        }
-                    }
-                }, 10);
-            } else {
-                // No clefs with content, just update styling for current input
-                const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
-                if (input) {
-                    input.style.cssText = getClefInputStyle(clefData);
-                    
-                    // Update tooltip to show validation error
-                    if (clefData.valid === false) {
-                        input.title = clefData.error;
-                        input.setAttribute('data-bs-toggle', 'tooltip');
-                    } else {
-                        input.title = '';
-                        input.removeAttribute('data-bs-toggle');
-                    }
+                // Update tooltip to show validation error
+                if (clefData.valid === false) {
+                    input.title = clefData.error;
+                    input.setAttribute('data-bs-toggle', 'tooltip');
+                } else {
+                    input.title = '';
+                    input.removeAttribute('data-bs-toggle');
                 }
             }
             
@@ -1417,10 +1391,9 @@
             const endInclusion = Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions);
             
             let html = `
-                <div class="d-flex justify-content-between align-items-center mb-3 p-2" style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <strong><i class="bi bi-info-circle text-warning"></i> Multiple pages of inclusions</strong>
-                        <br><small>Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>
+                        <small class="text-muted">Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>
                     </div>
                     <nav>
             `;
@@ -1514,7 +1487,7 @@
             if (!addBtn) return;
             
             if (inclusionsPagination && inclusionsPagination.totalPages > 1) {
-                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion to Page ${currentInclusionsPage}`;
+                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion to Page ${currentInclusionsPage} <small class="text-muted">(${inclusionsPagination.totalPages} pages total)</small>`;
                 addBtn.title = `This will add a new inclusion to the current page (${currentInclusionsPage} of ${inclusionsPagination.totalPages}). When saved, it will appear on the appropriate page based on its order.`;
             } else {
                 addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion`;

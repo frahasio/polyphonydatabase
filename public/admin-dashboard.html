@@ -328,8 +328,8 @@
             </div>
         </div>
 
-        <!-- Data Quality Alerts Section -->
-        <div class="mt-5">
+        <!-- Data Quality Alerts Section - Admin Only -->
+        <div class="mt-5 admin-only-section" style="display: none;">
             <div class="card border-warning">
                 <div class="card-header bg-warning text-dark">
                     <h4 class="mb-0">
@@ -349,8 +349,8 @@
             </div>
         </div>
 
-        <!-- Cleanup Preview Section -->
-        <div class="mt-4">
+        <!-- Cleanup Preview Section - Admin Only -->
+        <div class="mt-4 admin-only-section" style="display: none;">
             <div class="card border-danger">
                 <div class="card-header bg-danger text-white">
                     <h4 class="mb-0">
@@ -385,8 +385,8 @@
             </div>
         </div>
 
-        <!-- Recent Activity Section -->
-        <div class="mt-4 mb-5">
+        <!-- Recent Activity Section - Admin Only -->
+        <div class="mt-4 mb-5 admin-only-section" style="display: none;">
             <div class="card border-info">
                 <div class="card-header bg-info text-white">
                     <h4 class="mb-0">
@@ -548,9 +548,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             loadUserInfo();
-            loadDataQualityAlerts();
-            loadCleanupPreview();
-            loadRecentActivity();
         });
 
         async function loadUserInfo() {
@@ -570,6 +567,17 @@
                     // Show admin section if user is admin
                     if (user.role === 'admin') {
                         document.getElementById('adminSection').style.display = 'block';
+                        
+                        // Show admin-only sections
+                        const adminOnlySections = document.querySelectorAll('.admin-only-section');
+                        adminOnlySections.forEach(section => {
+                            section.style.display = 'block';
+                        });
+                        
+                        // Load admin data
+                        loadDataQualityAlerts();
+                        loadCleanupPreview();
+                        loadRecentActivity();
                     }
                 } else {
                     // Not authenticated, redirect to login
