@@ -678,43 +678,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     console.log('=============================\n');
 
     // Process compositions
-    console.log('\n=== COMPOSITION MATCHING PHASE 1: BY TITLE ONLY ===');
-    // 1. First pass: try to match existing compositions by title and update them
-    const matchExistingQuery = `
-      UPDATE temp_inclusions 
-      SET composition_id = c.id, processed = TRUE
-      FROM compositions c
-      INNER JOIN titles t ON c.title_id = t.id
-      WHERE temp_inclusions.composition_name = t.text
-      AND temp_inclusions.composition_id IS NULL
-      AND temp_inclusions.composition_name != ''
-    `;
-    const matchResult = await client.query(matchExistingQuery);
-    console.log(`Phase 1 matching by title: ${matchResult.rowCount} rows matched`);
-
-    // Show what got matched
-    const matchedByTitle = await client.query(`
-      SELECT ti.*, c.*, t.text as title_text
-      FROM temp_inclusions ti 
-      LEFT JOIN compositions c ON ti.composition_id = c.id
-      LEFT JOIN titles t ON c.title_id = t.id
-      WHERE ti.processed = TRUE
-    `);
-    console.log('Matched by title:');
-    matchedByTitle.rows.forEach((row, index) => {
-      console.log(`Matched ${index}:`, {
-        temp_id: row.id,
-        composition_id: row.composition_id,
-        title: row.title_text,
-        existing_tone: row.tone,
-        existing_even_odd: row.even_odd,
-        existing_composition_type_id: row.composition_type_id,
-        existing_number_of_voices: row.number_of_voices,
-        new_tone: row.tone, // from temp table
-        new_even_odd: row.even_odd, // from temp table
-        new_composition_type_id: row.composition_type_id // from temp table
-      });
-    });
+    console.log('\n=== PROCESSING COMPOSITIONS ===');
+    // All compositions will be processed through careful field-by-field matching
 
     // Get the original inclusions data to preserve all fields (move this up before use)
     const processedInclusions = inclusions.filter(inclusion => 
@@ -727,63 +692,18 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
     console.log(`\nProcessed inclusions count: ${processedInclusions.length}`);
 
-    console.log('\n=== UPDATING EXISTING COMPOSITIONS ===');
-    // Update existing compositions with new tone/even_odd values
-    for (let i = 0; i < processedInclusions.length; i++) {
-      const originalInclusion = processedInclusions[i];
-      const tempInclusion = await client.query(`
-        SELECT composition_id, tone, even_odd, composition_type_id FROM temp_inclusions 
-        WHERE position = $1 AND processed = TRUE
-        LIMIT 1
-      `, [originalInclusion.order || (i + 1)]);
-
-      if (tempInclusion.rows.length > 0 && originalInclusion.composition) {
-        const compositionId = tempInclusion.rows[0].composition_id;
-        // Convert tone value to standardized string for database storage
-        let tone = originalInclusion.composition.tone || null;
-        if (tone !== null) {
-          tone = convertToneToString(tone);
-        }
-        
-        // Convert even_odd string to integer if needed
-        let evenOdd = originalInclusion.composition.even_odd ?? null;
-        if (evenOdd === 'even') evenOdd = 0;
-        else if (evenOdd === 'odd') evenOdd = 1;
-        else if (evenOdd === 'both') evenOdd = 2;
-        else if (typeof evenOdd === 'number') evenOdd = evenOdd; // Already an integer
-        else evenOdd = null;
-        
-        const compositionTypeId = originalInclusion.composition.composition_type_id ? 
-          parseInt(originalInclusion.composition.composition_type_id) : null;
-
-        console.log(`Updating composition ${compositionId}:`, {
-          original_tone: tempInclusion.rows[0].tone,
-          new_tone: tone,
-          original_even_odd: tempInclusion.rows[0].even_odd,
-          new_even_odd: evenOdd,
-          original_composition_type_id: tempInclusion.rows[0].composition_type_id,
-          new_composition_type_id: compositionTypeId
-        });
-
-        await client.query(`
-          UPDATE compositions 
-          SET tone = $1, even_odd = $2, composition_type_id = $3, updated_at = $4
-          WHERE id = $5
-        `, [tone, evenOdd, compositionTypeId, now, compositionId]);
-      }
-    }
-
-    console.log('\n=== CREATING NEW COMPOSITIONS FOR UNMATCHED ===');
-    // 2. Second pass: create new compositions for unmatched items
-    const unmatchedInclusions = await client.query(`
+    console.log('\n=== PROCESSING ALL COMPOSITIONS ===');
+    // Process each composition with careful field-by-field matching
+    // Full parameter checking: title + composition_type + tone + even_odd + number_of_voices + composer
+    const allInclusions = await client.query(`
       SELECT * FROM temp_inclusions 
-      WHERE processed = FALSE AND composition_name != ''
+      WHERE composition_name != ''
     `);
 
-    console.log(`Found ${unmatchedInclusions.rows.length} unmatched inclusions that need new compositions`);
+    console.log(`Found ${allInclusions.rows.length} inclusions that need composition processing`);
 
-    for (let i = 0; i < unmatchedInclusions.rows.length; i++) {
-      const tempInclusion = unmatchedInclusions.rows[i];
+    for (let i = 0; i < allInclusions.rows.length; i++) {
+      const tempInclusion = allInclusions.rows[i];
       
       // Find the corresponding original inclusion by position
       const originalInclusion = processedInclusions.find(inc => 
@@ -861,43 +781,66 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         evenOdd,
         evenOddType: typeof evenOdd,
         numberOfVoices: numberOfVoicesInt,
-        numberOfVoicesType: typeof numberOfVoicesInt
+        numberOfVoicesType: typeof numberOfVoicesInt,
+        composerIds,
+        composerIdsType: typeof composerIds
       });
 
       // Check composer IDs to determine if this is anonymous
       const composerIds = originalInclusion?.composer_ids || [];
       const isAnonymous = !composerIds || composerIds.length === 0 || composerIds.every(id => !id);
+      const existingCompositionId = originalInclusion?.composition_id;
       
       console.log(`Checking for anonymous composer:`, {
         composer_ids: composerIds,
-        is_anonymous: isAnonymous
+        is_anonymous: isAnonymous,
+        existing_composition_id: existingCompositionId
       });
 
-      // IMPORTANT: Check if this exact composition already exists before creating
-      // BUT: if composer is anonymous, always create a new composition (they should be manually grouped)
+      // Check if this exact composition already exists
       let existingComposition = { rows: [] };
       
-      if (!isAnonymous) {
+      if (isAnonymous && existingCompositionId) {
+        // For anonymous compositions with existing ID, check if current data matches existing composition
+        console.log(`Anonymous composition with existing ID ${existingCompositionId} - checking if data matches`);
         existingComposition = await client.query(`
-          SELECT id FROM compositions 
+          SELECT id, group_id FROM compositions 
+          WHERE id = $1
+          AND title_id = $2 
+          AND (composition_type_id = $3 OR ($3 IS NULL AND composition_type_id IS NULL))
+          AND (tone = $4 OR ($4 IS NULL AND tone IS NULL))
+          AND (even_odd = $5 OR ($5 IS NULL AND even_odd IS NULL))
+          AND (number_of_voices = $6 OR ($6 IS NULL AND number_of_voices IS NULL))
+          AND (composer_id_list = $7 OR ($7 IS NULL AND composer_id_list IS NULL))
+        `, [existingCompositionId, titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null]);
+        
+        if (existingComposition.rows.length > 0) {
+          console.log(`Anonymous composition ${existingCompositionId} matches current data - reusing`);
+        } else {
+          console.log(`Anonymous composition ${existingCompositionId} data has changed - will create new`);
+        }
+      } else if (!isAnonymous) {
+        // For non-anonymous compositions, do regular existence check including composer
+        existingComposition = await client.query(`
+          SELECT id, group_id FROM compositions 
           WHERE title_id = $1 
           AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
           AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
           AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
           AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
-        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
+          AND composer_id_list = $6
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds]);
       } else {
-        console.log(`Skipping existence check for anonymous composition - will create new`);
+        console.log(`Anonymous composition with no existing ID - will create new`);
       }
 
       let compositionId, groupId;
-      if (existingComposition.rows.length > 0 && !isAnonymous) {
+      if (existingComposition.rows.length > 0) {
+        // Use existing composition (works for both anonymous with matching data and non-anonymous)
         compositionId = existingComposition.rows[0].id;
-        console.log(`Found existing matching composition ID: ${compositionId} - NOT creating new one!`);
+        groupId = existingComposition.rows[0].group_id;
         
-        // Get the group_id for this existing composition
-        const groupResult = await client.query(`SELECT group_id FROM compositions WHERE id = $1`, [compositionId]);
-        groupId = groupResult.rows[0]?.group_id;
+        console.log(`Found existing matching composition ID: ${compositionId} (anonymous: ${isAnonymous}) - NOT creating new one!`);
         
         if (!groupId) {
           // Existing composition without group - create one
@@ -925,12 +868,12 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         groupId = newGroupResult.rows[0].id;
         console.log(`Created NEW group ID: ${groupId} with title: "${tempInclusion.composition_name}"`);
         
-        // Create new composition with group_id
+        // Create new composition with group_id and composer information
         const compositionResult = await client.query(`
-          INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, group_id, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING id
-        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, groupId, now, now]);
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
 
         compositionId = compositionResult.rows[0].id;
         console.log(`Created NEW composition ID: ${compositionId} with group ID: ${groupId}`);
