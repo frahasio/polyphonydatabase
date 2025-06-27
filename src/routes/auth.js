@@ -450,65 +450,61 @@ router.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
   }
 });
 
-// Debug route to check if admin user exists (remove in production)
-router.get('/debug/admin-user', async (req, res) => {
+// SECURE Admin user promotion system
+router.post('/admin/promote-user', requireAdmin, async (req, res) => {
   try {
+    const { userId, makeAdmin } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Prevent self-demotion
+    if (parseInt(userId) === req.user.id && !makeAdmin) {
+      return res.status(400).json({ error: 'Cannot demote yourself from admin' });
+    }
+
+    // Update user admin status and role
+    const newRole = makeAdmin ? 'admin' : 'user';
     const result = await pool.query(
-      'SELECT id, email, name, status, role, created_at FROM users WHERE email = $1',
-      ['admin@polyphony.local']
+      'UPDATE users SET role = $1, is_admin = $2 WHERE id = $3 RETURNING id, email, name, role, is_admin',
+      [newRole, makeAdmin, userId]
     );
 
     if (result.rows.length === 0) {
-      return res.json({ 
-        exists: false, 
-        message: 'Admin user does not exist in database' 
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const user = result.rows[0];
+    
+    // Log this critical action in audit trail
+    await pool.query(
+      `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        req.user.id,
+        req.user.email, 
+        'UPDATE',
+        'users',
+        parseInt(userId),
+        JSON.stringify({ role: user.role, is_admin: !makeAdmin }),
+        JSON.stringify({ role: newRole, is_admin: makeAdmin })
+      ]
+    );
+
     res.json({
-      exists: true,
+      message: `User ${makeAdmin ? 'promoted to' : 'demoted from'} admin successfully`,
       user: {
         id: user.id,
-        email: user.email,
+        email: user.email, 
         name: user.name,
-        status: user.status,
         role: user.role,
-        created_at: user.created_at
+        is_admin: user.is_admin
       }
     });
 
   } catch (error) {
-    console.error('Debug admin user error:', error);
-    res.status(500).json({ error: 'Database error' });
-  }
-});
-
-// Route to reset admin password (remove in production)
-router.post('/debug/reset-admin-password', async (req, res) => {
-  try {
-    const password = 'tempPassword123!';
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    const result = await pool.query(
-      'UPDATE users SET password_hash = $1, login_attempts = 0, locked_until = NULL WHERE email = $2 RETURNING id, email',
-      [passwordHash, 'admin@polyphony.local']
-    );
-
-    if (result.rows.length === 0) {
-      return res.json({ success: false, message: 'Admin user not found' });
-    }
-
-    console.log('Admin password reset successfully');
-    res.json({ 
-      success: true, 
-      message: 'Admin password reset to tempPassword123! and account unlocked' 
-    });
-
-  } catch (error) {
-    console.error('Reset admin password error:', error);
-    res.status(500).json({ error: 'Database error' });
+    console.error('Promote user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

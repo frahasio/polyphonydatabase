@@ -217,89 +217,61 @@ router.post('/clef-combinations', async (req, res) => {
   }
 });
 
-// Get recent activity/audit trail  
+// Get recent activity/audit trail from audit_log table
 router.get('/recent-activity', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     
-    // Get recent sources (check both created_at and updated_at)
-    const recentSources = await pool.query(`
-      SELECT 'source' as type, id, 
-             COALESCE(code, 'Untitled Source') as title, 
-             COALESCE(created_at, updated_at, NOW()) as created_at, 
-             updated_at
-      FROM sources 
-      WHERE (created_at >= NOW() - INTERVAL '30 days' 
-             OR updated_at >= NOW() - INTERVAL '30 days'
-             OR (created_at IS NULL AND updated_at IS NULL))
-      ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
+    // Check if audit_log table exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'audit_log'
+      );
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      // Fallback to legacy activity tracking if audit_log doesn't exist
+      const legacyActivity = await pool.query(`
+        SELECT 'source' as type, 'CREATE' as action, id, 
+               COALESCE(code, 'Untitled Source') as title, 
+               'Unknown User' as user_email,
+               COALESCE(created_at, updated_at, NOW()) as created_at
+        FROM sources 
+        WHERE (created_at >= NOW() - INTERVAL '30 days' 
+               OR updated_at >= NOW() - INTERVAL '30 days')
+        ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return res.json({ activity: legacyActivity.rows });
+    }
+    
+    // Get detailed audit log entries
+    const auditActivity = await pool.query(`
+      SELECT 
+        al.id,
+        al.action,
+        al.table_name as type,
+        al.record_id,
+        al.record_title as title,
+        al.user_email,
+        al.changes,
+        al.created_at,
+        al.ip_address,
+        CASE 
+          WHEN al.action = 'CREATE' THEN 'created'
+          WHEN al.action = 'UPDATE' THEN 'updated'
+          WHEN al.action = 'DELETE' THEN 'deleted'
+          ELSE 'modified'
+        END as action_desc
+      FROM audit_log al
+      WHERE al.created_at >= NOW() - INTERVAL '30 days'
+      ORDER BY al.created_at DESC
       LIMIT $1
-    `, [Math.floor(limit / 4)]);
+    `, [limit]);
 
-    // Get recent editions
-    const recentEditions = await pool.query(`
-      SELECT 'edition' as type, e.id, 
-             COALESCE(
-               CONCAT(ed.name, ' - ', g.display_title),
-               CONCAT('Edition - ', g.display_title),
-               'Edition'
-             ) as title,
-             COALESCE(e.created_at, e.updated_at, NOW()) as created_at, 
-             e.updated_at
-      FROM editions e
-      LEFT JOIN editors ed ON e.editor_id = ed.id
-      LEFT JOIN groups g ON e.group_id = g.id
-      WHERE (e.created_at >= NOW() - INTERVAL '30 days' 
-             OR e.updated_at >= NOW() - INTERVAL '30 days'
-             OR (e.created_at IS NULL AND e.updated_at IS NULL))
-      ORDER BY COALESCE(e.updated_at, e.created_at, NOW()) DESC
-      LIMIT $1
-    `, [Math.floor(limit / 4)]);
-
-    // Get recent recordings
-    const recentRecordings = await pool.query(`
-      SELECT 'recording' as type, r.id,
-             COALESCE(
-               CONCAT(p.name, ' - ', g.display_title),
-               CONCAT('Recording - ', g.display_title),
-               'Recording'
-             ) as title,
-             COALESCE(r.created_at, r.updated_at, NOW()) as created_at, 
-             r.updated_at
-      FROM recordings r
-      LEFT JOIN performers p ON r.performer_id = p.id
-      LEFT JOIN groups g ON r.group_id = g.id
-      WHERE (r.created_at >= NOW() - INTERVAL '30 days' 
-             OR r.updated_at >= NOW() - INTERVAL '30 days'
-             OR (r.created_at IS NULL AND r.updated_at IS NULL))
-      ORDER BY COALESCE(r.updated_at, r.created_at, NOW()) DESC
-      LIMIT $1
-    `, [Math.floor(limit / 4)]);
-
-    // Get recent groups
-    const recentGroups = await pool.query(`
-      SELECT 'group' as type, id, 
-             COALESCE(display_title, 'Untitled Group') as title, 
-             COALESCE(created_at, updated_at, NOW()) as created_at, 
-             updated_at
-      FROM groups
-      WHERE (created_at >= NOW() - INTERVAL '30 days' 
-             OR updated_at >= NOW() - INTERVAL '30 days'
-             OR (created_at IS NULL AND updated_at IS NULL))
-      ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
-      LIMIT $1
-    `, [Math.floor(limit / 4)]);
-
-    // Combine all activities
-    const allActivity = [
-      ...recentSources.rows,
-      ...recentEditions.rows,
-      ...recentRecordings.rows,
-      ...recentGroups.rows
-    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-     .slice(0, limit);
-
-    res.json({ activity: allActivity });
+    res.json({ activity: auditActivity.rows });
   } catch (error) {
     console.error('Error fetching recent activity:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -422,6 +394,69 @@ router.get('/data-quality-alerts', async (req, res) => {
         title: 'Empty groups in database',
         description: `${groupsCount} groups have no associated compositions`,
         count: groupsCount
+      });
+    }
+
+    // Count functions with no titles assigned
+    const functionsWithoutTitlesCount = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM functions f
+      WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
+    `);
+
+    const functionsCount = parseInt(functionsWithoutTitlesCount.rows[0].count);
+    if (functionsCount > 0) {
+      alerts.push({
+        type: 'functions_no_titles',
+        severity: 'warning',
+        title: 'Functions with no titles assigned',
+        description: `${functionsCount} functions have no titles associated with them`,
+        count: functionsCount
+      });
+    }
+
+    // Count titles with no functions assigned
+    const titlesWithoutFunctionsCount = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM titles t
+      WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+      AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+    `);
+
+    const titlesNoFunctionsCount = parseInt(titlesWithoutFunctionsCount.rows[0].count);
+    if (titlesNoFunctionsCount > 0) {
+      alerts.push({
+        type: 'titles_no_functions',
+        severity: 'info',
+        title: 'Titles with no functions assigned',
+        description: `${titlesNoFunctionsCount} titles used in compositions have no liturgical functions assigned`,
+        count: titlesNoFunctionsCount
+      });
+    }
+
+    // Count groups where display title doesn't match any composition title
+    const groupsWithMismatchedTitlesCount = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM groups g
+      WHERE g.display_title NOT IN (
+        SELECT DISTINCT t.text
+        FROM compositions c
+        JOIN titles t ON c.title_id = t.id
+        WHERE c.group_id = g.id
+      )
+      AND EXISTS (
+        SELECT 1 FROM compositions c WHERE c.group_id = g.id
+      )
+    `);
+
+    const mismatchCount = parseInt(groupsWithMismatchedTitlesCount.rows[0].count);
+    if (mismatchCount > 0) {
+      alerts.push({
+        type: 'groups_title_mismatch',
+        severity: 'warning',
+        title: 'Groups with mismatched display titles',
+        description: `${mismatchCount} groups have display titles that don't match any of their compositions`,
+        count: mismatchCount
       });
     }
 

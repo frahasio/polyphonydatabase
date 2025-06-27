@@ -545,17 +545,22 @@
         }
 
         async function updateUserRole(userId, role) {
-            if (!confirm(`Are you sure you want to change this user's role to ${role}?`)) {
+            const action = role === 'admin' ? 'promote to admin' : 'remove admin privileges from';
+            if (!confirm(`Are you sure you want to ${action} this user? This action will be logged in the audit trail.`)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/api/auth/admin/users/${userId}/role`, {
-                    method: 'PUT',
+                // Use the new secure promote endpoint with better logging
+                const response = await fetch('/api/auth/admin/promote-user', {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ role })
+                    body: JSON.stringify({ 
+                        userId: userId, 
+                        makeAdmin: role === 'admin' 
+                    })
                 });
 
                 const data = await response.json();
@@ -563,6 +568,7 @@
                 if (response.ok) {
                     showMessage(data.message, 'success');
                     loadUsers();
+                    loadUserStats();
                 } else {
                     showMessage(data.error || 'Failed to update user role', 'error');
                 }

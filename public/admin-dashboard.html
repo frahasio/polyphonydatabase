@@ -633,6 +633,7 @@
                 const corrections = {
                     'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
                     'functions_no_titles': '/admin/modules/functions/index.html',
+                    'titles_no_functions': '/admin/modules/functions/index.html',
                     'groups_title_mismatch': '/admin/groups'
                 };
                 
@@ -839,26 +840,64 @@
                     <table class="table table-sm">
                         <thead>
                             <tr>
+                                <th>User</th>
+                                <th>Action</th>
                                 <th>Type</th>
-                                <th>Title</th>
+                                <th>Record</th>
                                 <th>Date</th>
+                                <th>Details</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${allActivities.map(activity => {
-                                const icon = activity.type === 'source' ? 'bi-book' : 
-                                           activity.type === 'edition' ? 'bi-file-earmark-pdf' : 'bi-play-circle';
-                                const typeColor = activity.type === 'source' ? 'primary' : 
-                                                activity.type === 'edition' ? 'success' : 'info';
+                                const icon = getActivityIcon(activity.type);
+                                const actionColor = activity.action === 'CREATE' ? 'success' : 
+                                                  activity.action === 'UPDATE' ? 'warning' : 
+                                                  activity.action === 'DELETE' ? 'danger' : 'secondary';
+                                const typeColor = getTypeColor(activity.type);
+                                
+                                // Build details string from changes if available
+                                let details = '';
+                                if (activity.changes && activity.changes.old && activity.changes.new) {
+                                    const changedFields = Object.keys(activity.changes.new).filter(key => 
+                                        JSON.stringify(activity.changes.old[key]) !== JSON.stringify(activity.changes.new[key])
+                                    );
+                                    if (changedFields.length > 0) {
+                                        details = `Modified: ${changedFields.join(', ')}`;
+                                    }
+                                } else if (activity.action === 'CREATE') {
+                                    details = 'New record created';
+                                } else if (activity.action === 'DELETE') {
+                                    details = 'Record deleted';
+                                }
+                                
                                 return `
                                     <tr>
+                                        <td>
+                                            <small class="text-muted">
+                                                ${activity.user_email || 'Unknown User'}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-${actionColor}">
+                                                ${activity.action}
+                                            </span>
+                                        </td>
                                         <td>
                                             <span class="badge bg-${typeColor}">
                                                 <i class="bi ${icon} me-1"></i>${activity.type}
                                             </span>
                                         </td>
-                                        <td>${activity.title}</td>
-                                        <td><small>${new Date(activity.created_at).toLocaleString()}</small></td>
+                                        <td>
+                                            <strong>${activity.title}</strong>
+                                            <br><small class="text-muted">#${activity.record_id}</small>
+                                        </td>
+                                        <td>
+                                            <small>${new Date(activity.created_at).toLocaleString()}</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">${details}</small>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -875,7 +914,7 @@
                     const data = await response.json();
                     const container = document.getElementById('cleanupPreview');
                     
-                    const total = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0);
+                    const total = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0);
                     
                     if (total === 0) {
                         container.innerHTML = `
@@ -895,7 +934,7 @@
                         <div class="col-md-4">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
-                                    <h3 class="text-warning">${data.unused_titles || 0}</h3>
+                                    <h3 class="text-warning">${data.unused_titles?.count || 0}</h3>
                                     <p class="card-text">Unused Titles</p>
                                 </div>
                             </div>
@@ -903,7 +942,7 @@
                         <div class="col-md-4">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
-                                    <h3 class="text-warning">${data.empty_groups || 0}</h3>
+                                    <h3 class="text-warning">${data.empty_groups?.count || 0}</h3>
                                     <p class="card-text">Empty Groups</p>
                                 </div>
                             </div>
@@ -911,7 +950,7 @@
                         <div class="col-md-4">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
-                                    <h3 class="text-warning">${data.orphaned_compositions || 0}</h3>
+                                    <h3 class="text-warning">${data.orphaned_compositions?.count || 0}</h3>
                                     <p class="card-text">Orphaned Compositions</p>
                                 </div>
                             </div>
@@ -964,16 +1003,24 @@
                     container.innerHTML = data.activity.map(item => {
                         const date = new Date(item.created_at);
                         const timeAgo = getTimeAgo(date);
+                        const actionColor = item.action === 'CREATE' ? 'success' : 
+                                          item.action === 'UPDATE' ? 'warning' : 
+                                          item.action === 'DELETE' ? 'danger' : 'primary';
                         
                         return `
                             <div class="d-flex align-items-start py-2 border-bottom">
                                 <div class="me-3">
-                                    <i class="bi bi-${getActivityIcon(item.type)} text-primary"></i>
+                                    <i class="bi bi-${getActivityIcon(item.type)} text-${getTypeColor(item.type)}"></i>
                                 </div>
                                 <div class="flex-grow-1">
                                     <div class="fw-medium">${item.title}</div>
                                     <small class="text-muted">
-                                        ${item.type.toUpperCase()} • ${timeAgo}
+                                        <span class="badge bg-${actionColor} me-1" style="font-size: 0.65em;">
+                                            ${item.action || 'MODIFIED'}
+                                        </span>
+                                        ${item.type?.toUpperCase() || 'UNKNOWN'} • 
+                                        ${item.user_email || 'Unknown User'} • 
+                                        ${timeAgo}
                                     </small>
                                 </div>
                             </div>
@@ -995,6 +1042,14 @@
 
         function getActivityIcon(type) {
             const icons = {
+                'sources': 'book',
+                'editions': 'file-earmark-pdf', 
+                'recordings': 'play-circle',
+                'groups': 'collection',
+                'composers': 'music-note-beamed',
+                'functions': 'gear',
+                'titles': 'card-text',
+                'users': 'person',
                 'source': 'book',
                 'edition': 'file-earmark-pdf',
                 'recording': 'play-circle',
@@ -1002,6 +1057,25 @@
                 'composer': 'music-note-beamed'
             };
             return icons[type] || 'circle-fill';
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                'sources': 'primary',
+                'editions': 'success', 
+                'recordings': 'info',
+                'groups': 'warning',
+                'composers': 'secondary',
+                'functions': 'dark',
+                'titles': 'light',
+                'users': 'danger',
+                'source': 'primary',
+                'edition': 'success',
+                'recording': 'info',
+                'group': 'warning',
+                'composer': 'secondary'
+            };
+            return colors[type] || 'secondary';
         }
 
         function getTimeAgo(date) {
@@ -1024,7 +1098,7 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0) + (data.unused_clef_combinations || 0) + (data.unused_voicings || 0);
+                    const totalItems = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0) + (data.unused_voicings?.count || 0);
                     if (totalItems > 0) {
                         summaryDiv.innerHTML = `
                             <small class="text-warning">
@@ -1096,7 +1170,7 @@
 
         function displayCleanupPreview(data) {
             const contentDiv = document.getElementById('cleanupPreviewContent');
-            const totalItems = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0) + (data.unused_clef_combinations || 0) + (data.unused_voicings || 0);
+            const totalItems = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0) + (data.unused_voicings?.count || 0);
 
             if (totalItems === 0) {
                 contentDiv.innerHTML = `
@@ -1115,12 +1189,12 @@
                 </div>
                 
                 <div class="row g-3">
-                    ${data.unused_titles > 0 ? `
+                    ${(data.unused_titles?.count || 0) > 0 ? `
                         <div class="col-md-4">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <h5 class="card-title text-warning">
-                                        <i class="bi bi-card-text me-2"></i>${data.unused_titles}
+                                        <i class="bi bi-card-text me-2"></i>${data.unused_titles.count}
                                     </h5>
                                     <p class="card-text">Unused Titles</p>
                                 </div>
@@ -1128,12 +1202,12 @@
                         </div>
                     ` : ''}
                     
-                    ${data.empty_groups > 0 ? `
+                    ${(data.empty_groups?.count || 0) > 0 ? `
                         <div class="col-md-4">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <h5 class="card-title text-warning">
-                                        <i class="bi bi-collection me-2"></i>${data.empty_groups}
+                                        <i class="bi bi-collection me-2"></i>${data.empty_groups.count}
                                     </h5>
                                     <p class="card-text">Empty Groups</p>
                                 </div>
