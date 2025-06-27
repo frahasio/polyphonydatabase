@@ -642,7 +642,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       // Get any unprocessed temp inclusions for this source
       const stagedInclusions = await client.query(`
         SELECT * FROM temp_inclusions 
-        WHERE source_id = $1 AND processed = FALSE
+        WHERE source_id = $1
         ORDER BY position
       `, [sourceId]);
       
@@ -650,6 +650,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       
       if (stagedInclusionsCount > 0) {
         console.log(`Found ${stagedInclusionsCount} staged temp_inclusions to process`);
+        
+        // Collect processed temp_inclusion IDs for deletion
+        const processedTempIds = [];
         
         // Process each staged inclusion
         for (const tempInclusion of stagedInclusions.rows) {
@@ -773,10 +776,16 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             now
           ]);
           
-          // Mark as processed
-          await client.query(`
-            UPDATE temp_inclusions SET composition_id = $1, processed = TRUE WHERE id = $2
-          `, [compositionId, tempInclusion.id]);
+          // Add to list of successfully processed temp inclusions
+          processedTempIds.push(tempInclusion.id);
+        }
+        
+        // Delete all successfully processed temp_inclusions
+        if (processedTempIds.length > 0) {
+          const deleteResult = await client.query(`
+            DELETE FROM temp_inclusions WHERE id = ANY($1)
+          `, [processedTempIds]);
+          console.log(`Deleted ${deleteResult.rowCount} processed temp_inclusions`);
         }
         
         console.log(`Processed ${stagedInclusionsCount} staged inclusions`);

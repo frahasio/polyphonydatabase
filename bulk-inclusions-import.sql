@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS temp_inclusions (
     composers TEXT,
     clefs TEXT,
     composition_id INTEGER,
-    processed BOOLEAN DEFAULT FALSE,
     -- Enhanced fields for proper matching
     original_composition_id INTEGER,
     tone TEXT,
@@ -128,7 +127,7 @@ Examples:
 
 -- View what you've inserted:
 SELECT id, source_id, position, composition_name, composition_type, 
-       composers, tone, even_odd, number_of_voices, processed
+       composers, tone, even_odd, number_of_voices
 FROM temp_inclusions 
 WHERE source_id = :source_id
 ORDER BY position;
@@ -144,15 +143,17 @@ After running this script:
 1. Go to your source editor in the web interface
 2. Navigate to the source with ID matching your source_id
 3. Click "Save All Changes" - the system will automatically detect and process any staged temp_inclusions
-4. Your staged inclusions will be converted to final inclusions automatically!
+4. Your staged inclusions will be converted to final inclusions and removed from temp_inclusions automatically!
 
 The save-with-inclusions endpoint now automatically:
 - Processes any unprocessed temp_inclusions for the source
 - Converts them to proper compositions and inclusions
+- Removes the processed temp_inclusions from the staging table
 - Handles the normal form data as usual
 - All in one seamless transaction
 
-No manual processing step required!
+No manual processing step required! The temp_inclusions table stays clean by automatically
+removing processed entries.
 
 */
 
@@ -169,6 +170,5 @@ No manual processing step required!
 -- Clear temp data for a specific source:
 -- DELETE FROM temp_inclusions WHERE source_id = :source_id;
 
--- Show processing status:
--- SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE processed = true) as processed
--- FROM temp_inclusions WHERE source_id = :source_id; 
+-- Show temp_inclusions count:
+-- SELECT COUNT(*) as total FROM temp_inclusions WHERE source_id = :source_id; 

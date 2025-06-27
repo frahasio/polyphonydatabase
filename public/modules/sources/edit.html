@@ -525,11 +525,11 @@
                 });
                 console.log('=========================');
                 
-                // Populate source form (only on first load)
+                // Load heavy data only on first load, but populate form on every page
                 if (page === 1) {
                     await loadPublishersAndScribes(); // This also loads composers
-                    populateSourceForm();
                 }
+                populateSourceForm(); // Always populate source form fields
                 
                 // Display inclusions with pagination
                 displayInclusions();
@@ -1329,7 +1329,7 @@
                 }
                 
                 // Call the DELETE API endpoint
-                const response = await fetch(`/api/sources/inclusions/${inclusion.id}`, {
+                const response = await fetch(`/api/admin/sources/inclusions/${inclusion.id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2110,7 +2110,24 @@
                 document.getElementById('saveProgressBar').style.width = '25%';
 
                 const sourceId = document.getElementById('source_id').value;
-                const response = await fetch(`/api/admin/sources/${sourceId}/save-with-inclusions`, {
+                console.log('=== SOURCE ID DEBUG ===');
+                console.log('sourceId from form:', sourceId);
+                
+                // Fallback to URL if sourceId is empty
+                let finalSourceId = sourceId;
+                if (!sourceId) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    finalSourceId = urlParams.get('id');
+                    console.log('sourceId from URL fallback:', finalSourceId);
+                }
+                
+                if (!finalSourceId) {
+                    throw new Error('No source ID found. Cannot save.');
+                }
+                console.log('Final sourceId to use:', finalSourceId);
+                console.log('========================');
+
+                const response = await fetch(`/api/admin/sources/${finalSourceId}/save-with-inclusions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
