@@ -864,30 +864,76 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         numberOfVoicesType: typeof numberOfVoicesInt
       });
 
-      // IMPORTANT: Check if this exact composition already exists before creating
-      const existingComposition = await client.query(`
-        SELECT id FROM compositions 
-        WHERE title_id = $1 
-        AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
-        AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
-        AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
-        AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
-      `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
+      // Check composer IDs to determine if this is anonymous
+      const composerIds = originalInclusion?.composer_ids || [];
+      const isAnonymous = !composerIds || composerIds.length === 0 || composerIds.every(id => !id);
+      
+      console.log(`Checking for anonymous composer:`, {
+        composer_ids: composerIds,
+        is_anonymous: isAnonymous
+      });
 
-      let compositionId;
-      if (existingComposition.rows.length > 0) {
+      // IMPORTANT: Check if this exact composition already exists before creating
+      // BUT: if composer is anonymous, always create a new composition (they should be manually grouped)
+      let existingComposition = { rows: [] };
+      
+      if (!isAnonymous) {
+        existingComposition = await client.query(`
+          SELECT id FROM compositions 
+          WHERE title_id = $1 
+          AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
+          AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
+          AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
+          AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
+      } else {
+        console.log(`Skipping existence check for anonymous composition - will create new`);
+      }
+
+      let compositionId, groupId;
+      if (existingComposition.rows.length > 0 && !isAnonymous) {
         compositionId = existingComposition.rows[0].id;
         console.log(`Found existing matching composition ID: ${compositionId} - NOT creating new one!`);
+        
+        // Get the group_id for this existing composition
+        const groupResult = await client.query(`SELECT group_id FROM compositions WHERE id = $1`, [compositionId]);
+        groupId = groupResult.rows[0]?.group_id;
+        
+        if (!groupId) {
+          // Existing composition without group - create one
+          console.log(`Existing composition ${compositionId} has no group - creating one`);
+          const newGroupResult = await client.query(`
+            INSERT INTO groups (display_title, created_at, updated_at) 
+            VALUES ($1, $2, $3) 
+            RETURNING id
+          `, [tempInclusion.composition_name, now, now]);
+          
+          groupId = newGroupResult.rows[0].id;
+          
+          // Link composition to new group
+          await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupId, compositionId]);
+          console.log(`Created group ${groupId} for existing composition ${compositionId}`);
+        }
       } else {
-        // Create new composition with all fields
-        const compositionResult = await client.query(`
-          INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        // Create new group first
+        const newGroupResult = await client.query(`
+          INSERT INTO groups (display_title, created_at, updated_at) 
+          VALUES ($1, $2, $3) 
           RETURNING id
-        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, now, now]);
+        `, [tempInclusion.composition_name, now, now]);
+        
+        groupId = newGroupResult.rows[0].id;
+        console.log(`Created NEW group ID: ${groupId} with title: "${tempInclusion.composition_name}"`);
+        
+        // Create new composition with group_id
+        const compositionResult = await client.query(`
+          INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, group_id, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING id
+        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, groupId, now, now]);
 
         compositionId = compositionResult.rows[0].id;
-        console.log(`Created NEW composition ID: ${compositionId}`);
+        console.log(`Created NEW composition ID: ${compositionId} with group ID: ${groupId}`);
       }
 
       // Update temp table
