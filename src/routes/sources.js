@@ -981,4 +981,37 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
   }
 });
 
+// DELETE individual inclusion endpoint
+router.delete('/inclusions/:id', authenticateToken, requireAdminRole, async (req, res) => {
+  const { id } = req.params;
+  
+  const client = await pool.connect();
+  
+  try {
+    console.log(`Deleting inclusion with ID: ${id}`);
+    
+    const deleteResult = await client.query(
+      'DELETE FROM inclusions WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (deleteResult.rowCount === 0) {
+      return res.status(404).json({ error: 'Inclusion not found' });
+    }
+    
+    console.log(`Successfully deleted inclusion ${id}`);
+    res.json({ 
+      success: true, 
+      message: 'Inclusion deleted successfully',
+      deletedInclusion: deleteResult.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error deleting inclusion:', error);
+    res.status(500).json({ error: 'Failed to delete inclusion' });
+  } finally {
+    client.release();
+  }
+});
+
 export default router; 

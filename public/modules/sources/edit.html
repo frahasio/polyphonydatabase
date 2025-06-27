@@ -395,7 +395,7 @@
 
             <!-- Add Inclusion Button -->
             <div class="d-flex justify-content-center mb-4">
-                <button type="button" class="btn btn-primary" onclick="addNewInclusion()">
+                <button type="button" class="btn btn-primary" id="addInclusionBtn" onclick="addNewInclusion()">
                     <i class="bi bi-plus-lg"></i> Add New Inclusion
                 </button>
             </div>
@@ -476,7 +476,7 @@
         let inclusionsData = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
-        const inclusionsPageSize = 25;
+        const inclusionsPageSize = 40;
 
         // Fetch source details and inclusions
         async function fetchSource(page = 1) {
@@ -689,8 +689,8 @@
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            // Always show 25 rows total (existing + blank)
-            const targetRows = 25;
+            // Always show inclusionsPageSize rows total (existing + blank)
+            const targetRows = inclusionsPageSize;
             const existingRows = inclusionsData.length;
             const blankRowsNeeded = Math.max(0, targetRows - existingRows);
 
@@ -718,7 +718,7 @@
                 html += buildInclusionRow(inclusion, index, false);
             });
 
-            // Add blank rows to reach 40 total
+            // Add blank rows to reach inclusionsPageSize total
             for (let i = 0; i < blankRowsNeeded; i++) {
                 const blankInclusion = createBlankInclusion(existingRows + i + 1);
                 html += buildInclusionRow(blankInclusion, existingRows + i, true);
@@ -744,10 +744,39 @@
         }
 
         function addNewInclusion() {
-            const newOrder = inclusionsData.length + 1;
+            // Calculate the correct order based on current page position
+            const baseOrder = (currentInclusionsPage - 1) * inclusionsPageSize;
+            const newOrder = baseOrder + inclusionsData.length + 1;
             const newInclusion = createBlankInclusion(newOrder);
             inclusionsData.push(newInclusion);
+            
+            // Show a warning if we're adding beyond the normal page size
+            if (inclusionsData.length > inclusionsPageSize) {
+                const extraRows = inclusionsData.length - inclusionsPageSize;
+                const warning = document.createElement('div');
+                warning.className = 'alert alert-warning alert-dismissible fade show mt-2';
+                warning.innerHTML = `
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Page capacity exceeded!</strong> 
+                    You've added ${extraRows} extra inclusion(s) to this page. 
+                    When you save and reload, these will be moved to the appropriate page(s) based on their order.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                // Insert warning after the inclusions container
+                const container = document.getElementById('inclusionsContainer');
+                container.parentNode.insertBefore(warning, container.nextSibling);
+                
+                // Auto-dismiss after 10 seconds
+                setTimeout(() => {
+                    if (warning.parentNode) {
+                        warning.remove();
+                    }
+                }, 10000);
+            }
+            
             displayInclusions();
+            markAsUnsaved();
         }
 
         function createBlankInclusion(order) {
@@ -789,7 +818,6 @@
                                         <i class="bi bi-arrow-down"></i>
                                     </button>
                                 </div>
-                                <small class="text-muted">#${inclusion.order || (index + 1)}</small>
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small">Position</label>
@@ -1296,10 +1324,66 @@
             displayInclusions();
         }
 
-        function removeInclusion(index) {
-            if (confirm('Are you sure you want to remove this inclusion?')) {
+        async function removeInclusion(index) {
+            const inclusion = inclusionsData[index];
+            
+            // If this inclusion doesn't have an ID (i.e., it's a new, unsaved inclusion), 
+            // just remove it from the frontend without calling the API
+            if (!inclusion || !inclusion.id) {
+                if (confirm('Are you sure you want to remove this inclusion?')) {
+                    inclusionsData.splice(index, 1);
+                    displayInclusions();
+                }
+                return;
+            }
+            
+            // For existing inclusions, show a more detailed confirmation
+            const title = inclusion.composition?.title_text || 'Untitled';
+            const position = inclusion.position || '';
+            const displayText = position ? `"${title}" (${position})` : `"${title}"`;
+            
+            if (!confirm(`Are you sure you want to permanently delete this inclusion?\n\n${displayText}\n\nThis action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                // Show loading state
+                const deleteButton = document.querySelector(`[data-index="${index}"] .btn-outline-danger`);
+                if (deleteButton) {
+                    deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                    deleteButton.disabled = true;
+                }
+                
+                // Call the DELETE API endpoint
+                const response = await fetch(`/api/sources/inclusions/${inclusion.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to delete inclusion: ${response.status} ${response.statusText}`);
+                }
+                
+                // Successfully deleted from database - now remove from frontend
                 inclusionsData.splice(index, 1);
                 displayInclusions();
+                
+                // Show success message
+                console.log(`Successfully deleted inclusion ${inclusion.id}: ${displayText}`);
+                
+            } catch (error) {
+                console.error('Error deleting inclusion:', error);
+                alert(`Failed to delete inclusion: ${error.message}\n\nPlease try again or contact support if the problem persists.`);
+                
+                // Restore delete button
+                const deleteButton = document.querySelector(`[data-index="${index}"] .btn-outline-danger`);
+                if (deleteButton) {
+                    deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                    deleteButton.disabled = false;
+                }
             }
         }
 
@@ -1321,13 +1405,28 @@
             if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
                 console.log('No pagination needed - total pages:', inclusionsPagination?.totalPages);
                 container.innerHTML = '';
+                updateAddInclusionButton(); // Update button even when no pagination
                 return;
             }
 
             console.log('Building pagination controls...');
             
+            // Add a prominent indicator for multiple pages
+            const totalInclusions = inclusionsPagination.totalItems || 0;
+            const startInclusion = (currentInclusionsPage - 1) * inclusionsPageSize + 1;
+            const endInclusion = Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions);
+            
+            let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3 p-2" style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+                    <div>
+                        <strong><i class="bi bi-info-circle text-warning"></i> Multiple pages of inclusions</strong>
+                        <br><small>Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>
+                    </div>
+                    <nav>
+            `;
+            
             // Build pagination 
-            let html = '<nav><ul class="pagination pagination-sm mb-0">';
+            html += '<ul class="pagination pagination-sm mb-0">';
             
             // Previous button
             const prevDisabled = !inclusionsPagination.hasPrev || currentInclusionsPage <= 1;
@@ -1387,7 +1486,7 @@
             }
             html += '</li>';
 
-            html += '</ul></nav>';
+            html += '</ul></nav></div>'; // Close the pagination nav and the info container
 
             console.log('Pagination HTML:', html);
             console.log('Previous disabled:', prevDisabled, 'Next disabled:', nextDisabled);
@@ -1405,6 +1504,22 @@
             
             console.log('Pagination rendered to container with event listeners');
             console.log('========================');
+            
+            // Update the add inclusion button text to reflect pagination context
+            updateAddInclusionButton();
+        }
+        
+        function updateAddInclusionButton() {
+            const addBtn = document.getElementById('addInclusionBtn');
+            if (!addBtn) return;
+            
+            if (inclusionsPagination && inclusionsPagination.totalPages > 1) {
+                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion to Page ${currentInclusionsPage}`;
+                addBtn.title = `This will add a new inclusion to the current page (${currentInclusionsPage} of ${inclusionsPagination.totalPages}). When saved, it will appear on the appropriate page based on its order.`;
+            } else {
+                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion`;
+                addBtn.title = '';
+            }
         }
 
         // Safer pagination function that handles unsaved changes
