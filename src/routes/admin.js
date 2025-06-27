@@ -293,6 +293,10 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
           SELECT f.id, f.name as title, 'functions' as table_name
           FROM functions f
           WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
+          AND f.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'functions_no_titles' AND entity_type = 'functions'
+          )
           ORDER BY f.name
           LIMIT $1
         `;
@@ -304,6 +308,10 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
           FROM titles t
           WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
           AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+          AND t.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'titles_no_functions' AND entity_type = 'titles'
+          )
           ORDER BY t.text
           LIMIT $1
         `;
@@ -323,6 +331,10 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
             WHERE c2.group_id = g.id
           )
           AND EXISTS (SELECT 1 FROM compositions c3 WHERE c3.group_id = g.id)
+          AND g.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'groups_title_mismatch' AND entity_type = 'groups'
+          )
           GROUP BY g.id, g.display_title
           ORDER BY g.display_title
           LIMIT $1
@@ -335,6 +347,10 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
           FROM clef_combinations cc
           LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
           WHERE ccv.clef_combination_id IS NULL
+          AND cc.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'clef_combos_no_voicings' AND entity_type = 'clef_combinations'
+          )
           ORDER BY cc.clef_combination
           LIMIT $1
         `;
@@ -344,6 +360,10 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
         query = `
           SELECT cc.id, cc.clef_combination as title, 'clef_combinations' as table_name
           FROM clef_combinations cc
+          WHERE cc.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'invalid_clef_combinations' AND entity_type = 'clef_combinations'
+          )
           ORDER BY cc.clef_combination
           LIMIT $1
         `;
@@ -632,36 +652,54 @@ router.post('/cleanup', async (req, res) => {
     let results = {};
 
     if (!cleanup_type || cleanup_type === 'all') {
-      // Clean up unused titles
+      // 1. Clean up unused titles = titles not referenced in compositions
       const unusedTitles = await client.query(`
         DELETE FROM titles 
-        WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
-        AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+        WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
         RETURNING id, text
       `);
       results.removed_titles = unusedTitles.rowCount;
 
-      // Clean up empty groups (groups with no compositions)
+      // 2. Clean up empty groups = groups with no compositions
       const emptyGroups = await client.query(`
         DELETE FROM groups 
-        WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+        WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
         RETURNING id, display_title
       `);
       results.removed_groups = emptyGroups.rowCount;
 
-      // Clean up orphaned compositions (compositions pointing to non-existent groups)
+      // 3. Clean up orphaned compositions = compositions not in any inclusions
       const orphanedCompositions = await client.query(`
         DELETE FROM compositions 
-        WHERE group_id NOT IN (SELECT id FROM groups)
+        WHERE id NOT IN (SELECT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
         RETURNING id
       `);
       results.removed_compositions = orphanedCompositions.rowCount;
 
+      // 4. Clean up orphaned clef combinations = clef combinations not used in inclusions
+      try {
+        const orphanedClefCombos = await client.query(`
+          DELETE FROM clef_combinations 
+          WHERE clef_combination NOT IN (
+            SELECT sorted_clef_combination_required FROM inclusions 
+            WHERE sorted_clef_combination_required IS NOT NULL
+          )
+          AND clef_combination NOT IN (
+            SELECT sorted_clef_combination_all FROM inclusions 
+            WHERE sorted_clef_combination_all IS NOT NULL
+          )
+          RETURNING id, clef_combination
+        `);
+        results.removed_clef_combinations = orphanedClefCombos.rowCount;
+      } catch (error) {
+        console.log('Clef combinations cleanup skipped (table may not exist):', error.message);
+        results.removed_clef_combinations = 0;
+      }
+
     } else if (cleanup_type === 'titles') {
       const unusedTitles = await client.query(`
         DELETE FROM titles 
-        WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
-        AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+        WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
         RETURNING id, text
       `);
       results.removed_titles = unusedTitles.rowCount;
@@ -669,26 +707,39 @@ router.post('/cleanup', async (req, res) => {
     } else if (cleanup_type === 'groups') {
       const emptyGroups = await client.query(`
         DELETE FROM groups 
-        WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+        WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
         RETURNING id, display_title
       `);
       results.removed_groups = emptyGroups.rowCount;
 
-    } else if (cleanup_type === 'voicings') {
-      // Remove orphaned clef combinations and voicings
-      const orphanedVoicings = await client.query(`
-        DELETE FROM voicings
-        WHERE id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
-        RETURNING id, voicing
+    } else if (cleanup_type === 'compositions') {
+      const orphanedCompositions = await client.query(`
+        DELETE FROM compositions 
+        WHERE id NOT IN (SELECT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
+        RETURNING id
       `);
-      results.removed_voicings = orphanedVoicings.rowCount;
+      results.removed_compositions = orphanedCompositions.rowCount;
 
-      const orphanedClefCombos = await client.query(`
-        DELETE FROM clef_combinations
-        WHERE id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
-        RETURNING id, clef_combination
-      `);
-      results.removed_clef_combinations = orphanedClefCombos.rowCount;
+    } else if (cleanup_type === 'clef_combinations') {
+      // Remove orphaned clef combinations using the same logic as preview
+      try {
+        const orphanedClefCombos = await client.query(`
+          DELETE FROM clef_combinations 
+          WHERE clef_combination NOT IN (
+            SELECT sorted_clef_combination_required FROM inclusions 
+            WHERE sorted_clef_combination_required IS NOT NULL
+          )
+          AND clef_combination NOT IN (
+            SELECT sorted_clef_combination_all FROM inclusions 
+            WHERE sorted_clef_combination_all IS NOT NULL
+          )
+          RETURNING id, clef_combination
+        `);
+        results.removed_clef_combinations = orphanedClefCombos.rowCount;
+      } catch (error) {
+        console.log('Clef combinations cleanup skipped (table may not exist):', error.message);
+        results.removed_clef_combinations = 0;
+      }
     }
 
     await client.query('COMMIT');

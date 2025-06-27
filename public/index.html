@@ -471,11 +471,11 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             checkAuthStatus();
-            loadFiltersFromURL();
-            loadFilters();
-            performSearch();
-            
-            // Initialize Select2 for multi-select elements
+            initializeInterface();
+        });
+
+        async function initializeInterface() {
+            // Initialize Select2 for multi-select elements first
             $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
@@ -496,7 +496,12 @@
                 performSearch();
                 updateURL();
             });
-        });
+
+            // Load filters, then URL parameters, then perform search
+            await loadFilters();
+            loadFiltersFromURL();
+            performSearch();
+        }
 
         async function checkAuthStatus() {
             try {
@@ -772,9 +777,6 @@
                 } catch (error) {
                 console.error('Error loading filters:', error);
             }
-            
-            // Load filters from URL after all filter options are populated
-            loadFiltersFromURL();
         }
 
         // Helper function to get selected values from Select2 multi-select

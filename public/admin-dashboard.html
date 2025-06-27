@@ -776,11 +776,22 @@
                 });
                 
                 if (response.ok) {
-                    // Refresh the details view and main alerts
+                    // Close the current modal first to prevent focus issues
+                    const currentModal = bootstrap.Modal.getInstance(document.getElementById('alertDetailsModal'));
+                    if (currentModal) {
+                        currentModal.hide();
+                    }
+                    
+                    // Wait a bit for modal to close, then refresh everything
                     setTimeout(() => {
-                        showAlertDetails(alertType);
+                        // Refresh main alerts first
                         loadDataQualityAlerts();
-                    }, 100);
+                        
+                        // Then reopen details view if user wants to see remaining items
+                        setTimeout(() => {
+                            showAlertDetails(alertType);
+                        }, 300);
+                    }, 200);
                 } else {
                     alert('Error ignoring alert');
                 }
