@@ -163,15 +163,3 @@ If you want to completely reset the authentication system:
 DROP TABLE IF EXISTS users CASCADE;
 -- Then run fix-users-table.sql
 ```
-
-### 📞 Quick Fix Commands
-
-**One-liner to fix most issues:**
-```bash
-heroku run npm run debug-auth --app your-app-name
-```
-
-**Manual admin user creation:**
-```bash
-heroku pg:psql --app your-app-name -c "INSERT INTO users (email, password_hash, name, status, role) VALUES ('admin@polyphony.local', '\$2b\$12\$LQv3c1yqBw2fonYKz/VBKO6krNqgCGVU3/p8Z/5dJe3MUZ3DHgm3W', 'System Administrator', 'approved', 'admin') ON CONFLICT (email) DO NOTHING;"
-``` 

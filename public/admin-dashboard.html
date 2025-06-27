@@ -685,7 +685,9 @@
                 'titles_no_functions': 'Titles with No Functions Assigned', 
                 'groups_title_mismatch': 'Groups with Mismatched Display Titles',
                 'clef_combos_no_voicings': 'Clef Combinations without Voicings',
-                'invalid_clef_combinations': 'Invalid Clef Combinations'
+                'invalid_clef_combinations': 'Invalid Clef Combinations',
+                'titles_no_language': 'Titles with No Language Assigned',
+                'composers_missing_data': 'Composers with Missing Biographical Data'
             };
             
             const correctionUrls = {
@@ -693,7 +695,9 @@
                 'titles_no_functions': '/modules/functions/index.html',
                 'groups_title_mismatch': '/group-management.html',
                 'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
-                'invalid_clef_combinations': '/modules/clef-voicings/index.html'
+                'invalid_clef_combinations': '/modules/clef-voicings/index.html',
+                'titles_no_language': '/modules/functions/index.html?filter=no_language',
+                'composers_missing_data': '/modules/composers/index.html'
             };
             
             title.textContent = alertTitles[alertType] || 'Data Quality Issues';

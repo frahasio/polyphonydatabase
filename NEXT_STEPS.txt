@@ -1,0 +1,27 @@
+IMMEDIATE NEXT STEPS:
+
+1. INSTALL DEPENDENCIES (no changes needed):
+   npm install
+
+2. CHECK AUDIT LOG SYSTEM:
+   node audit-log-check.js
+   (If it reports missing components, run the audit-log-migration.sql file)
+
+3. TEST THE NEW FEATURES:
+   - Go to admin dashboard to see the new "Titles with No Language" alert
+   - Use the bulk-inclusions-import.sql script for bulk data import
+   - Edit the script to match your source ID and data
+
+4. BULK IMPORT WORKFLOW:
+   a) Open bulk-inclusions-import.sql
+   b) Change \set source_id to your target source
+   c) Customize the INSERT statements with your data
+   d) Run the script in your database
+   e) Go to source editor and save to trigger processing
+
+All three issues are now resolved:
+✅ Audit log diagnostic tool created
+✅ Language alert added (cannot be ignored)  
+✅ SQL bulk import system implemented (simpler than CSV)
+
+See SOLUTIONS.md for complete details. 

@@ -347,7 +347,33 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
         `;
         break;
         
-
+      case 'titles_no_language':
+        query = `
+          SELECT t.id, t.text as title, 'titles' as table_name
+          FROM titles t
+          WHERE t.language IS NULL
+          AND t.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'titles_no_language' AND entity_type = 'titles'
+          )
+          ORDER BY t.text
+          LIMIT $1
+        `;
+        break;
+        
+      case 'composers_missing_data':
+        query = `
+          SELECT c.id, c.name as title, 'composers' as table_name
+          FROM composers c
+          WHERE (c.from_year IS NULL OR c.to_year IS NULL OR c.birthplace_2 IS NULL OR c.birthplace_2 = '')
+          AND c.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'composers_missing_data' AND entity_type = 'composers'
+          )
+          ORDER BY c.name
+          LIMIT $1
+        `;
+        break;
         
       default:
         return res.status(400).json({ error: 'Invalid alert type' });
@@ -550,6 +576,54 @@ router.get('/data-quality-alerts', async (req, res) => {
           title: 'Groups with mismatched display titles',
           description: `${mismatchCount} groups have display titles that don't match any of their compositions`,
           count: mismatchCount
+        });
+      }
+    }
+
+    // Count titles with no language assigned (excluding ignored items)
+    if (!(await isAlertIgnored('titles_no_language'))) {
+      const titlesWithoutLanguageCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM titles t
+        WHERE t.language IS NULL
+        AND t.id NOT IN (
+          SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+          WHERE alert_type = 'titles_no_language' AND entity_type = 'titles'
+        )
+      `);
+
+      const noLanguageCount = parseInt(titlesWithoutLanguageCount.rows[0].count);
+      if (noLanguageCount > 0) {
+        alerts.push({
+          type: 'titles_no_language',
+          severity: 'error',
+          title: 'Titles with no language assigned',
+          description: `${noLanguageCount} titles have no language assigned and must be corrected`,
+          count: noLanguageCount
+        });
+      }
+    }
+
+    // Count composers with missing dates or country information (excluding ignored items)
+    if (!(await isAlertIgnored('composers_missing_data'))) {
+      const composersWithMissingDataCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM composers c
+        WHERE (c.from_year IS NULL OR c.to_year IS NULL OR c.birthplace_2 IS NULL OR c.birthplace_2 = '')
+        AND c.id NOT IN (
+          SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+          WHERE alert_type = 'composers_missing_data' AND entity_type = 'composers'
+        )
+      `);
+
+      const missingDataCount = parseInt(composersWithMissingDataCount.rows[0].count);
+      if (missingDataCount > 0) {
+        alerts.push({
+          type: 'composers_missing_data',
+          severity: 'warning',
+          title: 'Composers with missing biographical data',
+          description: `${missingDataCount} composers are missing dates or birthplace information`,
+          count: missingDataCount
         });
       }
     }
