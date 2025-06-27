@@ -247,24 +247,15 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: legacyActivity.rows });
     }
     
-    // Get detailed audit log entries
+    // Get simplified audit log entries
     const auditActivity = await pool.query(`
       SELECT 
-        al.id,
-        al.action,
-        al.table_name as type,
-        al.record_id,
-        al.record_title as title,
         al.user_email,
+        al.action,
+        al.table_name,
+        al.record_title,
         al.changes,
-        al.created_at,
-        al.ip_address,
-        CASE 
-          WHEN al.action = 'CREATE' THEN 'created'
-          WHEN al.action = 'UPDATE' THEN 'updated'
-          WHEN al.action = 'DELETE' THEN 'deleted'
-          ELSE 'modified'
-        END as action_desc
+        al.created_at
       FROM audit_log al
       WHERE al.created_at >= NOW() - INTERVAL '30 days'
       ORDER BY al.created_at DESC
@@ -356,18 +347,7 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
         `;
         break;
         
-      case 'invalid_clef_combinations':
-        query = `
-          SELECT cc.id, cc.clef_combination as title, 'clef_combinations' as table_name
-          FROM clef_combinations cc
-          WHERE cc.id NOT IN (
-            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
-            WHERE alert_type = 'invalid_clef_combinations' AND entity_type = 'clef_combinations'
-          )
-          ORDER BY cc.clef_combination
-          LIMIT $1
-        `;
-        break;
+
         
       default:
         return res.status(400).json({ error: 'Invalid alert type' });
@@ -402,7 +382,7 @@ router.get('/data-quality-alerts', async (req, res) => {
       }
     };
 
-    // Count clef combinations without voicings
+    // Count clef combinations without voicings (excluding ignored items)
     try {
       if (!(await isAlertIgnored('clef_combos_no_voicings'))) {
         const clefCombosWithoutVoicingsCount = await pool.query(`
@@ -410,6 +390,10 @@ router.get('/data-quality-alerts', async (req, res) => {
           FROM clef_combinations cc
           LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
           WHERE ccv.clef_combination_id IS NULL
+          AND cc.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+            WHERE alert_type = 'clef_combos_no_voicings' AND entity_type = 'clef_combinations'
+          )
         `);
 
         const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
@@ -450,38 +434,7 @@ router.get('/data-quality-alerts', async (req, res) => {
       console.log('Voicings alerts skipped (tables may not exist):', error.message);
     }
 
-    // Count invalid clef combinations
-    try {
-      if (!(await isAlertIgnored('invalid_clef_combinations'))) {
-        const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
-        
-        const allClefCombos = await pool.query(`
-          SELECT id, clef_combination FROM clef_combinations
-        `);
-        
-        let invalidCount = 0;
-        for (const combo of allClefCombos.rows) {
-          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
-          const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
-          
-          if (hasInvalidClef || clefArray.length === 0) {
-            invalidCount++;
-          }
-        }
-
-        if (invalidCount > 0) {
-          alerts.push({
-            type: 'invalid_clef_combinations',
-            severity: 'warning',
-            title: 'Invalid clef combinations',
-            description: `${invalidCount} clef combinations contain invalid or non-existent clefs`,
-            count: invalidCount
-          });
-        }
-      }
-    } catch (error) {
-      console.log('Invalid clef combinations alerts skipped (tables may not exist):', error.message);
-    }
+    // REMOVED: Invalid clef combinations check - handled by cleanup routines
 
     // Count unused titles
     const unusedTitlesCount = await pool.query(`
@@ -520,12 +473,16 @@ router.get('/data-quality-alerts', async (req, res) => {
       });
     }
 
-    // Count functions with no titles assigned
+    // Count functions with no titles assigned (excluding ignored items)
     if (!(await isAlertIgnored('functions_no_titles'))) {
       const functionsWithoutTitlesCount = await pool.query(`
         SELECT COUNT(*) as count
         FROM functions f
         WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
+        AND f.id NOT IN (
+          SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+          WHERE alert_type = 'functions_no_titles' AND entity_type = 'functions'
+        )
       `);
 
       const functionsCount = parseInt(functionsWithoutTitlesCount.rows[0].count);
@@ -540,13 +497,17 @@ router.get('/data-quality-alerts', async (req, res) => {
       }
     }
 
-    // Count titles with no functions assigned
+    // Count titles with no functions assigned (excluding ignored items)
     if (!(await isAlertIgnored('titles_no_functions'))) {
       const titlesWithoutFunctionsCount = await pool.query(`
         SELECT COUNT(*) as count
         FROM titles t
         WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
         AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+        AND t.id NOT IN (
+          SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+          WHERE alert_type = 'titles_no_functions' AND entity_type = 'titles'
+        )
       `);
 
       const titlesNoFunctionsCount = parseInt(titlesWithoutFunctionsCount.rows[0].count);
@@ -561,7 +522,7 @@ router.get('/data-quality-alerts', async (req, res) => {
       }
     }
 
-    // Count groups where display title doesn't match any composition title
+    // Count groups where display title doesn't match any composition title (excluding ignored items)
     if (!(await isAlertIgnored('groups_title_mismatch'))) {
       const groupsWithMismatchedTitlesCount = await pool.query(`
         SELECT COUNT(*) as count
@@ -574,6 +535,10 @@ router.get('/data-quality-alerts', async (req, res) => {
         )
         AND EXISTS (
           SELECT 1 FROM compositions c WHERE c.group_id = g.id
+        )
+        AND g.id NOT IN (
+          SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+          WHERE alert_type = 'groups_title_mismatch' AND entity_type = 'groups'
         )
       `);
 

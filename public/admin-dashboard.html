@@ -522,6 +522,28 @@
         </div>
     </div>
 
+    <!-- Changes Details Modal -->
+    <div class="modal fade" id="changesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-code-square me-2"></i>Detailed Changes
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="changesModalContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -1156,21 +1178,38 @@
                                           item.action === 'UPDATE' ? 'warning' : 
                                           item.action === 'DELETE' ? 'danger' : 'primary';
                         
+                        // Display changes summary with clickable details
+                        let changesDisplay = '';
+                        if (item.changes) {
+                            try {
+                                const changes = typeof item.changes === 'string' ? JSON.parse(item.changes) : item.changes;
+                                const changesStr = JSON.stringify(changes, null, 2);
+                                if (changesStr.length > 100) {
+                                    changesDisplay = `<br><small><a href="#" onclick="showChangesModal('${item.user_email}', '${item.action}', '${item.table_name}', '${item.record_title}', '${new Date(item.created_at).toLocaleString()}', ${JSON.stringify(changesStr).replace(/'/g, "\\'")})">View detailed changes</a></small>`;
+                                } else {
+                                    changesDisplay = `<br><code class="small">${changesStr}</code>`;
+                                }
+                            } catch {
+                                changesDisplay = '';
+                            }
+                        }
+                        
                         return `
                             <div class="d-flex align-items-start py-2 border-bottom">
                                 <div class="me-3">
-                                    <i class="bi bi-${getActivityIcon(item.type)} text-${getTypeColor(item.type)}"></i>
+                                    <i class="bi bi-${getActivityIcon(item.table_name)} text-${getTypeColor(item.table_name)}"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-medium">${item.title}</div>
+                                    <div class="fw-medium">${item.record_title || 'Unknown Record'}</div>
                                     <small class="text-muted">
                                         <span class="badge bg-${actionColor} me-1" style="font-size: 0.65em;">
                                             ${item.action || 'MODIFIED'}
                                         </span>
-                                        ${item.type?.toUpperCase() || 'UNKNOWN'} • 
+                                        ${item.table_name?.toUpperCase() || 'UNKNOWN'} • 
                                         ${item.user_email || 'Unknown User'} • 
                                         ${timeAgo}
                                     </small>
+                                    ${changesDisplay}
                                 </div>
                             </div>
                         `;
@@ -1474,6 +1513,27 @@
                 console.error('Error performing cleanup:', error);
                 alert('Network error occurred during cleanup.');
             }
+        }
+
+        function showChangesModal(userEmail, action, tableName, recordTitle, timestamp, changesJson) {
+            const modal = new bootstrap.Modal(document.getElementById('changesModal'));
+            const content = document.getElementById('changesModalContent');
+            
+            content.innerHTML = `
+                <div class="mb-3">
+                    <strong>User:</strong> ${userEmail}<br>
+                    <strong>Action:</strong> <span class="badge bg-${action === 'CREATE' ? 'success' : action === 'UPDATE' ? 'warning' : 'danger'}">${action}</span><br>
+                    <strong>Table:</strong> ${tableName}<br>
+                    <strong>Record:</strong> ${recordTitle}<br>
+                    <strong>Time:</strong> ${timestamp}
+                </div>
+                <div>
+                    <strong>Changes:</strong>
+                    <pre class="bg-light p-3 mt-2" style="font-size: 0.85em; max-height: 400px; overflow-y: auto;"><code>${changesJson}</code></pre>
+                </div>
+            `;
+            
+            modal.show();
         }
     </script>
 </body>

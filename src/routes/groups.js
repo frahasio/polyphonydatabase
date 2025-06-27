@@ -101,40 +101,8 @@ router.post('/merge', async (req, res) => {
 
         await client.query('COMMIT');
 
-        // Log audit entries if audit system exists
+        // Log comprehensive merge audit entry
         try {
-            // Log creation of new group
-            const newGroupData = await pool.query('SELECT * FROM groups WHERE id = $1', [newGroupId]);
-            await pool.query(
-                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
-                [
-                    req.user?.id || null,
-                    req.user?.email || 'unknown@system.local',
-                    'CREATE',
-                    'groups',
-                    newGroupId,
-                    null,
-                    JSON.stringify(newGroupData.rows[0])
-                ]
-            );
-
-            // Log deletion of old groups
-            for (const oldGroup of oldGroups) {
-                await pool.query(
-                    `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
-                    [
-                        req.user?.id || null,
-                        req.user?.email || 'unknown@system.local',
-                        'DELETE',
-                        'groups',
-                        oldGroup.id,
-                        JSON.stringify(oldGroup),
-                        null
-                    ]
-                );
-            }
-
-            // Log the merge operation as a special audit entry
             await pool.query(
                 `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
                 [
@@ -144,13 +112,23 @@ router.post('/merge', async (req, res) => {
                     'groups',
                     newGroupId,
                     JSON.stringify({ 
-                        action: 'merge', 
-                        merged_groups: oldGroups.map(g => ({ id: g.id, display_title: g.display_title }))
+                        action: 'group_merge',
+                        source_groups: oldGroups.map(g => ({ 
+                            id: g.id, 
+                            display_title: g.display_title,
+                            created_at: g.created_at,
+                            updated_at: g.updated_at
+                        }))
                     }),
                     JSON.stringify({ 
-                        action: 'merge_result', 
-                        new_group_title: displayTitle,
-                        merged_count: groupIds.length 
+                        action: 'group_merge',
+                        result_group: {
+                            id: newGroupId,
+                            display_title: displayTitle,
+                            merged_count: groupIds.length,
+                            source_group_ids: groupIds,
+                            source_group_titles: oldGroups.map(g => g.display_title)
+                        }
                     })
                 ]
             );
