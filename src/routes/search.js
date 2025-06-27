@@ -22,6 +22,7 @@ router.get('/groups', async (req, res) => {
       voicing = '',
       has_editions = 'false',
       has_recordings = 'false',
+      sort = '',
       page = 1,
       page_size = 25
     } = req.query;
@@ -325,6 +326,56 @@ router.get('/groups', async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
+    // Build ORDER BY clause based on sort parameter
+    let orderByClause = '';
+    switch (sort) {
+      case 'title':
+        orderByClause = 'ORDER BY g.display_title';
+        break;
+      case 'title_desc':
+        orderByClause = 'ORDER BY g.display_title DESC';
+        break;
+      case 'function':
+        orderByClause = 'ORDER BY function_names[1]';
+        break;
+      case 'function_desc':
+        orderByClause = 'ORDER BY function_names[1] DESC';
+        break;
+      case 'composer':
+        orderByClause = 'ORDER BY composer_display';
+        break;
+      case 'composer_desc':
+        orderByClause = 'ORDER BY composer_display DESC';
+        break;
+      case 'voices':
+        orderByClause = 'ORDER BY voice_counts[1]';
+        break;
+      case 'voices_desc':
+        orderByClause = 'ORDER BY voice_counts[1] DESC';
+        break;
+      case 'sources_earliest':
+        orderByClause = `ORDER BY (
+          SELECT MIN(s.from_year) 
+          FROM compositions comp
+          JOIN inclusions i ON comp.id = i.composition_id
+          JOIN sources s ON i.source_id = s.id
+          WHERE comp.group_id = g.id AND s.from_year IS NOT NULL
+        )`;
+        break;
+      case 'sources_latest':
+        orderByClause = `ORDER BY (
+          SELECT MAX(s.to_year) 
+          FROM compositions comp
+          JOIN inclusions i ON comp.id = i.composition_id
+          JOIN sources s ON i.source_id = s.id
+          WHERE comp.group_id = g.id AND s.to_year IS NOT NULL
+        ) DESC`;
+        break;
+      default:
+        orderByClause = 'ORDER BY g.display_title';
+        break;
+    }
+
     // Count query for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT g.id) as total
@@ -515,7 +566,7 @@ router.get('/groups', async (req, res) => {
       FROM groups g
       ${whereClause}
       GROUP BY g.id, g.display_title, g.created_at, g.updated_at
-      ORDER BY g.display_title
+      ${orderByClause}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
