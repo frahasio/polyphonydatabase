@@ -140,8 +140,18 @@
 
     <div class="container-fluid py-4">
         <div class="text-center mb-5">
-            <h1 class="display-4 text-white">Admin Dashboard</h1>
-            <p class="lead text-white">Polyphony Database Administration System</p>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div></div>
+                <div>
+                    <h1 class="display-4 text-white mb-0">Admin Dashboard</h1>
+                    <p class="lead text-white mb-0">Polyphony Database Administration System</p>
+                </div>
+                <div>
+                    <a href="/" target="_blank" class="btn btn-outline-light">
+                        <i class="bi bi-globe2 me-2"></i>View Public Database
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div id="welcomeMessage" class="welcome-message" style="display: none;">
@@ -178,24 +188,11 @@
         </div>
 
         <div class="row g-4">
-            <!-- Public Database Link -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 public-link-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">
-                            <i class="bi bi-globe2 me-2"></i>View Public Database
-                        </h5>
-                        <p class="card-text">Access the public search interface that your users see.</p>
-                        <a href="/" target="_blank" class="btn">
-                            <i class="bi bi-arrow-up-right-square me-2"></i>Open Public Site
-                        </a>
-                    </div>
-                </div>
-            </div>
-
+            <!-- Top Priority: Core Content Management -->
+            
             <!-- Sources Card -->
             <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
+                <div class="card h-100 border-2 border-primary">
                     <div class="card-body">
                         <h5 class="card-title">
                             <i class="bi bi-book text-primary me-2"></i>Sources
@@ -208,6 +205,38 @@
                 </div>
             </div>
 
+            <!-- Groups Management Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 border-2 border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-collection text-primary me-2"></i>Groups & Media
+                        </h5>
+                        <p class="card-text">Merge compositions into groups and manage editions and recordings.</p>
+                        <a href="/admin/groups" class="btn btn-primary">
+                            <i class="bi bi-arrow-right me-2"></i>Manage Groups
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Functions & Titles Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 border-2 border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-card-text text-primary me-2"></i>Functions & Titles
+                        </h5>
+                        <p class="card-text">Manage liturgical functions and composition titles with language support.</p>
+                        <a href="/admin/modules/functions/index.html" class="btn btn-primary">
+                            <i class="bi bi-arrow-right me-2"></i>Access Functions
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary: Entity Management -->
+            
             <!-- Composers Card -->
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
@@ -283,36 +312,6 @@
                 </div>
             </div>
 
-            <!-- Functions & Titles Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-card-text text-primary me-2"></i>Functions & Titles
-                        </h5>
-                        <p class="card-text">Manage liturgical functions and composition titles with language support.</p>
-                        <a href="/admin/modules/functions/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Functions
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Groups Management Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-collection text-primary me-2"></i>Groups & Media
-                        </h5>
-                        <p class="card-text">Merge compositions into groups and manage editions and recordings.</p>
-                        <a href="/admin/groups" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Manage Groups
-                        </a>
-                    </div>
-                </div>
-            </div>
-
             <!-- Clef Combinations & Voicings Card -->
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100">
@@ -327,53 +326,87 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Audit Trail Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-info">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-clock-history text-info me-2"></i>Recent Activity
-                        </h5>
-                        <p class="card-text">View recent changes and system activity logs.</p>
-                        <div id="recentActivitySummary" class="mb-3">
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <span class="ms-2">Loading activity...</span>
-                        </div>
-                        <button class="btn btn-outline-info" onclick="showAuditTrail()">
-                            <i class="bi bi-list-ul me-2"></i>View Details
-                        </button>
-                    </div>
+        <!-- Data Quality Alerts Section -->
+        <div class="mt-5">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Data Quality Alerts
+                    </h4>
                 </div>
-            </div>
-
-            <!-- Database Cleanup Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-warning">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-trash text-warning me-2"></i>Database Cleanup
-                        </h5>
-                        <p class="card-text">Remove unused data and optimize database performance.</p>
-                        <div id="cleanupPreviewSummary" class="mb-3">
-                            <div class="spinner-border spinner-border-sm" role="status">
+                <div class="card-body">
+                    <div id="dataQualityAlerts" class="row g-3">
+                        <div class="col-12 text-center py-4">
+                            <div class="spinner-border text-warning" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
-                            <span class="ms-2">Checking cleanup options...</span>
-                        </div>
-                        <div class="btn-group-vertical w-100">
-                            <button class="btn btn-outline-warning btn-sm" onclick="showCleanupPreview()">
-                                <i class="bi bi-eye me-2"></i>Preview Cleanup
-                            </button>
-                            <button class="btn btn-warning btn-sm" onclick="showCleanupModal()">
-                                <i class="bi bi-trash me-2"></i>Run Cleanup
-                            </button>
+                            <p class="mt-2 mb-0">Checking data quality...</p>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Cleanup Preview Section -->
+        <div class="mt-4">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-trash me-2"></i>Database Cleanup Preview
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div id="cleanupPreview" class="row g-3">
+                                <div class="col-12 text-center py-4">
+                                    <div class="spinner-border text-danger" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 mb-0">Analyzing cleanup options...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="text-center">
+                                <button class="btn btn-outline-danger mb-2" onclick="refreshCleanupPreview()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Preview
+                                </button>
+                                <br>
+                                <button class="btn btn-danger" onclick="showCleanupModal()" disabled id="runCleanupBtn">
+                                    <i class="bi bi-trash me-2"></i>Run Cleanup
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity Section -->
+        <div class="mt-4 mb-5">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Recent Activity (Last 30 Days)
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div id="recentActivity" style="max-height: 400px; overflow-y: auto;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-info" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 mb-0">Loading recent activity...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         </div>
 
         <footer class="text-center mt-5 pt-4 border-top">
@@ -493,9 +526,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             loadUserInfo();
-            loadDashboardAlerts();
-            loadRecentActivitySummary();
-            loadCleanupPreviewSummary();
+            loadDataQualityAlerts();
+            loadCleanupPreview();
+            loadRecentActivity();
         });
 
         async function loadUserInfo() {
@@ -526,30 +559,43 @@
             }
         }
 
-        async function loadDashboardAlerts() {
+        async function loadDataQualityAlerts() {
             try {
                 const response = await fetch('/api/admin/data-quality-alerts');
                 if (response.ok) {
                     const alerts = await response.json();
-                    displayDashboardAlerts(alerts);
+                    displayDataQualityAlerts(alerts);
                 }
             } catch (error) {
-                console.error('Error loading dashboard alerts:', error);
+                console.error('Error loading data quality alerts:', error);
+                document.getElementById('dataQualityAlerts').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error loading data quality alerts
+                        </div>
+                    </div>
+                `;
             }
         }
 
-        function displayDashboardAlerts(alerts) {
-            const alertsContainer = document.getElementById('dashboardAlerts');
-            const alertsList = document.getElementById('alertsList');
+        function displayDataQualityAlerts(alerts) {
+            const container = document.getElementById('dataQualityAlerts');
 
             if (!alerts || alerts.length === 0) {
-                alertsContainer.style.display = 'none';
+                container.innerHTML = `
+                    <div class="col-12 text-center py-4">
+                        <div class="text-success">
+                            <i class="bi bi-check-circle-fill display-4"></i>
+                            <h5 class="mt-3">No Data Quality Issues Found</h5>
+                            <p class="text-muted">Your database is in good shape!</p>
+                        </div>
+                    </div>
+                `;
                 return;
             }
             
-            alertsContainer.style.display = 'block';
-            
-            alertsList.innerHTML = alerts.map(alert => {
+            container.innerHTML = alerts.map(alert => {
                 const alertClass = alert.severity === 'warning' ? 'alert-warning' : 
                                  alert.severity === 'info' ? 'alert-info' : 
                                  alert.severity === 'error' ? 'alert-danger' : 'alert-secondary';
@@ -558,29 +604,64 @@
                                 alert.severity === 'info' ? 'bi-info-circle' : 'bi-bell';
 
                 return `
-                    <div class="col-md-6">
-                        <div class="alert ${alertClass} mb-0">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="alert-heading mb-1">
-                                        <i class="bi ${iconClass} me-2"></i>${alert.title}
-                                    </h6>
-                                    <p class="mb-2">${alert.description}</p>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="/modules/clef-voicings/index.html" class="btn btn-outline-dark">
-                                            <i class="bi bi-gear me-1"></i>Manage
-                                        </a>
-                                        <button type="button" class="btn btn-outline-secondary" onclick="ignoreAlert('${alert.type}', '${alert.entity_type}', ${alert.entity_id})">
-                                            <i class="bi bi-x me-1"></i>Ignore
-                                        </button>
-                                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card border-${alert.severity === 'error' ? 'danger' : 'warning'} h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-${alert.severity === 'error' ? 'danger' : 'warning'}">
+                                    <i class="bi bi-${alert.severity === 'error' ? 'x-circle' : 'exclamation-triangle'} me-2"></i>
+                                    ${alert.title}
+                                </h6>
+                                <p class="card-text">${alert.description}</p>
+                                <div class="btn-group-vertical w-100">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${alert.type}', 'correct')">
+                                        <i class="bi bi-wrench me-2"></i>Correct
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="handleAlertAction('${alert.type}', 'ignore')">
+                                        <i class="bi bi-eye-slash me-2"></i>Ignore
+                                    </button>
                                 </div>
-                                <button type="button" class="btn-close btn-close-sm" onclick="dismissAlert(this.closest('.col-md-6'))"></button>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function handleAlertAction(alertType, action) {
+            if (action === 'correct') {
+                // Redirect to appropriate correction interface
+                const corrections = {
+                    'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
+                    'functions_no_titles': '/admin/modules/functions/index.html',
+                    'groups_title_mismatch': '/admin/groups'
+                };
+                
+                if (corrections[alertType]) {
+                    window.open(corrections[alertType], '_blank');
+                } else {
+                    alert('Correction interface not yet implemented for this alert type.');
+                }
+            } else if (action === 'ignore') {
+                if (confirm('Mark this alert as ignored? It will not appear again.')) {
+                    fetch('/api/admin/ignore-alert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            alert_type: alertType,
+                            entity_type: 'system',
+                            entity_id: 'global',
+                            reason: 'User ignored via dashboard'
+                        })
+                    })
+                    .then(() => {
+                        loadDataQualityAlerts(); // Refresh alerts
+                    })
+                    .catch(error => {
+                        console.error('Error ignoring alert:', error);
+                        alert('Error ignoring alert');
+                    });
+                }
+            }
         }
 
         function dismissAlert(alertElement) {
@@ -787,7 +868,155 @@
             `;
         }
 
-        // Cleanup Functions
+        async function loadCleanupPreview() {
+            try {
+                const response = await fetch('/api/admin/cleanup-preview');
+                if (response.ok) {
+                    const data = await response.json();
+                    const container = document.getElementById('cleanupPreview');
+                    
+                    const total = (data.unused_titles || 0) + (data.empty_groups || 0) + (data.orphaned_compositions || 0);
+                    
+                    if (total === 0) {
+                        container.innerHTML = `
+                            <div class="col-12 text-center py-4">
+                                <div class="text-success">
+                                    <i class="bi bi-check-circle-fill display-4"></i>
+                                    <h5 class="mt-3">Database is Clean</h5>
+                                    <p class="text-muted">No cleanup needed at this time.</p>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('runCleanupBtn').disabled = true;
+                        return;
+                    }
+                    
+                    container.innerHTML = `
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning">${data.unused_titles || 0}</h3>
+                                    <p class="card-text">Unused Titles</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning">${data.empty_groups || 0}</h3>
+                                    <p class="card-text">Empty Groups</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning">${data.orphaned_compositions || 0}</h3>
+                                    <p class="card-text">Orphaned Compositions</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div class="alert alert-warning">
+                                <strong>Total: ${total} items</strong> can be safely removed from the database.
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('runCleanupBtn').disabled = false;
+                } else {
+                    throw new Error('Failed to load cleanup preview');
+                }
+            } catch (error) {
+                console.error('Error loading cleanup preview:', error);
+                document.getElementById('cleanupPreview').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error loading cleanup preview
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function refreshCleanupPreview() {
+            loadCleanupPreview();
+        }
+
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/api/admin/recent-activity?limit=20');
+                if (response.ok) {
+                    const data = await response.json();
+                    const container = document.getElementById('recentActivity');
+                    
+                    if (!data.activity || data.activity.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-clock-history display-4"></i>
+                                <h5 class="mt-3">No Recent Activity</h5>
+                                <p>No database updates in the last 30 days.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    container.innerHTML = data.activity.map(item => {
+                        const date = new Date(item.created_at);
+                        const timeAgo = getTimeAgo(date);
+                        
+                        return `
+                            <div class="d-flex align-items-start py-2 border-bottom">
+                                <div class="me-3">
+                                    <i class="bi bi-${getActivityIcon(item.type)} text-primary"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-medium">${item.title}</div>
+                                    <small class="text-muted">
+                                        ${item.type.toUpperCase()} • ${timeAgo}
+                                    </small>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    throw new Error('Failed to load recent activity');
+                }
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+                document.getElementById('recentActivity').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error loading recent activity
+                    </div>
+                `;
+            }
+        }
+
+        function getActivityIcon(type) {
+            const icons = {
+                'source': 'book',
+                'edition': 'file-earmark-pdf',
+                'recording': 'play-circle',
+                'group': 'collection',
+                'composer': 'music-note-beamed'
+            };
+            return icons[type] || 'circle-fill';
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+            return `${Math.floor(days / 30)} months ago`;
+        }
+
+        // Legacy cleanup summary function for compatibility
         async function loadCleanupPreviewSummary() {
             try {
                 const response = await fetch('/api/admin/cleanup-preview');
