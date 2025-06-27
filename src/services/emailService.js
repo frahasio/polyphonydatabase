@@ -128,6 +128,353 @@ class EmailService {
     }
   }
 
+  async sendAccountApprovedEmail(email, name, isReactivation = false) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+
+    const loginUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/login`;
+    const subject = isReactivation ? 'Account Reactivated - Polyphony Database' : 'Account Approved - Polyphony Database';
+    const headerText = isReactivation ? 'Account Reactivated' : 'Account Approved';
+    const welcomeText = isReactivation ? `Welcome back, ${name}!` : `Welcome, ${name}!`;
+    const mainText = isReactivation ? 
+      'Good news! Your account for the Polyphony Database has been reactivated.' :
+      'Great news! Your account request for the Polyphony Database has been approved.';
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; padding: 20px; text-align: center; }
+            .content { background: #f9f9f9; padding: 30px; }
+            .button { display: inline-block; background: #27ae60; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Polyphony Database</h1>
+              <p>${headerText}</p>
+            </div>
+            
+            <div class="content">
+              <h2>${welcomeText}</h2>
+              <p>${mainText}</p>
+              
+              <p>You can now log in to access the database using your email address and the password you created during registration.</p>
+              
+              <p style="text-align: center;">
+                <a href="${loginUrl}" class="button">Login to Database</a>
+              </p>
+              
+              <p><strong>Your login details:</strong></p>
+              <ul>
+                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Password:</strong> The password you created during registration</li>
+              </ul>
+              
+              <p>If you've forgotten your password, you can use the "Forgot Password" link on the login page.</p>
+            </div>
+            
+            <div class="footer">
+              <p>Welcome to the Polyphony Database!</p>
+              <p>If you have any questions, please contact your system administrator.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        ${subject}
+        
+        ${welcomeText}
+        
+        ${mainText}
+        
+        You can now log in at: ${loginUrl}
+        
+        Your login details:
+        Email: ${email}
+        Password: The password you created during registration
+        
+        If you've forgotten your password, you can use the "Forgot Password" link.
+      `
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Account approved email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send account approved email:', error);
+      return false;
+    }
+  }
+
+  async sendAccountSuspendedEmail(email, name) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: 'Account Suspended - Polyphony Database',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; text-align: center; }
+            .content { background: #f9f9f9; padding: 30px; }
+            .footer { background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px; }
+            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Polyphony Database</h1>
+              <p>Account Suspended</p>
+            </div>
+            
+            <div class="content">
+              <h2>Account Status Update</h2>
+              <p>Dear ${name},</p>
+              
+              <div class="warning">
+                <strong>Important:</strong> Your account for the Polyphony Database has been suspended.
+              </div>
+              
+              <p>This means you will temporarily be unable to access the database until your account is reactivated.</p>
+              
+              <p><strong>What this means:</strong></p>
+              <ul>
+                <li>You cannot currently log in to the database</li>
+                <li>Your existing research and data remain secure</li>
+                <li>This suspension may be temporary pending review</li>
+              </ul>
+              
+              <p>If you believe this is an error or would like to discuss reactivating your account, please contact the system administrator.</p>
+            </div>
+            
+            <div class="footer">
+              <p>This is an automated notification from the Polyphony Database system.</p>
+              <p>For assistance, please contact your system administrator.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Account Suspended - Polyphony Database
+        
+        Dear ${name},
+        
+        Your account for the Polyphony Database has been suspended.
+        
+        This means you will temporarily be unable to access the database until your account is reactivated.
+        
+        What this means:
+        - You cannot currently log in to the database
+        - Your existing research and data remain secure  
+        - This suspension may be temporary pending review
+        
+        If you believe this is an error or would like to discuss reactivating your account, please contact the system administrator.
+      `
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Account suspended email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send account suspended email:', error);
+      return false;
+    }
+  }
+
+  async sendWelcomeEmail(email, name) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: 'Registration Received - Polyphony Database',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+            .content { background: #f9f9f9; padding: 30px; }
+            .footer { background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px; }
+            .info { background: #e8f4fd; border: 1px solid #bee5eb; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Polyphony Database</h1>
+              <p>Registration Received</p>
+            </div>
+            
+            <div class="content">
+              <h2>Thank you for your interest, ${name}!</h2>
+              <p>We have received your registration request for access to the Polyphony Database.</p>
+              
+              <div class="info">
+                <strong>What happens next:</strong>
+                <ul>
+                  <li>Your request is now being reviewed by our administrators</li>
+                  <li>We will notify you by email once your account has been reviewed</li>
+                  <li>This process typically takes 1-3 business days</li>
+                </ul>
+              </div>
+              
+              <p><strong>Your registration details:</strong></p>
+              <ul>
+                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Status:</strong> Pending approval</li>
+              </ul>
+              
+              <p>Please keep this email for your records. Once approved, you'll receive another email with login instructions.</p>
+            </div>
+            
+            <div class="footer">
+              <p>Thank you for your interest in the Polyphony Database!</p>
+              <p>If you have any questions, please contact your system administrator.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Registration Received - Polyphony Database
+        
+        Thank you for your interest, ${name}!
+        
+        We have received your registration request for access to the Polyphony Database.
+        
+        What happens next:
+        - Your request is now being reviewed by our administrators
+        - We will notify you by email once your account has been reviewed
+        - This process typically takes 1-3 business days
+        
+        Your registration details:
+        Email: ${email}
+        Status: Pending approval
+        
+        Please keep this email for your records. Once approved, you'll receive another email with login instructions.
+      `
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Welcome email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+      return false;
+    }
+  }
+
+  async sendAccountRejectedEmail(email, name) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: email,
+      subject: 'Account Request Update - Polyphony Database',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); color: white; padding: 20px; text-align: center; }
+            .content { background: #f9f9f9; padding: 30px; }
+            .footer { background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Polyphony Database</h1>
+              <p>Account Request Update</p>
+            </div>
+            
+            <div class="content">
+              <h2>Account Request Status</h2>
+              <p>Dear ${name},</p>
+              
+              <p>Thank you for your interest in accessing the Polyphony Database.</p>
+              
+              <p>After reviewing your account request, we are unable to approve access at this time.</p>
+              
+              <p>This decision may be based on various factors related to our access policies and research requirements.</p>
+              
+              <p>If you believe there has been an error or if your circumstances have changed, you are welcome to contact the system administrator to discuss your request further.</p>
+              
+              <p>Thank you for your understanding.</p>
+            </div>
+            
+            <div class="footer">
+              <p>Thank you for your interest in the Polyphony Database.</p>
+              <p>For questions, please contact your system administrator.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Account Request Update - Polyphony Database
+        
+        Dear ${name},
+        
+        Thank you for your interest in accessing the Polyphony Database.
+        
+        After reviewing your account request, we are unable to approve access at this time.
+        
+        This decision may be based on various factors related to our access policies and research requirements.
+        
+        If you believe there has been an error or if your circumstances have changed, you are welcome to contact the system administrator to discuss your request further.
+        
+        Thank you for your understanding.
+      `
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Account rejected email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send account rejected email:', error);
+      return false;
+    }
+  }
+
   // Test the email configuration
   async verifyConnection() {
     if (!this.transporter) {

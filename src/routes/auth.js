@@ -69,6 +69,14 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const newUser = result.rows[0];
 
+    // Send welcome email
+    const emailSent = await emailService.sendWelcomeEmail(newUser.email, newUser.name);
+    if (emailSent) {
+      console.log(`Welcome email sent to ${newUser.email}`);
+    } else {
+      console.error(`Failed to send welcome email to ${newUser.email}`);
+    }
+
     res.status(201).json({
       message: 'Registration successful. Your account is pending approval.',
       user: {
@@ -402,18 +410,71 @@ router.put('/admin/users/:id/status', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Cannot change your own status' });
     }
 
+    // Get current user details before updating
+    const currentUserResult = await pool.query(
+      'SELECT email, name, status FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentUser = currentUserResult.rows[0];
+    const previousStatus = currentUser.status;
+
+    // Update user status
     const result = await pool.query(
       'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, email, name, status',
       [status, id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    const updatedUser = result.rows[0];
+
+    // Send email notification if status changed
+    if (previousStatus !== status) {
+      let emailSent = false;
+      
+             switch (status) {
+         case 'approved':
+           // Check if this is a reactivation (from suspended to approved)
+           const isReactivation = previousStatus === 'suspended';
+           emailSent = await emailService.sendAccountApprovedEmail(updatedUser.email, updatedUser.name, isReactivation);
+           if (emailSent) {
+             const emailType = isReactivation ? 'reactivated' : 'approved';
+             console.log(`Account ${emailType} email sent to ${updatedUser.email}`);
+           } else {
+             console.error(`Failed to send account approved email to ${updatedUser.email}`);
+           }
+           break;
+          
+        case 'suspended':
+          emailSent = await emailService.sendAccountSuspendedEmail(updatedUser.email, updatedUser.name);
+          if (emailSent) {
+            console.log(`Account suspended email sent to ${updatedUser.email}`);
+          } else {
+            console.error(`Failed to send account suspended email to ${updatedUser.email}`);
+          }
+          break;
+          
+        case 'rejected':
+          emailSent = await emailService.sendAccountRejectedEmail(updatedUser.email, updatedUser.name);
+          if (emailSent) {
+            console.log(`Account rejected email sent to ${updatedUser.email}`);
+          } else {
+            console.error(`Failed to send account rejected email to ${updatedUser.email}`);
+          }
+          break;
+          
+        default:
+          // No email for 'pending' status
+          break;
+      }
     }
 
     res.json({
       message: `User status updated to ${status}`,
-      user: result.rows[0]
+      user: updatedUser
     });
 
   } catch (error) {
