@@ -773,6 +773,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       const numberOfVoices = originalInclusion?.composition?.number_of_voices || tempInclusion.number_of_voices || null;
       const numberOfVoicesInt = numberOfVoices ? parseInt(numberOfVoices) : null;
 
+      // Check composer IDs to determine if this is anonymous
+      const composerIds = originalInclusion?.composer_ids || [];
+
       console.log(`Final composition data for creation:`, {
         titleId,
         compositionTypeId,
@@ -785,9 +788,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         composerIds,
         composerIdsType: typeof composerIds
       });
-
-      // Check composer IDs to determine if this is anonymous
-      const composerIds = originalInclusion?.composer_ids || [];
       const isAnonymous = !composerIds || composerIds.length === 0 || composerIds.every(id => !id);
       const existingCompositionId = originalInclusion?.composition_id;
       
