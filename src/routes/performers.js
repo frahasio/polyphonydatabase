@@ -82,7 +82,27 @@ router.post('/', async (req, res) => {
 
     const result = await pool.query(query, [name]);
 
-    res.status(201).json(result.rows[0]);
+    const newPerformer = result.rows[0];
+
+    // Log audit entry
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'CREATE',
+          'performers',
+          newPerformer.id,
+          null,
+          JSON.stringify(newPerformer)
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
+    res.status(201).json(newPerformer);
   } catch (error) {
     console.error('Error creating performer:', error);
     res.status(500).json({ error: 'Internal server error' });

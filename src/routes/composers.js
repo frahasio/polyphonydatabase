@@ -121,7 +121,27 @@ router.post('/', async (req, res) => {
       image_url || null
     ]);
 
-    res.status(201).json(result.rows[0]);
+    const newComposer = result.rows[0];
+
+    // Log audit entry
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'CREATE',
+          'composers',
+          newComposer.id,
+          null,
+          JSON.stringify(newComposer)
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
+    res.status(201).json(newComposer);
   } catch (error) {
     console.error('Error creating composer:', error);
     res.status(500).json({ error: 'Internal server error' });

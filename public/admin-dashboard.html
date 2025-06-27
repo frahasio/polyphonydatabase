@@ -646,9 +646,6 @@
                                     <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${alert.type}', 'view_details')">
                                         <i class="bi bi-list-ul me-2"></i>View Details
                                     </button>
-                                    <button class="btn btn-outline-secondary btn-sm" onclick="handleAlertAction('${alert.type}', 'ignore_all')">
-                                        <i class="bi bi-eye-slash me-2"></i>Ignore All
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -660,26 +657,6 @@
         function handleAlertAction(alertType, action) {
             if (action === 'view_details') {
                 showAlertDetails(alertType);
-            } else if (action === 'ignore_all') {
-                if (confirm('Mark all alerts of this type as ignored? They will not appear again.')) {
-                    fetch('/api/admin/ignore-alert', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            alert_type: alertType,
-                            entity_type: 'system',
-                            entity_id: 'global',
-                            reason: 'User ignored all via dashboard'
-                        })
-                    })
-                    .then(() => {
-                        loadDataQualityAlerts(); // Refresh alerts
-                    })
-                    .catch(error => {
-                        console.error('Error ignoring alert:', error);
-                        alert('Error ignoring alert');
-                    });
-                }
             }
         }
 
@@ -838,34 +815,6 @@
             const remainingAlerts = document.querySelectorAll('#alertsList .col-md-6:not([style*="display: none"])');
             if (remainingAlerts.length === 0) {
                 document.getElementById('dashboardAlerts').style.display = 'none';
-            }
-        }
-
-        async function ignoreAlert(alertType, entityType, entityId) {
-            const reason = prompt('Optional: Enter a reason for ignoring this alert:');
-            
-            try {
-                const response = await fetch('/api/admin/ignore-alert', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        alert_type: alertType,
-                        entity_type: entityType,
-                        entity_id: parseInt(entityId),
-                        reason: reason || null
-                    })
-                });
-
-                if (response.ok) {
-                    // Reload alerts to reflect the change
-                    loadDashboardAlerts();
-                } else {
-                    const error = await response.json();
-                    alert(`Failed to ignore alert: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error ignoring alert:', error);
-                alert('Network error occurred.');
             }
         }
 
@@ -1161,11 +1110,15 @@
             loadCleanupPreview();
         }
 
+        // Global variable to store current activity data for details view
+        let currentActivityData = [];
+
         async function loadRecentActivity() {
             try {
                 const response = await fetch('/api/admin/recent-activity?limit=20');
                 if (response.ok) {
                     const data = await response.json();
+                    currentActivityData = data.activity || []; // Store globally
                     const container = document.getElementById('recentActivity');
                     
                     if (!data.activity || data.activity.length === 0) {
@@ -1191,11 +1144,11 @@
                         if (item.changes) {
                             try {
                                 const changes = typeof item.changes === 'string' ? JSON.parse(item.changes) : item.changes;
-                                const changesStr = JSON.stringify(changes, null, 2);
-                                if (changesStr.length > 100) {
-                                    changesDisplay = `<br><small><a href="#" onclick="showChangesModal('${item.user_email}', '${item.action}', '${item.table_name}', '${item.record_title}', '${new Date(item.created_at).toLocaleString()}', ${JSON.stringify(changesStr).replace(/'/g, "\\'")})">View detailed changes</a></small>`;
-                                } else {
-                                    changesDisplay = `<br><code class="small">${changesStr}</code>`;
+                                const changesSummary = getChangesSummary(changes);
+                                
+                                if (changesSummary) {
+                                    const activityIndex = data.activity.findIndex(a => a === item);
+                                    changesDisplay = `<br><small class="text-muted">${changesSummary}</small><br><small><a href="#" onclick="showActivityDetails(${activityIndex})">View detailed changes</a></small>`;
                                 }
                             } catch {
                                 changesDisplay = '';
@@ -1285,8 +1238,6 @@
             if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
             return `${Math.floor(days / 30)} months ago`;
         }
-
-
 
         async function showCleanupPreview() {
             const modal = new bootstrap.Modal(document.getElementById('cleanupPreviewModal'));
@@ -1491,21 +1442,80 @@
             }
         }
 
-        function showChangesModal(userEmail, action, tableName, recordTitle, timestamp, changesJson) {
+        function getChangesSummary(changes) {
+            if (!changes) return '';
+            
+            try {
+                // Handle special action types
+                if (changes.new && changes.new.action === 'group_merge') {
+                    const mergeData = changes.new;
+                    return `Merged ${mergeData.merged_count} groups into "${mergeData.result_group?.display_title}"`;
+                }
+                
+                // Handle regular field changes
+                if (changes.old && changes.new) {
+                    const changedFields = [];
+                    for (const key in changes.new) {
+                        if (changes.old[key] !== changes.new[key] && key !== 'updated_at' && key !== 'created_at') {
+                            changedFields.push(key);
+                        }
+                    }
+                    if (changedFields.length > 0) {
+                        return `Modified: ${changedFields.join(', ')}`;
+                    }
+                }
+                
+                // Handle creation/deletion
+                if (changes.new && !changes.old) {
+                    return 'New record created';
+                }
+                if (changes.old && !changes.new) {
+                    return 'Record deleted';
+                }
+                
+                return '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function showActivityDetails(activityIndex) {
+            if (!currentActivityData[activityIndex]) {
+                alert('Activity details not available');
+                return;
+            }
+            
+            const activity = currentActivityData[activityIndex];
             const modal = new bootstrap.Modal(document.getElementById('changesModal'));
             const content = document.getElementById('changesModalContent');
             
+            const actionColor = activity.action === 'CREATE' ? 'success' : 
+                              activity.action === 'UPDATE' ? 'warning' : 
+                              activity.action === 'DELETE' ? 'danger' : 'primary';
+            
+            let changesDisplay = '';
+            if (activity.changes) {
+                try {
+                    const changes = typeof activity.changes === 'string' ? JSON.parse(activity.changes) : activity.changes;
+                    changesDisplay = JSON.stringify(changes, null, 2);
+                } catch (error) {
+                    changesDisplay = 'Error parsing changes data';
+                }
+            } else {
+                changesDisplay = 'No changes data available';
+            }
+            
             content.innerHTML = `
                 <div class="mb-3">
-                    <strong>User:</strong> ${userEmail}<br>
-                    <strong>Action:</strong> <span class="badge bg-${action === 'CREATE' ? 'success' : action === 'UPDATE' ? 'warning' : 'danger'}">${action}</span><br>
-                    <strong>Table:</strong> ${tableName}<br>
-                    <strong>Record:</strong> ${recordTitle}<br>
-                    <strong>Time:</strong> ${timestamp}
+                    <strong>User:</strong> ${activity.user_email || 'Unknown'}<br>
+                    <strong>Action:</strong> <span class="badge bg-${actionColor}">${activity.action}</span><br>
+                    <strong>Type:</strong> ${activity.table_name?.toUpperCase() || 'UNKNOWN'}<br>
+                    <strong>Record:</strong> ${activity.record_title || 'Unknown Record'}<br>
+                    <strong>Time:</strong> ${new Date(activity.created_at).toLocaleString()}
                 </div>
                 <div>
                     <strong>Changes:</strong>
-                    <pre class="bg-light p-3 mt-2" style="font-size: 0.85em; max-height: 400px; overflow-y: auto;"><code>${changesJson}</code></pre>
+                    <pre class="bg-light p-3 mt-2" style="font-size: 0.85em; max-height: 400px; overflow-y: auto;"><code>${changesDisplay}</code></pre>
                 </div>
             `;
             

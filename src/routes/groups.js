@@ -173,9 +173,48 @@ router.post('/editions', async (req, res) => {
             RETURNING id
         `, [groupId, editorId || null, voicing || null, fileUrl]);
 
+        const editionId = result.rows[0].id;
+
+        // Get group and editor names for audit trail
+        const detailsResult = await pool.query(`
+            SELECT g.display_title as group_title, e.name as editor_name
+            FROM groups g
+            LEFT JOIN editors e ON e.id = $2
+            WHERE g.id = $1
+        `, [groupId, editorId || null]);
+        
+        const details = detailsResult.rows[0];
+        const editionTitle = `${details.editor_name || 'Unknown Editor'} edition for "${details.group_title}"`;
+
+        // Log audit entry
+        try {
+            await pool.query(
+                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    req.user?.id || null,
+                    req.user?.email || 'unknown@system.local',
+                    'CREATE',
+                    'editions',
+                    editionId,
+                    null,
+                    JSON.stringify({
+                        id: editionId,
+                        group_id: groupId,
+                        group_title: details.group_title,
+                        editor_id: editorId,
+                        editor_name: details.editor_name,
+                        voicing: voicing,
+                        file_url: fileUrl
+                    })
+                ]
+            );
+        } catch (auditError) {
+            console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+        }
+
         res.json({ 
             success: true, 
-            editionId: result.rows[0].id,
+            editionId: editionId,
             message: 'Edition added successfully' 
         });
 
@@ -207,9 +246,47 @@ router.post('/recordings', async (req, res) => {
             RETURNING id
         `, [groupId, performerId || null, fileUrl]);
 
+        const recordingId = result.rows[0].id;
+
+        // Get group and performer names for audit trail
+        const detailsResult = await pool.query(`
+            SELECT g.display_title as group_title, p.name as performer_name
+            FROM groups g
+            LEFT JOIN performers p ON p.id = $2
+            WHERE g.id = $1
+        `, [groupId, performerId || null]);
+        
+        const details = detailsResult.rows[0];
+        const recordingTitle = `${details.performer_name || 'Unknown Performer'} recording for "${details.group_title}"`;
+
+        // Log audit entry
+        try {
+            await pool.query(
+                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    req.user?.id || null,
+                    req.user?.email || 'unknown@system.local',
+                    'CREATE',
+                    'recordings',
+                    recordingId,
+                    null,
+                    JSON.stringify({
+                        id: recordingId,
+                        group_id: groupId,
+                        group_title: details.group_title,
+                        performer_id: performerId,
+                        performer_name: details.performer_name,
+                        file_url: fileUrl
+                    })
+                ]
+            );
+        } catch (auditError) {
+            console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+        }
+
         res.json({ 
             success: true, 
-            recordingId: result.rows[0].id,
+            recordingId: recordingId,
             message: 'Recording added successfully' 
         });
 
