@@ -114,6 +114,22 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             margin-bottom: 10px;
         }
+
+        /* Edit group modal styling */
+        #editGroupEditions > div,
+        #editGroupRecordings > div {
+            transition: all 0.2s ease;
+        }
+        
+        #editGroupEditions > div:hover,
+        #editGroupRecordings > div:hover {
+            background-color: #f8f9fa !important;
+        }
+        
+        #editGroupEditions .btn-outline-danger:hover,
+        #editGroupRecordings .btn-outline-danger:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -350,27 +366,48 @@
         </div>
     </div>
 
-    <!-- Edit Display Title Modal -->
+    <!-- Edit Group Modal -->
     <div class="modal fade" id="editTitleModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-pencil me-2"></i>Edit Display Title
+                        <i class="bi bi-pencil me-2"></i>Edit Group
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="editTitleForm">
                         <input type="hidden" id="editTitleGroupId">
-                        <div class="mb-3">
-                            <label for="editTitleCurrent" class="form-label">Current Display Title</label>
-                            <input type="text" class="form-control" id="editTitleCurrent" readonly>
+                        
+                        <!-- Display Title Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Display Title</h6>
+                            <div class="mb-3">
+                                <label for="editTitleCurrent" class="form-label">Current Display Title</label>
+                                <input type="text" class="form-control" id="editTitleCurrent" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editTitleNew" class="form-label">New Display Title</label>
+                                <input type="text" class="form-control" id="editTitleNew" placeholder="Enter new display title..." required>
+                                <div class="form-text">This title will be displayed in search results and listings</div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="editTitleNew" class="form-label">New Display Title</label>
-                            <input type="text" class="form-control" id="editTitleNew" placeholder="Enter new display title..." required>
-                            <div class="form-text">This title will be displayed in search results and listings</div>
+
+                        <!-- Editions Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Editions</h6>
+                            <div id="editGroupEditions">
+                                <!-- Editions will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Recordings Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Recordings</h6>
+                            <div id="editGroupRecordings">
+                                <!-- Recordings will be loaded here -->
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -498,7 +535,7 @@
                                 <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'split')" title="View/Split compositions">
                                     <i class="bi bi-scissors"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edit_title')" title="Edit display title">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edit_title')" title="Edit group">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                             </div>
@@ -676,6 +713,12 @@
             document.getElementById('editTitleCurrent').value = group.display_title;
             document.getElementById('editTitleNew').value = group.display_title;
             
+            // Load editions
+            displayGroupEditions(group.editions || []);
+            
+            // Load recordings
+            displayGroupRecordings(group.recordings || []);
+            
             // Show modal and focus on new title field
             const modal = new bootstrap.Modal(document.getElementById('editTitleModal'));
             modal.show();
@@ -686,6 +729,127 @@
                 newTitleField.focus();
                 newTitleField.select();
             }, { once: true });
+        }
+
+        function displayGroupEditions(editions) {
+            const container = document.getElementById('editGroupEditions');
+            
+            if (editions.length === 0) {
+                container.innerHTML = '<p class="text-muted mb-0">No editions available</p>';
+                return;
+            }
+
+            container.innerHTML = editions.map(edition => `
+                <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="edition-${edition.id}">
+                    <div>
+                        <strong>${edition.editor_name || 'Unknown Editor'}</strong>
+                        ${edition.voicing ? `<span class="badge bg-secondary ms-2">${edition.voicing}</span>` : ''}
+                        <br>
+                        <small class="text-muted">
+                            <a href="${edition.file_url}" target="_blank" class="text-decoration-none">
+                                <i class="bi bi-link-45deg me-1"></i>View File
+                            </a>
+                        </small>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteEdition(${edition.id})" title="Remove edition">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function displayGroupRecordings(recordings) {
+            const container = document.getElementById('editGroupRecordings');
+            
+            if (recordings.length === 0) {
+                container.innerHTML = '<p class="text-muted mb-0">No recordings available</p>';
+                return;
+            }
+
+            container.innerHTML = recordings.map(recording => `
+                <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="recording-${recording.id}">
+                    <div>
+                        <strong>${recording.performer_name || 'Unknown Performer'}</strong>
+                        <br>
+                        <small class="text-muted">
+                            <a href="${recording.file_url}" target="_blank" class="text-decoration-none">
+                                <i class="bi bi-link-45deg me-1"></i>View File
+                            </a>
+                        </small>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteRecording(${recording.id})" title="Remove recording">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function deleteEdition(editionId) {
+            if (!confirm('Are you sure you want to remove this edition? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/groups/editions/${editionId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // Remove the edition from the display
+                    const editionElement = document.getElementById(`edition-${editionId}`);
+                    if (editionElement) {
+                        editionElement.remove();
+                    }
+
+                    // Check if no editions remain
+                    const editionsContainer = document.getElementById('editGroupEditions');
+                    if (editionsContainer.children.length === 0) {
+                        editionsContainer.innerHTML = '<p class="text-muted mb-0">No editions available</p>';
+                    }
+
+                    alert('Edition removed successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Error removing edition: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error removing edition:', error);
+                alert('Network error occurred while removing edition.');
+            }
+        }
+
+        async function deleteRecording(recordingId) {
+            if (!confirm('Are you sure you want to remove this recording? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/groups/recordings/${recordingId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // Remove the recording from the display
+                    const recordingElement = document.getElementById(`recording-${recordingId}`);
+                    if (recordingElement) {
+                        recordingElement.remove();
+                    }
+
+                    // Check if no recordings remain
+                    const recordingsContainer = document.getElementById('editGroupRecordings');
+                    if (recordingsContainer.children.length === 0) {
+                        recordingsContainer.innerHTML = '<p class="text-muted mb-0">No recordings available</p>';
+                    }
+
+                    alert('Recording removed successfully!');
+                } else {
+                    const error = await response.json();
+                    alert(`Error removing recording: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error removing recording:', error);
+                alert('Network error occurred while removing recording.');
+            }
         }
 
         async function submitTitleUpdate() {

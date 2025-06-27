@@ -336,10 +336,10 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY g.display_title DESC';
         break;
       case 'function':
-        orderByClause = 'ORDER BY function_names[1]';
+        orderByClause = 'ORDER BY COALESCE(array_to_string(function_names, \', \'), \'\')';
         break;
       case 'function_desc':
-        orderByClause = 'ORDER BY function_names[1] DESC';
+        orderByClause = 'ORDER BY COALESCE(array_to_string(function_names, \', \'), \'\') DESC';
         break;
       case 'composer':
         orderByClause = 'ORDER BY composer_display';
@@ -348,10 +348,10 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY composer_display DESC';
         break;
       case 'voices':
-        orderByClause = 'ORDER BY voice_counts[1]';
+        orderByClause = 'ORDER BY COALESCE((SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count), 0)';
         break;
       case 'voices_desc':
-        orderByClause = 'ORDER BY voice_counts[1] DESC';
+        orderByClause = 'ORDER BY COALESCE((SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count), 0) DESC';
         break;
       case 'sources_earliest':
         orderByClause = `ORDER BY (
