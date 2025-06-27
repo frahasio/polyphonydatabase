@@ -340,18 +340,22 @@ router.get('/groups', async (req, res) => {
         g.created_at,
         g.updated_at,
         -- Get composer information with conflict detection
+        -- Only consider compositions with actual composer attributions (ignore anonymous works)
         (
           WITH group_composers AS (
             SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
           )
           SELECT 
             CASE 
               WHEN COUNT(*) > 1 THEN 'conflicting attributions'
-              ELSE MAX(name)
+              WHEN COUNT(*) = 1 THEN MAX(name)
+              ELSE 'Anon'
             END
           FROM group_composers
         ) as composer_display,
@@ -362,7 +366,9 @@ router.get('/groups', async (req, res) => {
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             JOIN composers comp ON comp.id = composer_id
-            WHERE c.group_id = g.id AND c.composer_id_list IS NOT NULL
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
           )
           SELECT 
             CASE 

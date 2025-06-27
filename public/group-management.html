@@ -404,10 +404,10 @@
                     page_size: 50
                 });
 
-                const response = await fetch(`/api/search/groups?${params}`);
+                const response = await fetch(`/api/admin/groups?${params}`);
                 const data = await response.json();
 
-                displaySearchResults(data.groups);
+                displaySearchResults(data.groups || data);
             } catch (error) {
                 console.error('Search error:', error);
                 document.getElementById('searchResults').innerHTML = `
@@ -438,15 +438,17 @@
                         <div class="flex-grow-1">
                             <h6 class="mb-2">${group.display_title}</h6>
                             <div class="group-info">
-                                <span class="badge bg-secondary me-2">${(group.voice_counts || []).join('/')}</span>
-                                <span class="text-muted">${group.composer_display || 'Unknown'}</span>
-                                ${group.function_names && group.function_names.length > 0 ? `<span class="badge bg-info ms-2">${group.function_names[0]}</span>` : ''}
+                                <span class="badge bg-secondary me-2">${group.number_of_voices || '?'}vv</span>
+                                <span class="text-muted">${group.composers || 'Anon'}</span>
+                                ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
                             </div>
-                            ${group.sources && group.sources.length > 0 ? `
-                                <div class="mt-2">
-                                    <small class="text-muted">Sources: ${group.sources.map(s => s.code).filter(c => c).join(', ')}</small>
-                                </div>
-                            ` : ''}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    ${group.composition_count || 0} composition${group.composition_count !== 1 ? 's' : ''}
+                                    ${group.edition_count > 0 ? ` • ${group.edition_count} edition${group.edition_count !== 1 ? 's' : ''}` : ''}
+                                    ${group.recording_count > 0 ? ` • ${group.recording_count} recording${group.recording_count !== 1 ? 's' : ''}` : ''}
+                                </small>
+                            </div>
                         </div>
                         <div class="text-end">
                             <div class="btn-group-vertical">
@@ -503,7 +505,7 @@
         function extractGroupData(groupCard) {
             const title = groupCard.querySelector('h6').textContent;
             const voicesBadge = groupCard.querySelector('.badge.bg-secondary');
-            const voices = voicesBadge ? voicesBadge.textContent : null;
+            const voices = voicesBadge ? voicesBadge.textContent.replace('vv', '') : null;
             const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
             const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
 
