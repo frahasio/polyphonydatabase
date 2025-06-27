@@ -154,7 +154,7 @@
         
         /* Clef styling for missing, incomplete, optional */
         .clef-missing {
-            border: 2px solid #dc3545;
+            border: 1px solid #dc3545;
             opacity: 0.7;
         }
         
@@ -537,6 +537,21 @@
             }
             if (params.get('has_editions') === 'true') document.getElementById('hasEditions').checked = true;
             if (params.get('has_recordings') === 'true') document.getElementById('hasRecordings').checked = true;
+            
+            // Set multi-select filters from URL parameters
+            // Note: This will be called after filters are loaded from API
+            if (params.get('composers')) setSelectFromURL('searchComposers', 'composers');
+            if (params.get('voices')) setSelectFromURL('searchVoices', 'voices');
+            if (params.get('functions')) setSelectFromURL('searchFunctions', 'functions');
+            if (params.get('composition_types')) setSelectFromURL('searchCompositionTypes', 'composition_types');
+            if (params.get('tones')) setSelectFromURL('searchTones', 'tones');
+            if (params.get('even_odd')) setSelectFromURL('searchEvenOdd', 'even_odd');
+            if (params.get('voicing')) setSelectFromURL('searchVoicing', 'voicing');
+            if (params.get('languages')) setSelectFromURL('searchLanguages', 'languages');
+            if (params.get('countries')) setSelectFromURL('searchCountries', 'countries');
+            if (params.get('sources')) setSelectFromURL('searchSources', 'sources');
+            if (params.get('publishers')) setSelectFromURL('searchPublishers', 'publishers');
+            if (params.get('cities')) setSelectFromURL('searchCities', 'cities');
         }
 
         function setSelectFromURL(selectId, paramName) {
@@ -604,7 +619,7 @@
                             option.textContent = composer.name;
                             composerSelect.appendChild(option);
                         });
-                        setSelectFromURL('searchComposers', 'composers');
+
                     }
 
                     // Load functions
@@ -618,7 +633,7 @@
                             option.textContent = func.name;
                             functionSelect.appendChild(option);
                         });
-                        setSelectFromURL('searchFunctions', 'functions');
+
                     }
 
                     // Load composition types
@@ -632,7 +647,7 @@
                         option.textContent = type.name;
                         compositionTypeSelect.appendChild(option);
                     });
-                    setSelectFromURL('searchCompositionTypes', 'composition_types');
+
                 }
 
                     // Load tones
@@ -646,7 +661,7 @@
                         option.textContent = tone.name;
                         toneSelect.appendChild(option);
                     });
-                    setSelectFromURL('searchTones', 'tones');
+
                 }
 
                     // Load even/odd values
@@ -660,7 +675,6 @@
                         option.textContent = eo.name;
                         evenOddSelect.appendChild(option);
                     });
-                    setSelectFromURL('searchEvenOdd', 'even_odd');
                 }
 
                     // Load languages
@@ -674,7 +688,6 @@
                             option.textContent = lang.name;
                             languageSelect.appendChild(option);
                         });
-                        setSelectFromURL('searchLanguages', 'languages');
                     }
 
                     // Load countries
@@ -688,7 +701,6 @@
                             option.textContent = country.name;
                             countrySelect.appendChild(option);
                         });
-                        setSelectFromURL('searchCountries', 'countries');
                     }
 
                     // Load voices
@@ -704,7 +716,6 @@
                         option.textContent = voice.name;
                         voiceSelect.appendChild(option);
                     });
-                    setSelectFromURL('searchVoices', 'voices');
                 }
 
                     // Load sources
@@ -718,7 +729,6 @@
                             option.textContent = source.code;
                             sourceSelect.appendChild(option);
                         });
-                        setSelectFromURL('searchSources', 'sources');
                     }
 
                     // Load publishers
@@ -732,7 +742,6 @@
                             option.textContent = pub.name;
                             publisherSelect.appendChild(option);
                         });
-                        setSelectFromURL('searchPublishers', 'publishers');
                     }
 
                     // Load cities
@@ -746,7 +755,6 @@
                             option.textContent = city.name;
                             citySelect.appendChild(option);
                         });
-                        setSelectFromURL('searchCities', 'cities');
                     }
 
                     // Load voicing options
@@ -760,12 +768,14 @@
                         option.textContent = voicing.name;
                         voicingSelect.appendChild(option);
                     });
-                    setSelectFromURL('searchVoicing', 'voicing');
                 }
 
                 } catch (error) {
                 console.error('Error loading filters:', error);
             }
+            
+            // Load filters from URL after all filter options are populated
+            loadFiltersFromURL();
         }
 
         // Helper function to get selected values from Select2 multi-select

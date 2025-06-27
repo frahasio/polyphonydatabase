@@ -343,10 +343,9 @@ router.get('/groups', async (req, res) => {
         -- Only consider compositions with actual composer attributions (ignore anonymous works)
         (
           WITH group_composers AS (
-            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year
+            SELECT DISTINCT composer_id
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            JOIN composers comp ON comp.id = composer_id
             WHERE c.group_id = g.id 
               AND c.composer_id_list IS NOT NULL 
               AND array_length(c.composer_id_list, 1) > 0
@@ -354,18 +353,20 @@ router.get('/groups', async (req, res) => {
           SELECT 
             CASE 
               WHEN COUNT(*) > 1 THEN 'conflicting attributions'
-              WHEN COUNT(*) = 1 THEN MAX(name)
+              WHEN COUNT(*) = 1 THEN (
+                SELECT comp.name 
+                FROM composers comp 
+                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
+              )
               ELSE 'Anon'
             END
           FROM group_composers
         ) as composer_display,
         (
           WITH group_composers AS (
-            SELECT DISTINCT comp.id, comp.name, comp.from_year, comp.to_year, 
-                   comp.from_year_annotation, comp.to_year_annotation
+            SELECT DISTINCT composer_id
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            JOIN composers comp ON comp.id = composer_id
             WHERE c.group_id = g.id 
               AND c.composer_id_list IS NOT NULL 
               AND array_length(c.composer_id_list, 1) > 0
@@ -373,17 +374,22 @@ router.get('/groups', async (req, res) => {
           SELECT 
             CASE 
               WHEN COUNT(*) > 1 THEN NULL
-              ELSE MAX(CASE 
-                WHEN from_year IS NOT NULL AND to_year IS NOT NULL 
-                THEN '(' || 
-                     COALESCE(from_year_annotation, '') || from_year || '–' || 
-                     COALESCE(to_year_annotation, '') || to_year || ')'
-                WHEN from_year IS NOT NULL 
-                THEN '(' || COALESCE(from_year_annotation, '') || from_year || '–)'
-                WHEN to_year IS NOT NULL 
-                THEN '(–' || COALESCE(to_year_annotation, '') || to_year || ')'
-                ELSE NULL
-              END)
+              WHEN COUNT(*) = 1 THEN (
+                SELECT CASE 
+                  WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
+                  THEN '(' || 
+                       COALESCE(comp.from_year_annotation, '') || comp.from_year || '–' || 
+                       COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                  WHEN comp.from_year IS NOT NULL 
+                  THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–)'
+                  WHEN comp.to_year IS NOT NULL 
+                  THEN '(–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                  ELSE NULL
+                END
+                FROM composers comp 
+                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
+              )
+              ELSE NULL
             END
           FROM group_composers
         ) as composer_dates,
