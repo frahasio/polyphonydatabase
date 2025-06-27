@@ -278,6 +278,82 @@ router.get('/recent-activity', async (req, res) => {
   }
 });
 
+// Get specific problematic records for data quality alerts
+router.get('/data-quality-records/:alertType', async (req, res) => {
+  try {
+    const { alertType } = req.params;
+    const { limit = 100 } = req.query;
+    
+    let query = '';
+    let records = [];
+    
+    switch (alertType) {
+      case 'functions_no_titles':
+        query = `
+          SELECT f.id, f.name as title, 'functions' as table_name
+          FROM functions f
+          WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
+          ORDER BY f.name
+          LIMIT $1
+        `;
+        break;
+        
+      case 'titles_no_functions':
+        query = `
+          SELECT t.id, t.text as title, 'titles' as table_name
+          FROM titles t
+          WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+          AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+          ORDER BY t.text
+          LIMIT $1
+        `;
+        break;
+        
+      case 'groups_title_mismatch':
+        query = `
+          SELECT g.id, g.display_title as title, 'groups' as table_name,
+                 STRING_AGG(DISTINCT t.text, ', ') as composition_titles
+          FROM groups g
+          LEFT JOIN compositions c ON c.group_id = g.id
+          LEFT JOIN titles t ON c.title_id = t.id
+          WHERE g.display_title NOT IN (
+            SELECT DISTINCT t2.text
+            FROM compositions c2
+            JOIN titles t2 ON c2.title_id = t2.id
+            WHERE c2.group_id = g.id
+          )
+          AND EXISTS (SELECT 1 FROM compositions c3 WHERE c3.group_id = g.id)
+          GROUP BY g.id, g.display_title
+          ORDER BY g.display_title
+          LIMIT $1
+        `;
+        break;
+        
+      case 'clef_combos_no_voicings':
+        query = `
+          SELECT cc.id, cc.clef_combination as title, 'clef_combinations' as table_name
+          FROM clef_combinations cc
+          LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
+          WHERE ccv.clef_combination_id IS NULL
+          ORDER BY cc.clef_combination
+          LIMIT $1
+        `;
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Invalid alert type' });
+    }
+    
+    const result = await pool.query(query, [limit]);
+    records = result.rows;
+    
+    res.json({ records, alertType });
+  } catch (error) {
+    console.error('Error fetching data quality records:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get data quality alerts
 router.get('/data-quality-alerts', async (req, res) => {
   try {
@@ -628,7 +704,7 @@ router.get('/cleanup-preview', async (req, res) => {
       examples: emptyGroups.rows[0].examples
     };
 
-    // Preview orphaned compositions
+    // Preview orphaned compositions (compositions without valid group references)
     const orphanedCompositions = await pool.query(`
       SELECT COUNT(*) as count
       FROM compositions 
@@ -637,6 +713,49 @@ router.get('/cleanup-preview', async (req, res) => {
     preview.orphaned_compositions = {
       count: parseInt(orphanedCompositions.rows[0].count)
     };
+
+    // Preview compositions not in any inclusion (the major issue identified)
+    const compositionsNotInInclusions = await pool.query(`
+      SELECT COUNT(*) as count,
+             STRING_AGG(SUBSTRING(COALESCE(t.text, 'Untitled'), 1, 50), ', ') as examples
+      FROM compositions c
+      LEFT JOIN titles t ON c.title_id = t.id
+      WHERE c.id NOT IN (SELECT DISTINCT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
+    `);
+    preview.compositions_not_in_inclusions = {
+      count: parseInt(compositionsNotInInclusions.rows[0].count),
+      examples: compositionsNotInInclusions.rows[0].examples
+    };
+
+    // Preview orphaned clef combinations (if table exists)
+    try {
+      const orphanedClefCombos = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM clef_combinations cc
+        WHERE cc.id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
+      `);
+      preview.unused_clef_combinations = {
+        count: parseInt(orphanedClefCombos.rows[0].count)
+      };
+    } catch (error) {
+      console.log('Clef combinations cleanup preview skipped (table may not exist)');
+      preview.unused_clef_combinations = { count: 0 };
+    }
+
+    // Preview orphaned voicings (if table exists)
+    try {
+      const orphanedVoicings = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM voicings v
+        WHERE v.id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
+      `);
+      preview.unused_voicings = {
+        count: parseInt(orphanedVoicings.rows[0].count)
+      };
+    } catch (error) {
+      console.log('Voicings cleanup preview skipped (table may not exist)');
+      preview.unused_voicings = { count: 0 };
+    }
 
     res.json(preview);
   } catch (error) {

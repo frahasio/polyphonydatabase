@@ -411,6 +411,26 @@ router.post('/', async (req, res) => {
       now, now
     ]);
 
+    const newData = result.rows[0];
+
+    // Log audit entry if audit system exists
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'CREATE',
+          'sources',
+          newData.id,
+          null,
+          JSON.stringify(newData)
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating source:', error);
@@ -438,6 +458,13 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     const now = new Date();
 
+    // Get old data for audit trail before updating
+    const oldDataResult = await pool.query('SELECT * FROM sources WHERE id = $1', [id]);
+    if (oldDataResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    const oldData = oldDataResult.rows[0];
+
     const query = `
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
@@ -452,8 +479,24 @@ router.put('/:id', async (req, res) => {
       from_year, to_year, from_year_annotation, to_year_annotation, now, id
     ]);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Source not found' });
+    const newData = result.rows[0];
+
+    // Log audit entry if audit system exists
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'UPDATE',
+          'sources',
+          parseInt(id),
+          JSON.stringify(oldData),
+          JSON.stringify(newData)
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
     }
 
     res.json(result.rows[0]);
@@ -467,7 +510,34 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Get data before deletion for audit trail
+    const oldDataResult = await pool.query('SELECT * FROM sources WHERE id = $1', [id]);
+    if (oldDataResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    const oldData = oldDataResult.rows[0];
+
     await pool.query('DELETE FROM sources WHERE id = $1', [id]);
+
+    // Log audit entry if audit system exists
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'DELETE',
+          'sources',
+          parseInt(id),
+          JSON.stringify(oldData),
+          null
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting source:', error);

@@ -613,11 +613,11 @@
                                 </h6>
                                 <p class="card-text">${alert.description}</p>
                                 <div class="btn-group-vertical w-100">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${alert.type}', 'correct')">
-                                        <i class="bi bi-wrench me-2"></i>Correct
+                                    <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${alert.type}', 'view_details')">
+                                        <i class="bi bi-list-ul me-2"></i>View Details
                                     </button>
-                                    <button class="btn btn-outline-secondary btn-sm" onclick="handleAlertAction('${alert.type}', 'ignore')">
-                                        <i class="bi bi-eye-slash me-2"></i>Ignore
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="handleAlertAction('${alert.type}', 'ignore_all')">
+                                        <i class="bi bi-eye-slash me-2"></i>Ignore All
                                     </button>
                                 </div>
                             </div>
@@ -628,22 +628,10 @@
         }
 
         function handleAlertAction(alertType, action) {
-            if (action === 'correct') {
-                // Redirect to appropriate correction interface
-                const corrections = {
-                    'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
-                    'functions_no_titles': '/admin/modules/functions/index.html',
-                    'titles_no_functions': '/admin/modules/functions/index.html',
-                    'groups_title_mismatch': '/admin/groups'
-                };
-                
-                if (corrections[alertType]) {
-                    window.open(corrections[alertType], '_blank');
-                } else {
-                    alert('Correction interface not yet implemented for this alert type.');
-                }
-            } else if (action === 'ignore') {
-                if (confirm('Mark this alert as ignored? It will not appear again.')) {
+            if (action === 'view_details') {
+                showAlertDetails(alertType);
+            } else if (action === 'ignore_all') {
+                if (confirm('Mark all alerts of this type as ignored? They will not appear again.')) {
                     fetch('/api/admin/ignore-alert', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -651,7 +639,7 @@
                             alert_type: alertType,
                             entity_type: 'system',
                             entity_id: 'global',
-                            reason: 'User ignored via dashboard'
+                            reason: 'User ignored all via dashboard'
                         })
                     })
                     .then(() => {
@@ -662,6 +650,125 @@
                         alert('Error ignoring alert');
                     });
                 }
+            }
+        }
+
+        async function showAlertDetails(alertType) {
+            try {
+                const response = await fetch(`/api/admin/data-quality-records/${alertType}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    displayAlertDetailsModal(alertType, data.records);
+                } else {
+                    alert('Error loading alert details');
+                }
+            } catch (error) {
+                console.error('Error loading alert details:', error);
+                alert('Network error loading alert details');
+            }
+        }
+
+        function displayAlertDetailsModal(alertType, records) {
+            const modal = document.getElementById('alertDetailsModal') || createAlertDetailsModal();
+            const title = document.getElementById('alertDetailsTitle');
+            const content = document.getElementById('alertDetailsContent');
+            
+            const alertTitles = {
+                'functions_no_titles': 'Functions with No Titles Assigned',
+                'titles_no_functions': 'Titles with No Functions Assigned', 
+                'groups_title_mismatch': 'Groups with Mismatched Display Titles',
+                'clef_combos_no_voicings': 'Clef Combinations without Voicings'
+            };
+            
+            const correctionUrls = {
+                'functions_no_titles': '/modules/functions/index.html',
+                'titles_no_functions': '/modules/functions/index.html',
+                'groups_title_mismatch': '/group-management.html',
+                'clef_combos_no_voicings': '/modules/clef-voicings/index.html'
+            };
+            
+            title.textContent = alertTitles[alertType] || 'Data Quality Issues';
+            
+            if (records.length === 0) {
+                content.innerHTML = '<p class="text-muted">No issues found.</p>';
+            } else {
+                content.innerHTML = `
+                    <div class="mb-3">
+                        <strong>${records.length} items need attention.</strong>
+                        ${correctionUrls[alertType] ? `<br><small class="text-muted">
+                            Use <a href="${correctionUrls[alertType]}" target="_blank">this interface</a> to make corrections.
+                        </small>` : ''}
+                    </div>
+                    <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        ${records.map(record => `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <strong>#${record.id}</strong> - ${record.title}
+                                    ${record.composition_titles ? `<br><small class="text-muted">Compositions: ${record.composition_titles}</small>` : ''}
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary" 
+                                        onclick="ignoreSpecificAlert('${alertType}', '${record.table_name}', ${record.id})">
+                                    Ignore
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            new bootstrap.Modal(modal).show();
+        }
+
+        function createAlertDetailsModal() {
+            const modalHtml = `
+                <div class="modal fade" id="alertDetailsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="alertDetailsTitle">Alert Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" id="alertDetailsContent">
+                                Loading...
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            return document.getElementById('alertDetailsModal');
+        }
+
+        async function ignoreSpecificAlert(alertType, entityType, entityId) {
+            if (!confirm('Ignore this specific item? It will no longer appear in alerts.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/ignore-alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alert_type: alertType,
+                        entity_type: entityType,
+                        entity_id: parseInt(entityId),
+                        reason: 'User ignored specific item via details view'
+                    })
+                });
+                
+                if (response.ok) {
+                    // Refresh the details view and main alerts
+                    showAlertDetails(alertType);
+                    loadDataQualityAlerts();
+                } else {
+                    alert('Error ignoring alert');
+                }
+            } catch (error) {
+                console.error('Error ignoring specific alert:', error);
+                alert('Network error');
             }
         }
 
@@ -914,7 +1021,7 @@
                     const data = await response.json();
                     const container = document.getElementById('cleanupPreview');
                     
-                    const total = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0);
+                    const total = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.compositions_not_in_inclusions?.count || 0) + (data.unused_clef_combinations?.count || 0) + (data.unused_voicings?.count || 0);
                     
                     if (total === 0) {
                         container.innerHTML = `
@@ -931,7 +1038,7 @@
                     }
                     
                     container.innerHTML = `
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <h3 class="text-warning">${data.unused_titles?.count || 0}</h3>
@@ -939,7 +1046,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <h3 class="text-warning">${data.empty_groups?.count || 0}</h3>
@@ -947,7 +1054,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="card border-warning">
                                 <div class="card-body text-center">
                                     <h3 class="text-warning">${data.orphaned_compositions?.count || 0}</h3>
@@ -955,9 +1062,39 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h3 class="text-danger">${data.compositions_not_in_inclusions?.count || 0}</h3>
+                                    <p class="card-text">Compositions Not in Inclusions</p>
+                                    <small class="text-muted">Major issue!</small>
+                                </div>
+                            </div>
+                        </div>
+                        ${(data.unused_clef_combinations?.count || 0) > 0 || (data.unused_voicings?.count || 0) > 0 ? `
+                            <div class="col-md-6">
+                                <div class="card border-info">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-info">${data.unused_clef_combinations?.count || 0}</h3>
+                                        <p class="card-text">Orphaned Clef Combinations</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-info">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-info">${data.unused_voicings?.count || 0}</h3>
+                                        <p class="card-text">Orphaned Voicings</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
                         <div class="col-12 mt-3">
-                            <div class="alert alert-warning">
+                            <div class="alert ${total > 1000 ? 'alert-danger' : 'alert-warning'}">
                                 <strong>Total: ${total} items</strong> can be safely removed from the database.
+                                ${(data.compositions_not_in_inclusions?.count || 0) > 0 ? 
+                                    '<br><small><strong>Note:</strong> Compositions not in inclusions represent compositions that aren\'t catalogued in any source. This may be intentional or may indicate orphaned data.</small>' : ''
+                                }
                             </div>
                         </div>
                     `;
