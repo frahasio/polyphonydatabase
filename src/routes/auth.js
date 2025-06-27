@@ -69,12 +69,20 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     const newUser = result.rows[0];
 
-    // Send welcome email
-    const emailSent = await emailService.sendWelcomeEmail(newUser.email, newUser.name);
-    if (emailSent) {
+    // Send welcome email to user
+    const welcomeEmailSent = await emailService.sendWelcomeEmail(newUser.email, newUser.name);
+    if (welcomeEmailSent) {
       console.log(`Welcome email sent to ${newUser.email}`);
     } else {
       console.error(`Failed to send welcome email to ${newUser.email}`);
+    }
+
+    // Send notification email to admin
+    const adminEmailSent = await emailService.sendAdminNotificationEmail(newUser.email, newUser.name);
+    if (adminEmailSent) {
+      console.log(`Admin notification email sent for new user: ${newUser.email}`);
+    } else {
+      console.error(`Failed to send admin notification email for user: ${newUser.email}`);
     }
 
     res.status(201).json({

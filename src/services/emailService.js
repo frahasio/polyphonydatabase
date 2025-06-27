@@ -396,6 +396,103 @@ class EmailService {
     }
   }
 
+  async sendAdminNotificationEmail(userEmail, userName) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+
+    const adminEmail = 'polyphonydatabase@gmail.com';
+    const adminUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/user-management`;
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: adminEmail,
+      subject: 'New Account Registration - Polyphony Database',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; text-align: center; }
+            .content { background: #f9f9f9; padding: 30px; }
+            .button { display: inline-block; background: #f39c12; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px; }
+            .user-details { background: #fff; border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            .priority { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Polyphony Database</h1>
+              <p>New Account Registration</p>
+            </div>
+            
+            <div class="content">
+              <h2>New User Registration</h2>
+              <p>A new user has requested access to the Polyphony Database and is awaiting approval.</p>
+              
+              <div class="user-details">
+                <h3>User Details:</h3>
+                <ul>
+                  <li><strong>Name:</strong> ${userName}</li>
+                  <li><strong>Email:</strong> ${userEmail}</li>
+                  <li><strong>Status:</strong> Pending approval</li>
+                  <li><strong>Registration Time:</strong> ${new Date().toLocaleString()}</li>
+                </ul>
+              </div>
+              
+              <div class="priority">
+                <strong>Action Required:</strong> Please review and approve/reject this registration request.
+              </div>
+              
+              <p style="text-align: center;">
+                <a href="${adminUrl}" class="button">Review Registration</a>
+              </p>
+              
+              <p>You can approve, reject, or suspend this account from the user management panel.</p>
+            </div>
+            
+            <div class="footer">
+              <p>This is an automated notification from the Polyphony Database system.</p>
+              <p>You are receiving this because you are an administrator.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        New Account Registration - Polyphony Database
+        
+        A new user has requested access to the Polyphony Database and is awaiting approval.
+        
+        User Details:
+        Name: ${userName}
+        Email: ${userEmail}
+        Status: Pending approval
+        Registration Time: ${new Date().toLocaleString()}
+        
+        Action Required: Please review and approve/reject this registration request.
+        
+        Review at: ${adminUrl}
+        
+        You can approve, reject, or suspend this account from the user management panel.
+      `
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log('Admin notification email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send admin notification email:', error);
+      return false;
+    }
+  }
+
   async sendAccountRejectedEmail(email, name) {
     if (!this.transporter) {
       console.error('Email service not configured. Check your environment variables.');
