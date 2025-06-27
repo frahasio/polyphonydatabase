@@ -350,3 +350,7 @@ footer a:hover {
         flex-direction: column;
     }
 } 
+
+.select2-container--default .select2-search--inline .select2-search__field {
+    min-height:26px !important;
+}
