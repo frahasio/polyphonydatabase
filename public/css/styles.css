@@ -565,3 +565,20 @@ footer a:hover {
 .btn-group-vertical .btn:last-child {
     margin-bottom: 0;
 }
+
+/* New utility classes for common inline styles */
+.display-none { display: none !important; }
+.display-block { display: block !important; }
+.width-60 { width: 60px; }
+.width-80 { width: 80px; }
+.max-height-400 { max-height: 400px; overflow-y: auto; }
+.max-height-200 { max-height: 200px; overflow-y: auto; }
+.cursor-pointer { cursor: pointer; }
+.main-content-padding { max-width: none; padding-left: 15px; padding-right: 15px; }
+.unsaved-indicator { display: none; }
+.progress-bar-hidden { width: 0%; }
+.clef-image-standard { height: 40px; width: auto; margin-right: 8px; }
+.warning-background { background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; }
+.current-user-text { color: #666; font-size: 12px; }
+.small-badge { font-size: 0.65em; }
+.small-code { font-size: 0.85em; max-height: 400px; overflow-y: auto; }
