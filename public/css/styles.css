@@ -1,5 +1,19 @@
 /* Global styles for Polyphony Database */
 
+/* Body with subtle stripe background pattern */
+body {
+    background-color: #f8f8f8;
+    background-image: repeating-linear-gradient(
+        0deg,
+        #f8f8f8,
+        #f8f8f8 2px,
+        #f2f2f2 2px,
+        #f2f2f2 4px
+    );
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 /* Container and layout */
 .container-fluid {
     max-width: 1400px;
@@ -7,30 +21,58 @@
     padding: 0 1rem;
 }
 
-/* Card styles */
+/* Card styles with off-white background */
 .card {
     border: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
+    background-color: #fefefe;
 }
 
 .card-body {
     padding: 1.5rem;
+    background-color: #fefefe;
 }
 
-/* Table styles */
+/* Table styles with off-white background */
 .table {
     margin-bottom: 0;
+    background-color: #fefefe;
 }
 
 .table th {
     font-weight: 600;
-    color: #495057;
+    color: #ffffff;
     border-bottom-width: 1px;
+    /* Red header styling */
+    background: linear-gradient(135deg, #c62d42 0%, #b71c1c 100%);
+    border: none;
+    padding: 12px 16px;
 }
 
 .table td {
     vertical-align: middle;
+    background-color: #fefefe;
+    border-top: 1px solid #e0e0e0;
+    padding: 12px 16px;
+}
+
+/* Alternating blue headers for variety */
+.table th:nth-child(even) {
+    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+}
+
+/* Search filters and results containers */
+.search-filters {
+    background-color: #fefefe;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.results-table {
+    background-color: #fefefe;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Button styles */
@@ -52,6 +94,17 @@
     font-size: 1.1em;
 }
 
+/* Button color variations to match theme */
+.btn-primary {
+    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #c62d42 0%, #b71c1c 100%);
+    border: none;
+}
+
 /* Form styles */
 .form-label {
     font-weight: 500;
@@ -63,32 +116,40 @@
     border-radius: 6px;
     border-color: #ced4da;
     padding: 0.5rem 0.75rem;
+    background-color: #fefefe;
 }
 
 .form-control:focus {
-    border-color: #80bdff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+    background-color: #fefefe;
 }
 
-/* Modal styles */
+/* Modal styles with off-white background */
 .modal-content {
     border: none;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #fefefe;
 }
 
 .modal-header {
     border-bottom: 1px solid #dee2e6;
     padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #c62d42 0%, #b71c1c 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
 }
 
 .modal-body {
     padding: 1.5rem;
+    background-color: #fefefe;
 }
 
 .modal-footer {
     border-top: 1px solid #dee2e6;
     padding: 1rem 1.5rem;
+    background-color: #fefefe;
 }
 
 /* Alert styles */
@@ -99,6 +160,24 @@
     margin-bottom: 1rem;
 }
 
+.alert-success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.alert-danger {
+    background-color: #fdeaea;
+    color: #c62d42;
+    border: 1px solid #ffcdd2;
+}
+
+.alert-info {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
 /* Navigation and header */
 .navbar {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -106,6 +185,33 @@
 
 .navbar-brand {
     font-weight: 600;
+}
+
+/* Source items with subtle background */
+.source-item {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+}
+
+/* Accordion styling to match theme */
+.accordion-item {
+    background-color: #fefefe;
+    border: 1px solid #e0e0e0;
+}
+
+.accordion-button {
+    background-color: #fefefe;
+    color: #495057;
+}
+
+.accordion-button:not(.collapsed) {
+    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+    color: white;
+    box-shadow: none;
+}
+
+.accordion-body {
+    background-color: #fefefe;
 }
 
 /* Responsive adjustments */
@@ -137,7 +243,7 @@
     transition: opacity 0.15s linear;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar with theme colors */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -149,70 +255,27 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #c62d42;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #b71c1c;
 }
 
 /* Page header styles */
 .page-header {
     margin-bottom: 2rem;
+    background-color: #fefefe;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
 }
 
 .page-header h1 {
     margin-bottom: 0;
     font-weight: 600;
-}
-
-/* Action buttons container */
-.action-buttons {
-    display: flex;
-    gap: 0.5rem;
-}
-
-/* Table styles */
-.table th {
-    border-top: none;
-    background-color: #f8f9fa;
-    font-weight: 600;
-}
-
-/* Form styles */
-.form-control:focus {
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-}
-
-/* Modal styles */
-.modal-content {
-    border: none;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header {
-    border-bottom: 1px solid #e9ecef;
-    padding: 1rem 1.5rem;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    border-top: 1px solid #e9ecef;
-    padding: 1rem 1.5rem;
-}
-
-/* Page header styles */
-.page-header {
-    margin-bottom: 2rem;
-}
-
-.page-header h1 {
-    margin-bottom: 0;
-    font-weight: 600;
+    color: #c62d42;
 }
 
 /* Action buttons container */

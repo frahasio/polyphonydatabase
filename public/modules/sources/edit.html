@@ -482,6 +482,14 @@
         async function fetchSource(page = 1) {
             const urlParams = new URLSearchParams(window.location.search);
             const sourceId = urlParams.get('id');
+            
+            // If no page specified, get from URL parameters
+            if (page === 1) {
+                const urlPage = urlParams.get('page');
+                if (urlPage && !isNaN(urlPage)) {
+                    page = parseInt(urlPage);
+                }
+            }
 
             if (!sourceId) {
                 alert('No source ID provided');
@@ -1318,29 +1326,62 @@
 
             console.log('Building pagination controls...');
             
-            // Build pagination with simplified click handlers
+            // Build pagination 
             let html = '<nav><ul class="pagination pagination-sm mb-0">';
             
             // Previous button
             const prevDisabled = !inclusionsPagination.hasPrev || currentInclusionsPage <= 1;
+            const prevPage = currentInclusionsPage - 1;
             html += `<li class="page-item ${prevDisabled ? 'disabled' : ''}">`;
             if (!prevDisabled) {
-                html += `<a class="page-link" href="#" onclick="loadInclusionsPageSafe(${currentInclusionsPage - 1}); return false;">‹ Previous</a>`;
+                html += `<button type="button" class="page-link" data-page="${prevPage}">‹ Previous</button>`;
             } else {
                 html += `<span class="page-link">‹ Previous</span>`;
             }
             html += '</li>';
 
-            // Current page info
-            html += `<li class="page-item active">`;
-            html += `<span class="page-link">${currentInclusionsPage} of ${inclusionsPagination.totalPages}</span>`;
-            html += '</li>';
+            // Add individual page numbers for better navigation
+            const startPage = Math.max(1, currentInclusionsPage - 2);
+            const endPage = Math.min(inclusionsPagination.totalPages, currentInclusionsPage + 2);
+            
+            // Show first page if not in range
+            if (startPage > 1) {
+                html += `<li class="page-item">`;
+                html += `<button type="button" class="page-link" data-page="1">1</button>`;
+                html += '</li>';
+                if (startPage > 2) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+            
+            // Show page range
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentInclusionsPage;
+                html += `<li class="page-item ${isActive ? 'active' : ''}">`;
+                if (isActive) {
+                    html += `<span class="page-link">${i}</span>`;
+                } else {
+                    html += `<button type="button" class="page-link" data-page="${i}">${i}</button>`;
+                }
+                html += '</li>';
+            }
+            
+            // Show last page if not in range
+            if (endPage < inclusionsPagination.totalPages) {
+                if (endPage < inclusionsPagination.totalPages - 1) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+                html += `<li class="page-item">`;
+                html += `<button type="button" class="page-link" data-page="${inclusionsPagination.totalPages}">${inclusionsPagination.totalPages}</button>`;
+                html += '</li>';
+            }
 
             // Next button
             const nextDisabled = !inclusionsPagination.hasNext || currentInclusionsPage >= inclusionsPagination.totalPages;
+            const nextPage = currentInclusionsPage + 1;
             html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">`;
             if (!nextDisabled) {
-                html += `<a class="page-link" href="#" onclick="loadInclusionsPageSafe(${currentInclusionsPage + 1}); return false;">Next ›</a>`;
+                html += `<button type="button" class="page-link" data-page="${nextPage}">Next ›</button>`;
             } else {
                 html += `<span class="page-link">Next ›</span>`;
             }
@@ -1351,7 +1392,18 @@
             console.log('Pagination HTML:', html);
             console.log('Previous disabled:', prevDisabled, 'Next disabled:', nextDisabled);
             container.innerHTML = html;
-            console.log('Pagination rendered to container');
+            
+            // Add event listeners to pagination buttons
+            container.querySelectorAll('button.page-link[data-page]').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetPage = parseInt(this.dataset.page);
+                    console.log('Pagination button clicked, target page:', targetPage);
+                    loadInclusionsPageSafe(targetPage);
+                });
+            });
+            
+            console.log('Pagination rendered to container with event listeners');
             console.log('========================');
         }
 
@@ -1384,7 +1436,23 @@
                 console.log('Invalid page range');
                 return;
             }
+            
+            // Update URL with new page parameter
+            updateUrlPage(page);
+            
             fetchSource(page);
+        }
+        
+        function updateUrlPage(page) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (page > 1) {
+                urlParams.set('page', page);
+            } else {
+                urlParams.delete('page');
+            }
+            
+            const newUrl = window.location.pathname + '?' + urlParams.toString();
+            window.history.replaceState({}, '', newUrl);
         }
 
         // Shortcut functions
@@ -2300,8 +2368,16 @@
             }
         });
 
+        // Initialize - get page from URL if present
+        function initializePage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const page = urlParams.get('page');
+            const startPage = page && !isNaN(page) ? parseInt(page) : 1;
+            fetchSource(startPage);
+        }
+        
         // Initialize
-        fetchSource();
+        initializePage();
     </script>
 </body>
 </html> 
