@@ -677,14 +677,16 @@
                 'functions_no_titles': 'Functions with No Titles Assigned',
                 'titles_no_functions': 'Titles with No Functions Assigned', 
                 'groups_title_mismatch': 'Groups with Mismatched Display Titles',
-                'clef_combos_no_voicings': 'Clef Combinations without Voicings'
+                'clef_combos_no_voicings': 'Clef Combinations without Voicings',
+                'invalid_clef_combinations': 'Invalid Clef Combinations'
             };
             
             const correctionUrls = {
                 'functions_no_titles': '/modules/functions/index.html',
                 'titles_no_functions': '/modules/functions/index.html',
                 'groups_title_mismatch': '/group-management.html',
-                'clef_combos_no_voicings': '/modules/clef-voicings/index.html'
+                'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
+                'invalid_clef_combinations': '/modules/clef-voicings/index.html'
             };
             
             title.textContent = alertTitles[alertType] || 'Data Quality Issues';
@@ -720,6 +722,12 @@
         }
 
         function createAlertDetailsModal() {
+            // Remove existing modal if it exists
+            const existingModal = document.getElementById('alertDetailsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
             const modalHtml = `
                 <div class="modal fade" id="alertDetailsModal" tabindex="-1">
                     <div class="modal-dialog modal-lg">
@@ -739,7 +747,15 @@
                 </div>
             `;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            return document.getElementById('alertDetailsModal');
+            
+            const modal = document.getElementById('alertDetailsModal');
+            
+            // Add event listener to clean up modal when closed
+            modal.addEventListener('hidden.bs.modal', function () {
+                this.remove();
+            });
+            
+            return modal;
         }
 
         async function ignoreSpecificAlert(alertType, entityType, entityId) {
@@ -761,8 +777,10 @@
                 
                 if (response.ok) {
                     // Refresh the details view and main alerts
-                    showAlertDetails(alertType);
-                    loadDataQualityAlerts();
+                    setTimeout(() => {
+                        showAlertDetails(alertType);
+                        loadDataQualityAlerts();
+                    }, 100);
                 } else {
                     alert('Error ignoring alert');
                 }
@@ -1021,7 +1039,7 @@
                     const data = await response.json();
                     const container = document.getElementById('cleanupPreview');
                     
-                    const total = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.compositions_not_in_inclusions?.count || 0) + (data.unused_clef_combinations?.count || 0) + (data.unused_voicings?.count || 0);
+                    const total = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0);
                     
                     if (total === 0) {
                         container.innerHTML = `
@@ -1043,6 +1061,7 @@
                                 <div class="card-body text-center">
                                     <h3 class="text-warning">${data.unused_titles?.count || 0}</h3>
                                     <p class="card-text">Unused Titles</p>
+                                    <small class="text-muted">Not referenced in compositions</small>
                                 </div>
                             </div>
                         </div>
@@ -1051,50 +1070,32 @@
                                 <div class="card-body text-center">
                                     <h3 class="text-warning">${data.empty_groups?.count || 0}</h3>
                                     <p class="card-text">Empty Groups</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card border-warning">
-                                <div class="card-body text-center">
-                                    <h3 class="text-warning">${data.orphaned_compositions?.count || 0}</h3>
-                                    <p class="card-text">Orphaned Compositions</p>
+                                    <small class="text-muted">Groups with no compositions</small>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="card border-danger">
                                 <div class="card-body text-center">
-                                    <h3 class="text-danger">${data.compositions_not_in_inclusions?.count || 0}</h3>
-                                    <p class="card-text">Compositions Not in Inclusions</p>
-                                    <small class="text-muted">Major issue!</small>
+                                    <h3 class="text-danger">${data.orphaned_compositions?.count || 0}</h3>
+                                    <p class="card-text">Orphaned Compositions</p>
+                                    <small class="text-muted">Not in any inclusions</small>
                                 </div>
                             </div>
                         </div>
-                        ${(data.unused_clef_combinations?.count || 0) > 0 || (data.unused_voicings?.count || 0) > 0 ? `
-                            <div class="col-md-6">
-                                <div class="card border-info">
-                                    <div class="card-body text-center">
-                                        <h3 class="text-info">${data.unused_clef_combinations?.count || 0}</h3>
-                                        <p class="card-text">Orphaned Clef Combinations</p>
-                                    </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h3 class="text-info">${data.unused_clef_combinations?.count || 0}</h3>
+                                    <p class="card-text">Orphaned Clef Combinations</p>
+                                    <small class="text-muted">Not used in inclusions</small>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card border-info">
-                                    <div class="card-body text-center">
-                                        <h3 class="text-info">${data.unused_voicings?.count || 0}</h3>
-                                        <p class="card-text">Orphaned Voicings</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ` : ''}
+                        </div>
                         <div class="col-12 mt-3">
                             <div class="alert ${total > 1000 ? 'alert-danger' : 'alert-warning'}">
                                 <strong>Total: ${total} items</strong> can be safely removed from the database.
-                                ${(data.compositions_not_in_inclusions?.count || 0) > 0 ? 
-                                    '<br><small><strong>Note:</strong> Compositions not in inclusions represent compositions that aren\'t catalogued in any source. This may be intentional or may indicate orphaned data.</small>' : ''
-                                }
+                                <br><small><strong>Note:</strong> Orphaned compositions are compositions not catalogued in any source inclusion.</small>
                             </div>
                         </div>
                     `;
@@ -1235,7 +1236,7 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    const totalItems = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0) + (data.unused_voicings?.count || 0);
+                    const totalItems = (data.unused_titles?.count || 0) + (data.empty_groups?.count || 0) + (data.orphaned_compositions?.count || 0) + (data.unused_clef_combinations?.count || 0);
                     if (totalItems > 0) {
                         summaryDiv.innerHTML = `
                             <small class="text-warning">

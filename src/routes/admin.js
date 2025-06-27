@@ -340,6 +340,15 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
         `;
         break;
         
+      case 'invalid_clef_combinations':
+        query = `
+          SELECT cc.id, cc.clef_combination as title, 'clef_combinations' as table_name
+          FROM clef_combinations cc
+          ORDER BY cc.clef_combination
+          LIMIT $1
+        `;
+        break;
+        
       default:
         return res.status(400).json({ error: 'Invalid alert type' });
     }
@@ -354,29 +363,45 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
   }
 });
 
-// Get data quality alerts
+// Get data quality alerts (filtered by ignored alerts)
 router.get('/data-quality-alerts', async (req, res) => {
   try {
     const alerts = [];
 
+    // Helper function to check if alert is ignored
+    const isAlertIgnored = async (alertType, entityType = 'system', entityId = 'global') => {
+      try {
+        const result = await pool.query(`
+          SELECT 1 FROM ignored_alerts 
+          WHERE alert_type = $1 AND entity_type = $2 AND entity_id = $3
+        `, [alertType, entityType, entityId]);
+        return result.rows.length > 0;
+      } catch (error) {
+        console.log('Ignored alerts check skipped (table may not exist)');
+        return false;
+      }
+    };
+
     // Count clef combinations without voicings
     try {
-      const clefCombosWithoutVoicingsCount = await pool.query(`
-        SELECT COUNT(*) as count
-        FROM clef_combinations cc
-        LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
-        WHERE ccv.clef_combination_id IS NULL
-      `);
+      if (!(await isAlertIgnored('clef_combos_no_voicings'))) {
+        const clefCombosWithoutVoicingsCount = await pool.query(`
+          SELECT COUNT(*) as count
+          FROM clef_combinations cc
+          LEFT JOIN clef_combinations_voicings ccv ON cc.id = ccv.clef_combination_id
+          WHERE ccv.clef_combination_id IS NULL
+        `);
 
-      const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
-      if (clefCombosCount > 0) {
-        alerts.push({
-          type: 'clef_combos_no_voicings',
-          severity: 'warning',
-          title: 'Clef combinations not matched to voicings',
-          description: `${clefCombosCount} clef combinations are not matched to voicings`,
-          count: clefCombosCount
-        });
+        const clefCombosCount = parseInt(clefCombosWithoutVoicingsCount.rows[0].count);
+        if (clefCombosCount > 0) {
+          alerts.push({
+            type: 'clef_combos_no_voicings',
+            severity: 'warning',
+            title: 'Clef combinations not matched to voicings',
+            description: `${clefCombosCount} clef combinations are not matched to voicings`,
+            count: clefCombosCount
+          });
+        }
       }
     } catch (error) {
       console.log('Clef combinations alerts skipped (tables may not exist):', error.message);
@@ -407,30 +432,32 @@ router.get('/data-quality-alerts', async (req, res) => {
 
     // Count invalid clef combinations
     try {
-      const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
-      
-      const allClefCombos = await pool.query(`
-        SELECT id, clef_combination FROM clef_combinations
-      `);
-      
-      let invalidCount = 0;
-      for (const combo of allClefCombos.rows) {
-        const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
-        const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+      if (!(await isAlertIgnored('invalid_clef_combinations'))) {
+        const validClefs = ['g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'];
         
-        if (hasInvalidClef || clefArray.length === 0) {
-          invalidCount++;
+        const allClefCombos = await pool.query(`
+          SELECT id, clef_combination FROM clef_combinations
+        `);
+        
+        let invalidCount = 0;
+        for (const combo of allClefCombos.rows) {
+          const clefArray = combo.clef_combination.match(/(g[0-9]|c[0-9]|f[0-9]|x[0-9]|y[0-9]|d[0-9]|lut|org|bc)/g) || [];
+          const hasInvalidClef = clefArray.some(clef => !validClefs.includes(clef));
+          
+          if (hasInvalidClef || clefArray.length === 0) {
+            invalidCount++;
+          }
         }
-      }
 
-      if (invalidCount > 0) {
-        alerts.push({
-          type: 'invalid_clef_combinations',
-          severity: 'warning',
-          title: 'Invalid clef combinations',
-          description: `${invalidCount} clef combinations contain invalid or non-existent clefs`,
-          count: invalidCount
-        });
+        if (invalidCount > 0) {
+          alerts.push({
+            type: 'invalid_clef_combinations',
+            severity: 'warning',
+            title: 'Invalid clef combinations',
+            description: `${invalidCount} clef combinations contain invalid or non-existent clefs`,
+            count: invalidCount
+          });
+        }
       }
     } catch (error) {
       console.log('Invalid clef combinations alerts skipped (tables may not exist):', error.message);
@@ -474,66 +501,72 @@ router.get('/data-quality-alerts', async (req, res) => {
     }
 
     // Count functions with no titles assigned
-    const functionsWithoutTitlesCount = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM functions f
-      WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
-    `);
+    if (!(await isAlertIgnored('functions_no_titles'))) {
+      const functionsWithoutTitlesCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM functions f
+        WHERE f.id NOT IN (SELECT DISTINCT function_id FROM functions_titles WHERE function_id IS NOT NULL)
+      `);
 
-    const functionsCount = parseInt(functionsWithoutTitlesCount.rows[0].count);
-    if (functionsCount > 0) {
-      alerts.push({
-        type: 'functions_no_titles',
-        severity: 'warning',
-        title: 'Functions with no titles assigned',
-        description: `${functionsCount} functions have no titles associated with them`,
-        count: functionsCount
-      });
+      const functionsCount = parseInt(functionsWithoutTitlesCount.rows[0].count);
+      if (functionsCount > 0) {
+        alerts.push({
+          type: 'functions_no_titles',
+          severity: 'warning',
+          title: 'Functions with no titles assigned',
+          description: `${functionsCount} functions have no titles associated with them`,
+          count: functionsCount
+        });
+      }
     }
 
     // Count titles with no functions assigned
-    const titlesWithoutFunctionsCount = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM titles t
-      WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
-      AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
-    `);
+    if (!(await isAlertIgnored('titles_no_functions'))) {
+      const titlesWithoutFunctionsCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM titles t
+        WHERE t.id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+        AND t.id IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
+      `);
 
-    const titlesNoFunctionsCount = parseInt(titlesWithoutFunctionsCount.rows[0].count);
-    if (titlesNoFunctionsCount > 0) {
-      alerts.push({
-        type: 'titles_no_functions',
-        severity: 'info',
-        title: 'Titles with no functions assigned',
-        description: `${titlesNoFunctionsCount} titles used in compositions have no liturgical functions assigned`,
-        count: titlesNoFunctionsCount
-      });
+      const titlesNoFunctionsCount = parseInt(titlesWithoutFunctionsCount.rows[0].count);
+      if (titlesNoFunctionsCount > 0) {
+        alerts.push({
+          type: 'titles_no_functions',
+          severity: 'info',
+          title: 'Titles with no functions assigned',
+          description: `${titlesNoFunctionsCount} titles used in compositions have no liturgical functions assigned`,
+          count: titlesNoFunctionsCount
+        });
+      }
     }
 
     // Count groups where display title doesn't match any composition title
-    const groupsWithMismatchedTitlesCount = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM groups g
-      WHERE g.display_title NOT IN (
-        SELECT DISTINCT t.text
-        FROM compositions c
-        JOIN titles t ON c.title_id = t.id
-        WHERE c.group_id = g.id
-      )
-      AND EXISTS (
-        SELECT 1 FROM compositions c WHERE c.group_id = g.id
-      )
-    `);
+    if (!(await isAlertIgnored('groups_title_mismatch'))) {
+      const groupsWithMismatchedTitlesCount = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM groups g
+        WHERE g.display_title NOT IN (
+          SELECT DISTINCT t.text
+          FROM compositions c
+          JOIN titles t ON c.title_id = t.id
+          WHERE c.group_id = g.id
+        )
+        AND EXISTS (
+          SELECT 1 FROM compositions c WHERE c.group_id = g.id
+        )
+      `);
 
-    const mismatchCount = parseInt(groupsWithMismatchedTitlesCount.rows[0].count);
-    if (mismatchCount > 0) {
-      alerts.push({
-        type: 'groups_title_mismatch',
-        severity: 'warning',
-        title: 'Groups with mismatched display titles',
-        description: `${mismatchCount} groups have display titles that don't match any of their compositions`,
-        count: mismatchCount
-      });
+      const mismatchCount = parseInt(groupsWithMismatchedTitlesCount.rows[0].count);
+      if (mismatchCount > 0) {
+        alerts.push({
+          type: 'groups_title_mismatch',
+          severity: 'warning',
+          title: 'Groups with mismatched display titles',
+          description: `${mismatchCount} groups have display titles that don't match any of their compositions`,
+          count: mismatchCount
+        });
+      }
     }
 
     // Count orphaned compositions
@@ -679,82 +712,65 @@ router.get('/cleanup-preview', async (req, res) => {
   try {
     const preview = {};
 
-    // Preview unused titles
+    // 1. Unused titles = titles not referenced in compositions
     const unusedTitles = await pool.query(`
       SELECT COUNT(*) as count, 
              STRING_AGG(SUBSTRING(text, 1, 50), ', ') as examples
       FROM titles 
-      WHERE id NOT IN (SELECT DISTINCT title_id FROM compositions WHERE title_id IS NOT NULL)
-      AND id NOT IN (SELECT DISTINCT title_id FROM functions_titles WHERE title_id IS NOT NULL)
+      WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
     `);
     preview.unused_titles = {
       count: parseInt(unusedTitles.rows[0].count),
       examples: unusedTitles.rows[0].examples
     };
 
-    // Preview empty groups
+    // 2. Empty groups = groups with no compositions
     const emptyGroups = await pool.query(`
       SELECT COUNT(*) as count,
              STRING_AGG(SUBSTRING(display_title, 1, 50), ', ') as examples
       FROM groups 
-      WHERE id NOT IN (SELECT DISTINCT group_id FROM compositions WHERE group_id IS NOT NULL)
+      WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
     `);
     preview.empty_groups = {
       count: parseInt(emptyGroups.rows[0].count),
       examples: emptyGroups.rows[0].examples
     };
 
-    // Preview orphaned compositions (compositions without valid group references)
+    // 3. Orphaned compositions = compositions not in any inclusions
     const orphanedCompositions = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM compositions 
-      WHERE group_id NOT IN (SELECT id FROM groups)
-    `);
-    preview.orphaned_compositions = {
-      count: parseInt(orphanedCompositions.rows[0].count)
-    };
-
-    // Preview compositions not in any inclusion (the major issue identified)
-    const compositionsNotInInclusions = await pool.query(`
       SELECT COUNT(*) as count,
              STRING_AGG(SUBSTRING(COALESCE(t.text, 'Untitled'), 1, 50), ', ') as examples
       FROM compositions c
       LEFT JOIN titles t ON c.title_id = t.id
-      WHERE c.id NOT IN (SELECT DISTINCT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
+      WHERE c.id NOT IN (SELECT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
     `);
-    preview.compositions_not_in_inclusions = {
-      count: parseInt(compositionsNotInInclusions.rows[0].count),
-      examples: compositionsNotInInclusions.rows[0].examples
+    preview.orphaned_compositions = {
+      count: parseInt(orphanedCompositions.rows[0].count),
+      examples: orphanedCompositions.rows[0].examples
     };
 
-    // Preview orphaned clef combinations (if table exists)
+    // 4. Orphaned clef combinations = clef combinations not used in inclusions
     try {
       const orphanedClefCombos = await pool.query(`
-        SELECT COUNT(*) as count
-        FROM clef_combinations cc
-        WHERE cc.id NOT IN (SELECT DISTINCT clef_combination_id FROM clef_combinations_voicings WHERE clef_combination_id IS NOT NULL)
+        SELECT COUNT(*) as count,
+               STRING_AGG(SUBSTRING(clef_combination, 1, 20), ', ') as examples
+        FROM clef_combinations 
+        WHERE clef_combination NOT IN (
+          SELECT sorted_clef_combination_required FROM inclusions 
+          WHERE sorted_clef_combination_required IS NOT NULL
+        )
+        AND clef_combination NOT IN (
+          SELECT sorted_clef_combination_all FROM inclusions 
+          WHERE sorted_clef_combination_all IS NOT NULL
+        )
       `);
       preview.unused_clef_combinations = {
-        count: parseInt(orphanedClefCombos.rows[0].count)
+        count: parseInt(orphanedClefCombos.rows[0].count),
+        examples: orphanedClefCombos.rows[0].examples
       };
     } catch (error) {
-      console.log('Clef combinations cleanup preview skipped (table may not exist)');
-      preview.unused_clef_combinations = { count: 0 };
-    }
-
-    // Preview orphaned voicings (if table exists)
-    try {
-      const orphanedVoicings = await pool.query(`
-        SELECT COUNT(*) as count
-        FROM voicings v
-        WHERE v.id NOT IN (SELECT DISTINCT voicing_id FROM clef_combinations_voicings WHERE voicing_id IS NOT NULL)
-      `);
-      preview.unused_voicings = {
-        count: parseInt(orphanedVoicings.rows[0].count)
-      };
-    } catch (error) {
-      console.log('Voicings cleanup preview skipped (table may not exist)');
-      preview.unused_voicings = { count: 0 };
+      console.log('Clef combinations cleanup preview skipped (table may not exist):', error.message);
+      preview.unused_clef_combinations = { count: 0, examples: null };
     }
 
     res.json(preview);

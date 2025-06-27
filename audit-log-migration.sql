@@ -115,6 +115,23 @@ UPDATE users SET is_admin = TRUE WHERE id = 1;
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
 
+-- Create ignored_alerts table for data quality alert management
+CREATE TABLE IF NOT EXISTS ignored_alerts (
+    id SERIAL PRIMARY KEY,
+    alert_type VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(50) NOT NULL,
+    ignored_by INTEGER REFERENCES users(id),
+    reason TEXT,
+    ignored_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(alert_type, entity_type, entity_id)
+);
+
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_ignored_alerts_lookup ON ignored_alerts(alert_type, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_ignored_alerts_user ON ignored_alerts(ignored_by);
+
 COMMENT ON TABLE audit_log IS 'Comprehensive audit trail for all database changes';
+COMMENT ON TABLE ignored_alerts IS 'Tracks ignored data quality alerts to prevent re-showing';
 COMMENT ON FUNCTION log_audit_entry IS 'Helper function to create standardized audit log entries';
 COMMENT ON FUNCTION get_record_title IS 'Extracts meaningful titles from records for audit display'; 
