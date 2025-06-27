@@ -336,10 +336,46 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY g.display_title DESC';
         break;
       case 'function':
-        orderByClause = 'ORDER BY (SELECT string_agg(name, \', \' ORDER BY name) FROM unnest(function_names) AS name)';
+        orderByClause = `ORDER BY (
+          SELECT string_agg(func_name, ', ' ORDER BY func_name)
+          FROM (
+            SELECT DISTINCT 
+              CASE 
+                WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                WHEN func.name IS NOT NULL THEN func.name
+                ELSE NULL
+              END as func_name
+            FROM compositions c
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            JOIN titles t ON c.title_id = t.id
+            LEFT JOIN functions_titles ft ON t.id = ft.title_id
+            LEFT JOIN functions func ON ft.function_id = func.id
+            WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+          ) funcs
+          WHERE func_name IS NOT NULL
+        )`;
         break;
       case 'function_desc':
-        orderByClause = 'ORDER BY (SELECT string_agg(name, \', \' ORDER BY name) FROM unnest(function_names) AS name) DESC';
+        orderByClause = `ORDER BY (
+          SELECT string_agg(func_name, ', ' ORDER BY func_name DESC)
+          FROM (
+            SELECT DISTINCT 
+              CASE 
+                WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                WHEN func.name IS NOT NULL THEN func.name
+                ELSE NULL
+              END as func_name
+            FROM compositions c
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            JOIN titles t ON c.title_id = t.id
+            LEFT JOIN functions_titles ft ON t.id = ft.title_id
+            LEFT JOIN functions func ON ft.function_id = func.id
+            WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+          ) funcs
+          WHERE func_name IS NOT NULL
+        ) DESC`;
         break;
       case 'composer':
         orderByClause = 'ORDER BY composer_display';
@@ -348,10 +384,24 @@ router.get('/groups', async (req, res) => {
         orderByClause = 'ORDER BY composer_display DESC';
         break;
       case 'voices':
-        orderByClause = 'ORDER BY (SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count)';
+        orderByClause = `ORDER BY (
+          SELECT MIN(voice_count)
+          FROM (
+            SELECT DISTINCT c.number_of_voices as voice_count
+            FROM compositions c
+            WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
+          ) voices
+        )`;
         break;
       case 'voices_desc':
-        orderByClause = 'ORDER BY (SELECT MIN(voice_count) FROM unnest(voice_counts) AS voice_count) DESC';
+        orderByClause = `ORDER BY (
+          SELECT MIN(voice_count)
+          FROM (
+            SELECT DISTINCT c.number_of_voices as voice_count
+            FROM compositions c
+            WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
+          ) voices
+        ) DESC`;
         break;
       case 'sources_earliest':
         orderByClause = `ORDER BY (

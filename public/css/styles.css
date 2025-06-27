@@ -575,3 +575,7 @@ footer a:hover {
 .current-user-text { color: #666; font-size: 12px; }
 .small-badge { font-size: 0.65em; }
 .small-code { font-size: 0.85em; max-height: 400px; overflow-y: auto; }
+
+#searchFormDesktop .form-select-sm {
+    height:40px;
+}
