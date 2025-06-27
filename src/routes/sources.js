@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -982,7 +983,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 });
 
 // DELETE individual inclusion endpoint
-router.delete('/inclusions/:id', authenticateToken, requireAdminRole, async (req, res) => {
+router.delete('/inclusions/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   const client = await pool.connect();
