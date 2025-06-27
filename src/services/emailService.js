@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 
 // Email service for sending password reset emails
+// Force deployment update
 class EmailService {
   constructor() {
     this.transporter = null;
