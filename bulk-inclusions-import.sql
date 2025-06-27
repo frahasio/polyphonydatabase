@@ -143,14 +143,16 @@ After running this script:
 
 1. Go to your source editor in the web interface
 2. Navigate to the source with ID matching your source_id
-3. The system will automatically detect and process the temp_inclusions data
-4. Or manually trigger processing by hitting the save button
+3. Click "Save All Changes" - the system will automatically detect and process any staged temp_inclusions
+4. Your staged inclusions will be converted to final inclusions automatically!
 
-The existing save-with-inclusions endpoint will:
-- Match existing compositions or create new ones
-- Create titles, groups as needed
-- Handle composer matching
-- Create final inclusions with proper relationships
+The save-with-inclusions endpoint now automatically:
+- Processes any unprocessed temp_inclusions for the source
+- Converts them to proper compositions and inclusions
+- Handles the normal form data as usual
+- All in one seamless transaction
+
+No manual processing step required!
 
 */
 
