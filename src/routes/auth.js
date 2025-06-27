@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { generateToken, isAccountLocked, requireAuth, requireAdmin } from '../middleware/auth.js';
+import emailService from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -279,8 +280,14 @@ router.post('/forgot-password', async (req, res) => {
       [resetToken, resetTokenExpires, user.rows[0].id]
     );
 
-    // TODO: Send email with reset link
-    console.log(`Password reset requested for ${email}. Reset token: ${resetToken}`);
+    // Send password reset email
+    const emailSent = await emailService.sendPasswordResetEmail(email, resetToken);
+    
+    if (emailSent) {
+      console.log(`Password reset email sent to ${email}`);
+    } else {
+      console.error(`Failed to send password reset email to ${email}. Token: ${resetToken}`);
+    }
 
     res.json({ message: 'If an account with that email exists, a password reset link has been sent' });
 

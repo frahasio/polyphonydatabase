@@ -67,6 +67,10 @@ app.get('/admin/forgot-password', (req, res) => {
   res.sendFile('forgot-password.html', { root: 'public' });
 });
 
+app.get('/admin/reset-password', (req, res) => {
+  res.sendFile('reset-password.html', { root: 'public' });
+});
+
 // Admin dashboard and pages (authentication required)
 app.get('/admin', requireAuthWeb, (req, res) => {
   res.sendFile('admin-dashboard.html', { root: 'public' });
