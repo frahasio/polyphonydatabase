@@ -461,6 +461,7 @@ router.get('/groups', async (req, res) => {
             'attribution_texts', i.attribution_texts,
             'inclusion_notes', i.notes,
             'clefs', i.clefs,
+            'composition_titles', COALESCE(comp_titles.titles, '[]'::json),
             'publishers', COALESCE(pubs.publishers, '[]'::json),
             'scribes', COALESCE(scr.scribes, '[]'::json),
             'source_images', COALESCE(imgs.images, '[]'::json)
@@ -468,6 +469,14 @@ router.get('/groups', async (req, res) => {
           FROM compositions comp
           JOIN inclusions i ON comp.id = i.composition_id
           JOIN sources s ON i.source_id = s.id
+          LEFT JOIN (
+            SELECT i2.source_id, json_agg(DISTINCT t.text ORDER BY t.text) as titles
+            FROM inclusions i2
+            JOIN compositions c2 ON i2.composition_id = c2.id
+            JOIN titles t ON c2.title_id = t.id
+            WHERE c2.group_id = g.id
+            GROUP BY i2.source_id
+          ) comp_titles ON s.id = comp_titles.source_id
           LEFT JOIN (
             SELECT ps.source_id, json_agg(p.name ORDER BY p.name) as publishers
             FROM publishers_sources ps
@@ -632,78 +641,9 @@ router.get('/sources', async (req, res) => {
       ORDER BY s.code
     `;
     const result = await pool.query(query);
-    console.log(`Sources filter returned ${result.rows.length} sources`);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching sources:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Debug endpoint to investigate missing sources
-router.get('/sources-debug', async (req, res) => {
-  try {
-    // Get all catalogued sources
-    const allCatalogued = await pool.query(`
-      SELECT s.id, s.code
-      FROM sources s
-      WHERE s.code IS NOT NULL AND s.catalogued = true
-      ORDER BY s.code
-    `);
-    
-    // Get sources that make it through the full join chain
-    const withInclusions = await pool.query(`
-      SELECT DISTINCT s.id, s.code
-      FROM sources s
-      INNER JOIN inclusions i ON s.id = i.source_id
-      WHERE s.code IS NOT NULL AND s.catalogued = true
-      ORDER BY s.code
-    `);
-    
-    const withCompositions = await pool.query(`
-      SELECT DISTINCT s.id, s.code
-      FROM sources s
-      INNER JOIN inclusions i ON s.id = i.source_id
-      INNER JOIN compositions c ON i.composition_id = c.id
-      WHERE s.code IS NOT NULL AND s.catalogued = true
-      ORDER BY s.code
-    `);
-    
-    const withGroups = await pool.query(`
-      SELECT DISTINCT s.id, s.code
-      FROM sources s
-      INNER JOIN inclusions i ON s.id = i.source_id
-      INNER JOIN compositions c ON i.composition_id = c.id
-      INNER JOIN groups g ON c.group_id = g.id
-      WHERE s.code IS NOT NULL AND s.catalogued = true
-      ORDER BY s.code
-    `);
-    
-    // Find the missing ones at each step
-    const allIds = new Set(allCatalogued.rows.map(r => r.id));
-    const withInclusionsIds = new Set(withInclusions.rows.map(r => r.id));
-    const withCompositionsIds = new Set(withCompositions.rows.map(r => r.id));
-    const withGroupsIds = new Set(withGroups.rows.map(r => r.id));
-    
-    const missingInclusions = allCatalogued.rows.filter(r => !withInclusionsIds.has(r.id));
-    const missingCompositions = withInclusions.rows.filter(r => !withCompositionsIds.has(r.id));
-    const missingGroups = withCompositions.rows.filter(r => !withGroupsIds.has(r.id));
-    
-    res.json({
-      counts: {
-        allCatalogued: allCatalogued.rows.length,
-        withInclusions: withInclusions.rows.length,
-        withCompositions: withCompositions.rows.length,
-        withGroups: withGroups.rows.length
-      },
-      missing: {
-        noInclusions: missingInclusions.map(r => r.code),
-        noCompositions: missingCompositions.map(r => r.code),
-        noGroups: missingGroups.map(r => r.code)
-      }
-    });
-  } catch (error) {
-    console.error('Error in sources debug:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
