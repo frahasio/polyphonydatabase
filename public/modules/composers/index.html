@@ -158,33 +158,39 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="fromYear" class="form-label">From Year</label>
-                                <input type="number" class="form-control" id="fromYear" name="fromYear">
+                                <label class="form-label">From Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="fromYearAnnotation" name="fromYearAnnotation" placeholder="c." style="max-width: 60px;">
+                                    <input type="number" class="form-control" id="fromYear" name="fromYear" placeholder="Year">
+                                </div>
                             </div>
                             <div class="col-md-6">
-                                <label for="toYear" class="form-label">To Year</label>
-                                <input type="number" class="form-control" id="toYear" name="toYear">
+                                <label class="form-label">To Year</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="toYearAnnotation" name="toYearAnnotation" placeholder="c." style="max-width: 60px;">
+                                    <input type="number" class="form-control" id="toYear" name="toYear" placeholder="Year">
+                                </div>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="birthplace1" class="form-label">Birthplace 1</label>
-                            <input type="text" class="form-control" id="birthplace1" name="birthplace1">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="birthplace1" class="form-label">Birth town</label>
+                                <input type="text" class="form-control" id="birthplace1" name="birthplace1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="birthplace2" class="form-label">Birth country</label>
+                                <input type="text" class="form-control" id="birthplace2" name="birthplace2">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="birthplace2" class="form-label">Birthplace 2</label>
-                            <input type="text" class="form-control" id="birthplace2" name="birthplace2">
-                        </div>
-                        <div class="mb-3">
-                            <label for="deathplace1" class="form-label">Deathplace 1</label>
-                            <input type="text" class="form-control" id="deathplace1" name="deathplace1">
-                        </div>
-                        <div class="mb-3">
-                            <label for="deathplace2" class="form-label">Deathplace 2</label>
-                            <input type="text" class="form-control" id="deathplace2" name="deathplace2">
-                        </div>
-                        <div class="mb-3">
-                            <label for="imageUrl" class="form-label">Image URL</label>
-                            <input type="url" class="form-control" id="imageUrl" name="imageUrl">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="deathplace1" class="form-label">Death town</label>
+                                <input type="text" class="form-control" id="deathplace1" name="deathplace1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="deathplace2" class="form-label">Death country</label>
+                                <input type="text" class="form-control" id="deathplace2" name="deathplace2">
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -301,11 +307,12 @@
                 name: formData.get('name'),
                 from_year: formData.get('fromYear'),
                 to_year: formData.get('toYear'),
+                from_year_annotation: formData.get('fromYearAnnotation'),
+                to_year_annotation: formData.get('toYearAnnotation'),
                 birthplace_1: formData.get('birthplace1'),
                 birthplace_2: formData.get('birthplace2'),
                 deathplace_1: formData.get('deathplace1'),
-                deathplace_2: formData.get('deathplace2'),
-                image_url: formData.get('imageUrl')
+                deathplace_2: formData.get('deathplace2')
             };
 
             try {
@@ -398,11 +405,12 @@
                 form.name.value = composer.name;
                 form.fromYear.value = composer.from_year || '';
                 form.toYear.value = composer.to_year || '';
+                form.fromYearAnnotation.value = composer.from_year_annotation || '';
+                form.toYearAnnotation.value = composer.to_year_annotation || '';
                 form.birthplace1.value = composer.birthplace_1 || '';
                 form.birthplace2.value = composer.birthplace_2 || '';
                 form.deathplace1.value = composer.deathplace_1 || '';
                 form.deathplace2.value = composer.deathplace_2 || '';
-                form.imageUrl.value = composer.image_url || '';
 
                 // Show the modal
                 const modalInstance = new bootstrap.Modal(modal);

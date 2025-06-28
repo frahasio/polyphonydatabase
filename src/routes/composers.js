@@ -13,6 +13,8 @@ router.get('/', async (req, res) => {
         name,
         from_year,
         to_year,
+        from_year_annotation,
+        to_year_annotation,
         birthplace_1,
         birthplace_2,
         deathplace_1,
@@ -55,6 +57,8 @@ router.get('/:id', async (req, res) => {
         name,
         from_year,
         to_year,
+        from_year_annotation,
+        to_year_annotation,
         birthplace_1,
         birthplace_2,
         deathplace_1,
@@ -86,6 +90,8 @@ router.post('/', async (req, res) => {
       name, 
       from_year, 
       to_year, 
+      from_year_annotation,
+      to_year_annotation,
       birthplace_1, 
       birthplace_2, 
       deathplace_1, 
@@ -98,6 +104,8 @@ router.post('/', async (req, res) => {
         name, 
         from_year, 
         to_year, 
+        from_year_annotation,
+        to_year_annotation,
         birthplace_1, 
         birthplace_2, 
         deathplace_1, 
@@ -106,7 +114,7 @@ router.post('/', async (req, res) => {
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
@@ -114,6 +122,8 @@ router.post('/', async (req, res) => {
       name, 
       from_year || null, 
       to_year || null, 
+      from_year_annotation || null,
+      to_year_annotation || null,
       birthplace_1 || null, 
       birthplace_2 || null, 
       deathplace_1 || null, 
@@ -168,6 +178,8 @@ router.put('/:id', async (req, res) => {
       name, 
       from_year, 
       to_year, 
+      from_year_annotation,
+      to_year_annotation,
       birthplace_1, 
       birthplace_2, 
       deathplace_1, 
@@ -181,13 +193,15 @@ router.put('/:id', async (req, res) => {
         name = $1,
         from_year = $2,
         to_year = $3,
-        birthplace_1 = $4,
-        birthplace_2 = $5,
-        deathplace_1 = $6,
-        deathplace_2 = $7,
-        image_url = $8,
+        from_year_annotation = $4,
+        to_year_annotation = $5,
+        birthplace_1 = $6,
+        birthplace_2 = $7,
+        deathplace_1 = $8,
+        deathplace_2 = $9,
+        image_url = $10,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $9
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -195,6 +209,8 @@ router.put('/:id', async (req, res) => {
       name, 
       from_year || null, 
       to_year || null, 
+      from_year_annotation || null,
+      to_year_annotation || null,
       birthplace_1 || null, 
       birthplace_2 || null, 
       deathplace_1 || null, 
