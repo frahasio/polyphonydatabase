@@ -2,14 +2,20 @@
 -- This query extracts data from the old system and formats it as INSERT statements
 -- Copy the results and paste directly into pgAdmin
 
-WITH inclusion_data AS (
+WITH cte AS (
     SELECT * FROM openquery(POLYPHONYDATABASE,'
-        SELECT DISTINCT
+        SELECT
             i.source_id,
-            i.id as inclusion_id,
             i.order as position,
+            i.id as inclusion_id,
             t.text as composition_name,
             ct.name as composition_type,
+            comp.name as composer_name,
+            ci.clef,
+            ci.optional,
+            ci.incomplete,
+            ci.missing,
+            ci.transitions_to,
             c.tone,
             c.even_odd,
             c.composition_type_id,
@@ -19,102 +25,78 @@ WITH inclusion_data AS (
             inclusions i
             INNER JOIN compositions c ON c.id = i.composition_id
             INNER JOIN titles t ON t.id = c.title_id
-            LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
-        WHERE
-            i.source_id = 791
-    ')
-),
-clef_data AS (
-    SELECT * FROM openquery(POLYPHONYDATABASE,'
-        SELECT
-            i.id as inclusion_id,
-            ci.clef,
-            ci.optional,
-            ci.incomplete,
-            ci.missing,
-            ci.transitions_to,
-            ci.order as clef_order
-        FROM
-            inclusions i
             INNER JOIN clef_inclusions ci ON ci.inclusion_id = i.id
-        WHERE
-            i.source_id = 791
-        ORDER BY i.order, ci.order
-    ')
-),
-composer_data AS (
-    SELECT * FROM openquery(POLYPHONYDATABASE,'
-        SELECT
-            i.id as inclusion_id,
-            STRING_AGG(comp.name, '', '' ORDER BY comp.name) as composers
-        FROM
-            inclusions i
-            INNER JOIN compositions c ON c.id = i.composition_id
+            LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
             LEFT JOIN LATERAL (
                 SELECT unnest(c.composer_id_list) as composer_id
             ) comp_ids ON true
             LEFT JOIN composers comp ON comp.id = comp_ids.composer_id
         WHERE
             i.source_id = 791
-        GROUP BY i.id
+        ORDER BY i.order, ci.id
     ')
 ),
 grouped_data AS (
     SELECT
-        inc.source_id,
-        inc.position,
-        inc.composition_name,
-        inc.composition_type,
-        comp.composers,
-        -- Build proper JSON for clefs preserving duplicates and order
-        '[' + STRING_AGG(
-            '{"clef":"' + clef_data.clef + '"' +
-            CASE WHEN clef_data.optional = 1 THEN ',"optional":true' ELSE '' END +
-            CASE WHEN clef_data.incomplete = 1 THEN ',"incomplete":true' ELSE '' END +
-            CASE WHEN clef_data.missing = 1 THEN ',"missing":true' ELSE '' END +
-            CASE 
-                WHEN clef_data.transitions_to IS NOT NULL AND clef_data.transitions_to != '' AND clef_data.transitions_to != '{}' 
-                THEN ',"transitions_to":' + 
-                     CASE 
-                         -- Handle PostgreSQL array format {item1,item2,item3}
-                         WHEN clef_data.transitions_to LIKE '{%}' 
-                         THEN '["' + REPLACE(REPLACE(REPLACE(clef_data.transitions_to, '{', ''), '}', ''), ',', '","') + '"]'
-                         -- Handle comma-separated format
-                         WHEN clef_data.transitions_to LIKE '%,%'
-                         THEN '["' + REPLACE(clef_data.transitions_to, ',', '","') + '"]'
-                         -- Handle single item
-                         ELSE '["' + clef_data.transitions_to + '"]'
-                     END
-                ELSE '' 
-            END +
-            '}', ','
-            ORDER BY clef_data.clef_order
-        ) + ']' AS clefs,
-        inc.tone,
-        inc.even_odd,
-        inc.composition_type_id,
-        inc.number_of_voices,
+        source_id,
+        position,
+        composition_name,
+        composition_type,
+        STUFF((
+            SELECT DISTINCT ', ' + composer_name
+            FROM cte c2 
+            WHERE c2.inclusion_id = cte.inclusion_id 
+            AND composer_name IS NOT NULL
+            FOR XML PATH('')
+        ), 1, 2, '') as composers,
+        -- Build proper JSON for clefs preserving duplicates
+        '[' + STUFF((
+            SELECT ',' + '{"clef":"' + c2.clef + '"' +
+                CASE WHEN c2.optional = 1 THEN ',"optional":true' ELSE '' END +
+                CASE WHEN c2.incomplete = 1 THEN ',"incomplete":true' ELSE '' END +
+                CASE WHEN c2.missing = 1 THEN ',"missing":true' ELSE '' END +
+                CASE 
+                    WHEN c2.transitions_to IS NOT NULL AND c2.transitions_to != '' AND c2.transitions_to != '{}' 
+                    THEN ',"transitions_to":' + 
+                         CASE 
+                             -- Handle PostgreSQL array format {item1,item2,item3}
+                             WHEN c2.transitions_to LIKE '{%}' 
+                             THEN '["' + REPLACE(REPLACE(REPLACE(c2.transitions_to, '{', ''), '}', ''), ',', '","') + '"]'
+                             -- Handle comma-separated format
+                             WHEN c2.transitions_to LIKE '%,%'
+                             THEN '["' + REPLACE(c2.transitions_to, ',', '","') + '"]'
+                             -- Handle single item
+                             ELSE '["' + c2.transitions_to + '"]'
+                         END
+                    ELSE '' 
+                END +
+                '}'
+            FROM cte c2 
+            WHERE c2.inclusion_id = cte.inclusion_id
+            FOR XML PATH('')
+        ), 1, 1, '') + ']' AS clefs,
+        tone,
+        even_odd,
+        composition_type_id,
+        number_of_voices,
         -- Convert PostgreSQL array to JavaScript JSON array format
         CASE 
-            WHEN inc.composer_ids_json IS NOT NULL AND inc.composer_ids_json != '{}'
-            THEN '[' + REPLACE(REPLACE(REPLACE(CAST(inc.composer_ids_json AS VARCHAR), '{', ''), '}', ''), ',', ',') + ']'
+            WHEN composer_ids_json IS NOT NULL AND composer_ids_json != '{}'
+            THEN '[' + REPLACE(REPLACE(REPLACE(CAST(composer_ids_json AS VARCHAR), '{', ''), '}', ''), ',', ',') + ']'
             ELSE '[]'
         END AS composer_ids_json
-    FROM inclusion_data inc
-    LEFT JOIN clef_data ON clef_data.inclusion_id = inc.inclusion_id
-    LEFT JOIN composer_data comp ON comp.inclusion_id = inc.inclusion_id
+    FROM cte
     GROUP BY
-        inc.source_id,
-        inc.inclusion_id,
-        inc.position,
-        inc.composition_name,
-        inc.composition_type,
-        comp.composers,
-        inc.tone,
-        inc.even_odd,
-        inc.composition_type_id,
-        inc.number_of_voices,
-        inc.composer_ids_json
+        source_id,
+        position,
+        inclusion_id,
+        composition_name,
+        composition_type,
+        tone,
+        even_odd,
+        composition_type_id,
+        number_of_voices,
+        composer_ids_json
 )
 SELECT 
     'INSERT INTO temp_inclusions (source_id, position, composition_name, composition_type, composers, clefs, tone, even_odd, composition_type_id, number_of_voices, composer_ids_json) VALUES (' +
