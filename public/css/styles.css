@@ -304,6 +304,37 @@ body > .container-fluid > .text-muted {
     color: #ffffff;
 }
 
+/* Admin page headers - ensure all header elements and buttons are visible */
+.container-fluid > .d-flex h1,
+.container-fluid > .d-flex h2,
+.container-fluid > .d-flex h3,
+.container-fluid > .d-flex h4,
+.container-fluid > .d-flex h5,
+.container-fluid > .d-flex h6,
+.container-fluid > .d-flex p,
+.container-fluid > .d-flex .text-muted,
+.container-fluid h1:not(.card h1):not(.modal h1):not(.alert h1),
+.container-fluid h2:not(.card h2):not(.modal h2):not(.alert h2),
+.container-fluid h3:not(.card h3):not(.modal h3):not(.alert h3),
+.container-fluid h4:not(.card h4):not(.modal h4):not(.alert h4),
+.container-fluid h5:not(.card h5):not(.modal h5):not(.alert h5),
+.container-fluid h6:not(.card h6):not(.modal h6):not(.alert h6) {
+    color: #ffffff !important;
+}
+
+/* Admin page buttons and navigation elements on dark background */
+.container-fluid > .d-flex .btn-outline-secondary,
+.container-fluid > .d-flex .btn-outline-light {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+.container-fluid > .d-flex .btn-outline-secondary:hover,
+.container-fluid > .d-flex .btn-outline-light:hover {
+    background-color: #ffffff;
+    color: #495057;
+}
+
 /* Footer text */
 footer {
     color: #cccccc;

@@ -17,26 +17,31 @@ BEGIN
         RETURN NULL;
     END IF;
     
-    -- Extract NON-OPTIONAL clefs only, sort them, and concatenate
-    SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-        CASE clef_obj->>'clef'
-            WHEN 'g1' THEN 0 WHEN 'g2' THEN 1 WHEN 'g3' THEN 2 WHEN 'c1' THEN 3
-            WHEN 'g4' THEN 4 WHEN 'c2' THEN 5 WHEN 'g5' THEN 6 WHEN 'c3' THEN 7
-            WHEN 'f1' THEN 8 WHEN 'g28' THEN 9 WHEN 'c4' THEN 10 WHEN 'f2' THEN 11
-            WHEN 'c5' THEN 12 WHEN 'd1' THEN 13 WHEN 'f3' THEN 14 WHEN 'd2' THEN 15
-            WHEN 'f4' THEN 16 WHEN 'd3' THEN 17 WHEN 'y1' THEN 18 WHEN 'f5' THEN 19
-            WHEN 'd4' THEN 20 WHEN 'y2' THEN 21 WHEN 'd5' THEN 22 WHEN 'y3' THEN 23
-            WHEN 'y4' THEN 24 WHEN 'y5' THEN 25 WHEN 'x1' THEN 26 WHEN 'x2' THEN 27
-            WHEN 'x3' THEN 28 WHEN 'x4' THEN 29 WHEN 'x5' THEN 30 WHEN 'org' THEN 31
-            WHEN 'bc' THEN 32 WHEN 'lut' THEN 33
-            ELSE 999
-        END
+    -- Extract NON-OPTIONAL clefs only, sort them preserving duplicates, and concatenate
+    WITH clef_data AS (
+        SELECT 
+            clef_obj->>'clef' as clef,
+            ROW_NUMBER() OVER () as original_order,
+            CASE clef_obj->>'clef'
+                WHEN 'g1' THEN 0 WHEN 'g2' THEN 1 WHEN 'g3' THEN 2 WHEN 'c1' THEN 3
+                WHEN 'g4' THEN 4 WHEN 'c2' THEN 5 WHEN 'g5' THEN 6 WHEN 'c3' THEN 7
+                WHEN 'f1' THEN 8 WHEN 'g28' THEN 9 WHEN 'c4' THEN 10 WHEN 'f2' THEN 11
+                WHEN 'c5' THEN 12 WHEN 'd1' THEN 13 WHEN 'f3' THEN 14 WHEN 'd2' THEN 15
+                WHEN 'f4' THEN 16 WHEN 'd3' THEN 17 WHEN 'y1' THEN 18 WHEN 'f5' THEN 19
+                WHEN 'd4' THEN 20 WHEN 'y2' THEN 21 WHEN 'd5' THEN 22 WHEN 'y3' THEN 23
+                WHEN 'y4' THEN 24 WHEN 'y5' THEN 25 WHEN 'x1' THEN 26 WHEN 'x2' THEN 27
+                WHEN 'x3' THEN 28 WHEN 'x4' THEN 29 WHEN 'x5' THEN 30 WHEN 'org' THEN 31
+                WHEN 'bc' THEN 32 WHEN 'lut' THEN 33
+                ELSE 999
+            END as sort_order
+        FROM jsonb_array_elements(clefs_jsonb) AS clef_obj
+        WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+        AND clef_obj->>'clef' IS NOT NULL
+        AND clef_obj->>'clef' != ''
     )
+    SELECT string_agg(clef, '' ORDER BY sort_order, original_order)
     INTO result
-    FROM jsonb_array_elements(clefs_jsonb) AS clef_obj
-    WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
-    AND clef_obj->>'clef' IS NOT NULL
-    AND clef_obj->>'clef' != '';
+    FROM clef_data;
     
     RETURN result;
 END;
@@ -52,25 +57,30 @@ BEGIN
         RETURN NULL;
     END IF;
     
-    -- Extract ALL clefs (required AND optional), sort them, and concatenate
-    SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-        CASE clef_obj->>'clef'
-            WHEN 'g1' THEN 0 WHEN 'g2' THEN 1 WHEN 'g3' THEN 2 WHEN 'c1' THEN 3
-            WHEN 'g4' THEN 4 WHEN 'c2' THEN 5 WHEN 'g5' THEN 6 WHEN 'c3' THEN 7
-            WHEN 'f1' THEN 8 WHEN 'g28' THEN 9 WHEN 'c4' THEN 10 WHEN 'f2' THEN 11
-            WHEN 'c5' THEN 12 WHEN 'd1' THEN 13 WHEN 'f3' THEN 14 WHEN 'd2' THEN 15
-            WHEN 'f4' THEN 16 WHEN 'd3' THEN 17 WHEN 'y1' THEN 18 WHEN 'f5' THEN 19
-            WHEN 'd4' THEN 20 WHEN 'y2' THEN 21 WHEN 'd5' THEN 22 WHEN 'y3' THEN 23
-            WHEN 'y4' THEN 24 WHEN 'y5' THEN 25 WHEN 'x1' THEN 26 WHEN 'x2' THEN 27
-            WHEN 'x3' THEN 28 WHEN 'x4' THEN 29 WHEN 'x5' THEN 30 WHEN 'org' THEN 31
-            WHEN 'bc' THEN 32 WHEN 'lut' THEN 33
-            ELSE 999
-        END
+    -- Extract ALL clefs (required AND optional), sort them preserving duplicates, and concatenate
+    WITH clef_data AS (
+        SELECT 
+            clef_obj->>'clef' as clef,
+            ROW_NUMBER() OVER () as original_order,
+            CASE clef_obj->>'clef'
+                WHEN 'g1' THEN 0 WHEN 'g2' THEN 1 WHEN 'g3' THEN 2 WHEN 'c1' THEN 3
+                WHEN 'g4' THEN 4 WHEN 'c2' THEN 5 WHEN 'g5' THEN 6 WHEN 'c3' THEN 7
+                WHEN 'f1' THEN 8 WHEN 'g28' THEN 9 WHEN 'c4' THEN 10 WHEN 'f2' THEN 11
+                WHEN 'c5' THEN 12 WHEN 'd1' THEN 13 WHEN 'f3' THEN 14 WHEN 'd2' THEN 15
+                WHEN 'f4' THEN 16 WHEN 'd3' THEN 17 WHEN 'y1' THEN 18 WHEN 'f5' THEN 19
+                WHEN 'd4' THEN 20 WHEN 'y2' THEN 21 WHEN 'd5' THEN 22 WHEN 'y3' THEN 23
+                WHEN 'y4' THEN 24 WHEN 'y5' THEN 25 WHEN 'x1' THEN 26 WHEN 'x2' THEN 27
+                WHEN 'x3' THEN 28 WHEN 'x4' THEN 29 WHEN 'x5' THEN 30 WHEN 'org' THEN 31
+                WHEN 'bc' THEN 32 WHEN 'lut' THEN 33
+                ELSE 999
+            END as sort_order
+        FROM jsonb_array_elements(clefs_jsonb) AS clef_obj
+        WHERE clef_obj->>'clef' IS NOT NULL
+        AND clef_obj->>'clef' != ''
     )
+    SELECT string_agg(clef, '' ORDER BY sort_order, original_order)
     INTO result
-    FROM jsonb_array_elements(clefs_jsonb) AS clef_obj
-    WHERE clef_obj->>'clef' IS NOT NULL
-    AND clef_obj->>'clef' != '';
+    FROM clef_data;
     
     RETURN result;
 END;
