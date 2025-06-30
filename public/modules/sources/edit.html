@@ -26,31 +26,59 @@
         }
         
         .inclusion-row {
-            background-color: #f8f9fa;
-            padding: 8px;
-            margin-bottom: 8px;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
+            background-color: #ffffff;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 2px solid #28a745;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
         }
         
         .blank-row {
-            background-color: #fafbfc;
-            border: 1px dashed #c6d0db;
-            opacity: 0.7;
+            background-color: #f8f9fc;
+            border: 2px dashed #adb5bd;
+            opacity: 0.5;
+            position: relative;
         }
         
         .blank-row:hover {
             background-color: #f1f3f4;
-            opacity: 0.9;
+            opacity: 0.8;
+            border-color: #6c757d;
+        }
+        
+        .blank-row::before {
+            content: "Empty - Click to fill";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #6c757d;
+            font-style: italic;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.7;
         }
         
         .blank-row input, .blank-row select, .blank-row textarea {
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.6);
+            border-color: #adb5bd;
+            position: relative;
+            z-index: 1;
         }
         
         .blank-row input:focus, .blank-row select:focus, .blank-row textarea:focus {
             background-color: #ffffff;
             opacity: 1;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        
+        .blank-row input:not(:placeholder-shown), 
+        .blank-row select:not([value=""]), 
+        .blank-row textarea:not(:placeholder-shown) {
+            background-color: #ffffff;
         }
         
         .form-label.small {
@@ -226,6 +254,25 @@
         
         .pagination-in-header .page-link {
             padding: 0.25rem 0.5rem;
+        }
+        
+        /* Source images styling */
+        .source-image-row {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 4px;
+        }
+        
+        .auto-add-image-row {
+            border: 2px dashed #007bff;
+            border-radius: 4px;
+            padding: 4px;
+            background-color: #f0f8ff;
+        }
+        
+        .auto-add-image-row input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
     </style>
 </head>
@@ -406,9 +453,9 @@
                 </div>
             </div>
 
-            <!-- Add Inclusion Button -->
-            <div class="d-flex justify-content-center mb-4">
-                <button type="button" class="btn btn-primary" id="addInclusionBtn" onclick="addNewInclusion()">
+            <!-- Add Inclusion Button - only visible on last page or for new sources -->
+            <div class="d-flex justify-content-center mb-4" id="addInclusionSection">
+                <button type="button" class="btn btn-primary" id="addInclusionBtn" onclick="showAddInclusionModal()">
                     <i class="bi bi-plus-lg"></i> Add New Inclusion
                 </button>
             </div>
@@ -474,6 +521,55 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-primary" id="copyInclusionsBtn" disabled onclick="copyInclusionsFromSource()">
                             <i class="bi bi-files"></i> Copy Inclusions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Inclusion Modal -->
+        <div class="modal fade" id="addInclusionModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Inclusion</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Choose where to add the new inclusion:</p>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="insertPosition" id="insertAtEnd" value="end" checked>
+                            <label class="form-check-label" for="insertAtEnd">
+                                <strong>At the end</strong> (recommended)
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="insertPosition" id="insertAtBeginning" value="beginning">
+                            <label class="form-check-label" for="insertAtBeginning">
+                                <strong>At the beginning</strong>
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="insertPosition" id="insertBetween" value="between">
+                            <label class="form-check-label" for="insertBetween">
+                                <strong>Between existing inclusions</strong>
+                            </label>
+                        </div>
+                        
+                        <div id="betweenOptions" class="ms-4" style="display: none;">
+                            <label for="insertAfter" class="form-label">Insert after:</label>
+                            <select class="form-control" id="insertAfter">
+                                <!-- Options will be populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="addInclusionAtPosition()">
+                            <i class="bi bi-plus-lg"></i> Add Inclusion
                         </button>
                     </div>
                 </div>
@@ -641,11 +737,11 @@
             if (sourceData.source_images && sourceData.source_images.length > 0) {
                 sourceData.source_images.forEach((image, index) => {
                     html += `
-                        <div class="input-group input-group-sm mb-2">
+                        <div class="input-group input-group-sm mb-2 source-image-row">
                             <input type="text" class="form-control" value="${image.url}" 
                                    onchange="updateSourceImage(${index}, 'url', this.value)" placeholder="Image URL">
                             <input type="text" class="form-control" value="${image.label || ''}" 
-                                   onchange="updateSourceImage(${index}, 'label', this.value)" placeholder="Image label">
+                                   onchange="updateSourceImage(${index}, 'label', this.value)" placeholder="Image label (optional)">
                             <a href="${image.url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View image">
                                 <i class="bi bi-eye"></i>
                             </a>
@@ -658,15 +754,17 @@
                 });
             }
             
-            // Add new image input
+            // Always show empty row for new images - auto-adds when URL is entered
             html += `
-                <div class="input-group input-group-sm">
-                    <input type="text" class="form-control" id="newImageUrl" placeholder="New image URL">
-                    <input type="text" class="form-control" id="newImageLabel" placeholder="New image label">
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSourceImage()">
-                        <i class="bi bi-plus"></i> Add
-                    </button>
+                <div class="input-group input-group-sm auto-add-image-row">
+                    <input type="text" class="form-control" id="newImageUrl" placeholder="Paste image URL here - will auto-add when you type"
+                           oninput="autoAddSourceImage()" onpaste="setTimeout(autoAddSourceImage, 10)">
+                    <input type="text" class="form-control" id="newImageLabel" placeholder="Optional label">
+                    <div class="input-group-text">
+                        <i class="bi bi-magic text-muted" title="Auto-adds when you enter a URL"></i>
+                    </div>
                 </div>
+                <small class="text-muted">💡 Just paste the image URL - it will automatically be added to the list above</small>
             `;
             
             container.innerHTML = html;
@@ -676,37 +774,60 @@
             if (!sourceData.source_images) sourceData.source_images = [];
             if (!sourceData.source_images[index]) sourceData.source_images[index] = {};
             sourceData.source_images[index][field] = value;
+            markAsUnsaved();
         }
 
         function removeSourceImage(index) {
             if (confirm('Remove this image?')) {
                 sourceData.source_images.splice(index, 1);
                 displaySourceImages();
+                markAsUnsaved();
             }
         }
 
-        function addSourceImage() {
-            const url = document.getElementById('newImageUrl').value.trim();
-            const label = document.getElementById('newImageLabel').value.trim();
+        function autoAddSourceImage() {
+            const urlInput = document.getElementById('newImageUrl');
+            const labelInput = document.getElementById('newImageLabel');
             
-            if (!url) {
-                alert('Please enter an image URL');
-                return;
+            if (!urlInput) return;
+            
+            const url = urlInput.value.trim();
+            const label = labelInput ? labelInput.value.trim() : '';
+            
+            // Auto-add when URL looks valid and has some content
+            if (url && (url.startsWith('http://') || url.startsWith('https://') || url.includes('.'))) {
+                if (!sourceData.source_images) sourceData.source_images = [];
+                
+                // Check if this URL already exists to avoid duplicates
+                const existingUrl = sourceData.source_images.find(img => img.url === url);
+                if (!existingUrl) {
+                    sourceData.source_images.push({ url, label });
+                    displaySourceImages();
+                    markAsUnsaved();
+                }
             }
-            
-            if (!sourceData.source_images) sourceData.source_images = [];
-            sourceData.source_images.push({ url, label });
-            displaySourceImages();
+        }
+        
+        // Legacy function for backward compatibility (shouldn't be needed with auto-add)
+        function addSourceImage() {
+            autoAddSourceImage();
         }
 
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            // For new sources (no inclusions), show 10 blank rows
-            // For existing sources, show existing inclusions + 1 blank row
+            // Only show blank rows on the last page or for new sources
             const existingRows = inclusionsData.length;
             const isNewSource = existingRows === 0;
-            const blankRowsNeeded = isNewSource ? 10 : 1;
+            const isLastPage = !inclusionsPagination || currentInclusionsPage === inclusionsPagination.totalPages;
+            
+            let blankRowsNeeded = 0;
+            if (isNewSource) {
+                blankRowsNeeded = 10; // New sources get 10 blank rows
+            } else if (isLastPage) {
+                blankRowsNeeded = 1; // Last page gets 1 blank row
+            }
+            // Other pages get 0 blank rows
 
             // ADD LOGGING: Log processing of inclusions data
             console.log('=== DISPLAY INCLUSIONS ===');
@@ -755,39 +876,126 @@
                     updateAllDropdownStyling();
                 }, 500);
             }
+            
+            // Update add inclusion button visibility
+            updateAddInclusionButtonVisibility();
         }
 
-        function addNewInclusion() {
-            // Calculate the correct order based on current page position
-            const baseOrder = (currentInclusionsPage - 1) * inclusionsPageSize;
-            const newOrder = baseOrder + inclusionsData.length + 1;
-            const newInclusion = createBlankInclusion(newOrder);
-            inclusionsData.push(newInclusion);
+        function updateAddInclusionButtonVisibility() {
+            const section = document.getElementById('addInclusionSection');
+            if (!section) return;
             
-            // Show a warning if we're adding beyond the normal page size
-            if (inclusionsData.length > inclusionsPageSize) {
-                const extraRows = inclusionsData.length - inclusionsPageSize;
-                const warning = document.createElement('div');
-                warning.className = 'alert alert-warning alert-dismissible fade show mt-2';
-                warning.innerHTML = `
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Page capacity exceeded!</strong> 
-                    You've added ${extraRows} extra inclusion(s) to this page. 
-                    When you save and reload, these will be moved to the appropriate page(s) based on their order.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                
-                // Insert warning after the inclusions container
-                const container = document.getElementById('inclusionsContainer');
-                container.parentNode.insertBefore(warning, container.nextSibling);
-                
-                // Auto-dismiss after 10 seconds
-                setTimeout(() => {
-                    if (warning.parentNode) {
-                        warning.remove();
-                    }
-                }, 10000);
+            const existingRows = inclusionsData.length;
+            const isNewSource = existingRows === 0;
+            const isLastPage = !inclusionsPagination || currentInclusionsPage === inclusionsPagination.totalPages;
+            
+            // Show button only on last page or for new sources
+            if (isNewSource || isLastPage) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
             }
+        }
+
+        function showAddInclusionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('addInclusionModal'));
+            
+            // Reset modal state
+            document.getElementById('insertAtEnd').checked = true;
+            document.getElementById('betweenOptions').style.display = 'none';
+            
+            // Populate the "insert after" dropdown with existing inclusions
+            populateInsertAfterOptions();
+            
+            // Setup radio button listeners
+            document.querySelectorAll('input[name="insertPosition"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'between') {
+                        document.getElementById('betweenOptions').style.display = 'block';
+                    } else {
+                        document.getElementById('betweenOptions').style.display = 'none';
+                    }
+                });
+            });
+            
+            modal.show();
+        }
+
+        function populateInsertAfterOptions() {
+            const select = document.getElementById('insertAfter');
+            select.innerHTML = '';
+            
+            // Get all inclusions from all pages for "between" option
+            // For now, just use current page inclusions - we could extend this later
+            inclusionsData.forEach((inclusion, index) => {
+                let displayText = `#${inclusion.order || index + 1}`;
+                if (inclusion.composition?.title_text) {
+                    displayText += `: ${inclusion.composition.title_text}`;
+                } else if (inclusion.attribution_texts && inclusion.attribution_texts[0]) {
+                    displayText += `: ${inclusion.attribution_texts[0]}`;
+                } else {
+                    displayText += ': (untitled)';
+                }
+                
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = displayText;
+                select.appendChild(option);
+            });
+        }
+
+        function addInclusionAtPosition() {
+            const position = document.querySelector('input[name="insertPosition"]:checked').value;
+            let newInclusion;
+            
+            switch (position) {
+                case 'end':
+                    // Add at the end - same as old behavior
+                    const baseOrder = (currentInclusionsPage - 1) * inclusionsPageSize;
+                    const newOrder = baseOrder + inclusionsData.length + 1;
+                    newInclusion = createBlankInclusion(newOrder);
+                    inclusionsData.push(newInclusion);
+                    break;
+                    
+                case 'beginning':
+                    // Add at the beginning - shift all other orders up
+                    const firstOrder = inclusionsData.length > 0 ? 
+                        Math.min(...inclusionsData.map(inc => inc.order || 1)) : 1;
+                    newInclusion = createBlankInclusion(firstOrder);
+                    
+                    // Increment all existing orders
+                    inclusionsData.forEach(inclusion => {
+                        inclusion.order = (inclusion.order || 1) + 1;
+                    });
+                    
+                    inclusionsData.unshift(newInclusion);
+                    break;
+                    
+                case 'between':
+                    const afterIndex = parseInt(document.getElementById('insertAfter').value);
+                    const afterInclusion = inclusionsData[afterIndex];
+                    const nextInclusion = inclusionsData[afterIndex + 1];
+                    
+                    // Calculate new order between the two inclusions
+                    const afterOrder = afterInclusion ? (afterInclusion.order || afterIndex + 1) : 0;
+                    const nextOrder = nextInclusion ? (nextInclusion.order || afterIndex + 2) : afterOrder + 2;
+                    const newOrderBetween = afterOrder + 1;
+                    
+                    // Shift orders of inclusions that come after
+                    inclusionsData.forEach(inclusion => {
+                        if ((inclusion.order || 0) >= newOrderBetween) {
+                            inclusion.order = (inclusion.order || 0) + 1;
+                        }
+                    });
+                    
+                    newInclusion = createBlankInclusion(newOrderBetween);
+                    inclusionsData.splice(afterIndex + 1, 0, newInclusion);
+                    break;
+            }
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addInclusionModal'));
+            modal.hide();
             
             displayInclusions();
             markAsUnsaved();
@@ -1401,13 +1609,16 @@
             
             // Add a prominent indicator for multiple pages
             const totalInclusions = inclusionsPagination.totalItems || 0;
-            const startInclusion = (currentInclusionsPage - 1) * inclusionsPageSize + 1;
-            const endInclusion = Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions);
+            const startInclusion = totalInclusions > 0 ? (currentInclusionsPage - 1) * inclusionsPageSize + 1 : 0;
+            const endInclusion = totalInclusions > 0 ? Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions) : 0;
             
             let html = `
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <small class="text-muted">Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>
+                        ${totalInclusions > 0 ? 
+                            `<small class="text-muted">Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>` : 
+                            `<small class="text-muted">No inclusions yet</small>`
+                        }
                     </div>
                     <nav>
             `;
