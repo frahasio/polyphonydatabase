@@ -51,6 +51,9 @@ router.get('/groups', async (req, res) => {
     let queryParams = [];
         let paramIndex = 1;
 
+    // Always exclude groups with no compositions
+    whereConditions.push('EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)');
+
     // Title search - search both group display_title AND composition titles
     if (title.trim()) {
       whereConditions.push(`(
