@@ -87,6 +87,63 @@
             border: 1px solid #e9ecef;
         }
 
+        /* Ensure good text contrast throughout the interface */
+        .col-lg-5, .col-lg-5 * {
+            color: #333 !important;
+        }
+
+        .col-lg-5 .text-muted {
+            color: #6c757d !important;
+        }
+
+        .col-lg-5 h1, .col-lg-5 h2, .col-lg-5 h3, .col-lg-5 h4, .col-lg-5 h5, .col-lg-5 h6 {
+            color: #333 !important;
+        }
+
+        .col-lg-5 p, .col-lg-5 div, .col-lg-5 span {
+            color: #333 !important;
+        }
+
+        .col-lg-5 small.text-muted {
+            color: #6c757d !important;
+        }
+
+        /* Ensure form labels and inputs are readable */
+        .col-lg-5 label {
+            color: #333 !important;
+        }
+
+        .col-lg-5 .form-control {
+            color: #333;
+        }
+
+        /* Button text should remain as designed */
+        .col-lg-5 .btn {
+            color: initial !important;
+        }
+
+        /* Alert text should be readable */
+        .col-lg-5 .alert {
+            color: #333 !important;
+        }
+
+        .col-lg-5 .alert .text-muted {
+            color: #6c757d !important;
+        }
+
+        /* Specific fixes for merge panel content */
+        #mergePrompt, #mergePrompt * {
+            color: #333 !important;
+        }
+
+        #mergeControls, #mergeControls * {
+            color: #333 !important;
+        }
+
+        #mergePrompt .text-muted {
+            color: #6c757d !important;
+        }
+
         .merge-panel {
             background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
             border: 2px dashed #007bff;
@@ -94,11 +151,13 @@
             padding: 2rem;
             text-align: center;
             margin: 2rem 0;
+            color: #333;
         }
 
         .merge-panel.active {
             background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
             border-color: #28a745;
+            color: #333;
         }
 
         .search-results {
@@ -119,6 +178,7 @@
             border-radius: 8px;
             padding: 1rem;
             margin: 1rem 0;
+            color: #333;
         }
 
         .compatibility-check {
@@ -578,7 +638,7 @@
                             </div>
                             ${formatCompositionsList(group.compositions_detail, group.id)}
                         </div>
-                        <div class="text-end">
+                        <div class="text-end ms-3">
                             <div class="btn-group-vertical">
                                 <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'merge')" title="Select for merge">
                                     <i class="bi bi-collection"></i>
