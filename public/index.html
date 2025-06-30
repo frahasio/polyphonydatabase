@@ -1251,6 +1251,9 @@
                                                     ${source.scribes && source.scribes.length > 0 ? `
                                                         <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
                                                     ` : ''}
+                                                    ${source.type || source.format ? `
+                                                        <br><small><strong>Type:</strong> ${[source.type, source.format].filter(Boolean).join(', ')}</small>
+                                                    ` : ''}
                                                     ${source.source_images && source.source_images.length > 0 ? `
                                                         <br><small><strong>Images:</strong> 
                                                         ${source.source_images.map(img => `
