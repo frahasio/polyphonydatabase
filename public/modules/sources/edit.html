@@ -26,12 +26,12 @@
         }
         
         .inclusion-row {
-            background-color: #ffffff;
+            background-color: #f8fffe;
             padding: 12px;
             margin-bottom: 12px;
-            border: 2px solid #28a745;
+            border: 1px solid #e1f5f0;
             border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         
         .blank-row {
@@ -45,20 +45,6 @@
             background-color: #f1f3f4;
             opacity: 0.8;
             border-color: #6c757d;
-        }
-        
-        .blank-row::before {
-            content: "Empty - Click to fill";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #6c757d;
-            font-style: italic;
-            font-size: 0.9rem;
-            pointer-events: none;
-            z-index: 0;
-            opacity: 0.7;
         }
         
         .blank-row input, .blank-row select, .blank-row textarea {
@@ -536,26 +522,26 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="text-muted mb-3">Choose where to add the new inclusion:</p>
+                        <p class="text-muted mb-3">Choose where to add the new inclusion on this page:</p>
                         
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="radio" name="insertPosition" id="insertAtEnd" value="end" checked>
                             <label class="form-check-label" for="insertAtEnd">
-                                <strong>At the end</strong> (recommended)
+                                <strong>At the end of this page</strong> (recommended)
                             </label>
                         </div>
                         
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="radio" name="insertPosition" id="insertAtBeginning" value="beginning">
                             <label class="form-check-label" for="insertAtBeginning">
-                                <strong>At the beginning</strong>
+                                <strong>At the beginning of this page</strong>
                             </label>
                         </div>
                         
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="radio" name="insertPosition" id="insertBetween" value="between">
                             <label class="form-check-label" for="insertBetween">
-                                <strong>Between existing inclusions</strong>
+                                <strong>Between inclusions on this page</strong>
                             </label>
                         </div>
                         
@@ -764,7 +750,6 @@
                         <i class="bi bi-magic text-muted" title="Auto-adds when you enter a URL"></i>
                     </div>
                 </div>
-                <small class="text-muted">💡 Just paste the image URL - it will automatically be added to the list above</small>
             `;
             
             container.innerHTML = html;
@@ -885,16 +870,8 @@
             const section = document.getElementById('addInclusionSection');
             if (!section) return;
             
-            const existingRows = inclusionsData.length;
-            const isNewSource = existingRows === 0;
-            const isLastPage = !inclusionsPagination || currentInclusionsPage === inclusionsPagination.totalPages;
-            
-            // Show button only on last page or for new sources
-            if (isNewSource || isLastPage) {
-                section.style.display = 'block';
-            } else {
-                section.style.display = 'none';
-            }
+            // Always show the add inclusion button - the modal will handle positioning logic
+            section.style.display = 'block';
         }
 
         function showAddInclusionModal() {
@@ -1590,6 +1567,7 @@
             // ADD LOGGING: Debug pagination data
             console.log('=== PAGINATION DEBUG ===');
             console.log('inclusionsPagination:', inclusionsPagination);
+            console.log('inclusionsData.length:', inclusionsData.length);
             console.log('currentInclusionsPage:', currentInclusionsPage);
             console.log('Container exists:', !!container);
             
@@ -1608,15 +1586,16 @@
             console.log('Building pagination controls...');
             
             // Add a prominent indicator for multiple pages
-            const totalInclusions = inclusionsPagination.totalItems || 0;
-            const startInclusion = totalInclusions > 0 ? (currentInclusionsPage - 1) * inclusionsPageSize + 1 : 0;
-            const endInclusion = totalInclusions > 0 ? Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions) : 0;
+            const totalInclusions = inclusionsPagination.total || inclusionsPagination.totalItems || inclusionsPagination.totalCount || 0;
+            const hasInclusions = totalInclusions > 0 || inclusionsData.length > 0;
+            const startInclusion = hasInclusions ? (currentInclusionsPage - 1) * inclusionsPageSize + 1 : 0;
+            const endInclusion = hasInclusions ? Math.min(currentInclusionsPage * inclusionsPageSize, totalInclusions || inclusionsData.length) : 0;
             
             let html = `
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        ${totalInclusions > 0 ? 
-                            `<small class="text-muted">Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions} total</small>` : 
+                        ${hasInclusions ? 
+                            `<small class="text-muted">Showing inclusions ${startInclusion}-${endInclusion} of ${totalInclusions || inclusionsData.length} total</small>` : 
                             `<small class="text-muted">No inclusions yet</small>`
                         }
                     </div>
@@ -1712,11 +1691,11 @@
             if (!addBtn) return;
             
             if (inclusionsPagination && inclusionsPagination.totalPages > 1) {
-                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion to Page ${currentInclusionsPage} <small class="text-muted">(${inclusionsPagination.totalPages} pages total)</small>`;
-                addBtn.title = `This will add a new inclusion to the current page (${currentInclusionsPage} of ${inclusionsPagination.totalPages}). When saved, it will appear on the appropriate page based on its order.`;
+                addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add Inclusion to Page ${currentInclusionsPage}`;
+                addBtn.title = `Add a new inclusion to this page (${currentInclusionsPage} of ${inclusionsPagination.totalPages})`;
             } else {
                 addBtn.innerHTML = `<i class="bi bi-plus-lg"></i> Add New Inclusion`;
-                addBtn.title = '';
+                addBtn.title = 'Add a new inclusion';
             }
         }
 
