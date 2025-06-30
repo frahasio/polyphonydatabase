@@ -486,7 +486,7 @@ router.get('/', async (req, res) => {
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Main query with composition and source details
+        // Main query
         const groupsQuery = `
             SELECT DISTINCT
                 g.id,
@@ -507,42 +507,7 @@ router.get('/', async (req, res) => {
                     FROM compositions c2
                     WHERE c2.group_id = g.id
                   )
-                ) as composers,
-                -- Detailed compositions with sources
-                (
-                  SELECT json_agg(
-                    json_build_object(
-                      'id', comp_detail.id,
-                      'title', comp_detail.title,
-                      'composers', comp_detail.composers,
-                      'sources', comp_detail.sources
-                    ) ORDER BY comp_detail.title
-                  )
-                  FROM (
-                    SELECT DISTINCT
-                      c3.id,
-                      COALESCE(t3.text, 'Untitled') as title,
-                      (
-                        SELECT string_agg(comp3.name, ', ' ORDER BY comp3.name)
-                        FROM composers comp3
-                        WHERE comp3.id = ANY(c3.composer_id_list)
-                      ) as composers,
-                      (
-                        SELECT json_agg(
-                          json_build_object(
-                            'code', s.code,
-                            'position', i.position
-                          ) ORDER BY s.code, i.position
-                        )
-                        FROM inclusions i
-                        JOIN sources s ON i.source_id = s.id
-                        WHERE i.composition_id = c3.id
-                      ) as sources
-                    FROM compositions c3
-                    LEFT JOIN titles t3 ON c3.title_id = t3.id
-                    WHERE c3.group_id = g.id
-                  ) comp_detail
-                ) as compositions_detail
+                ) as composers
             FROM groups g
             JOIN compositions c ON c.group_id = g.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
@@ -552,6 +517,45 @@ router.get('/', async (req, res) => {
             GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name
             ORDER BY g.updated_at DESC
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+        `;
+
+        // Composition details query
+        const compositionsQuery = `
+            SELECT 
+                c.group_id,
+                json_agg(
+                  json_build_object(
+                    'id', c.id,
+                    'title', COALESCE(t.text, 'Untitled'),
+                    'composers', comp_names.composers,
+                    'sources', COALESCE(source_data.sources, '[]'::json)
+                  ) ORDER BY COALESCE(t.text, 'Untitled')
+                ) as compositions_detail
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            LEFT JOIN (
+                SELECT 
+                    c2.id as composition_id,
+                    string_agg(comp.name, ', ' ORDER BY comp.name) as composers
+                FROM compositions c2
+                LEFT JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
+                GROUP BY c2.id
+            ) comp_names ON comp_names.composition_id = c.id
+            LEFT JOIN (
+                SELECT 
+                    i.composition_id,
+                    json_agg(
+                      json_build_object(
+                        'code', s.code,
+                        'position', i.position
+                      ) ORDER BY s.code, i.position
+                    ) as sources
+                FROM inclusions i
+                JOIN sources s ON i.source_id = s.id
+                GROUP BY i.composition_id
+            ) source_data ON source_data.composition_id = c.id
+            WHERE c.group_id = ANY($${paramCount + 3})
+            GROUP BY c.group_id
         `;
 
         params.push(limit, offset);
@@ -569,7 +573,7 @@ router.get('/', async (req, res) => {
 
         const countParams = params.slice(0, paramCount);
 
-        // Execute queries
+        // Execute main queries
         const [groupsResult, countResult] = await Promise.all([
             pool.query(groupsQuery, params),
             pool.query(countQuery, countParams)
@@ -577,6 +581,25 @@ router.get('/', async (req, res) => {
 
         const groups = groupsResult.rows;
         const total = parseInt(countResult.rows[0].total);
+
+        // Get composition details for the returned groups
+        if (groups.length > 0) {
+            const groupIds = groups.map(g => g.id);
+            const compositionsParams = [...params, groupIds];
+            
+            const compositionsResult = await pool.query(compositionsQuery, compositionsParams);
+            
+            // Create a map of group_id to compositions_detail
+            const compositionsMap = {};
+            compositionsResult.rows.forEach(row => {
+                compositionsMap[row.group_id] = row.compositions_detail;
+            });
+            
+            // Add composition details to each group
+            groups.forEach(group => {
+                group.compositions_detail = compositionsMap[group.id] || [];
+            });
+        }
 
         res.json({
             groups,
