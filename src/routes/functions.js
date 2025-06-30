@@ -426,6 +426,39 @@ router.put('/titles/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating title:', error);
+    
+    // Check if this is a unique constraint violation (duplicate title text)
+    if (error.code === '23505' && error.constraint === 'index_titles_on_text') {
+      // Find the existing title that conflicts
+      try {
+        const conflictQuery = `
+          SELECT id, text, language, 
+                 COUNT(DISTINCT c.id) as composition_count,
+                 ARRAY_AGG(DISTINCT f.name) FILTER (WHERE f.name IS NOT NULL) as function_names
+          FROM titles t
+          LEFT JOIN compositions c ON t.id = c.title_id
+          LEFT JOIN functions_titles ft ON t.id = ft.title_id
+          LEFT JOIN functions f ON ft.function_id = f.id
+          WHERE t.text = $1 AND t.id != $2
+          GROUP BY t.id, t.text, t.language
+        `;
+        
+        const conflictResult = await pool.query(conflictQuery, [req.body.text, req.params.id]);
+        
+        if (conflictResult.rows.length > 0) {
+          const existingTitle = conflictResult.rows[0];
+          return res.status(409).json({
+            error: 'DUPLICATE_TITLE',
+            message: `A title with the text "${req.body.text}" already exists.`,
+            existingTitle: existingTitle,
+            suggestMerge: true
+          });
+        }
+      } catch (lookupError) {
+        console.error('Error looking up conflicting title:', lookupError);
+      }
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -593,6 +626,62 @@ router.delete('/titles/:titleId/functions/:functionId', async (req, res) => {
   } catch (error) {
     console.error('Error unassigning title from function:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk replace all function associations for a title
+router.put('/titles/:titleId/functions', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { titleId } = req.params;
+    const { functionIds } = req.body; // Array of function IDs
+
+    if (!Array.isArray(functionIds)) {
+      return res.status(400).json({ error: 'functionIds must be an array' });
+    }
+
+    await client.query('BEGIN');
+
+    // Step 1: Delete all existing function associations for this title
+    await client.query(`
+      DELETE FROM functions_titles WHERE title_id = $1
+    `, [titleId]);
+
+    // Step 2: Insert new function associations
+    if (functionIds.length > 0) {
+      // Validate that all function IDs exist
+      const validFunctions = await client.query(`
+        SELECT id FROM functions WHERE id = ANY($1)
+      `, [functionIds]);
+
+      if (validFunctions.rows.length !== functionIds.length) {
+        throw new Error('One or more function IDs are invalid');
+      }
+
+      // Insert all new associations in a single query
+      const values = functionIds.map((_, index) => `($${index * 2 + 1}, $${index * 2 + 2})`).join(', ');
+      const params = functionIds.flatMap(functionId => [functionId, titleId]);
+      
+      await client.query(`
+        INSERT INTO functions_titles (function_id, title_id)
+        VALUES ${values}
+      `, params);
+    }
+
+    await client.query('COMMIT');
+
+    res.json({ 
+      success: true, 
+      message: `Successfully updated function associations. ${functionIds.length} functions assigned.`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating title function associations:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 

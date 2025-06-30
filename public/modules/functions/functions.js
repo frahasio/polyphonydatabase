@@ -3,7 +3,6 @@ let languages = [];
 let functions = [];
 let selectedTitlesForMerge = [];
 let currentEditingTitleId = null;
-let originalFunctionAssignments = new Set(); // Track original function assignments
 let currentPagination = {
     page: 1,
     limit: 20,
@@ -377,23 +376,11 @@ async function editTitle(titleId) {
         if (editTitleText) editTitleText.value = title.text;
         if (editTitleLanguage) editTitleLanguage.value = title.language || '';
 
-        // Store original function assignments for comparison
-        originalFunctionAssignments = new Set();
-        if (title.function_names) {
-            // Match function names to IDs
-            title.function_names.forEach(functionName => {
-                const func = functionsData.functions.find(f => f.name === functionName);
-                if (func) {
-                    originalFunctionAssignments.add(func.id.toString());
-                }
-            });
-        }
-
         // Populate function checkboxes
         const container = document.getElementById('functionCheckboxes');
         if (container) {
             container.innerHTML = functionsData.functions.map(func => {
-                const isAssigned = originalFunctionAssignments.has(func.id.toString());
+                const isAssigned = title.function_names && title.function_names.includes(func.name);
                 return `
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="func_${func.id}" 
@@ -428,33 +415,7 @@ async function saveTitle() {
     }
 
     try {
-        // First, check if updating the title would create a duplicate
-        const checkDuplicateResponse = await fetch(`/api/admin/functions/titles/search?search=${encodeURIComponent(text)}&page=1&limit=10`);
-        const duplicateData = await checkDuplicateResponse.json();
-        
-        // Find exact matches (excluding current title)
-        const exactMatch = duplicateData.titles?.find(t => 
-            t.text.toLowerCase() === text.toLowerCase() && 
-            t.id !== currentEditingTitleId
-        );
-
-        if (exactMatch) {
-            // Found a duplicate - offer to merge
-            const confirmMerge = confirm(
-                `A title with the text "${text}" already exists. Would you like to merge this title with the existing one? This will transfer all compositions and function assignments to the existing title.`
-            );
-            
-            if (confirmMerge) {
-                // Perform merge instead of update
-                await performTitleMerge(currentEditingTitleId, exactMatch.id, text, language);
-                return;
-            } else {
-                // User chose not to merge, abort the save
-                return;
-            }
-        }
-
-        // No duplicate found, proceed with normal update
+        // Update title
         const updateResponse = await fetch(`/api/admin/functions/titles/${currentEditingTitleId}`, {
             method: 'PUT',
             headers: {
@@ -468,65 +429,68 @@ async function saveTitle() {
 
         if (!updateResponse.ok) {
             const errorData = await updateResponse.json();
+            
+            // Handle duplicate title error specifically
+            if (updateResponse.status === 409 && errorData.error === 'DUPLICATE_TITLE') {
+                const existingTitle = errorData.existingTitle;
+                const confirmMerge = confirm(
+                    `A title with the text "${text}" already exists (ID: ${existingTitle.id}).\n\n` +
+                    `Existing title has:\n` +
+                    `• ${existingTitle.composition_count} compositions\n` +
+                    `• Functions: ${existingTitle.function_names?.join(', ') || 'None'}\n\n` +
+                    `Would you like to merge this title with the existing one? This will transfer all compositions and function assignments to the existing title.`
+                );
+                
+                if (confirmMerge) {
+                    // Perform merge instead of update
+                    await performTitleMerge(currentEditingTitleId, existingTitle.id, text, language);
+                    return;
+                } else {
+                    // User chose not to merge, abort the save
+                    return;
+                }
+            }
+            
+            // Handle other errors
             throw new Error(errorData.error || 'Failed to update title');
         }
 
-        // Get current function assignments from checkboxes
+        // Get currently selected function IDs from checkboxes
         const checkboxes = document.querySelectorAll('#functionCheckboxes input[type="checkbox"]');
-        const currentAssignments = new Set();
+        const selectedFunctionIds = [];
         
         checkboxes.forEach(checkbox => {
             if (checkbox.checked) {
-                currentAssignments.add(checkbox.value);
+                selectedFunctionIds.push(parseInt(checkbox.value));
             }
         });
 
-        // Calculate what changed
-        const toAdd = [...currentAssignments].filter(id => !originalFunctionAssignments.has(id));
-        const toRemove = [...originalFunctionAssignments].filter(id => !currentAssignments.has(id));
+        console.log(`Updating function associations: ${selectedFunctionIds.length} functions selected (using bulk API instead of ${checkboxes.length} individual calls)`);
 
-        console.log(`Function updates: Adding ${toAdd.length}, Removing ${toRemove.length} (instead of processing ${checkboxes.length} functions)`);
-
-        // Only make API calls for functions that actually changed
-        const updatePromises = [];
-
-        // Add new function assignments
-        toAdd.forEach(functionId => {
-            updatePromises.push(
-                fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
-                    method: 'POST'
-                }).catch(error => {
-                    console.error(`Failed to assign function ${functionId}:`, error);
-                })
-            );
+        // Update all function associations in one bulk API call
+        const functionsResponse = await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                functionIds: selectedFunctionIds
+            })
         });
 
-        // Remove old function assignments
-        toRemove.forEach(functionId => {
-            updatePromises.push(
-                fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
-                    method: 'DELETE'
-                }).catch(error => {
-                    console.error(`Failed to unassign function ${functionId}:`, error);
-                })
-            );
-        });
-
-        // Execute all changes in parallel
-        if (updatePromises.length > 0) {
-            await Promise.all(updatePromises);
+        if (!functionsResponse.ok) {
+            const errorData = await functionsResponse.json();
+            throw new Error(errorData.error || 'Failed to update function associations');
         }
+
+        const functionsResult = await functionsResponse.json();
 
         const modal = bootstrap.Modal.getInstance(document.getElementById('editTitleModal'));
         modal.hide();
         searchTitles();
 
-        // Show success message with details
-        if (toAdd.length > 0 || toRemove.length > 0) {
-            alert(`Title updated successfully! Made ${toAdd.length + toRemove.length} function assignment changes.`);
-        } else {
-            alert('Title updated successfully! No function changes were needed.');
-        }
+        // Show success message
+        alert(`Title updated successfully! ${functionsResult.message}`);
 
     } catch (error) {
         console.error('Error saving title:', error);
