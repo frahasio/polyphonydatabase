@@ -70,7 +70,8 @@ router.get('/groups', async (req, res) => {
       whereConditions.push(`EXISTS (
         SELECT 1 FROM compositions c2
         WHERE c2.group_id = g.id 
-        AND c2.composer_id_list && $${paramIndex}::integer[]
+        AND c2.composer_id_list IS NOT NULL
+        AND array_remove(c2.composer_id_list, NULL) && $${paramIndex}::integer[]
       )`);
       queryParams.push(composerIds);
       paramIndex++;

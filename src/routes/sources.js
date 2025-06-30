@@ -670,6 +670,22 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             console.error('Error parsing JSON:', e);
           }
           
+          // Validate and default composer_ids to prevent null arrays
+          if (!composerIds || composerIds.length === 0 || composerIds.every(id => !id || id === null)) {
+            composerIds = [23]; // Default to Anon composer
+            console.log(`Defaulting to Anon composer for temp inclusion: "${tempInclusion.composition_name}"`);
+          } else {
+            // Filter out any null values and ensure all are valid integers
+            composerIds = composerIds.filter(id => id !== null && id !== undefined && !isNaN(parseInt(id)))
+                                    .map(id => parseInt(id));
+            
+            // If after filtering we have no valid IDs, default to Anon
+            if (composerIds.length === 0) {
+              composerIds = [23];
+              console.log(`No valid composer IDs found, defaulting to Anon for temp inclusion: "${tempInclusion.composition_name}"`);
+            }
+          }
+          
           // Create or find title
           let titleResult = await client.query(`SELECT id FROM titles WHERE text = $1`, [tempInclusion.composition_name]);
           let titleId;
@@ -857,8 +873,27 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       else evenOdd = null;
 
       const numberOfVoicesInt = inclusion.composition.number_of_voices ? parseInt(inclusion.composition.number_of_voices) : numberOfVoices;
-      const composerIds = inclusion.composer_ids || [];
-      const isAnonymous = !composerIds || composerIds.length === 0 || composerIds.every(id => !id);
+      
+      // Validate and default composer_ids to prevent null arrays
+      let composerIds = inclusion.composer_ids || [];
+      
+      // If composer_ids is empty or contains nulls, default to Anon (id=23)
+      if (!composerIds || composerIds.length === 0 || composerIds.every(id => !id || id === null)) {
+        composerIds = [23]; // Default to Anon composer
+        console.log(`Defaulting to Anon composer for inclusion: "${inclusion.composition.title_text}"`);
+      } else {
+        // Filter out any null values and ensure all are valid integers
+        composerIds = composerIds.filter(id => id !== null && id !== undefined && !isNaN(parseInt(id)))
+                                .map(id => parseInt(id));
+        
+        // If after filtering we have no valid IDs, default to Anon
+        if (composerIds.length === 0) {
+          composerIds = [23];
+          console.log(`No valid composer IDs found, defaulting to Anon for inclusion: "${inclusion.composition.title_text}"`);
+        }
+      }
+      
+      const isAnonymous = composerIds.length === 1 && composerIds[0] === 23;
 
       // Check for existing composition
       let existingComposition = { rows: [] };
@@ -933,7 +968,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           inclusion.position || '',
           inclusion.notes || '',
           JSON.stringify(inclusion.attribution_texts || []),
-          JSON.stringify(inclusion.composer_ids || []),
+          JSON.stringify(composerIds), // Use validated composerIds instead of raw inclusion.composer_ids
           JSON.stringify(inclusion.clefs || []),
           now,
           inclusion.id,
@@ -954,7 +989,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           inclusion.position || '',
           inclusion.notes || '',
           JSON.stringify(inclusion.attribution_texts || []),
-          JSON.stringify(inclusion.composer_ids || []),
+          JSON.stringify(composerIds), // Use validated composerIds instead of raw inclusion.composer_ids
           JSON.stringify(inclusion.clefs || []),
           now, 
           now
