@@ -55,17 +55,54 @@ router.get('/groups', async (req, res) => {
     whereConditions.push('EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)');
 
     // Title search - search both group display_title AND composition titles
+    // with historical character substitutions (i/j, u/v interchangeability)
     if (title.trim()) {
-      whereConditions.push(`(
-        g.display_title ILIKE $${paramIndex} OR
-        EXISTS (
-          SELECT 1 FROM compositions c2
-          JOIN titles t2 ON c2.title_id = t2.id
-          WHERE c2.group_id = g.id AND t2.text ILIKE $${paramIndex}
-        )
-      )`);
-      queryParams.push(`%${title.trim()}%`);
-      paramIndex++;
+      const searchTerm = title.trim();
+      
+      // Create variations for historical character substitutions
+      const createVariations = (term) => {
+        const variations = new Set();
+        
+        // Always include original term
+        variations.add(term);
+        
+        // Simple i/j substitutions (common in historical texts like "alleluia" vs "alleluja")
+        if (term.match(/[ij]/i)) {
+          variations.add(term.replace(/i/gi, 'j'));
+          variations.add(term.replace(/j/gi, 'i'));
+        }
+        
+        // Simple u/v substitutions (common in historical texts like "versus" vs "versvs")
+        if (term.match(/[uv]/i)) {
+          // Apply u/v substitutions to all current variations
+          const currentVariations = Array.from(variations);
+          currentVariations.forEach(variant => {
+            variations.add(variant.replace(/u/gi, 'v'));
+            variations.add(variant.replace(/v/gi, 'u'));
+          });
+        }
+        
+        return Array.from(variations).slice(0, 6); // Limit to 6 variations max for performance
+      };
+      
+      const searchVariations = createVariations(searchTerm);
+      
+      // Build search conditions for all variations
+      const titleConditions = searchVariations.map((variation) => {
+        const condition = `(
+          g.display_title ILIKE $${paramIndex} OR
+          EXISTS (
+            SELECT 1 FROM compositions c2
+            JOIN titles t2 ON c2.title_id = t2.id
+            WHERE c2.group_id = g.id AND t2.text ILIKE $${paramIndex}
+          )
+        )`;
+        queryParams.push(`%${variation}%`);
+        paramIndex++;
+        return condition;
+      });
+      
+      whereConditions.push(`(${titleConditions.join(' OR ')})`);
     }
 
     // Composers filter
