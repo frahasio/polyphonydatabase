@@ -81,6 +81,23 @@
                     Use the dropdown to assign multiple voicings to each clef combination.
                 </div>
 
+                <!-- Search and filter -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Search & Filter</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" id="searchInput" class="form-control" placeholder="Search clef combinations or voicings..." onkeyup="filterCombinations()">
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Add new voicing form -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -141,10 +158,12 @@
     <script>
         let voicings = [];
         let clefCombinations = [];
+        let filteredClefCombinations = [];
         let currentPage = 1;
         let itemsPerPage = 25;
         let totalPages = 1;
         let mappingsLookup = {};
+        let currentSearchTerm = '';
 
         // Load data on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -199,8 +218,8 @@
                 // Sort clef combinations alphabetically
                 clefCombinations.sort((a, b) => a.clef_combination.localeCompare(b.clef_combination));
 
-                // Calculate pagination
-                totalPages = Math.ceil(clefCombinations.length / itemsPerPage);
+                // Initialize filtered data and search
+                applyCurrentFilter();
 
                 renderClefCombinations();
                 
@@ -227,12 +246,12 @@
         function renderClefCombinations() {
             const container = document.getElementById('clefCombinations');
             
-            // Calculate pagination
+            // Calculate pagination using filtered data
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
-            const pageItems = clefCombinations.slice(startIndex, endIndex);
+            const pageItems = filteredClefCombinations.slice(startIndex, endIndex);
 
-            let html = `<h4>Clef Combinations Management (${clefCombinations.length} total)</h4>`;
+            let html = `<h4 style="color: #333;">Clef Combinations Management (<span id="visibleCount">${filteredClefCombinations.length}</span> of ${clefCombinations.length} total)</h4>`;
             html += `<p class="text-muted mb-4">Page ${currentPage} of ${totalPages} - Showing ${pageItems.length} clef combinations</p>`;
             
             pageItems.forEach(combo => {
@@ -348,8 +367,55 @@
         function changeItemsPerPage() {
             itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
             currentPage = 1; // Reset to first page
-            totalPages = Math.ceil(clefCombinations.length / itemsPerPage);
+            totalPages = Math.ceil(filteredClefCombinations.length / itemsPerPage);
             updateUrlParams();
+            renderClefCombinations();
+        }
+
+        function applyCurrentFilter() {
+            const searchTerm = currentSearchTerm.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredClefCombinations = [...clefCombinations];
+            } else {
+                filteredClefCombinations = clefCombinations.filter(combo => {
+                    // Check clef combination
+                    if (combo.clef_combination.toLowerCase().includes(searchTerm)) {
+                        return true;
+                    }
+                    
+                    // Check assigned voicing names
+                    const assignedVoicings = mappingsLookup[combo.id] || [];
+                    const assignedVoicingNames = assignedVoicings.map(vId => {
+                        const voicing = voicings.find(v => v.id === vId);
+                        return voicing ? voicing.name.toLowerCase() : '';
+                    }).join(' ');
+                    
+                    return assignedVoicingNames.includes(searchTerm);
+                });
+            }
+            
+            // Recalculate pagination
+            totalPages = Math.ceil(filteredClefCombinations.length / itemsPerPage);
+            
+            // Reset to first page if current page is beyond available pages
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = 1;
+            }
+        }
+
+        function filterCombinations() {
+            currentSearchTerm = document.getElementById('searchInput').value;
+            currentPage = 1; // Reset to first page when searching
+            applyCurrentFilter();
+            renderClefCombinations();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            currentSearchTerm = '';
+            currentPage = 1;
+            applyCurrentFilter();
             renderClefCombinations();
         }
 
@@ -363,6 +429,12 @@
         function updateMappingsLookup(clefComboId, voicingIds) {
             // Update the global mappings lookup when changes are made
             mappingsLookup[clefComboId] = voicingIds;
+            
+            // If there's an active search, refresh the filter since voicing assignments changed
+            if (currentSearchTerm) {
+                applyCurrentFilter();
+                renderClefCombinations();
+            }
         }
 
         async function updateVoicingMappings(clefComboId, selectedVoicingIds) {
