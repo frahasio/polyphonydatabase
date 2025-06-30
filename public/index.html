@@ -330,6 +330,11 @@
             .clef-images img {
                 height: 40px !important;
             }
+            .clef-explainer {
+                display: flex;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -374,30 +379,36 @@
                         
                         <p><strong>The best way to help fund the project is to commission performing editions. New editions can be made quickly for as little as £10.</strong></p>
                         
+                        <hr>
+
                         <p><strong>2025 update:</strong> Francis has rewritten everything in Node.js with new advanced search capabilities and improved cataloguing tools. Please get in touch if you spot any bugs!</p>
 
-                        <p>The text search will match case insensitive exact strings in titles only. You can use the percentage sign % as a wildcard to match any number of characters. e.g. "missa % marc" will return "Missa Papae Marcelli". i/j and u/v are also treated as interchangeable so resutls for "Jesu" will include titles containins 'Iesu' and 'jesv' etc.</p>
+                        <hr>
+
+                        <p>The text search will match case insensitive exact strings in titles only. You can use the percentage sign % as a wildcard to match any number of characters. e.g. "missa % marc" will return "Missa Papae Marcelli".</p>
+                        
+                        <p><strong>i/j</strong> and <strong>u/v</strong> are also treated as interchangeable so results for "Jesu" will include titles containing 'Iesu' and 'jesv' etc.</p>
                         
                         <h6>Understanding the clef images</h6>
-                        <p>
+                        <p class="clef-explainer">
                             <img src="/clef_images/g2.png" alt="g2" class="clef-missing" style="height: 56px; width: auto; margin-right: 8px;">
-                            A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.
+                            <span>A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.</span>
                         </p>
-                        <p>
+                        <p class="clef-explainer>
                             <img src="/clef_images/c3.png" alt="c3" class="clef-incomplete" style="height: 56px; width: auto; margin-right: 8px;">
-                            A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.
+                            <span>A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.</span>
                         </p>
-                        <p>
+                        <p class="clef-explainer>
                             <img src="/clef_images/f3.png" alt="f3" class="clef-optional" style="height: 56px; width: auto; margin-right: 8px;">
-                            A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.
+                            <span>A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.</span>
                         </p>
-                        <p>
+                        <p class="clef-explainer>
                             <img src="/clef_images/c1c2.png" alt="c1c2" class="clef-multiple" style="height: 56px; width: auto; margin-right: 8px;">
-                            A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.
+                            <span>A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.</span>
                         </p>
-                        <p>
+                        <p class="clef-explainer>
                             <img src="/clef_images/x1.png" alt="x1" style="height: 56px; width: auto; margin-right: 8px;">
-                            <strong>x</strong> clefs are used as placeholders for voices we know are necessary, but haven't yet worked out which, normally because we don't have access to a full facsimile of the source.
+                            <span><strong>x</strong> clefs are used as placeholders for voices we know are necessary, but haven't yet worked out which, normally because we don't have access to a full facsimile of the source.</span>
                         </p>
                     </div>
                 </div>
