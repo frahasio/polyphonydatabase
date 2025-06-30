@@ -98,6 +98,23 @@
                 <h1>Clef Combinations & Voicings Management</h1>
                 <p class="text-muted">Assign voicing types to clef combinations. Click voicing pills to toggle assignment.</p>
                 
+                <!-- Search and filter -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Search & Filter</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" id="searchInput" class="form-control" placeholder="Search clef combinations or voicings..." onkeyup="filterCombinations()">
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Add new voicing form -->
                 <div class="card mb-4">
                     <div class="card-header">
@@ -209,13 +226,19 @@
         function renderClefCombinations(mappingsLookup) {
             const container = document.getElementById('clefCombinations');
             
-            let html = `<h4>Clef Combinations (${clefCombinations.length})</h4>`;
+            let html = `<h4>Clef Combinations (<span id="visibleCount">${clefCombinations.length}</span> of ${clefCombinations.length})</h4>`;
             
             clefCombinations.forEach(combo => {
                 const assignedVoicings = mappingsLookup[combo.id] || [];
                 
+                // Get assigned voicing names for search
+                const assignedVoicingNames = assignedVoicings.map(vId => {
+                    const voicing = voicings.find(v => v.id === vId);
+                    return voicing ? voicing.name : '';
+                }).join(' ');
+                
                 html += `
-                    <div class="clef-combo-row" data-combo-id="${combo.id}">
+                    <div class="clef-combo-row" data-combo-id="${combo.id}" data-search-text="${combo.clef_combination.toLowerCase()} ${assignedVoicingNames.toLowerCase()}">
                         <div class="clef-combo-header">${combo.clef_combination}</div>
                         <div class="pill-container">
                 `;
@@ -239,6 +262,29 @@
             });
             
             container.innerHTML = html;
+        }
+
+        function filterCombinations() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('.clef-combo-row');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const searchText = row.getAttribute('data-search-text');
+                if (searchTerm === '' || searchText.includes(searchTerm)) {
+                    row.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('visibleCount').textContent = visibleCount;
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filterCombinations();
         }
 
         async function toggleVoicing(clefComboId, voicingId, element) {

@@ -290,20 +290,26 @@ router.get('/groups', async (req, res) => {
               await pool.query('SELECT sorted_clef_combination_required FROM inclusions LIMIT 1');
               console.log('New columns exist, using fast path');
               
-              // Use the fast indexed approach
+              // Use the fast indexed approach - match both exact required clefs and cases with optional clefs
               const condition = `EXISTS (
                 SELECT 1 FROM compositions c2
                 JOIN inclusions i ON c2.id = i.composition_id
                 WHERE c2.group_id = g.id 
                 AND (
+                  -- Exact match on required clefs  
                   i.sorted_clef_combination_required = ANY($${paramIndex}::text[])
-                  OR i.sorted_clef_combination_all = ANY($${paramIndex}::text[])
+                  OR 
+                  -- Match where total clefs equal target, but only if required clefs are shorter (has optional clefs)
+                  -- and the difference is reasonable (1-2 optional clefs, not a completely different voicing)
+                  (i.sorted_clef_combination_all = ANY($${paramIndex}::text[]) 
+                   AND length(i.sorted_clef_combination_required) < length(i.sorted_clef_combination_all)
+                   AND length(i.sorted_clef_combination_all) - length(i.sorted_clef_combination_required) <= 4)
                 )
               )`;
               
               whereConditions.push(condition);
               queryParams.push(targetClefCombinations);
-              paramIndex++; // We used one parameter (same array for both conditions)
+              paramIndex++;
             } catch (columnError) {
               console.log('New columns do not exist, falling back to old logic');
               throw columnError; // This will trigger the fallback
