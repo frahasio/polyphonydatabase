@@ -36,6 +36,57 @@
             font-size: 0.9rem;
         }
 
+        .composition-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            background: #f8f9fa;
+            margin-top: 0.5rem;
+        }
+
+        .composition-detail {
+            padding: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.85rem;
+            position: relative;
+        }
+
+        .composition-detail:last-child {
+            border-bottom: none;
+        }
+
+        .composition-detail:hover {
+            background: #e9ecef;
+        }
+
+        .composition-remove-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+        }
+
+        .composition-detail:hover .composition-remove-btn {
+            opacity: 1;
+        }
+
+        .source-list {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .source-item {
+            display: inline-block;
+            background: #fff;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            margin: 0.1rem 0.2rem 0.1rem 0;
+            border: 1px solid #e9ecef;
+        }
+
         .merge-panel {
             background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
             border: 2px dashed #007bff;
@@ -153,7 +204,7 @@
     <div class="container-fluid py-4">
         <div class="row">
             <!-- Search Panel -->
-            <div class="col-lg-4">
+            <div class="col-lg-7">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
@@ -201,7 +252,7 @@
             </div>
 
             <!-- Main Panel -->
-            <div class="col-lg-8">
+            <div class="col-lg-5">
                 <!-- Selected Groups Panel -->
                 <div id="selectedGroupsPanel" style="display: none;">
                     <div class="selected-groups-display">
@@ -253,39 +304,7 @@
         </div>
     </div>
 
-    <!-- Split Group Modal -->
-    <div class="modal fade" id="splitModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-scissors me-2"></i>Split Group: <span id="splitGroupTitle"></span>
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted">
-                        Removing a composition from this group will create a new group containing only that composition.
-                        This action cannot be undone.
-                    </p>
-                    
-                    <div id="compositionsLoading" class="text-center py-4">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2">Loading compositions...</p>
-                    </div>
-                    
-                    <div id="compositionsList" style="display: none;">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Add Edition Modal -->
     <div class="modal fade" id="editionModal" tabindex="-1">
@@ -490,6 +509,43 @@
             }
         }
 
+        function formatCompositionsList(compositions, groupId) {
+            if (!compositions || compositions.length === 0) {
+                return '<div class="text-muted mt-2"><small>No compositions</small></div>';
+            }
+
+            return `
+                <div class="composition-list">
+                    ${compositions.map(comp => `
+                        <div class="composition-detail">
+                            <button class="btn btn-sm btn-outline-danger composition-remove-btn" 
+                                    onclick="event.stopPropagation(); removeCompositionInline(${groupId}, ${comp.id}, '${(comp.title || 'Untitled').replace(/'/g, "\\'")}');" 
+                                    title="Remove this composition from group">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                            <div class="fw-bold">${comp.title || 'Untitled'}</div>
+                            ${comp.composers ? `<div class="text-muted">${comp.composers}</div>` : ''}
+                            ${formatSourcesList(comp.sources)}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function formatSourcesList(sources) {
+            if (!sources || sources.length === 0) {
+                return '<div class="source-list text-muted">No sources</div>';
+            }
+
+            return `
+                <div class="source-list">
+                    ${sources.map(source => `
+                        <span class="source-item">${source.code} (${source.position || 'pos?'})</span>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         function displaySearchResults(groups) {
             const resultsContainer = document.getElementById('searchResults');
 
@@ -520,6 +576,7 @@
                                     ${group.recording_count > 0 ? ` • ${group.recording_count} recording${group.recording_count !== 1 ? 's' : ''}` : ''}
                                 </small>
                             </div>
+                            ${formatCompositionsList(group.compositions_detail, group.id)}
                         </div>
                         <div class="text-end">
                             <div class="btn-group-vertical">
@@ -531,9 +588,6 @@
                                 </button>
                                 <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'recording')" title="Add recording">
                                     <i class="bi bi-play-circle"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'split')" title="View/Split compositions">
-                                    <i class="bi bi-scissors"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edit_title')" title="Edit group">
                                     <i class="bi bi-pencil"></i>
@@ -552,8 +606,6 @@
                 showEditionModal(groupId);
             } else if (action === 'recording') {
                 showRecordingModal(groupId);
-            } else if (action === 'split') {
-                showSplitModal(groupId);
             } else if (action === 'edit_title') {
                 showEditTitleModal(groupId);
             }
@@ -584,8 +636,26 @@
             const voices = voicesBadge ? voicesBadge.textContent.replace('vv', '') : null;
             const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
             const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
+            
+            // Extract composition details
+            const compositionDetails = [];
+            const compositionDivs = groupCard.querySelectorAll('.composition-detail');
+            compositionDivs.forEach(div => {
+                const titleEl = div.querySelector('.fw-bold');
+                const composersEl = div.querySelector('.text-muted');
+                const sources = [];
+                div.querySelectorAll('.source-item').forEach(sourceEl => {
+                    sources.push(sourceEl.textContent);
+                });
+                
+                compositionDetails.push({
+                    title: titleEl ? titleEl.textContent : 'Untitled',
+                    composers: composersEl ? composersEl.textContent : '',
+                    sources: sources
+                });
+            });
 
-            return { title, voices, compositionType };
+            return { title, voices, compositionType, compositions: compositionDetails };
         }
 
         async function showEditionModal(groupId) {
@@ -897,15 +967,40 @@
 
             panel.style.display = 'block';
             list.innerHTML = selectedGroups.map(group => `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span><strong>${group.title}</strong> (${group.voices}vv)</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
-                        <i class="bi bi-x"></i>
-                    </button>
+                <div class="border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">${group.title} (${group.voices}vv)</h6>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    ${formatSelectedGroupCompositions(group.compositions)}
                 </div>
             `).join('');
 
             updateCompatibilityStatus();
+        }
+
+        function formatSelectedGroupCompositions(compositions) {
+            if (!compositions || compositions.length === 0) {
+                return '<div class="text-muted"><small>No compositions</small></div>';
+            }
+
+            return `
+                <div class="mt-2">
+                    ${compositions.map(comp => `
+                        <div class="bg-light p-2 rounded mb-1">
+                            <div class="fw-bold small">${comp.title}</div>
+                            ${comp.composers ? `<div class="text-muted small">${comp.composers}</div>` : ''}
+                            ${comp.sources.length > 0 ? `
+                                <div class="mt-1">
+                                    ${comp.sources.map(source => `<span class="badge bg-secondary me-1 small">${source}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
         function updateCompatibilityStatus() {
@@ -1071,94 +1166,7 @@
             performSearch();
         }
 
-        async function showSplitModal(groupId) {
-            const group = await getGroupDetails(groupId);
-            if (!group) return;
 
-            // Show modal
-            document.getElementById('splitGroupTitle').textContent = group.display_title;
-            const modal = new bootstrap.Modal(document.getElementById('splitModal'));
-            modal.show();
-
-            // Load compositions
-            loadGroupCompositions(groupId);
-        }
-
-        async function loadGroupCompositions(groupId) {
-            const loadingDiv = document.getElementById('compositionsLoading');
-            const listDiv = document.getElementById('compositionsList');
-
-            loadingDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-
-            try {
-                const response = await fetch(`/api/admin/groups/${groupId}/compositions`);
-                if (!response.ok) throw new Error('Failed to load compositions');
-
-                const compositions = await response.json();
-
-                if (compositions.length <= 1) {
-                    listDiv.innerHTML = `
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            This group contains only one composition and cannot be split.
-                        </div>
-                    `;
-                } else {
-                    listDiv.innerHTML = `
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                        <th>Composer(s)</th>
-                                        <th>Type</th>
-                                        <th>Voices</th>
-                                        <th>Inclusions</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${compositions.map(comp => `
-                                        <tr>
-                                            <td>
-                                                <strong>${comp.title || 'Untitled'}</strong>
-                                                ${comp.tone ? `<br><small class="text-muted">Tone: ${comp.tone}</small>` : ''}
-                                                ${comp.even_odd ? `<br><small class="text-muted">Even/Odd: ${comp.even_odd}</small>` : ''}
-                                            </td>
-                                            <td>${comp.composers || 'Unknown'}</td>
-                                            <td>${comp.composition_type || '-'}</td>
-                                            <td><span class="badge bg-secondary">${comp.number_of_voices || 0}</span></td>
-                                            <td><span class="badge bg-info">${comp.inclusion_count || 0}</span></td>
-                                            <td>
-                                                <button class="btn btn-sm btn-outline-danger" 
-                                                        onclick="removeComposition(${groupId}, ${comp.id}, '${(comp.title || 'Untitled').replace(/'/g, "\\'")}')">
-                                                    <i class="bi bi-scissors me-1"></i>Remove
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    `;
-                }
-
-                loadingDiv.style.display = 'none';
-                listDiv.style.display = 'block';
-
-            } catch (error) {
-                console.error('Error loading compositions:', error);
-                listDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Error loading compositions
-                    </div>
-                `;
-                loadingDiv.style.display = 'none';
-                listDiv.style.display = 'block';
-            }
-        }
 
         async function removeComposition(groupId, compositionId, compositionTitle) {
             if (!confirm(`Remove "${compositionTitle}" from this group?\n\nThis will create a new group containing only this composition.`)) {
@@ -1189,6 +1197,45 @@
                     if (document.getElementById('searchResults').innerHTML.trim()) {
                         refreshSearch();
                     }
+                } else {
+                    const error = await response.json();
+                    alert(`Error removing composition: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error removing composition:', error);
+                alert('Network error occurred while removing composition.');
+            }
+        }
+
+        async function removeCompositionInline(groupId, compositionId, compositionTitle) {
+            if (!confirm(`Remove "${compositionTitle}" from this group?\n\nThis will create a new group containing only this composition.`)) {
+                return;
+            }
+
+            const newGroupTitle = prompt(`Enter title for the new group containing "${compositionTitle}":`, compositionTitle);
+            if (newGroupTitle === null) return; // User cancelled
+
+            try {
+                const response = await fetch(`/api/admin/groups/${groupId}/remove-composition`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        compositionId: compositionId,
+                        newGroupTitle: newGroupTitle.trim() || compositionTitle
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Success! "${compositionTitle}" moved to new group "${result.newGroupTitle}"`);
+                    
+                    // Refresh search results to show updated groups
+                    refreshSearch();
+                    
+                    // Update any selected groups that may have been affected
+                    selectedGroups = selectedGroups.filter(g => g.id !== groupId);
+                    updateSelectedGroupsDisplay();
+                    updateMergePanel();
                 } else {
                     const error = await response.json();
                     alert(`Error removing composition: ${error.error}`);

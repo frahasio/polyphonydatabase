@@ -486,7 +486,7 @@ router.get('/', async (req, res) => {
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Main query
+        // Main query with composition and source details
         const groupsQuery = `
             SELECT DISTINCT
                 g.id,
@@ -498,7 +498,7 @@ router.get('/', async (req, res) => {
                 COUNT(DISTINCT r.id) as recording_count,
                 c.number_of_voices,
                 ct.name as composition_type,
-                -- Simplified composer logic for admin view using subquery
+                -- Composers for the group
                 (
                   SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
                   FROM composers comp
@@ -507,7 +507,42 @@ router.get('/', async (req, res) => {
                     FROM compositions c2
                     WHERE c2.group_id = g.id
                   )
-                ) as composers
+                ) as composers,
+                -- Detailed compositions with sources
+                (
+                  SELECT json_agg(
+                    json_build_object(
+                      'id', comp_detail.id,
+                      'title', comp_detail.title,
+                      'composers', comp_detail.composers,
+                      'sources', comp_detail.sources
+                    ) ORDER BY comp_detail.title
+                  )
+                  FROM (
+                    SELECT DISTINCT
+                      c3.id,
+                      COALESCE(t3.text, 'Untitled') as title,
+                      (
+                        SELECT string_agg(comp3.name, ', ' ORDER BY comp3.name)
+                        FROM composers comp3
+                        WHERE comp3.id = ANY(c3.composer_id_list)
+                      ) as composers,
+                      (
+                        SELECT json_agg(
+                          json_build_object(
+                            'code', s.code,
+                            'position', i.position
+                          ) ORDER BY s.code, i.position
+                        )
+                        FROM inclusions i
+                        JOIN sources s ON i.source_id = s.id
+                        WHERE i.composition_id = c3.id
+                      ) as sources
+                    FROM compositions c3
+                    LEFT JOIN titles t3 ON c3.title_id = t3.id
+                    WHERE c3.group_id = g.id
+                  ) comp_detail
+                ) as compositions_detail
             FROM groups g
             JOIN compositions c ON c.group_id = g.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
