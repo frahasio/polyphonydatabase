@@ -519,7 +519,7 @@ router.get('/', async (req, res) => {
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;
 
-        // Composition details query
+        // Composition details query - using $1 since it will be called separately
         const compositionsQuery = `
             SELECT 
                 c.group_id,
@@ -554,7 +554,7 @@ router.get('/', async (req, res) => {
                 JOIN sources s ON i.source_id = s.id
                 GROUP BY i.composition_id
             ) source_data ON source_data.composition_id = c.id
-            WHERE c.group_id = ANY($${paramCount + 3})
+            WHERE c.group_id = ANY($1)
             GROUP BY c.group_id
         `;
 
@@ -585,9 +585,8 @@ router.get('/', async (req, res) => {
         // Get composition details for the returned groups
         if (groups.length > 0) {
             const groupIds = groups.map(g => g.id);
-            const compositionsParams = [...params, groupIds];
             
-            const compositionsResult = await pool.query(compositionsQuery, compositionsParams);
+            const compositionsResult = await pool.query(compositionsQuery, [groupIds]);
             
             // Create a map of group_id to compositions_detail
             const compositionsMap = {};
