@@ -300,7 +300,8 @@ body > .container-fluid > h4,
 body > .container-fluid > h5,
 body > .container-fluid > h6,
 body > .container-fluid > p,
-body > .container-fluid > .text-muted {
+body > .container-fluid > .text-muted,
+.text-muted {
     color: #ffffff;
 }
 
