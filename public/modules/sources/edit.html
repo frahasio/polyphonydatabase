@@ -1618,9 +1618,9 @@
             html += '<ul class="pagination pagination-sm mb-0">';
             
             // Previous button
-            const prevDisabled = !inclusionsPagination.hasPrev || currentInclusionsPage <= 1;
+            const prevDisabled = !inclusionsPagination.hasPrevPage || currentInclusionsPage <= 1;
             const prevPage = currentInclusionsPage - 1;
-            console.log('Previous button - disabled:', prevDisabled, 'prevPage:', prevPage, 'hasPrev:', inclusionsPagination.hasPrev);
+            console.log('Previous button - disabled:', prevDisabled, 'prevPage:', prevPage, 'hasPrevPage:', inclusionsPagination.hasPrevPage);
             html += `<li class="page-item ${prevDisabled ? 'disabled' : ''}">`;
             if (!prevDisabled) {
                 html += `<button type="button" class="page-link" data-page="${prevPage}" title="Previous page">‹</button>`;
@@ -1666,9 +1666,9 @@
             }
 
             // Next button
-            const nextDisabled = !inclusionsPagination.hasNext || currentInclusionsPage >= inclusionsPagination.totalPages;
+            const nextDisabled = !inclusionsPagination.hasNextPage || currentInclusionsPage >= inclusionsPagination.totalPages;
             const nextPage = currentInclusionsPage + 1;
-            console.log('Next button - disabled:', nextDisabled, 'nextPage:', nextPage, 'hasNext:', inclusionsPagination.hasNext);
+            console.log('Next button - disabled:', nextDisabled, 'nextPage:', nextPage, 'hasNextPage:', inclusionsPagination.hasNextPage);
             html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">`;
             if (!nextDisabled) {
                 html += `<button type="button" class="page-link" data-page="${nextPage}" title="Next page">›</button>`;
