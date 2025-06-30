@@ -1620,6 +1620,7 @@
             // Previous button
             const prevDisabled = !inclusionsPagination.hasPrev || currentInclusionsPage <= 1;
             const prevPage = currentInclusionsPage - 1;
+            console.log('Previous button - disabled:', prevDisabled, 'prevPage:', prevPage, 'hasPrev:', inclusionsPagination.hasPrev);
             html += `<li class="page-item ${prevDisabled ? 'disabled' : ''}">`;
             if (!prevDisabled) {
                 html += `<button type="button" class="page-link" data-page="${prevPage}" title="Previous page">‹</button>`;
@@ -1667,6 +1668,7 @@
             // Next button
             const nextDisabled = !inclusionsPagination.hasNext || currentInclusionsPage >= inclusionsPagination.totalPages;
             const nextPage = currentInclusionsPage + 1;
+            console.log('Next button - disabled:', nextDisabled, 'nextPage:', nextPage, 'hasNext:', inclusionsPagination.hasNext);
             html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">`;
             if (!nextDisabled) {
                 html += `<button type="button" class="page-link" data-page="${nextPage}" title="Next page">›</button>`;
@@ -1689,9 +1691,12 @@
             }
             
             // Add event listeners to pagination buttons in both containers
-            [headerContainer, bottomContainer].forEach(container => {
+            [headerContainer, bottomContainer].forEach((container, containerIndex) => {
                 if (container) {
-                    container.querySelectorAll('button.page-link[data-page]').forEach(button => {
+                    const buttons = container.querySelectorAll('button.page-link[data-page]');
+                    console.log(`Container ${containerIndex}: Found ${buttons.length} pagination buttons`);
+                    buttons.forEach((button, buttonIndex) => {
+                        console.log(`  Button ${buttonIndex}: data-page="${button.dataset.page}", text="${button.textContent}"`);
                         button.addEventListener('click', function(e) {
                             e.preventDefault();
                             const targetPage = parseInt(this.dataset.page);
