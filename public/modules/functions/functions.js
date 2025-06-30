@@ -3,6 +3,7 @@ let languages = [];
 let functions = [];
 let selectedTitlesForMerge = [];
 let currentEditingTitleId = null;
+let originalFunctionAssignments = new Set(); // Track original function assignments
 let currentPagination = {
     page: 1,
     limit: 20,
@@ -357,8 +358,8 @@ async function editTitle(titleId) {
     try {
         // Load title details and associated functions
         const [titleResponse, functionsResponse] = await Promise.all([
-                    fetch(`/api/admin/functions/titles/search?search=&page=1&limit=1000`),
-        fetch('/api/admin/functions')
+            fetch(`/api/admin/functions/titles/search?search=&page=1&limit=1000`),
+            fetch('/api/admin/functions')
         ]);
 
         const titleData = await titleResponse.json();
@@ -376,11 +377,23 @@ async function editTitle(titleId) {
         if (editTitleText) editTitleText.value = title.text;
         if (editTitleLanguage) editTitleLanguage.value = title.language || '';
 
+        // Store original function assignments for comparison
+        originalFunctionAssignments = new Set();
+        if (title.function_names) {
+            // Match function names to IDs
+            title.function_names.forEach(functionName => {
+                const func = functionsData.functions.find(f => f.name === functionName);
+                if (func) {
+                    originalFunctionAssignments.add(func.id.toString());
+                }
+            });
+        }
+
         // Populate function checkboxes
         const container = document.getElementById('functionCheckboxes');
         if (container) {
             container.innerHTML = functionsData.functions.map(func => {
-                const isAssigned = title.function_names && title.function_names.includes(func.name);
+                const isAssigned = originalFunctionAssignments.has(func.id.toString());
                 return `
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="func_${func.id}" 
@@ -415,7 +428,33 @@ async function saveTitle() {
     }
 
     try {
-        // Update title
+        // First, check if updating the title would create a duplicate
+        const checkDuplicateResponse = await fetch(`/api/admin/functions/titles/search?search=${encodeURIComponent(text)}&page=1&limit=10`);
+        const duplicateData = await checkDuplicateResponse.json();
+        
+        // Find exact matches (excluding current title)
+        const exactMatch = duplicateData.titles?.find(t => 
+            t.text.toLowerCase() === text.toLowerCase() && 
+            t.id !== currentEditingTitleId
+        );
+
+        if (exactMatch) {
+            // Found a duplicate - offer to merge
+            const confirmMerge = confirm(
+                `A title with the text "${text}" already exists. Would you like to merge this title with the existing one? This will transfer all compositions and function assignments to the existing title.`
+            );
+            
+            if (confirmMerge) {
+                // Perform merge instead of update
+                await performTitleMerge(currentEditingTitleId, exactMatch.id, text, language);
+                return;
+            } else {
+                // User chose not to merge, abort the save
+                return;
+            }
+        }
+
+        // No duplicate found, proceed with normal update
         const updateResponse = await fetch(`/api/admin/functions/titles/${currentEditingTitleId}`, {
             method: 'PUT',
             headers: {
@@ -428,35 +467,101 @@ async function saveTitle() {
         });
 
         if (!updateResponse.ok) {
-            throw new Error('Failed to update title');
+            const errorData = await updateResponse.json();
+            throw new Error(errorData.error || 'Failed to update title');
         }
 
-        // Update function associations
+        // Get current function assignments from checkboxes
         const checkboxes = document.querySelectorAll('#functionCheckboxes input[type="checkbox"]');
-        for (const checkbox of checkboxes) {
-            const functionId = checkbox.value;
-            const isChecked = checkbox.checked;
-
-            if (isChecked) {
-                // Assign function to title
-                await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
-                    method: 'POST'
-                });
-            } else {
-                // Unassign function from title
-                await fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
-                    method: 'DELETE'
-                });
+        const currentAssignments = new Set();
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                currentAssignments.add(checkbox.value);
             }
+        });
+
+        // Calculate what changed
+        const toAdd = [...currentAssignments].filter(id => !originalFunctionAssignments.has(id));
+        const toRemove = [...originalFunctionAssignments].filter(id => !currentAssignments.has(id));
+
+        console.log(`Function updates: Adding ${toAdd.length}, Removing ${toRemove.length} (instead of processing ${checkboxes.length} functions)`);
+
+        // Only make API calls for functions that actually changed
+        const updatePromises = [];
+
+        // Add new function assignments
+        toAdd.forEach(functionId => {
+            updatePromises.push(
+                fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                    method: 'POST'
+                }).catch(error => {
+                    console.error(`Failed to assign function ${functionId}:`, error);
+                })
+            );
+        });
+
+        // Remove old function assignments
+        toRemove.forEach(functionId => {
+            updatePromises.push(
+                fetch(`/api/admin/functions/titles/${currentEditingTitleId}/functions/${functionId}`, {
+                    method: 'DELETE'
+                }).catch(error => {
+                    console.error(`Failed to unassign function ${functionId}:`, error);
+                })
+            );
+        });
+
+        // Execute all changes in parallel
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
         }
 
         const modal = bootstrap.Modal.getInstance(document.getElementById('editTitleModal'));
         modal.hide();
         searchTitles();
 
+        // Show success message with details
+        if (toAdd.length > 0 || toRemove.length > 0) {
+            alert(`Title updated successfully! Made ${toAdd.length + toRemove.length} function assignment changes.`);
+        } else {
+            alert('Title updated successfully! No function changes were needed.');
+        }
+
     } catch (error) {
         console.error('Error saving title:', error);
-        alert('Failed to save title');
+        alert('Failed to save title: ' + error.message);
+    }
+}
+
+async function performTitleMerge(sourceId, targetId, finalText, finalLanguage) {
+    try {
+        const response = await fetch('/api/admin/functions/titles/merge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                target_title_id: targetId,
+                source_title_ids: [sourceId, targetId],
+                final_text: finalText,
+                final_language: finalLanguage || null
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editTitleModal'));
+            modal.hide();
+            searchTitles();
+            alert(`Successfully merged titles! ${result.message}`);
+        } else {
+            throw new Error(result.error || 'Merge failed');
+        }
+    } catch (error) {
+        console.error('Error merging titles:', error);
+        alert('Failed to merge titles: ' + error.message);
     }
 }
 
