@@ -260,6 +260,12 @@
             border-color: #007bff;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
+        
+        /* Pagination spacing */
+        #headerPagination nav,
+        #bottomPagination nav {
+            margin-left: 2rem;
+        }
     </style>
 </head>
   <body>
@@ -438,6 +444,9 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Bottom Pagination -->
+            <div id="bottomPagination" class="mb-4"></div>
 
             <!-- Add Inclusion Button - only visible on last page or for new sources -->
             <div class="d-flex justify-content-center mb-4" id="addInclusionSection">
@@ -1562,23 +1571,26 @@
 
         // Pagination display function
         function displayInclusionsPagination() {
-            const container = document.getElementById('headerPagination');
+            const headerContainer = document.getElementById('headerPagination');
+            const bottomContainer = document.getElementById('bottomPagination');
             
             // ADD LOGGING: Debug pagination data
             console.log('=== PAGINATION DEBUG ===');
             console.log('inclusionsPagination:', inclusionsPagination);
             console.log('inclusionsData.length:', inclusionsData.length);
             console.log('currentInclusionsPage:', currentInclusionsPage);
-            console.log('Container exists:', !!container);
+            console.log('Header container exists:', !!headerContainer);
+            console.log('Bottom container exists:', !!bottomContainer);
             
-            if (!container) {
-                console.log('ERROR: Pagination container not found!');
+            if (!headerContainer) {
+                console.log('ERROR: Header pagination container not found!');
                 return;
             }
             
             if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
                 console.log('No pagination needed - total pages:', inclusionsPagination?.totalPages);
-                container.innerHTML = '';
+                headerContainer.innerHTML = '';
+                if (bottomContainer) bottomContainer.innerHTML = '';
                 updateAddInclusionButton(); // Update button even when no pagination
                 return;
             }
@@ -1667,19 +1679,30 @@
 
             console.log('Pagination HTML:', html);
             console.log('Previous disabled:', prevDisabled, 'Next disabled:', nextDisabled);
-            container.innerHTML = html;
             
-            // Add event listeners to pagination buttons
-            container.querySelectorAll('button.page-link[data-page]').forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetPage = parseInt(this.dataset.page);
-                    console.log('Pagination button clicked, target page:', targetPage);
-                    loadInclusionsPageSafe(targetPage);
-                });
+            // Populate both header and bottom pagination containers
+            headerContainer.innerHTML = html;
+            if (bottomContainer) {
+                // For bottom pagination, show just the navigation controls without the "showing X-Y of Z" text
+                const bottomHtml = html.replace(/Showing inclusions.*?<\/small>/, '<small class="text-muted">Navigate pages</small>');
+                bottomContainer.innerHTML = bottomHtml;
+            }
+            
+            // Add event listeners to pagination buttons in both containers
+            [headerContainer, bottomContainer].forEach(container => {
+                if (container) {
+                    container.querySelectorAll('button.page-link[data-page]').forEach(button => {
+                        button.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const targetPage = parseInt(this.dataset.page);
+                            console.log('Pagination button clicked, target page:', targetPage);
+                            loadInclusionsPageSafe(targetPage);
+                        });
+                    });
+                }
             });
             
-            console.log('Pagination rendered to container with event listeners');
+            console.log('Pagination rendered to both containers with event listeners');
             console.log('========================');
             
             // Update the add inclusion button text to reflect pagination context
