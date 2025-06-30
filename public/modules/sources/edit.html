@@ -29,15 +29,28 @@
             background-color: #f8f9fa;
             padding: 8px;
             margin-bottom: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
         }
         
         .blank-row {
-            background-color: #ffffff;
-            border: 1px dashed #dee2e6;
+            background-color: #fafbfc;
+            border: 1px dashed #c6d0db;
+            opacity: 0.7;
         }
         
         .blank-row:hover {
-            background-color: #f8f9fa;
+            background-color: #f1f3f4;
+            opacity: 0.9;
+        }
+        
+        .blank-row input, .blank-row select, .blank-row textarea {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .blank-row input:focus, .blank-row select:focus, .blank-row textarea:focus {
+            background-color: #ffffff;
+            opacity: 1;
         }
         
         .form-label.small {
@@ -476,7 +489,7 @@
         let inclusionsData = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
-        const inclusionsPageSize = 40;
+        const inclusionsPageSize = 25;
 
         // Fetch source details and inclusions
         async function fetchSource(page = 1) {
@@ -689,10 +702,11 @@
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            // Always show inclusionsPageSize rows total (existing + blank)
-            const targetRows = inclusionsPageSize;
+            // For new sources (no inclusions), show 10 blank rows
+            // For existing sources, show existing inclusions + 1 blank row
             const existingRows = inclusionsData.length;
-            const blankRowsNeeded = Math.max(0, targetRows - existingRows);
+            const isNewSource = existingRows === 0;
+            const blankRowsNeeded = isNewSource ? 10 : 1;
 
             // ADD LOGGING: Log processing of inclusions data
             console.log('=== DISPLAY INCLUSIONS ===');
@@ -1525,6 +1539,9 @@
                 return;
             }
             
+            // Show loading spinner during page transition
+            showInclusionsLoading();
+            
             // Update URL with new page parameter
             updateUrlPage(page);
             
@@ -1541,6 +1558,18 @@
             
             const newUrl = window.location.pathname + '?' + urlParams.toString();
             window.history.replaceState({}, '', newUrl);
+        }
+        
+        function showInclusionsLoading() {
+            const container = document.getElementById('inclusionsContainer');
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Loading inclusions page...</p>
+                </div>
+            `;
         }
 
         // Shortcut functions
