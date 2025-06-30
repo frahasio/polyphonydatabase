@@ -432,7 +432,7 @@ router.put('/titles/:id', async (req, res) => {
       // Find the existing title that conflicts
       try {
         const conflictQuery = `
-          SELECT id, text, language, 
+          SELECT t.id, t.text, t.language, 
                  COUNT(DISTINCT c.id) as composition_count,
                  ARRAY_AGG(DISTINCT f.name) FILTER (WHERE f.name IS NOT NULL) as function_names
           FROM titles t

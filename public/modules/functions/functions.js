@@ -2,29 +2,45 @@
 let languages = [];
 let functions = [];
 let selectedTitlesForMerge = [];
+let selectedTitles = [];
+let allTitles = [];
 let currentEditingTitleId = null;
+let currentEditingFunctionId = null;
 let currentPagination = {
     page: 1,
-    limit: 20,
+    limit: 50,
     total: 0
 };
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    loadLanguages();
-    loadFunctions();
-    searchTitles();
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadLanguages();
+    await loadFunctions();
     setupEventListeners();
+    handleURLFilters();
+    loadFunctionsDisplay();
 });
 
 async function loadLanguages() {
     try {
         const response = await fetch('/api/admin/functions/languages');
-        const data = await response.json();
-        languages = data.languages;
+        if (response.ok) {
+            const data = await response.json();
+            languages = data.languages || [];
+        } else {
+            // Fallback to default languages
+            languages = [
+                { id: 1, name: 'Latin' },
+                { id: 2, name: 'English' },
+                { id: 3, name: 'French' },
+                { id: 4, name: 'Italian' },
+                { id: 5, name: 'German' },
+                { id: 6, name: 'Spanish' }
+            ];
+        }
         
         // Populate language dropdowns
-        const languageSelects = ['languageFilter', 'editTitleLanguage', 'finalLanguage'];
+        const languageSelects = ['languageFilter', 'bulkLanguageSelect', 'finalLanguage', 'editTitleLanguage'];
         languageSelects.forEach(selectId => {
             const select = document.getElementById(selectId);
             if (select) {
@@ -43,29 +59,43 @@ async function loadLanguages() {
         });
     } catch (error) {
         console.error('Error loading languages:', error);
+        languages = [];
     }
 }
 
 async function loadFunctions() {
     try {
         const response = await fetch('/api/admin/functions');
-        const data = await response.json();
-        functions = data.functions;
+        if (response.ok) {
+            const data = await response.json();
+            functions = data.functions || [];
+        } else {
+            functions = [];
+        }
         
-        // Populate function dropdown
-        const functionFilter = document.getElementById('functionFilter');
-        functionFilter.innerHTML = '<option value="">All Functions</option>';
-        functions.forEach(func => {
-            const option = document.createElement('option');
-            option.value = func.id;
-            option.textContent = func.name;
-            functionFilter.appendChild(option);
+        // Populate function dropdowns
+        const functionSelects = ['functionFilter', 'bulkFunctionSelect'];
+        functionSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                // Keep first option, clear the rest
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                functions.forEach(func => {
+                    const option = document.createElement('option');
+                    option.value = func.id;
+                    option.textContent = func.name;
+                    select.appendChild(option);
+                });
+            }
         });
 
-        // Populate functions table
+        // Populate functions table if it exists
         displayFunctions(functions);
     } catch (error) {
         console.error('Error loading functions:', error);
+        functions = [];
     }
 }
 
@@ -113,6 +143,7 @@ async function searchTitles(page = 1) {
         const response = await fetch(`/api/admin/functions/titles/search?${params}`);
         const data = await response.json();
 
+        allTitles = data.titles || [];
         displayTitles(data.titles);
         updatePagination(data.pagination);
     } catch (error) {
@@ -129,42 +160,89 @@ function displayTitles(titles) {
         return;
     }
 
+    // Check if we're in bulk selection mode (index.html) or merge mode (functions.js)
+    const isBulkMode = document.getElementById('bulkActionsBar') !== null;
+
     container.innerHTML = titles.map(title => {
         const languageName = languages.find(l => l.id == title.language)?.name || 'Unknown';
         const functionBadges = title.function_names && title.function_names.length > 0 
             ? title.function_names.map(name => `<span class="badge bg-info function-badge me-1">${name}</span>`).join('')
             : '<span class="text-muted">No functions</span>';
 
-        return `
-            <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card title-card h-100" onclick="selectTitleForMerge(${title.id})">
-                    <div class="card-body">
-                        <h6 class="card-title">${title.text}</h6>
-                        <div class="mb-2">
-                            <span class="badge bg-primary language-badge">${languageName}</span>
-                        </div>
-                        <div class="mb-2">
-                            ${functionBadges}
-                        </div>
-                        <div class="composition-count">
-                            <i class="bi bi-music-note"></i> ${title.composition_count} compositions
-                        </div>
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTitle(${title.id})">
-                                <i class="bi bi-pencil"></i> Edit
-                            </button>
+        const isSelected = selectedTitles.includes(title.id) || selectedTitlesForMerge.includes(title.id);
+        const selectionClass = isSelected ? 'selected' : '';
+
+        if (isBulkMode) {
+            // Bulk selection mode (index.html)
+            return `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card title-card h-100 ${selectionClass}" onclick="toggleSelection(${title.id})">
+                        <div class="card-body">
+                            <div class="form-check position-absolute top-0 end-0 m-2">
+                                <input class="form-check-input" type="checkbox" ${isSelected ? 'checked' : ''} 
+                                       onchange="toggleSelection(${title.id})" onclick="event.stopPropagation()">
+                            </div>
+                            <h6 class="card-title">${title.text}</h6>
+                            <div class="mb-2">
+                                <span class="badge bg-primary language-badge">${languageName}</span>
+                            </div>
+                            <div class="mb-2">
+                                ${functionBadges}
+                            </div>
+                            <div class="composition-count">
+                                <i class="bi bi-music-note"></i> ${title.composition_count} compositions
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTitle(${title.id})">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            // Merge selection mode (functions.js)
+            return `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card title-card h-100 ${selectionClass}" onclick="selectTitleForMerge(${title.id})">
+                        <div class="card-body">
+                            <h6 class="card-title">${title.text}</h6>
+                            <div class="mb-2">
+                                <span class="badge bg-primary language-badge">${languageName}</span>
+                            </div>
+                            <div class="mb-2">
+                                ${functionBadges}
+                            </div>
+                            <div class="composition-count">
+                                <i class="bi bi-music-note"></i> ${title.composition_count} compositions
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTitle(${title.id})">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
     }).join('');
 
     // Convert to grid layout
     container.className = 'row';
+    
+    // Update selection display if in bulk mode
+    if (isBulkMode) {
+        updateSelectionDisplay();
+    } else {
+        updateSelectedTitlesDisplay();
+    }
 }
 
 function updatePagination(pagination) {
+    if (!pagination) return;
+    
     currentPagination = pagination;
     const nav = document.getElementById('titlesPagination');
     if (!nav) return;
@@ -203,6 +281,66 @@ function updatePagination(pagination) {
     ul.appendChild(nextLi);
 }
 
+// Bulk selection functions (for index.html)
+function toggleSelection(titleId) {
+    const index = selectedTitles.indexOf(titleId);
+    if (index > -1) {
+        selectedTitles.splice(index, 1);
+    } else {
+        selectedTitles.push(titleId);
+    }
+    updateSelectionDisplay();
+    updateSelectedTitlesInDOM();
+}
+
+function selectAll() {
+    selectedTitles = [...allTitles.map(t => t.id)];
+    updateSelectionDisplay();
+    updateSelectedTitlesInDOM();
+}
+
+function clearSelection() {
+    selectedTitles = [];
+    updateSelectionDisplay();
+    updateSelectedTitlesInDOM();
+}
+
+function updateSelectedTitlesInDOM() {
+    allTitles.forEach(title => {
+        const isSelected = selectedTitles.includes(title.id);
+        const card = document.querySelector(`.title-card[onclick*="${title.id}"]`);
+        const checkbox = card?.querySelector('input[type="checkbox"]');
+        
+        if (card) {
+            if (isSelected) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        }
+        
+        if (checkbox) {
+            checkbox.checked = isSelected;
+        }
+    });
+}
+
+function updateSelectionDisplay() {
+    const count = selectedTitles.length;
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const countElement = document.getElementById('selectedCount');
+    
+    if (bulkBar && countElement) {
+        if (count > 0) {
+            bulkBar.style.display = 'block';
+            countElement.textContent = `${count} title${count === 1 ? '' : 's'} selected`;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+    }
+}
+
+// Merge selection functions (for functions.js)
 function selectTitleForMerge(titleId) {
     const card = event.currentTarget;
     
@@ -268,14 +406,102 @@ function showMergePreview() {
     if (finalTitleText) finalTitleText.value = firstTitle;
 }
 
-async function performMerge() {
-    if (selectedTitlesForMerge.length < 2) {
-        alert('Please select at least 2 titles to merge');
+// Modal functions
+function showAssignFunctionModal() {
+    document.getElementById('functionAssignCount').textContent = selectedTitles.length;
+    const modal = new bootstrap.Modal(document.getElementById('assignFunctionModal'));
+    modal.show();
+}
+
+function showAssignLanguageModal() {
+    document.getElementById('languageAssignCount').textContent = selectedTitles.length;
+    const modal = new bootstrap.Modal(document.getElementById('assignLanguageModal'));
+    modal.show();
+}
+
+function showMergeModal() {
+    document.getElementById('mergeCount').textContent = selectedTitles.length;
+    // Set default text to first selected title
+    const firstTitle = allTitles.find(t => t.id === selectedTitles[0]);
+    if (firstTitle) {
+        document.getElementById('finalTitleText').value = firstTitle.text;
+        document.getElementById('finalLanguage').value = firstTitle.language || '';
+    }
+    const modal = new bootstrap.Modal(document.getElementById('mergeModal'));
+    modal.show();
+}
+
+async function performBulkFunctionAssign() {
+    const functionId = document.getElementById('bulkFunctionSelect').value;
+    if (!functionId) {
+        alert('Please select a function');
         return;
     }
 
-    const finalText = document.getElementById('finalTitleText')?.value.trim();
-    const finalLanguage = document.getElementById('finalLanguage')?.value;
+    try {
+        for (const titleId of selectedTitles) {
+            await fetch(`/api/admin/functions/titles/${titleId}/functions/${functionId}`, {
+                method: 'POST'
+            });
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('assignFunctionModal')).hide();
+        alert(`Function assigned to ${selectedTitles.length} titles`);
+        clearSelection();
+        searchTitles();
+    } catch (error) {
+        console.error('Error assigning function:', error);
+        alert('Error assigning function. Please try again.');
+    }
+}
+
+async function performBulkLanguageAssign() {
+    const languageId = document.getElementById('bulkLanguageSelect').value;
+    if (!languageId) {
+        alert('Please select a language');
+        return;
+    }
+
+    try {
+        for (const titleId of selectedTitles) {
+            await fetch(`/api/admin/functions/titles/${titleId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    text: allTitles.find(t => t.id === titleId)?.text,
+                    language: languageId 
+                })
+            });
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('assignLanguageModal')).hide();
+        alert(`Language assigned to ${selectedTitles.length} titles`);
+        clearSelection();
+        searchTitles();
+    } catch (error) {
+        console.error('Error assigning language:', error);
+        alert('Error assigning language. Please try again.');
+    }
+}
+
+async function performMerge() {
+    let titlesToMerge, finalText, finalLanguage;
+    
+    // Check if we're in bulk mode or merge mode
+    if (selectedTitles.length >= 2) {
+        // Bulk mode
+        titlesToMerge = selectedTitles;
+        finalText = document.getElementById('finalTitleText').value.trim();
+        finalLanguage = document.getElementById('finalLanguage').value;
+    } else if (selectedTitlesForMerge.length >= 2) {
+        // Merge mode
+        titlesToMerge = selectedTitlesForMerge;
+        finalText = document.getElementById('finalTitleText')?.value.trim();
+        finalLanguage = document.getElementById('finalLanguage')?.value;
+    } else {
+        alert('Please select at least 2 titles to merge');
+        return;
+    }
 
     if (!finalText) {
         alert('Please enter the final title text');
@@ -289,8 +515,8 @@ async function performMerge() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                target_title_id: selectedTitlesForMerge[0],
-                source_title_ids: selectedTitlesForMerge,
+                target_title_id: titlesToMerge[0],
+                source_title_ids: titlesToMerge,
                 final_text: finalText,
                 final_language: finalLanguage || null
             })
@@ -299,9 +525,20 @@ async function performMerge() {
         const result = await response.json();
 
         if (response.ok) {
+            // Hide the appropriate modal
+            const mergeModal = document.getElementById('mergeModal');
+            if (mergeModal) {
+                bootstrap.Modal.getInstance(mergeModal)?.hide();
+            }
+            
             alert(result.message);
+            
+            // Clear selections
+            selectedTitles = [];
             selectedTitlesForMerge = [];
+            updateSelectionDisplay();
             updateSelectedTitlesDisplay();
+            
             searchTitles();
         } else {
             throw new Error(result.error);
@@ -355,16 +592,16 @@ async function editTitle(titleId) {
     currentEditingTitleId = titleId;
     
     try {
-        // Load title details and associated functions
-        const [titleResponse, functionsResponse] = await Promise.all([
-            fetch(`/api/admin/functions/titles/search?search=&page=1&limit=1000`),
-            fetch('/api/admin/functions')
-        ]);
-
-        const titleData = await titleResponse.json();
-        const functionsData = await functionsResponse.json();
-
-        const title = titleData.titles.find(t => t.id === titleId);
+        // Find the title in current results or fetch it
+        let title = allTitles.find(t => t.id === titleId);
+        
+        if (!title) {
+            // If not in current results, fetch it
+            const response = await fetch(`/api/admin/functions/titles/search?search=&page=1&limit=1000`);
+            const data = await response.json();
+            title = data.titles.find(t => t.id === titleId);
+        }
+        
         if (!title) {
             throw new Error('Title not found');
         }
@@ -376,16 +613,17 @@ async function editTitle(titleId) {
         if (editTitleText) editTitleText.value = title.text;
         if (editTitleLanguage) editTitleLanguage.value = title.language || '';
 
-        // Populate function checkboxes
-        const container = document.getElementById('functionCheckboxes');
+        // Populate function checkboxes (try both possible container IDs)
+        const container = document.getElementById('functionCheckboxes') || document.getElementById('editFunctionCheckboxes');
         if (container) {
-            container.innerHTML = functionsData.functions.map(func => {
+            container.innerHTML = functions.map(func => {
                 const isAssigned = title.function_names && title.function_names.includes(func.name);
+                const checkboxId = container.id === 'functionCheckboxes' ? `func_${func.id}` : `edit_func_${func.id}`;
                 return `
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="func_${func.id}" 
+                        <input class="form-check-input" type="checkbox" id="${checkboxId}" 
                                value="${func.id}" ${isAssigned ? 'checked' : ''}>
-                        <label class="form-check-label" for="func_${func.id}">
+                        <label class="form-check-label" for="${checkboxId}">
                             ${func.name}
                         </label>
                     </div>
@@ -404,6 +642,10 @@ async function editTitle(titleId) {
 }
 
 async function saveTitle() {
+    return await saveEditedTitle(); // Use the same implementation
+}
+
+async function saveEditedTitle() {
     if (!currentEditingTitleId) return;
 
     const text = document.getElementById('editTitleText')?.value.trim();
@@ -455,8 +697,8 @@ async function saveTitle() {
             throw new Error(errorData.error || 'Failed to update title');
         }
 
-        // Get currently selected function IDs from checkboxes
-        const checkboxes = document.querySelectorAll('#functionCheckboxes input[type="checkbox"]');
+        // Get currently selected function IDs from checkboxes (try both possible container IDs)
+        const checkboxes = document.querySelectorAll('#functionCheckboxes input[type="checkbox"], #editFunctionCheckboxes input[type="checkbox"]');
         const selectedFunctionIds = [];
         
         checkboxes.forEach(checkbox => {
@@ -529,8 +771,211 @@ async function performTitleMerge(sourceId, targetId, finalText, finalLanguage) {
     }
 }
 
+function handleURLFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const filter = params.get('filter');
+    
+    if (filter) {
+        // Set search term based on filter
+        switch (filter) {
+            case 'no_functions':
+                document.getElementById('titleSearch').value = '*no_functions*';
+                showFilterAlert('Showing titles with no functions assigned. You can select multiple titles and assign functions in bulk.');
+                searchTitles();
+                break;
+            case 'no_language':
+                document.getElementById('titleSearch').value = '*no_language*';
+                showFilterAlert('Showing titles with no language assigned. You can select multiple titles and assign languages in bulk.');
+                searchTitles();
+                break;
+            case 'empty_functions':
+                alert('Functions without titles - this feature coming soon');
+                break;
+        }
+    }
+}
+
+function showFilterAlert(message) {
+    const filterMessage = document.getElementById('filterMessage');
+    const filterAlert = document.getElementById('filterAlert');
+    if (filterMessage) filterMessage.textContent = message;
+    if (filterAlert) filterAlert.style.display = 'block';
+}
+
+function clearSpecialFilter() {
+    const filterAlert = document.getElementById('filterAlert');
+    const titleSearch = document.getElementById('titleSearch');
+    const container = document.getElementById('titlesResults');
+    
+    if (filterAlert) filterAlert.style.display = 'none';
+    if (titleSearch) titleSearch.value = '';
+    if (container) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-search display-4 text-muted"></i>
+                <p>Enter a search term to find titles</p>
+            </div>
+        `;
+    }
+    // Clear URL parameters
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+function loadFunctionsDisplay() {
+    const container = document.getElementById('functionsResults');
+    if (!container) return;
+    
+    if (functions.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4">No functions found</div>';
+        return;
+    }
+
+    // Sort functions to show ones with no titles first
+    const sortedFunctions = [...functions].sort((a, b) => {
+        const aCount = a.title_count || 0;
+        const bCount = b.title_count || 0;
+        if (aCount === 0 && bCount > 0) return -1;
+        if (aCount > 0 && bCount === 0) return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    const functionsWithNoTitles = functions.filter(f => (f.title_count || 0) === 0).length;
+    
+    let headerHTML = '';
+    if (functionsWithNoTitles > 0) {
+        headerHTML = `
+            <div class="alert alert-warning mb-4">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Attention:</strong> ${functionsWithNoTitles} function${functionsWithNoTitles === 1 ? ' has' : 's have'} no titles assigned and ${functionsWithNoTitles === 1 ? 'is' : 'are'} highlighted below.
+                Consider removing unused functions or assigning them to relevant titles.
+            </div>
+        `;
+    }
+
+    container.innerHTML = headerHTML + sortedFunctions.map(func => {
+        const titleCount = func.title_count || 0;
+        const hasNoTitles = titleCount === 0;
+        const cardClass = hasNoTitles ? 'border-warning border-2 bg-warning bg-opacity-10' : '';
+        
+        return `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 ${cardClass}" ${hasNoTitles ? 'style="box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);"' : ''}>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0 ${hasNoTitles ? 'text-warning-emphasis' : ''}">${func.name}</h6>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="editFunction(${func.id})"><i class="bi bi-pencil"></i> Edit</a></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteFunction(${func.id})"><i class="bi bi-trash"></i> Delete</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            ${hasNoTitles 
+                                ? '<span class="badge bg-warning text-dark fs-6"><i class="bi bi-exclamation-triangle-fill me-1"></i> No Titles Assigned</span>'
+                                : `<span class="badge bg-primary"><i class="bi bi-card-text"></i> ${titleCount} title${titleCount === 1 ? '' : 's'}</span>`
+                            }
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-hash"></i> ID: ${func.id}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    container.className = 'row';
+}
+
+function showAddFunctionModal() {
+    const nameField = document.getElementById('newFunctionName');
+    if (nameField) nameField.value = '';
+    const modal = new bootstrap.Modal(document.getElementById('addFunctionModal'));
+    modal.show();
+}
+
+async function createFunction() {
+    const name = document.getElementById('newFunctionName')?.value.trim();
+    
+    if (!name) {
+        alert('Please enter a function name');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/functions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addFunctionModal'));
+            modal.hide();
+            await loadFunctions();
+            loadFunctionsDisplay();
+            alert('Function created successfully');
+        } else {
+            throw new Error('Failed to create function');
+        }
+    } catch (error) {
+        console.error('Error creating function:', error);
+        alert('Failed to create function');
+    }
+}
+
+function editFunction(functionId) {
+    const func = functions.find(f => f.id === functionId);
+    if (!func) return;
+
+    currentEditingFunctionId = functionId;
+    const editField = document.getElementById('editFunctionName');
+    if (editField) editField.value = func.name;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editFunctionModal'));
+    modal.show();
+}
+
+async function saveFunctionEdit() {
+    if (!currentEditingFunctionId) return;
+
+    const name = document.getElementById('editFunctionName')?.value.trim();
+    
+    if (!name) {
+        alert('Please enter a function name');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/functions/${currentEditingFunctionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editFunctionModal'));
+            modal.hide();
+            await loadFunctions();
+            loadFunctionsDisplay();
+            alert('Function updated successfully');
+        } else {
+            throw new Error('Failed to update function');
+        }
+    } catch (error) {
+        console.error('Error updating function:', error);
+        alert('Failed to update function');
+    }
+}
+
 async function deleteFunction(functionId) {
-    if (!confirm('Are you sure you want to delete this function? This will remove all title associations.')) {
+    const func = functions.find(f => f.id === functionId);
+    if (!func) return;
+
+    if (!confirm(`Are you sure you want to delete "${func.name}"? This will remove all title associations.`)) {
         return;
     }
 
@@ -540,7 +985,9 @@ async function deleteFunction(functionId) {
         });
 
         if (response.ok) {
-            loadFunctions();
+            await loadFunctions();
+            loadFunctionsDisplay();
+            alert('Function deleted successfully');
         } else {
             throw new Error('Failed to delete function');
         }
@@ -589,7 +1036,7 @@ function setupEventListeners() {
     // Save title button
     const saveTitleBtn = document.getElementById('saveTitleBtn');
     if (saveTitleBtn) {
-        saveTitleBtn.addEventListener('click', saveTitle);
+        saveTitleBtn.addEventListener('click', saveEditedTitle);
     }
 
     // Handle Enter key in search fields
@@ -613,6 +1060,34 @@ function setupEventListeners() {
             if (e.key === 'Enter') searchForMerge();
         });
     }
+
+    // Filter changes trigger search
+    const languageFilter = document.getElementById('languageFilter');
+    if (languageFilter) {
+        languageFilter.addEventListener('change', () => {
+            if (document.getElementById('titleSearch')?.value.trim()) {
+                searchTitles();
+            }
+        });
+    }
+
+    const functionFilter = document.getElementById('functionFilter');
+    if (functionFilter) {
+        functionFilter.addEventListener('change', () => {
+            if (document.getElementById('titleSearch')?.value.trim()) {
+                searchTitles();
+            }
+        });
+    }
+
+    const findSimilar = document.getElementById('findSimilar');
+    if (findSimilar) {
+        findSimilar.addEventListener('change', () => {
+            if (document.getElementById('titleSearch')?.value.trim()) {
+                searchTitles();
+            }
+        });
+    }
 }
 
 // Make functions globally available
@@ -624,5 +1099,19 @@ window.deselectTitle = deselectTitle;
 window.performMerge = performMerge;
 window.cancelMerge = cancelMerge;
 window.editTitle = editTitle;
+window.saveTitle = saveTitle;
+window.saveEditedTitle = saveEditedTitle;
 window.deleteFunction = deleteFunction;
-window.editFunction = function(id) { alert('Edit function feature coming soon'); }; 
+window.editFunction = editFunction;
+window.toggleSelection = toggleSelection;
+window.selectAll = selectAll;
+window.clearSelection = clearSelection;
+window.showAssignFunctionModal = showAssignFunctionModal;
+window.showAssignLanguageModal = showAssignLanguageModal;
+window.showMergeModal = showMergeModal;
+window.performBulkFunctionAssign = performBulkFunctionAssign;
+window.performBulkLanguageAssign = performBulkLanguageAssign;
+window.clearSpecialFilter = clearSpecialFilter;
+window.showAddFunctionModal = showAddFunctionModal;
+window.createFunction = createFunction;
+window.saveFunctionEdit = saveFunctionEdit; 
