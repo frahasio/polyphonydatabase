@@ -130,12 +130,14 @@ async function searchTitles(page = 1) {
         const language = document.getElementById('languageFilter')?.value || '';
         const function_id = document.getElementById('functionFilter')?.value || '';
         const similar = document.getElementById('findSimilar')?.checked || false;
+        const grouped = document.getElementById('groupTitles')?.checked || false;
 
         const params = new URLSearchParams({
             search,
             language,
             function_id,
             similar: similar.toString(),
+            grouped: grouped.toString(),
             page: page.toString(),
             limit: currentPagination.limit.toString()
         });
@@ -143,8 +145,16 @@ async function searchTitles(page = 1) {
         const response = await fetch(`/api/admin/functions/titles/search?${params}`);
         const data = await response.json();
 
-        allTitles = data.titles || [];
-        displayTitles(data.titles);
+        if (data.isGrouped) {
+            // Handle grouped results
+            allTitles = data.titleGroups ? data.titleGroups.flatMap(group => group.titles) : [];
+            displayTitleGroups(data.titleGroups || []);
+        } else {
+            // Handle individual title results
+            allTitles = data.titles || [];
+            displayTitles(data.titles || []);
+        }
+        
         updatePagination(data.pagination);
     } catch (error) {
         console.error('Error searching titles:', error);
@@ -238,6 +248,63 @@ function displayTitles(titles) {
     } else {
         updateSelectedTitlesDisplay();
     }
+}
+
+function displayTitleGroups(titleGroups) {
+    const container = document.getElementById('titlesResults');
+    if (!container) return;
+    
+    if (titleGroups.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4">No title groups found</div>';
+        return;
+    }
+
+    container.innerHTML = titleGroups.map(group => {
+        const functionBadges = group.allFunctionNames && group.allFunctionNames.length > 0 
+            ? group.allFunctionNames.map(name => `<span class="badge bg-info function-badge me-1">${name}</span>`).join('')
+            : '<span class="text-muted">No functions</span>';
+
+        const variantsList = group.titles.map(title => 
+            `<li class="small text-muted">${title.text} (${title.composition_count} compositions)</li>`
+        ).join('');
+
+        return `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card title-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">${group.originalBaseText}</h6>
+                            <span class="badge bg-secondary">${group.variantCount} variants</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            ${functionBadges}
+                        </div>
+                        
+                        <div class="composition-count mb-2">
+                            <i class="bi bi-music-note"></i> ${group.totalCompositions} total compositions
+                        </div>
+                        
+                        <div class="mb-2">
+                            <small class="text-muted">Variants:</small>
+                            <ul class="mb-0 ps-3">
+                                ${variantsList}
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-primary" onclick="editTitleGroup('${encodeURIComponent(group.originalBaseText)}')">
+                                <i class="bi bi-pencil"></i> Edit Group
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Convert to grid layout
+    container.className = 'row';
 }
 
 function updatePagination(pagination) {
@@ -1026,6 +1093,90 @@ async function saveFunction() {
     }
 }
 
+async function editTitleGroup(baseText) {
+    try {
+        const response = await fetch(`/api/admin/functions/titles/group/${encodeURIComponent(baseText)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch group details');
+        }
+        
+        const data = await response.json();
+        
+        // Populate modal
+        document.getElementById('groupCurrentBaseText').value = data.group.originalBaseText;
+        document.getElementById('groupNewBaseText').value = data.group.originalBaseText;
+        
+        // Populate language dropdown for group modal
+        const groupLanguageSelect = document.getElementById('groupLanguage');
+        while (groupLanguageSelect.children.length > 1) {
+            groupLanguageSelect.removeChild(groupLanguageSelect.lastChild);
+        }
+        languages.forEach(lang => {
+            const option = document.createElement('option');
+            option.value = lang.id;
+            option.textContent = lang.name;
+            groupLanguageSelect.appendChild(option);
+        });
+        
+        // Show titles in the group
+        const titlesList = document.getElementById('groupTitlesList');
+        titlesList.innerHTML = data.titles.map(title => 
+            `<div class="small mb-1">
+                <strong>${title.text}</strong> 
+                <span class="text-muted">(${title.composition_count} compositions)</span>
+            </div>`
+        ).join('');
+        
+        // Store the base text for saving
+        document.getElementById('editGroupModal').dataset.originalBaseText = data.group.originalBaseText;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editGroupModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error loading group details:', error);
+        alert('Error loading group details. Please try again.');
+    }
+}
+
+async function saveGroupEdit() {
+    try {
+        const originalBaseText = document.getElementById('editGroupModal').dataset.originalBaseText;
+        const newBaseText = document.getElementById('groupNewBaseText').value.trim();
+        const language = document.getElementById('groupLanguage').value || undefined;
+        
+        if (!newBaseText) {
+            alert('Please enter a base text');
+            return;
+        }
+        
+        const response = await fetch('/api/admin/functions/titles/group/bulk-update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                originalBaseText,
+                newBaseText,
+                language
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
+            alert(`Successfully updated ${result.updatedTitles.length} titles in the group!`);
+            searchTitles(); // Refresh results
+        } else {
+            const error = await response.json();
+            alert(`Error updating group: ${error.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Error saving group edit:', error);
+        alert('Error saving changes. Please try again.');
+    }
+}
+
 function setupEventListeners() {
     // Save function button
     const saveFunctionBtn = document.getElementById('saveFunctionBtn');
@@ -1088,6 +1239,16 @@ function setupEventListeners() {
             }
         });
     }
+    
+    // Group titles checkbox change
+    const groupTitles = document.getElementById('groupTitles');
+    if (groupTitles) {
+        groupTitles.addEventListener('change', () => {
+            if (document.getElementById('titleSearch')?.value.trim()) {
+                searchTitles();
+            }
+        });
+    }
 }
 
 // Make functions globally available
@@ -1114,4 +1275,6 @@ window.performBulkLanguageAssign = performBulkLanguageAssign;
 window.clearSpecialFilter = clearSpecialFilter;
 window.showAddFunctionModal = showAddFunctionModal;
 window.createFunction = createFunction;
-window.saveFunctionEdit = saveFunctionEdit; 
+window.saveFunctionEdit = saveFunctionEdit;
+window.editTitleGroup = editTitleGroup;
+window.saveGroupEdit = saveGroupEdit; 

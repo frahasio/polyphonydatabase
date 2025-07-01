@@ -119,7 +119,7 @@
                     </div>
                     
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="findSimilar">
                                 <label class="form-check-label" for="findSimilar">
@@ -127,7 +127,15 @@
                                 </label>
                             </div>
                         </div>
-                        <div class="col-md-6 text-end">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="groupTitles" checked>
+                                <label class="form-check-label" for="groupTitles">
+                                    <strong>Group titles by base text</strong> (removes [I], [II], etc.)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
                             <button class="btn btn-outline-primary btn-sm me-2" onclick="selectAll()">
                                 <i class="bi bi-check-all"></i> Select All
                             </button>
@@ -371,6 +379,48 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" onclick="performMerge()">Merge Titles</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Title Group Modal -->
+    <div class="modal fade" id="editGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Title Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="groupCurrentBaseText" class="form-label">Current Base Text</label>
+                        <input type="text" class="form-control" id="groupCurrentBaseText" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="groupNewBaseText" class="form-label">New Base Text</label>
+                        <input type="text" class="form-control" id="groupNewBaseText" placeholder="Enter new base text">
+                    </div>
+                    <div class="mb-3">
+                        <label for="groupLanguage" class="form-label">Language (optional)</label>
+                        <select class="form-select" id="groupLanguage">
+                            <option value="">Keep current languages</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Titles that will be updated:</label>
+                        <div id="groupTitlesList" class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
+                            <!-- Group titles will be shown here -->
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        This will update all titles in this group to use the new base text while preserving their bracketed portions (like [I], [II], etc.).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveGroupEdit()">Update Group</button>
                 </div>
             </div>
         </div>
