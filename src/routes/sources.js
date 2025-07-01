@@ -40,6 +40,8 @@ function convertToneToString(toneValue) {
 router.get('/', async (req, res) => {
   try {
     const searchTerm = req.query.search || '';
+    const cataloguedFilter = req.query.catalogued;
+    
     let query = `
       SELECT 
         s.*,
@@ -69,11 +71,21 @@ router.get('/', async (req, res) => {
     `;
 
     const queryParams = [];
+    const whereConditions = [];
+    
     if (searchTerm) {
-      query += `
-        WHERE s.code ILIKE $1 OR s.title ILIKE $1
-      `;
+      whereConditions.push(`(s.code ILIKE $${queryParams.length + 1} OR s.title ILIKE $${queryParams.length + 1})`);
       queryParams.push(`%${searchTerm}%`);
+    }
+    
+    if (cataloguedFilter !== undefined) {
+      const cataloguedValue = cataloguedFilter === 'true';
+      whereConditions.push(`s.catalogued = $${queryParams.length + 1}`);
+      queryParams.push(cataloguedValue);
+    }
+    
+    if (whereConditions.length > 0) {
+      query += ` WHERE ${whereConditions.join(' AND ')}`;
     }
 
     query += `
