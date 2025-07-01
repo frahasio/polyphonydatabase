@@ -107,14 +107,52 @@ router.get('/groups', async (req, res) => {
 
     // Composers filter
     if (composerIds.length > 0) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM compositions c2
-        WHERE c2.group_id = g.id 
-        AND c2.composer_id_list IS NOT NULL
-        AND array_remove(c2.composer_id_list, NULL) && $${paramIndex}::integer[]
-      )`);
-      queryParams.push(composerIds);
-      paramIndex++;
+      const includesAnonymous = composerIds.includes(23);
+      const namedComposerIds = composerIds.filter(id => id !== 23);
+      
+      if (includesAnonymous && namedComposerIds.length === 0) {
+        // Only anonymous selected - groups must be entirely anonymous
+        whereConditions.push(`NOT EXISTS (
+          SELECT 1 FROM compositions c2
+          CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS composer_id
+          WHERE c2.group_id = g.id 
+          AND c2.composer_id_list IS NOT NULL
+          AND array_length(c2.composer_id_list, 1) > 0
+          AND composer_id != 23
+        )`);
+      } else if (includesAnonymous && namedComposerIds.length > 0) {
+        // Both anonymous and named composers selected - this is contradictory
+        // Show groups that have the named composers OR are entirely anonymous
+        whereConditions.push(`(
+          EXISTS (
+            SELECT 1 FROM compositions c2
+            WHERE c2.group_id = g.id 
+            AND c2.composer_id_list IS NOT NULL
+            AND array_remove(c2.composer_id_list, NULL) && $${paramIndex}::integer[]
+          )
+          OR
+          NOT EXISTS (
+            SELECT 1 FROM compositions c2
+            CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS composer_id
+            WHERE c2.group_id = g.id 
+            AND c2.composer_id_list IS NOT NULL
+            AND array_length(c2.composer_id_list, 1) > 0
+            AND composer_id != 23
+          )
+        )`);
+        queryParams.push(namedComposerIds);
+        paramIndex++;
+      } else {
+        // Only named composers selected - use original logic
+        whereConditions.push(`EXISTS (
+          SELECT 1 FROM compositions c2
+          WHERE c2.group_id = g.id 
+          AND c2.composer_id_list IS NOT NULL
+          AND array_remove(c2.composer_id_list, NULL) && $${paramIndex}::integer[]
+        )`);
+        queryParams.push(composerIds);
+        paramIndex++;
+      }
     }
 
     // Voices filter
