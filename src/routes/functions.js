@@ -3,6 +3,63 @@ import { pool } from '../db.js';
 
 const router = express.Router();
 
+// Utility function to extract base title (remove roman numerals in square brackets)
+function extractBaseTitle(titleText) {
+  if (!titleText) return '';
+  
+  // Remove roman numerals in square brackets (e.g., [I], [II], [III], etc.)
+  // Handle cases where brackets might be anywhere in the title
+  const romanNumeralPattern = /\s*\[[IVX]+\]\s*/g;
+  
+  return titleText
+    .replace(romanNumeralPattern, ' ')  // Replace with space to avoid joining words
+    .replace(/\s+/g, ' ')               // Normalize multiple spaces to single space
+    .trim();                            // Remove leading/trailing spaces
+}
+
+// Utility function to group titles by base text
+function groupTitlesByBase(titles) {
+  const groups = new Map();
+  
+  titles.forEach(title => {
+    const baseText = extractBaseTitle(title.text);
+    const key = baseText.toLowerCase(); // Case-insensitive grouping
+    
+    if (!groups.has(key)) {
+      groups.set(key, {
+        baseText: baseText,
+        originalBaseText: baseText, // Keep original case for display
+        titles: [],
+        totalCompositions: 0,
+        allFunctionNames: new Set()
+      });
+    }
+    
+    const group = groups.get(key);
+    group.titles.push(title);
+    group.totalCompositions += title.composition_count || 0;
+    
+    // Add function names to the set
+    if (title.function_names && Array.isArray(title.function_names)) {
+      title.function_names.forEach(name => {
+        if (name) group.allFunctionNames.add(name);
+      });
+    }
+    
+    // Update base text to use the "best" version (prefer non-empty, maintain original case)
+    if (baseText && baseText.length > group.originalBaseText.length) {
+      group.originalBaseText = baseText;
+    }
+  });
+  
+  // Convert sets to arrays and finalize groups
+  return Array.from(groups.values()).map(group => ({
+    ...group,
+    allFunctionNames: Array.from(group.allFunctionNames),
+    variantCount: group.titles.length
+  }));
+}
+
 // Get all functions with their associated titles
 router.get('/', async (req, res) => {
   try {
@@ -36,6 +93,49 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching functions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test endpoint to verify title base extraction
+router.get('/titles/test-extraction', async (req, res) => {
+  try {
+    const testTitles = [
+      'Salve Regina [I]',
+      'Salve Regina [II]',
+      'Salve regina [I] - Eia ergo',
+      'Salve regina [II] - O clemens',
+      'Ave Maria [I]',
+      'Ave Maria [II]',
+      'Pange lingua [III]',
+      'Te Deum',
+      'Kyrie [IV] from Mass',
+      '[I] Gloria in excelsis'
+    ];
+
+    const results = testTitles.map(title => ({
+      original: title,
+      baseText: extractBaseTitle(title),
+      groupKey: extractBaseTitle(title).toLowerCase()
+    }));
+
+    // Group them to show how they would be grouped
+    const grouped = {};
+    results.forEach(result => {
+      const key = result.groupKey;
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+      grouped[key].push(result.original);
+    });
+
+    res.json({
+      individual: results,
+      grouped: grouped,
+      note: "This endpoint helps verify that title base extraction and grouping works correctly"
+    });
+  } catch (error) {
+    console.error('Error in test extraction:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -286,6 +386,7 @@ router.get('/titles/search', async (req, res) => {
       language = '', 
       function_id = '',
       similar = 'false',
+      grouped = 'false',
       page = 1,
       limit = 50 
     } = req.query;
@@ -352,36 +453,229 @@ router.get('/titles/search', async (req, res) => {
       countQuery += whereClause;
     }
 
-    query += `
-      GROUP BY t.id, t.text, t.language, l.language, t.created_at, t.updated_at
-      ORDER BY t.text
-      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
-    `;
+    if (grouped === 'true') {
+      // For grouped results, get all matching titles without pagination first
+      const allTitlesQuery = query + `
+        GROUP BY t.id, t.text, t.language, l.language, t.created_at, t.updated_at
+        ORDER BY t.text
+      `;
+      
+      const allTitlesResult = await pool.query(allTitlesQuery, queryParams);
+      const groupedTitles = groupTitlesByBase(allTitlesResult.rows);
+      
+      // Apply pagination to groups
+      const total = groupedTitles.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginatedGroups = groupedTitles.slice(offset, offset + parseInt(limit));
 
-    queryParams.push(limit, offset);
+      res.json({
+        titleGroups: paginatedGroups,
+        isGrouped: true,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
+    } else {
+      // Original individual title results
+      query += `
+        GROUP BY t.id, t.text, t.language, l.language, t.created_at, t.updated_at
+        ORDER BY t.text
+        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+      `;
 
-    const [countResult, titlesResult] = await Promise.all([
-      pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(query, queryParams)
-    ]);
+      queryParams.push(limit, offset);
 
-    const total = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(total / limit);
+      const [countResult, titlesResult] = await Promise.all([
+        pool.query(countQuery, queryParams.slice(0, -2)),
+        pool.query(query, queryParams)
+      ]);
 
-    res.json({
-      titles: titlesResult.rows,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
+      const total = parseInt(countResult.rows[0].count);
+      const totalPages = Math.ceil(total / limit);
+
+      res.json({
+        titles: titlesResult.rows,
+        isGrouped: false,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      });
+    }
   } catch (error) {
     console.error('Error searching titles:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get details of a title group by base text
+router.get('/titles/group/:baseText', async (req, res) => {
+  try {
+    const baseText = decodeURIComponent(req.params.baseText);
+    
+    // Find all titles that match this base text
+    const query = `
+      SELECT 
+        t.id,
+        t.text,
+        t.language,
+        l.language as language_name,
+        t.created_at,
+        t.updated_at,
+        COUNT(DISTINCT c.id) as composition_count,
+        COUNT(DISTINCT ft.function_id) as function_count,
+        ARRAY_AGG(DISTINCT f.name) FILTER (WHERE f.name IS NOT NULL) as function_names
+      FROM titles t
+      LEFT JOIN compositions c ON t.id = c.title_id
+      LEFT JOIN functions_titles ft ON t.id = ft.title_id
+      LEFT JOIN functions f ON ft.function_id = f.id
+      LEFT JOIN languages l ON t.language = l.id
+      GROUP BY t.id, t.text, t.language, l.language, t.created_at, t.updated_at
+      ORDER BY t.text
+    `;
+
+    const allTitlesResult = await pool.query(query);
+    
+    // Filter titles that match the base text
+    const matchingTitles = allTitlesResult.rows.filter(title => 
+      extractBaseTitle(title.text).toLowerCase() === baseText.toLowerCase()
+    );
+
+    if (matchingTitles.length === 0) {
+      return res.status(404).json({ error: 'No titles found for this base text' });
+    }
+
+    // Group the matching titles
+    const groups = groupTitlesByBase(matchingTitles);
+    const group = groups[0]; // Should only be one group since we filtered by base text
+
+    res.json({
+      group: group,
+      titles: matchingTitles
+    });
+  } catch (error) {
+    console.error('Error fetching title group:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk update all titles in a group (update base text while preserving bracketed portions)
+router.put('/titles/group/bulk-update', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { originalBaseText, newBaseText, language } = req.body;
+    
+    if (!originalBaseText || !newBaseText) {
+      return res.status(400).json({ 
+        error: 'originalBaseText and newBaseText are required' 
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // Find all titles that match the original base text
+    const findTitlesQuery = `
+      SELECT id, text, language 
+      FROM titles 
+      ORDER BY text
+    `;
+    
+    const allTitlesResult = await client.query(findTitlesQuery);
+    
+    // Filter titles that match the original base text
+    const titlesToUpdate = allTitlesResult.rows.filter(title => 
+      extractBaseTitle(title.text).toLowerCase() === originalBaseText.toLowerCase()
+    );
+
+    if (titlesToUpdate.length === 0) {
+      throw new Error('No titles found matching the original base text');
+    }
+
+    const updatedTitles = [];
+    
+    // Update each matching title
+    for (const title of titlesToUpdate) {
+      const currentText = title.text;
+      const currentBaseText = extractBaseTitle(currentText);
+      
+      // Replace the base text while preserving bracketed portions and other text
+      let newFullText = currentText;
+      
+      // Find the bracketed roman numeral pattern
+      const romanNumeralPattern = /\[[IVX]+\]/g;
+      const matches = [...currentText.matchAll(romanNumeralPattern)];
+      
+      if (matches.length > 0) {
+        // If there are bracketed portions, we need to carefully replace the base text
+        // Strategy: split by brackets, replace the first non-bracket part that matches base
+        const parts = currentText.split(/(\[[IVX]+\])/);
+        
+        // Find the largest part that contains the base text and replace it
+        let replaced = false;
+        for (let i = 0; i < parts.length; i++) {
+          if (!parts[i].match(/^\[[IVX]+\]$/) && !replaced) {
+            // This is not a bracketed part
+            const partBase = extractBaseTitle(parts[i]);
+            if (partBase.toLowerCase() === currentBaseText.toLowerCase()) {
+              // Replace this part
+              parts[i] = parts[i].replace(partBase, newBaseText);
+              replaced = true;
+              break;
+            }
+          }
+        }
+        
+        newFullText = parts.join('');
+      } else {
+        // No brackets, simple replacement
+        newFullText = newBaseText;
+      }
+
+      // Update the title in database
+      const updateQuery = `
+        UPDATE titles 
+        SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $3 
+        RETURNING *
+      `;
+      
+      const updateResult = await client.query(updateQuery, [
+        newFullText.trim(),
+        language !== undefined ? language : title.language,
+        title.id
+      ]);
+      
+      updatedTitles.push(updateResult.rows[0]);
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Successfully updated ${updatedTitles.length} titles`,
+      updatedTitles: updatedTitles,
+      originalBaseText,
+      newBaseText
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error bulk updating title group:', error);
+    res.status(500).json({ 
+      error: 'Failed to bulk update titles: ' + error.message 
+    });
+  } finally {
+    client.release();
   }
 });
 
@@ -406,25 +700,198 @@ router.post('/titles', async (req, res) => {
 
 // Update title
 router.put('/titles/:id', async (req, res) => {
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
+    
     const { id } = req.params;
     const { text, language } = req.body;
 
-    const query = `
+    // First, get the current title to check if base text will change
+    const currentTitleQuery = `
+      SELECT id, text, language FROM titles WHERE id = $1
+    `;
+    const currentTitleResult = await client.query(currentTitleQuery, [id]);
+    
+    if (currentTitleResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Title not found' });
+    }
+
+    const currentTitle = currentTitleResult.rows[0];
+    const oldBaseText = extractBaseTitle(currentTitle.text);
+    const newBaseText = extractBaseTitle(text);
+
+    // Update the target title
+    const updateQuery = `
       UPDATE titles
       SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
       RETURNING *
     `;
 
-    const result = await pool.query(query, [text, language || null, id]);
+    const result = await client.query(updateQuery, [text, language || null, id]);
+    const updatedTitle = result.rows[0];
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Title not found' });
+    // If the base text changed, update other titles in the same group
+    if (oldBaseText.toLowerCase() !== newBaseText.toLowerCase() && oldBaseText.trim() !== '') {
+      
+      // Find all other titles that share the same old base text
+      const allTitlesQuery = `SELECT id, text, language FROM titles WHERE id != $1`;
+      const allTitlesResult = await client.query(allTitlesQuery, [id]);
+      
+      const titlesToUpdate = allTitlesResult.rows.filter(title => 
+        extractBaseTitle(title.text).toLowerCase() === oldBaseText.toLowerCase()
+      );
+
+      const groupUpdates = [];
+
+      // Update each title in the group
+      for (const titleToUpdate of titlesToUpdate) {
+        const currentText = titleToUpdate.text;
+        const currentBaseInTitle = extractBaseTitle(currentText);
+        
+        // Replace the base text while preserving bracketed portions
+        let newFullText = currentText;
+        
+        // Find the bracketed roman numeral pattern
+        const romanNumeralPattern = /\[[IVX]+\]/g;
+        const matches = [...currentText.matchAll(romanNumeralPattern)];
+        
+        if (matches.length > 0) {
+          // Split by brackets and replace the base text part
+          const parts = currentText.split(/(\[[IVX]+\])/);
+          
+          let replaced = false;
+          for (let i = 0; i < parts.length; i++) {
+            if (!parts[i].match(/^\[[IVX]+\]$/) && !replaced) {
+              const partBase = extractBaseTitle(parts[i]);
+              if (partBase.toLowerCase() === currentBaseInTitle.toLowerCase()) {
+                // Replace this part, maintaining the same case pattern as the new text
+                parts[i] = parts[i].replace(partBase, newBaseText);
+                replaced = true;
+                break;
+              }
+            }
+          }
+          
+          newFullText = parts.join('');
+        } else {
+          // No brackets, simple replacement
+          newFullText = newBaseText;
+        }
+
+        // Update this related title
+        const groupUpdateQuery = `
+          UPDATE titles 
+          SET text = $1, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = $2 
+          RETURNING *
+        `;
+        
+        const groupUpdateResult = await client.query(groupUpdateQuery, [
+          newFullText.trim(),
+          titleToUpdate.id
+        ]);
+        
+        groupUpdates.push(groupUpdateResult.rows[0]);
+      }
+
+      // Also update any groups with matching display_title
+      const groupDisplayUpdates = [];
+      if (oldBaseText.trim() !== '' && oldBaseText !== newBaseText) {
+        // Collect all the original title texts that were changed
+        const originalTitleTexts = [currentTitle.text, ...titlesToUpdate.map(t => t.text)];
+        
+        // Find groups with display_title matching ANY of the changed title texts
+        const placeholders = originalTitleTexts.map((_, index) => `$${index + 1}`).join(', ');
+        const matchingGroupsQuery = `
+          SELECT id, display_title FROM groups 
+          WHERE display_title IN (${placeholders})
+        `;
+        const matchingGroupsResult = await client.query(matchingGroupsQuery, originalTitleTexts);
+
+        // Update each matching group to use the new base text
+        for (const group of matchingGroupsResult.rows) {
+          // Determine what the new display_title should be
+          let newDisplayTitle = newBaseText;
+          
+          // If the group's display_title had roman numerals, preserve them
+          const groupBaseText = extractBaseTitle(group.display_title);
+          if (groupBaseText.toLowerCase() === oldBaseText.toLowerCase() && group.display_title !== groupBaseText) {
+            // The group display_title has additional parts (like roman numerals), preserve them
+            const romanNumeralPattern = /\[[IVX]+\]/g;
+            const matches = [...group.display_title.matchAll(romanNumeralPattern)];
+            
+            if (matches.length > 0) {
+              const parts = group.display_title.split(/(\[[IVX]+\])/);
+              let replaced = false;
+              for (let i = 0; i < parts.length; i++) {
+                if (!parts[i].match(/^\[[IVX]+\]$/) && !replaced) {
+                  const partBase = extractBaseTitle(parts[i]);
+                  if (partBase.toLowerCase() === groupBaseText.toLowerCase()) {
+                    parts[i] = parts[i].replace(partBase, newBaseText);
+                    replaced = true;
+                    break;
+                  }
+                }
+              }
+              newDisplayTitle = parts.join('');
+            }
+          }
+          
+          const updateGroupQuery = `
+            UPDATE groups 
+            SET display_title = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING *
+          `;
+          
+          const updatedGroupResult = await client.query(updateGroupQuery, [newDisplayTitle.trim(), group.id]);
+          groupDisplayUpdates.push(updatedGroupResult.rows[0]);
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // Get updated group information for the new base text
+      const allUpdatedTitles = [updatedTitle, ...groupUpdates];
+      const updatedGroup = groupTitlesByBase(allUpdatedTitles);
+
+      res.json({
+        title: updatedTitle,
+        groupUpdatesApplied: groupUpdates.length > 0,
+        groupUpdates: groupUpdates,
+        groupDisplayUpdatesApplied: groupDisplayUpdates.length > 0,
+        groupDisplayUpdates: groupDisplayUpdates,
+        updatedGroup: updatedGroup[0], // The group containing all the updated titles
+        groupDisplayTitleChange: {
+          oldDisplayTitle: oldBaseText,
+          newDisplayTitle: newBaseText,
+          changed: oldBaseText !== newBaseText
+        },
+        oldBaseText: oldBaseText,
+        newBaseText: newBaseText,
+        message: [
+          `Updated title`,
+          groupUpdates.length > 0 ? `and ${groupUpdates.length} related titles in the same group` : '',
+          groupDisplayUpdates.length > 0 ? `and ${groupDisplayUpdates.length} group display titles` : ''
+        ].filter(Boolean).join(' ') + '.'
+      });
+
+    } else {
+      // No base text change, just return the updated title
+      await client.query('COMMIT');
+      res.json({
+        title: updatedTitle,
+        groupUpdatesApplied: false,
+        message: 'Updated title'
+      });
     }
 
-    res.json(result.rows[0]);
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error updating title:', error);
     
     // Check if this is a unique constraint violation (duplicate title text)
@@ -460,6 +927,8 @@ router.put('/titles/:id', async (req, res) => {
     }
     
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
