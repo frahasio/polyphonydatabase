@@ -1053,7 +1053,8 @@
                                 <input type="text" class="form-control form-control-sm title-autocomplete" 
                                        value="${inclusion.composition?.title_text || ''}" 
                                        data-index="${index}"
-                                       placeholder="Start typing title...">
+                                       placeholder="Start typing title..."
+                                       onchange="updateCompositionField(${index}, 'title_text', this.value)">
                             </div>
                             <div class="row">
                                 <div class="col-4">

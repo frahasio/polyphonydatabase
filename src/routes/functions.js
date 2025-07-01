@@ -37,7 +37,7 @@ function groupTitlesByBase(titles) {
     
     const group = groups.get(key);
     group.titles.push(title);
-    group.totalCompositions += title.composition_count || 0;
+    group.totalCompositions += parseInt(title.composition_count) || 0;
     
     // Add function names to the set
     if (title.function_names && Array.isArray(title.function_names)) {
