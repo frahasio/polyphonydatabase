@@ -482,9 +482,18 @@ router.get('/groups', async (req, res) => {
         g.created_at,
         g.updated_at,
         -- Get composer information with conflict detection
-        -- Only consider compositions with actual composer attributions (ignore anonymous works)
+        -- Only consider named composers (exclude anonymous ID 23) for conflict detection
         (
           WITH group_composers AS (
+            SELECT DISTINCT composer_id
+            FROM compositions c
+            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
+              AND composer_id != 23 -- Exclude anonymous composer from conflict detection
+          ),
+          all_composers AS (
             SELECT DISTINCT composer_id
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
@@ -494,15 +503,16 @@ router.get('/groups', async (req, res) => {
           )
           SELECT 
             CASE 
-              WHEN COUNT(*) > 1 THEN 'conflicting attributions'
-              WHEN COUNT(*) = 1 THEN (
+              WHEN (SELECT COUNT(*) FROM group_composers) > 1 THEN 'conflicting attributions'
+              WHEN (SELECT COUNT(*) FROM group_composers) = 1 THEN (
                 SELECT comp.name 
                 FROM composers comp 
                 WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
               )
               ELSE 'Anon'
             END
-          FROM group_composers
+          FROM all_composers
+          LIMIT 1
         ) as composer_display,
         (
           WITH group_composers AS (
@@ -512,6 +522,7 @@ router.get('/groups', async (req, res) => {
             WHERE c.group_id = g.id 
               AND c.composer_id_list IS NOT NULL 
               AND array_length(c.composer_id_list, 1) > 0
+              AND composer_id != 23 -- Exclude anonymous composer for dates
           )
           SELECT 
             CASE 
