@@ -603,7 +603,6 @@ router.put('/titles/group/bulk-update', async (req, res) => {
 
     // Calculate what the new titles will be and check for conflicts
     const titleUpdates = [];
-    const potentialConflicts = [];
     
     for (const title of titlesToUpdate) {
       const currentText = title.text;
@@ -650,8 +649,99 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       });
     }
 
+    // First, handle internal conflicts within the titleUpdates array
+    const internalMerges = [];
+    const finalUpdates = [];
+    const processedIds = new Set();
+
+    for (const update of titleUpdates) {
+      if (processedIds.has(update.id)) continue;
+
+      // Find all other updates that would result in the same text
+      const duplicates = titleUpdates.filter(u => 
+        u.newText === update.newText && u.id !== update.id && !processedIds.has(u.id)
+      );
+
+      if (duplicates.length > 0) {
+        // We have internal conflicts - merge them
+        const allConflicting = [update, ...duplicates];
+        
+        // Choose the target (prefer the one with most compositions, or lowest ID as tiebreaker)
+        let target = allConflicting[0];
+        for (const candidate of allConflicting.slice(1)) {
+          const targetCompositions = await client.query('SELECT COUNT(*) as count FROM compositions WHERE title_id = $1', [target.id]);
+          const candidateCompositions = await client.query('SELECT COUNT(*) as count FROM compositions WHERE title_id = $1', [candidate.id]);
+          
+          const targetCount = parseInt(targetCompositions.rows[0].count);
+          const candidateCount = parseInt(candidateCompositions.rows[0].count);
+          
+          if (candidateCount > targetCount || (candidateCount === targetCount && candidate.id < target.id)) {
+            target = candidate;
+          }
+        }
+
+        // Merge all others into the target
+        for (const source of allConflicting) {
+          if (source.id === target.id) continue;
+
+          // Update compositions to point to target
+          await client.query(`
+            UPDATE compositions 
+            SET title_id = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE title_id = $2
+          `, [target.id, source.id]);
+
+          // Merge function associations
+          const sourceFunctions = await client.query(`
+            SELECT function_id FROM functions_titles WHERE title_id = $1
+          `, [source.id]);
+
+          for (const func of sourceFunctions.rows) {
+            // Check if association already exists
+            const existing = await client.query(`
+              SELECT 1 FROM functions_titles 
+              WHERE function_id = $1 AND title_id = $2
+            `, [func.function_id, target.id]);
+
+            if (existing.rows.length === 0) {
+              await client.query(`
+                INSERT INTO functions_titles (function_id, title_id)
+                VALUES ($1, $2)
+              `, [func.function_id, target.id]);
+            }
+          }
+
+          // Remove associations from source
+          await client.query(`
+            DELETE FROM functions_titles WHERE title_id = $1
+          `, [source.id]);
+
+          // Delete source title
+          await client.query('DELETE FROM titles WHERE id = $1', [source.id]);
+
+          internalMerges.push({
+            action: 'internal_merged',
+            sourceId: source.id,
+            sourceText: source.currentText,
+            targetId: target.id,
+            finalText: target.newText
+          });
+
+          processedIds.add(source.id);
+        }
+
+        // Add the target to final updates
+        finalUpdates.push(target);
+        processedIds.add(target.id);
+      } else {
+        // No internal conflicts for this update
+        finalUpdates.push(update);
+        processedIds.add(update.id);
+      }
+    }
+
     // Check for existing titles that would conflict with our new texts
-    const newTexts = titleUpdates.map(update => update.newText);
+    const newTexts = finalUpdates.map(update => update.newText);
     const conflictQuery = `
       SELECT t.id, t.text, t.language, 
              COUNT(DISTINCT c.id) as composition_count,
@@ -664,7 +754,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       GROUP BY t.id, t.text, t.language
     `;
     
-    const existingTitleIds = titleUpdates.map(update => update.id);
+    const existingTitleIds = finalUpdates.map(update => update.id);
     const conflictsResult = await client.query(conflictQuery, [newTexts, existingTitleIds]);
     
     if (conflictsResult.rows.length > 0) {
@@ -674,7 +764,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       
       for (const conflict of conflicts) {
         // Find which of our updates conflicts with this existing title
-        const conflictingUpdate = titleUpdates.find(update => update.newText === conflict.text);
+        const conflictingUpdate = finalUpdates.find(update => update.newText === conflict.text);
         
         if (conflictingUpdate) {
           // Merge the updating title into the existing one
@@ -725,7 +815,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
           }
           
           mergedTitles.push({
-            action: 'merged',
+            action: 'external_merged',
             originalId: conflictingUpdate.id,
             originalText: conflictingUpdate.currentText,
             mergedIntoId: conflict.id,
@@ -733,16 +823,16 @@ router.put('/titles/group/bulk-update', async (req, res) => {
           });
           
           // Remove this update from our list since we handled it via merge
-          const updateIndex = titleUpdates.findIndex(update => update.id === conflictingUpdate.id);
+          const updateIndex = finalUpdates.findIndex(update => update.id === conflictingUpdate.id);
           if (updateIndex > -1) {
-            titleUpdates.splice(updateIndex, 1);
+            finalUpdates.splice(updateIndex, 1);
           }
         }
       }
       
       // Continue with remaining non-conflicting updates
       const updatedTitles = [];
-      for (const update of titleUpdates) {
+      for (const update of finalUpdates) {
         const updateQuery = `
           UPDATE titles 
           SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
@@ -764,10 +854,17 @@ router.put('/titles/group/bulk-update', async (req, res) => {
 
       await client.query('COMMIT');
 
+      const totalProcessed = updatedTitles.length + mergedTitles.length + internalMerges.length;
+      const messageDetails = [];
+      if (updatedTitles.length > 0) messageDetails.push(`${updatedTitles.length} updated`);
+      if (internalMerges.length > 0) messageDetails.push(`${internalMerges.length} internally merged`);
+      if (mergedTitles.length > 0) messageDetails.push(`${mergedTitles.length} externally merged`);
+
       res.json({
         success: true,
-        message: `Successfully processed ${updatedTitles.length + mergedTitles.length} titles (${updatedTitles.length} updated, ${mergedTitles.length} merged)`,
+        message: `Successfully processed ${totalProcessed} titles (${messageDetails.join(', ')})`,
         updatedTitles: updatedTitles,
+        internalMerges: internalMerges,
         mergedTitles: mergedTitles,
         originalBaseText,
         newBaseText,
@@ -775,10 +872,10 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       });
 
     } else {
-      // No conflicts, proceed with normal updates
+      // No external conflicts, proceed with normal updates
       const updatedTitles = [];
       
-      for (const update of titleUpdates) {
+      for (const update of finalUpdates) {
         const updateQuery = `
           UPDATE titles 
           SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
@@ -797,13 +894,19 @@ router.put('/titles/group/bulk-update', async (req, res) => {
 
       await client.query('COMMIT');
 
+      const totalProcessed = updatedTitles.length + internalMerges.length;
+      const messageDetails = [];
+      if (updatedTitles.length > 0) messageDetails.push(`${updatedTitles.length} updated`);
+      if (internalMerges.length > 0) messageDetails.push(`${internalMerges.length} internally merged`);
+
       res.json({
         success: true,
-        message: `Successfully updated ${updatedTitles.length} titles`,
+        message: `Successfully processed ${totalProcessed} titles (${messageDetails.join(', ')})`,
         updatedTitles: updatedTitles,
+        internalMerges: internalMerges,
         originalBaseText,
         newBaseText,
-        hadConflicts: false
+        hadConflicts: internalMerges.length > 0
       });
     }
 

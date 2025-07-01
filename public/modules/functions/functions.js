@@ -1168,12 +1168,28 @@ async function saveGroupEdit() {
             // Create a detailed success message
             let message = result.message;
             
-            if (result.hadConflicts && result.mergedTitles && result.mergedTitles.length > 0) {
-                message += '\n\nMerged titles:\n';
-                result.mergedTitles.forEach(merge => {
-                    message += `• "${merge.originalText}" merged into existing "${merge.finalText}"\n`;
-                });
-                message += '\nAll compositions and function associations were preserved.';
+            if (result.hadConflicts) {
+                let hasDetails = false;
+                
+                if (result.internalMerges && result.internalMerges.length > 0) {
+                    message += '\n\nInternal merges (within the group):\n';
+                    result.internalMerges.forEach(merge => {
+                        message += `• "${merge.sourceText}" merged into "${merge.finalText}"\n`;
+                    });
+                    hasDetails = true;
+                }
+                
+                if (result.mergedTitles && result.mergedTitles.length > 0) {
+                    message += '\n\nExternal merges (with existing titles):\n';
+                    result.mergedTitles.forEach(merge => {
+                        message += `• "${merge.originalText}" merged into existing "${merge.finalText}"\n`;
+                    });
+                    hasDetails = true;
+                }
+                
+                if (hasDetails) {
+                    message += '\nAll compositions and function associations were preserved.';
+                }
             }
             
             alert(message);
