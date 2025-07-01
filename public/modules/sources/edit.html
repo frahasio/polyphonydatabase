@@ -1311,11 +1311,28 @@
 
         function getClefInputStyle(clef) {
             if (clef.valid === false) return 'border-color: #dc3545; background-color: #f8d7da;';
-            if (clef.missing) return 'border-color: #dc3545;';
-            if (clef.incomplete) return 'border-color: #198754;';
-            if (clef.optional) return 'border-color: #adb5bd; opacity: 0.6;';
-            if (clef.transitions_to && clef.transitions_to.length > 0) return 'border-color: #0d6efd;';
-            return '';
+            
+            let style = '';
+            
+            // Priority 1: Missing (red) or incomplete (green) coloring
+            if (clef.missing) {
+                style += 'border-color: #dc3545;';
+            } else if (clef.incomplete) {
+                style += 'border-color: #198754;';
+            } else if (clef.transitions_to && clef.transitions_to.length > 0) {
+                // Transitions get blue only if not missing/incomplete
+                style += 'border-color: #0d6efd;';
+            } else if (clef.optional) {
+                // Optional gets grey only if not missing/incomplete/transitional
+                style += 'border-color: #adb5bd;';
+            }
+            
+            // Priority 2: Optional reduces opacity regardless of color
+            if (clef.optional) {
+                style += ' opacity: 0.6;';
+            }
+            
+            return style;
         }
 
         function updateInclusionField(index, field, value) {
@@ -1422,18 +1439,24 @@
                 return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed braces {}' };
             }
 
-            // Check for formatting - process each type independently to allow combined formatting
-            if (clef.startsWith('[') && clef.endsWith(']')) {
-                missing = true;
-                clef = clef.slice(1, -1);
-            }
-            if (clef.startsWith('(') && clef.endsWith(')')) {
-                optional = true;
-                clef = clef.slice(1, -1);
-            }
-            if (clef.startsWith('{') && clef.endsWith('}')) {
-                incomplete = true;
-                clef = clef.slice(1, -1);
+            // Check for formatting - process all bracket types in any order until none remain
+            let hasChanges = true;
+            while (hasChanges) {
+                hasChanges = false;
+                
+                if (clef.startsWith('[') && clef.endsWith(']')) {
+                    missing = true;
+                    clef = clef.slice(1, -1);
+                    hasChanges = true;
+                } else if (clef.startsWith('(') && clef.endsWith(')')) {
+                    optional = true;
+                    clef = clef.slice(1, -1);
+                    hasChanges = true;
+                } else if (clef.startsWith('{') && clef.endsWith('}')) {
+                    incomplete = true;
+                    clef = clef.slice(1, -1);
+                    hasChanges = true;
+                }
             }
 
             // Check for transitions
