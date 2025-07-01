@@ -1187,6 +1187,14 @@ async function saveGroupEdit() {
                     hasDetails = true;
                 }
                 
+                if (result.groupDisplayUpdates && result.groupDisplayUpdates.length > 0) {
+                    message += '\n\nGroup display titles updated:\n';
+                    result.groupDisplayUpdates.forEach(group => {
+                        message += `• Group #${group.id}: "${group.display_title}"\n`;
+                    });
+                    hasDetails = true;
+                }
+                
                 if (hasDetails) {
                     message += '\nAll compositions and function associations were preserved.';
                 }

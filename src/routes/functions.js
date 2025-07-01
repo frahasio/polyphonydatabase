@@ -852,6 +852,60 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         });
       }
 
+      // Update groups display_title that match any of the original title texts
+      const groupDisplayUpdates = [];
+      if (originalBaseText !== newBaseText) {
+        // Collect all original title texts that were part of this update
+        const allOriginalTexts = [...titlesToUpdate.map(t => t.text)];
+        
+        // Find groups with display_title matching any of the original title texts
+        const matchingGroupsQuery = `
+          SELECT id, display_title FROM groups 
+          WHERE display_title = ANY($1)
+        `;
+        const matchingGroupsResult = await client.query(matchingGroupsQuery, [allOriginalTexts]);
+
+        // Update each matching group to use the new base text
+        for (const group of matchingGroupsResult.rows) {
+          // Determine what the new display_title should be
+          let newDisplayTitle = newBaseText;
+          
+          // If the group's display_title had roman numerals, preserve them
+          const groupBaseText = extractBaseTitle(group.display_title);
+          if (groupBaseText.toLowerCase() === originalBaseText.toLowerCase() && group.display_title !== groupBaseText) {
+            // The group display_title has additional parts (like roman numerals), preserve them
+            const romanNumeralPattern = /\[[IVX]+\]/g;
+            const matches = [...group.display_title.matchAll(romanNumeralPattern)];
+            
+            if (matches.length > 0) {
+              const parts = group.display_title.split(/(\[[IVX]+\])/);
+              let replaced = false;
+              for (let i = 0; i < parts.length; i++) {
+                if (!parts[i].match(/^\[[IVX]+\]$/) && !replaced) {
+                  const partBase = extractBaseTitle(parts[i]);
+                  if (partBase.toLowerCase() === groupBaseText.toLowerCase()) {
+                    parts[i] = parts[i].replace(partBase, newBaseText);
+                    replaced = true;
+                    break;
+                  }
+                }
+              }
+              newDisplayTitle = parts.join('');
+            }
+          }
+          
+          const updateGroupQuery = `
+            UPDATE groups 
+            SET display_title = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING *
+          `;
+          
+          const updatedGroupResult = await client.query(updateGroupQuery, [newDisplayTitle.trim(), group.id]);
+          groupDisplayUpdates.push(updatedGroupResult.rows[0]);
+        }
+      }
+
       await client.query('COMMIT');
 
       const totalProcessed = updatedTitles.length + mergedTitles.length + internalMerges.length;
@@ -859,6 +913,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       if (updatedTitles.length > 0) messageDetails.push(`${updatedTitles.length} updated`);
       if (internalMerges.length > 0) messageDetails.push(`${internalMerges.length} internally merged`);
       if (mergedTitles.length > 0) messageDetails.push(`${mergedTitles.length} externally merged`);
+      if (groupDisplayUpdates.length > 0) messageDetails.push(`${groupDisplayUpdates.length} group display titles updated`);
 
       res.json({
         success: true,
@@ -866,6 +921,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         updatedTitles: updatedTitles,
         internalMerges: internalMerges,
         mergedTitles: mergedTitles,
+        groupDisplayUpdates: groupDisplayUpdates,
         originalBaseText,
         newBaseText,
         hadConflicts: true
@@ -892,21 +948,77 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         updatedTitles.push(updateResult.rows[0]);
       }
 
+      // Update groups display_title that match any of the original title texts
+      const groupDisplayUpdates = [];
+      if (originalBaseText !== newBaseText) {
+        // Collect all original title texts that were part of this update
+        const allOriginalTexts = [...titlesToUpdate.map(t => t.text)];
+        
+        // Find groups with display_title matching any of the original title texts
+        const matchingGroupsQuery = `
+          SELECT id, display_title FROM groups 
+          WHERE display_title = ANY($1)
+        `;
+        const matchingGroupsResult = await client.query(matchingGroupsQuery, [allOriginalTexts]);
+
+        // Update each matching group to use the new base text
+        for (const group of matchingGroupsResult.rows) {
+          // Determine what the new display_title should be
+          let newDisplayTitle = newBaseText;
+          
+          // If the group's display_title had roman numerals, preserve them
+          const groupBaseText = extractBaseTitle(group.display_title);
+          if (groupBaseText.toLowerCase() === originalBaseText.toLowerCase() && group.display_title !== groupBaseText) {
+            // The group display_title has additional parts (like roman numerals), preserve them
+            const romanNumeralPattern = /\[[IVX]+\]/g;
+            const matches = [...group.display_title.matchAll(romanNumeralPattern)];
+            
+            if (matches.length > 0) {
+              const parts = group.display_title.split(/(\[[IVX]+\])/);
+              let replaced = false;
+              for (let i = 0; i < parts.length; i++) {
+                if (!parts[i].match(/^\[[IVX]+\]$/) && !replaced) {
+                  const partBase = extractBaseTitle(parts[i]);
+                  if (partBase.toLowerCase() === groupBaseText.toLowerCase()) {
+                    parts[i] = parts[i].replace(partBase, newBaseText);
+                    replaced = true;
+                    break;
+                  }
+                }
+              }
+              newDisplayTitle = parts.join('');
+            }
+          }
+          
+          const updateGroupQuery = `
+            UPDATE groups 
+            SET display_title = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING *
+          `;
+          
+          const updatedGroupResult = await client.query(updateGroupQuery, [newDisplayTitle.trim(), group.id]);
+          groupDisplayUpdates.push(updatedGroupResult.rows[0]);
+        }
+      }
+
       await client.query('COMMIT');
 
       const totalProcessed = updatedTitles.length + internalMerges.length;
       const messageDetails = [];
       if (updatedTitles.length > 0) messageDetails.push(`${updatedTitles.length} updated`);
       if (internalMerges.length > 0) messageDetails.push(`${internalMerges.length} internally merged`);
+      if (groupDisplayUpdates.length > 0) messageDetails.push(`${groupDisplayUpdates.length} group display titles updated`);
 
       res.json({
         success: true,
         message: `Successfully processed ${totalProcessed} titles (${messageDetails.join(', ')})`,
         updatedTitles: updatedTitles,
         internalMerges: internalMerges,
+        groupDisplayUpdates: groupDisplayUpdates,
         originalBaseText,
         newBaseText,
-        hadConflicts: internalMerges.length > 0
+        hadConflicts: internalMerges.length > 0 || groupDisplayUpdates.length > 0
       });
     }
 
