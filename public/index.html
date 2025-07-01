@@ -725,6 +725,14 @@
                 width: '100%'
             });
             
+            // Prevent form submission on Enter key for both forms
+            document.getElementById('searchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+            });
+            document.getElementById('searchFormDesktop').addEventListener('submit', function(e) {
+                e.preventDefault();
+            });
+            
             // Set up search event listeners for mobile form
             document.getElementById('searchTitle').addEventListener('input', function() {
                 syncSearchFields('searchTitle', 'searchTitleDesktop');
