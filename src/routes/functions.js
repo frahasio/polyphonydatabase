@@ -653,7 +653,7 @@ router.put('/titles/group/bulk-update', async (req, res) => {
     // Check for existing titles that would conflict with our new texts
     const newTexts = titleUpdates.map(update => update.newText);
     const conflictQuery = `
-      SELECT id, text, language, 
+      SELECT t.id, t.text, t.language, 
              COUNT(DISTINCT c.id) as composition_count,
              ARRAY_AGG(DISTINCT f.name) FILTER (WHERE f.name IS NOT NULL) as function_names
       FROM titles t
