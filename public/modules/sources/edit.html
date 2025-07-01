@@ -76,15 +76,16 @@
         .clef-input {
             font-family: monospace;
             text-align: center;
-            font-size: 0.7rem;
-            padding: 0 !important;
+            font-size: 0.875rem; /* Match form-control-sm */
+            padding: 2px 1px !important;
             margin: 0 !important;
             border-radius: 0 !important;
-            min-width: 42px;
-            width: 42px;
-            height: 26px;
+            min-width: 44px;
+            width: 44px;
+            height: 28px;
             flex-shrink: 0;
             border: 1px solid #dee2e6;
+            line-height: 1.2;
         }
         
         .clef-row {
@@ -203,14 +204,45 @@
             margin-top: 80px;
         }
         
-        .move-controls {
+        .drag-handle {
             display: flex;
             align-items: center;
             gap: 5px;
+            padding: 4px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: #f8f9fa;
+            cursor: grab;
+            user-select: none;
+            font-size: 0.875rem;
         }
         
-        .move-controls select {
-            width: 120px;
+        .drag-handle:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .drag-handle i {
+            color: #6c757d;
+        }
+        
+        .inclusion-number {
+            font-weight: 600;
+            color: #495057;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .inclusion-row.dragging {
+            opacity: 0.5;
+        }
+        
+        .inclusion-row.drag-over {
+            border-top: 3px solid #0d6efd;
         }
         
         /* Unsaved changes indicator */
@@ -981,59 +1013,86 @@
             };
         }
 
-        function buildMoveButtonClass(index, direction) {
-            if (direction === 'up') {
-                // Disable up button if we're at the first inclusion on a page > 1
-                if (index === 0 && currentInclusionsPage > 1) {
-                    return 'disabled';
-                }
-            } else if (direction === 'down') {
-                // Disable down button if we're at the last inclusion on a page with more pages
-                const isLastOnPage = index === inclusionsData.length - 1;
-                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
-                if (isLastOnPage && hasMorePages) {
-                    return 'disabled';
-                }
-            }
-            return '';
+        // Drag and Drop functionality
+        let draggedIndex = null;
+
+        function handleDragStart(event, index) {
+            draggedIndex = index;
+            event.target.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
         }
 
-        function buildMoveButtonTitle(index, direction) {
-            if (direction === 'up') {
-                if (index === 0 && currentInclusionsPage > 1) {
-                    return 'Cannot move to previous page - add a spacer inclusion to page ' + (currentInclusionsPage - 1) + ' if needed';
-                }
-                return 'Move up';
-            } else if (direction === 'down') {
-                const isLastOnPage = index === inclusionsData.length - 1;
-                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
-                if (isLastOnPage && hasMorePages) {
-                    return 'Cannot move to next page - add a spacer inclusion to this page if needed';
-                }
-                return 'Move down';
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            
+            // Add visual feedback - find the closest inclusion row
+            const row = event.target.closest('.inclusion-row');
+            if (row && !row.classList.contains('dragging')) {
+                // Remove drag-over class from all rows
+                document.querySelectorAll('.inclusion-row').forEach(r => r.classList.remove('drag-over'));
+                // Add it to the current row
+                row.classList.add('drag-over');
             }
-            return '';
+        }
+
+        function handleDrop(event, dropIndex) {
+            event.preventDefault();
+            
+            if (draggedIndex === null || draggedIndex === dropIndex) {
+                return;
+            }
+            
+            // Check for cross-page drops
+            if (dropIndex === 0 && currentInclusionsPage > 1 && draggedIndex > dropIndex) {
+                alert('Cannot move inclusion to previous page. Add a spacer inclusion to the previous page if needed.');
+                return;
+            }
+            
+            const isLastOnPage = dropIndex === inclusionsData.length - 1;
+            const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
+            if (isLastOnPage && hasMorePages && draggedIndex < dropIndex) {
+                alert('Cannot move inclusion to next page. Add a spacer inclusion to this page if needed.');
+                return;
+            }
+            
+            // Perform the move in the data array
+            const draggedItem = inclusionsData[draggedIndex];
+            inclusionsData.splice(draggedIndex, 1);
+            
+            // Adjust the drop index if the dragged item was before the drop position
+            const adjustedDropIndex = draggedIndex < dropIndex ? dropIndex - 1 : dropIndex;
+            inclusionsData.splice(adjustedDropIndex, 0, draggedItem);
+            
+            // Rebuild the display to reflect the new order
+            displayInclusions();
+            markAsUnsaved();
+        }
+
+        function handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            document.querySelectorAll('.inclusion-row').forEach(row => {
+                row.classList.remove('drag-over');
+            });
+            draggedIndex = null;
         }
 
         function buildInclusionRow(inclusion, index, isBlank = false) {
             const rowClass = isBlank ? 'inclusion-row blank-row' : 'inclusion-row';
             
             return `
-                <div class="${rowClass}" data-index="${index}" data-inclusion-id="${inclusion.id || ''}">
+                <div class="${rowClass}" data-index="${index}" data-inclusion-id="${inclusion.id || ''}" 
+                     draggable="true" ondragstart="handleDragStart(event, ${index})" 
+                     ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${index})" 
+                     ondragend="handleDragEnd(event)">
                     <div class="row">
-                        <!-- Move and Position -->
+                        <!-- Drag Handle and Position -->
                         <div class="col-1">
                             <div class="mb-2">
-                                <label class="form-label small">Move</label>
-                                <div class="move-controls">
-                                    <button type="button" class="btn btn-xs btn-outline-secondary ${buildMoveButtonClass(index, 'up')}" 
-                                            onclick="moveInclusion(${index}, 'up')" title="${buildMoveButtonTitle(index, 'up')}">
-                                        <i class="bi bi-arrow-up"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-xs btn-outline-secondary ${buildMoveButtonClass(index, 'down')}" 
-                                            onclick="moveInclusion(${index}, 'down')" title="${buildMoveButtonTitle(index, 'down')}">
-                                        <i class="bi bi-arrow-down"></i>
-                                    </button>
+                                <label class="form-label small">Order</label>
+                                <div class="drag-handle" title="Drag to reorder inclusion">
+                                    <i class="bi bi-grip-vertical"></i>
+                                    <span class="inclusion-number">${((currentInclusionsPage - 1) * inclusionsPageSize) + index + 1}</span>
                                 </div>
                             </div>
                             <div class="mb-2">
@@ -1386,7 +1445,7 @@
 
         function updateAttribution(inclusionIndex, attrIndex, value) {
             if (!inclusionsData[inclusionIndex]) {
-                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+                inclusionsData[inclusionIndex] = createBlankInclusion();
             }
             if (!inclusionsData[inclusionIndex].attribution_texts) {
                 inclusionsData[inclusionIndex].attribution_texts = [''];
@@ -2650,94 +2709,7 @@
             });
         }
 
-        function moveInclusion(index, direction) {
-            // Safety check: prevent cross-page moves
-            if (direction === 'up' && index === 0 && currentInclusionsPage > 1) {
-                alert('Cannot move to previous page. To move this inclusion up, add a temporary inclusion to the previous page first.');
-                return;
-            }
-            if (direction === 'down') {
-                const isLastOnPage = index === inclusionsData.length - 1;
-                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
-                if (isLastOnPage && hasMorePages) {
-                    alert('Cannot move to next page. To move this inclusion down, add a temporary inclusion to this page first.');
-                    return;
-                }
-            }
-            
-            if (direction === 'up' && index > 0) {
-                // Swap array elements - this is now the source of truth for order
-                [inclusionsData[index], inclusionsData[index - 1]] = [inclusionsData[index - 1], inclusionsData[index]];
-                
-                // Fast DOM swap - no need to rebuild everything
-                const container = document.querySelector('.inclusions-container');
-                const currentRow = container.children[index];
-                const previousRow = container.children[index - 1];
-                
-                // Swap DOM elements
-                container.insertBefore(currentRow, previousRow);
-                
-                // Update data-index attributes to keep them in sync
-                currentRow.setAttribute('data-index', index - 1);
-                previousRow.setAttribute('data-index', index);
-                
-                // Update all onclick handlers in the swapped rows
-                updateRowEventHandlers(currentRow, index - 1);
-                updateRowEventHandlers(previousRow, index);
-                
-                markAsUnsaved();
-                
-            } else if (direction === 'down' && index < inclusionsData.length - 1) {
-                // Swap array elements
-                [inclusionsData[index], inclusionsData[index + 1]] = [inclusionsData[index + 1], inclusionsData[index]];
-                
-                // Fast DOM swap
-                const container = document.querySelector('.inclusions-container');
-                const currentRow = container.children[index];
-                const nextRow = container.children[index + 1];
-                
-                // Swap DOM elements (insert currentRow after nextRow)
-                container.insertBefore(nextRow, currentRow);
-                
-                // Update data-index attributes
-                currentRow.setAttribute('data-index', index + 1);
-                nextRow.setAttribute('data-index', index);
-                
-                // Update all onclick handlers in the swapped rows
-                updateRowEventHandlers(currentRow, index + 1);
-                updateRowEventHandlers(nextRow, index);
-                
-                markAsUnsaved();
-            }
-        }
 
-        function updateRowEventHandlers(row, newIndex) {
-            // Update all onclick handlers that reference the old index
-            const elements = row.querySelectorAll('[onclick*="(' + (row.getAttribute('data-index') || newIndex) + ',"]');
-            elements.forEach(element => {
-                const oldOnclick = element.getAttribute('onclick');
-                if (oldOnclick) {
-                    const newOnclick = oldOnclick.replace(/\(\d+,/g, `(${newIndex},`);
-                    element.setAttribute('onclick', newOnclick);
-                }
-            });
-            
-            // Update data attributes for inputs
-            const inputs = row.querySelectorAll('[data-inclusion]');
-            inputs.forEach(input => {
-                input.setAttribute('data-inclusion', newIndex);
-            });
-            
-            // Update onchange handlers that reference the old index
-            const changeElements = row.querySelectorAll('[onchange*="(' + (row.getAttribute('data-index') || newIndex) + ',"]');
-            changeElements.forEach(element => {
-                const oldOnchange = element.getAttribute('onchange');
-                if (oldOnchange) {
-                    const newOnchange = oldOnchange.replace(/\(\d+,/g, `(${newIndex},`);
-                    element.setAttribute('onchange', newOnchange);
-                }
-            });
-        }
 
         function copyAttributionToAll() {
             // Count all displayed rows, including blank ones
