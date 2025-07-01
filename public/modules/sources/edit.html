@@ -1422,14 +1422,16 @@
                 return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed braces {}' };
             }
 
-            // Check for formatting
+            // Check for formatting - process each type independently to allow combined formatting
             if (clef.startsWith('[') && clef.endsWith(']')) {
                 missing = true;
                 clef = clef.slice(1, -1);
-            } else if (clef.startsWith('(') && clef.endsWith(')')) {
+            }
+            if (clef.startsWith('(') && clef.endsWith(')')) {
                 optional = true;
                 clef = clef.slice(1, -1);
-            } else if (clef.startsWith('{') && clef.endsWith('}')) {
+            }
+            if (clef.startsWith('{') && clef.endsWith('}')) {
                 incomplete = true;
                 clef = clef.slice(1, -1);
             }
