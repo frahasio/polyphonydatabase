@@ -849,7 +849,7 @@
 
             // Add blank rows to reach inclusionsPageSize total
             for (let i = 0; i < blankRowsNeeded; i++) {
-                const blankInclusion = createBlankInclusion(existingRows + i + 1);
+                const blankInclusion = createBlankInclusion();
                 html += buildInclusionRow(blankInclusion, existingRows + i, true);
             }
 
@@ -914,7 +914,9 @@
             // Get all inclusions from all pages for "between" option
             // For now, just use current page inclusions - we could extend this later
             inclusionsData.forEach((inclusion, index) => {
-                let displayText = `#${inclusion.order || index + 1}`;
+                // Calculate display order from array position and current page
+                const displayOrder = ((currentInclusionsPage - 1) * inclusionsPageSize) + index + 1;
+                let displayText = `#${displayOrder}`;
                 if (inclusion.composition?.title_text) {
                     displayText += `: ${inclusion.composition.title_text}`;
                 } else if (inclusion.attribution_texts && inclusion.attribution_texts[0]) {
@@ -932,49 +934,22 @@
 
         function addInclusionAtPosition() {
             const position = document.querySelector('input[name="insertPosition"]:checked').value;
-            let newInclusion;
+            let newInclusion = createBlankInclusion();
             
             switch (position) {
                 case 'end':
-                    // Add at the end - same as old behavior
-                    const baseOrder = (currentInclusionsPage - 1) * inclusionsPageSize;
-                    const newOrder = baseOrder + inclusionsData.length + 1;
-                    newInclusion = createBlankInclusion(newOrder);
+                    // Add at the end - array position determines order
                     inclusionsData.push(newInclusion);
                     break;
                     
                 case 'beginning':
-                    // Add at the beginning - shift all other orders up
-                    const firstOrder = inclusionsData.length > 0 ? 
-                        Math.min(...inclusionsData.map(inc => inc.order || 1)) : 1;
-                    newInclusion = createBlankInclusion(firstOrder);
-                    
-                    // Increment all existing orders
-                    inclusionsData.forEach(inclusion => {
-                        inclusion.order = (inclusion.order || 1) + 1;
-                    });
-                    
+                    // Add at the beginning - array position determines order
                     inclusionsData.unshift(newInclusion);
                     break;
                     
                 case 'between':
                     const afterIndex = parseInt(document.getElementById('insertAfter').value);
-                    const afterInclusion = inclusionsData[afterIndex];
-                    const nextInclusion = inclusionsData[afterIndex + 1];
-                    
-                    // Calculate new order between the two inclusions
-                    const afterOrder = afterInclusion ? (afterInclusion.order || afterIndex + 1) : 0;
-                    const nextOrder = nextInclusion ? (nextInclusion.order || afterIndex + 2) : afterOrder + 2;
-                    const newOrderBetween = afterOrder + 1;
-                    
-                    // Shift orders of inclusions that come after
-                    inclusionsData.forEach(inclusion => {
-                        if ((inclusion.order || 0) >= newOrderBetween) {
-                            inclusion.order = (inclusion.order || 0) + 1;
-                        }
-                    });
-                    
-                    newInclusion = createBlankInclusion(newOrderBetween);
+                    // Insert after the specified index - array position determines order
                     inclusionsData.splice(afterIndex + 1, 0, newInclusion);
                     break;
             }
@@ -987,10 +962,10 @@
             markAsUnsaved();
         }
 
-        function createBlankInclusion(order) {
+        function createBlankInclusion() {
             return {
                 id: null,
-                order: order,
+                // No order property - array position is the source of truth
                 position: '',
                 attribution_texts: [''],
                 composer_ids: [],
@@ -1006,6 +981,40 @@
             };
         }
 
+        function buildMoveButtonClass(index, direction) {
+            if (direction === 'up') {
+                // Disable up button if we're at the first inclusion on a page > 1
+                if (index === 0 && currentInclusionsPage > 1) {
+                    return 'disabled';
+                }
+            } else if (direction === 'down') {
+                // Disable down button if we're at the last inclusion on a page with more pages
+                const isLastOnPage = index === inclusionsData.length - 1;
+                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
+                if (isLastOnPage && hasMorePages) {
+                    return 'disabled';
+                }
+            }
+            return '';
+        }
+
+        function buildMoveButtonTitle(index, direction) {
+            if (direction === 'up') {
+                if (index === 0 && currentInclusionsPage > 1) {
+                    return 'Cannot move to previous page - add a spacer inclusion to page ' + (currentInclusionsPage - 1) + ' if needed';
+                }
+                return 'Move up';
+            } else if (direction === 'down') {
+                const isLastOnPage = index === inclusionsData.length - 1;
+                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
+                if (isLastOnPage && hasMorePages) {
+                    return 'Cannot move to next page - add a spacer inclusion to this page if needed';
+                }
+                return 'Move down';
+            }
+            return '';
+        }
+
         function buildInclusionRow(inclusion, index, isBlank = false) {
             const rowClass = isBlank ? 'inclusion-row blank-row' : 'inclusion-row';
             
@@ -1017,12 +1026,12 @@
                             <div class="mb-2">
                                 <label class="form-label small">Move</label>
                                 <div class="move-controls">
-                                    <button type="button" class="btn btn-xs btn-outline-secondary" 
-                                            onclick="moveInclusion(${index}, 'up')" title="Move up">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary ${buildMoveButtonClass(index, 'up')}" 
+                                            onclick="moveInclusion(${index}, 'up')" title="${buildMoveButtonTitle(index, 'up')}">
                                         <i class="bi bi-arrow-up"></i>
                                     </button>
-                                    <button type="button" class="btn btn-xs btn-outline-secondary" 
-                                            onclick="moveInclusion(${index}, 'down')" title="Move down">
+                                    <button type="button" class="btn btn-xs btn-outline-secondary ${buildMoveButtonClass(index, 'down')}" 
+                                            onclick="moveInclusion(${index}, 'down')" title="${buildMoveButtonTitle(index, 'down')}">
                                         <i class="bi bi-arrow-down"></i>
                                     </button>
                                 </div>
@@ -1338,7 +1347,7 @@
 
         function updateInclusionField(index, field, value) {
             if (!inclusionsData[index]) {
-                inclusionsData[index] = createBlankInclusion(index + 1);
+                inclusionsData[index] = createBlankInclusion();
             }
             inclusionsData[index][field] = value;
             markAsUnsaved();
@@ -1346,7 +1355,7 @@
 
         function updateCompositionField(index, field, value) {
             if (!inclusionsData[index]) {
-                inclusionsData[index] = createBlankInclusion(index + 1);
+                inclusionsData[index] = createBlankInclusion();
             }
             if (!inclusionsData[index].composition) {
                 inclusionsData[index].composition = {};
@@ -1388,7 +1397,7 @@
 
         function updateClef(inclusionIndex, clefIndex, value) {
             if (!inclusionsData[inclusionIndex]) {
-                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+                inclusionsData[inclusionIndex] = createBlankInclusion();
             }
             if (!inclusionsData[inclusionIndex].clefs) {
                 inclusionsData[inclusionIndex].clefs = [];
@@ -1484,7 +1493,7 @@
 
         function addAttribution(inclusionIndex) {
             if (!inclusionsData[inclusionIndex]) {
-                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+                inclusionsData[inclusionIndex] = createBlankInclusion();
             }
             if (!inclusionsData[inclusionIndex].attribution_texts) {
                 inclusionsData[inclusionIndex].attribution_texts = [''];
@@ -1518,7 +1527,7 @@
         function addClefRow(inclusionIndex) {
             // Add 8 empty clefs
             if (!inclusionsData[inclusionIndex]) {
-                inclusionsData[inclusionIndex] = createBlankInclusion(inclusionIndex + 1);
+                inclusionsData[inclusionIndex] = createBlankInclusion();
             }
             if (!inclusionsData[inclusionIndex].clefs) {
                 inclusionsData[inclusionIndex].clefs = [];
@@ -1906,16 +1915,16 @@
                 return;
             }
 
-            if (!confirm(`Automatically reorder ${realInclusions.length} real inclusions? This will assign sequential order numbers starting from 1.`)) {
+            if (!confirm(`Remove ${inclusionsData.length - realInclusions.length} empty inclusions and keep only the ${realInclusions.length} with data?`)) {
                 return;
             }
 
-            // Update order for real inclusions only
-            realInclusions.forEach((inclusion, index) => {
-                inclusion.order = index + 1 + ((currentInclusionsPage - 1) * inclusionsPageSize);
-            });
+            // Replace the inclusionsData array with only the real inclusions
+            // Array position determines order automatically
+            inclusionsData = realInclusions;
 
             displayInclusions();
+            markAsUnsaved();
         }
 
         // Load composition types and initialize autocomplete
@@ -2228,7 +2237,7 @@
                 // Copy inclusions to current source
                 const copiedInclusions = sourceInclusions.map((inclusion, index) => ({
                     id: null, // New inclusion
-                    order: replaceExisting ? (index + 1) : (inclusionsData.length + index + 1),
+                    // No order property - array position determines order
                     position: inclusion.position || '',
                     attribution_texts: [...(inclusion.attribution_texts || [''])],
                     composer_ids: [...(inclusion.composer_ids || [])],
@@ -2330,7 +2339,7 @@
                 // Collect source images
                 sourceUpdateData.source_images = sourceData.source_images || [];
 
-                // Calculate number_of_voices for each inclusion before saving
+                // Calculate number_of_voices and order for each inclusion before saving
                 console.log('=== SAVE ALL CHANGES - BEFORE PROCESSING ===');
                 console.log('Original inclusionsData sample (first 3):');
                 
@@ -2343,6 +2352,9 @@
                             clefs_count: inclusion.clefs?.length || 0
                         });
                     }
+                    
+                    // Calculate order from array position and current page
+                    inclusion.order = ((currentInclusionsPage - 1) * inclusionsPageSize) + index + 1;
                     
                     if (inclusion.composition && inclusion.clefs) {
                         const calculatedVoices = calculateNumberOfVoices(inclusion.clefs);
@@ -2639,21 +2651,92 @@
         }
 
         function moveInclusion(index, direction) {
-            if (direction === 'up' && index > 0) {
-                // Swap with previous inclusion
-                [inclusionsData[index], inclusionsData[index - 1]] = [inclusionsData[index - 1], inclusionsData[index]];
-                // Update order numbers
-                inclusionsData[index - 1].order = index;
-                inclusionsData[index].order = index + 1;
-                displayInclusions();
-            } else if (direction === 'down' && index < inclusionsData.length - 1) {
-                // Swap with next inclusion
-                [inclusionsData[index], inclusionsData[index + 1]] = [inclusionsData[index + 1], inclusionsData[index]];
-                // Update order numbers
-                inclusionsData[index].order = index + 1;
-                inclusionsData[index + 1].order = index + 2;
-                displayInclusions();
+            // Safety check: prevent cross-page moves
+            if (direction === 'up' && index === 0 && currentInclusionsPage > 1) {
+                alert('Cannot move to previous page. To move this inclusion up, add a temporary inclusion to the previous page first.');
+                return;
             }
+            if (direction === 'down') {
+                const isLastOnPage = index === inclusionsData.length - 1;
+                const hasMorePages = inclusionsPagination && currentInclusionsPage < inclusionsPagination.totalPages;
+                if (isLastOnPage && hasMorePages) {
+                    alert('Cannot move to next page. To move this inclusion down, add a temporary inclusion to this page first.');
+                    return;
+                }
+            }
+            
+            if (direction === 'up' && index > 0) {
+                // Swap array elements - this is now the source of truth for order
+                [inclusionsData[index], inclusionsData[index - 1]] = [inclusionsData[index - 1], inclusionsData[index]];
+                
+                // Fast DOM swap - no need to rebuild everything
+                const container = document.querySelector('.inclusions-container');
+                const currentRow = container.children[index];
+                const previousRow = container.children[index - 1];
+                
+                // Swap DOM elements
+                container.insertBefore(currentRow, previousRow);
+                
+                // Update data-index attributes to keep them in sync
+                currentRow.setAttribute('data-index', index - 1);
+                previousRow.setAttribute('data-index', index);
+                
+                // Update all onclick handlers in the swapped rows
+                updateRowEventHandlers(currentRow, index - 1);
+                updateRowEventHandlers(previousRow, index);
+                
+                markAsUnsaved();
+                
+            } else if (direction === 'down' && index < inclusionsData.length - 1) {
+                // Swap array elements
+                [inclusionsData[index], inclusionsData[index + 1]] = [inclusionsData[index + 1], inclusionsData[index]];
+                
+                // Fast DOM swap
+                const container = document.querySelector('.inclusions-container');
+                const currentRow = container.children[index];
+                const nextRow = container.children[index + 1];
+                
+                // Swap DOM elements (insert currentRow after nextRow)
+                container.insertBefore(nextRow, currentRow);
+                
+                // Update data-index attributes
+                currentRow.setAttribute('data-index', index + 1);
+                nextRow.setAttribute('data-index', index);
+                
+                // Update all onclick handlers in the swapped rows
+                updateRowEventHandlers(currentRow, index + 1);
+                updateRowEventHandlers(nextRow, index);
+                
+                markAsUnsaved();
+            }
+        }
+
+        function updateRowEventHandlers(row, newIndex) {
+            // Update all onclick handlers that reference the old index
+            const elements = row.querySelectorAll('[onclick*="(' + (row.getAttribute('data-index') || newIndex) + ',"]');
+            elements.forEach(element => {
+                const oldOnclick = element.getAttribute('onclick');
+                if (oldOnclick) {
+                    const newOnclick = oldOnclick.replace(/\(\d+,/g, `(${newIndex},`);
+                    element.setAttribute('onclick', newOnclick);
+                }
+            });
+            
+            // Update data attributes for inputs
+            const inputs = row.querySelectorAll('[data-inclusion]');
+            inputs.forEach(input => {
+                input.setAttribute('data-inclusion', newIndex);
+            });
+            
+            // Update onchange handlers that reference the old index
+            const changeElements = row.querySelectorAll('[onchange*="(' + (row.getAttribute('data-index') || newIndex) + ',"]');
+            changeElements.forEach(element => {
+                const oldOnchange = element.getAttribute('onchange');
+                if (oldOnchange) {
+                    const newOnchange = oldOnchange.replace(/\(\d+,/g, `(${newIndex},`);
+                    element.setAttribute('onchange', newOnchange);
+                }
+            });
         }
 
         function copyAttributionToAll() {
@@ -2691,7 +2774,7 @@
             for (let i = 1; i < totalDisplayedRows; i++) {
                 // Ensure the inclusion exists in data array (create blank if needed)
                 if (!inclusionsData[i]) {
-                    inclusionsData[i] = createBlankInclusion(i + 1);
+                    inclusionsData[i] = createBlankInclusion();
                 }
                 
                 // Update attribution text
