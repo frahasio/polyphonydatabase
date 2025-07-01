@@ -1164,7 +1164,19 @@ async function saveGroupEdit() {
         if (response.ok) {
             const result = await response.json();
             bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
-            alert(`Successfully updated ${result.updatedTitles.length} titles in the group!`);
+            
+            // Create a detailed success message
+            let message = result.message;
+            
+            if (result.hadConflicts && result.mergedTitles && result.mergedTitles.length > 0) {
+                message += '\n\nMerged titles:\n';
+                result.mergedTitles.forEach(merge => {
+                    message += `• "${merge.originalText}" merged into existing "${merge.finalText}"\n`;
+                });
+                message += '\nAll compositions and function associations were preserved.';
+            }
+            
+            alert(message);
             searchTitles(); // Refresh results
         } else {
             const error = await response.json();

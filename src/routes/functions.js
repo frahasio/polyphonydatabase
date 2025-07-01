@@ -601,9 +601,10 @@ router.put('/titles/group/bulk-update', async (req, res) => {
       throw new Error('No titles found matching the original base text');
     }
 
-    const updatedTitles = [];
+    // Calculate what the new titles will be and check for conflicts
+    const titleUpdates = [];
+    const potentialConflicts = [];
     
-    // Update each matching title
     for (const title of titlesToUpdate) {
       const currentText = title.text;
       const currentBaseText = extractBaseTitle(currentText);
@@ -641,32 +642,170 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         newFullText = newBaseText;
       }
 
-      // Update the title in database
-      const updateQuery = `
-        UPDATE titles 
-        SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
-        WHERE id = $3 
-        RETURNING *
-      `;
-      
-      const updateResult = await client.query(updateQuery, [
-        newFullText.trim(),
-        language !== undefined ? language : title.language,
-        title.id
-      ]);
-      
-      updatedTitles.push(updateResult.rows[0]);
+      titleUpdates.push({
+        id: title.id,
+        currentText: currentText,
+        newText: newFullText.trim(),
+        language: language !== undefined ? language : title.language
+      });
     }
 
-    await client.query('COMMIT');
+    // Check for existing titles that would conflict with our new texts
+    const newTexts = titleUpdates.map(update => update.newText);
+    const conflictQuery = `
+      SELECT id, text, language, 
+             COUNT(DISTINCT c.id) as composition_count,
+             ARRAY_AGG(DISTINCT f.name) FILTER (WHERE f.name IS NOT NULL) as function_names
+      FROM titles t
+      LEFT JOIN compositions c ON t.id = c.title_id
+      LEFT JOIN functions_titles ft ON t.id = ft.title_id
+      LEFT JOIN functions f ON ft.function_id = f.id
+      WHERE t.text = ANY($1) AND t.id != ALL($2)
+      GROUP BY t.id, t.text, t.language
+    `;
+    
+    const existingTitleIds = titleUpdates.map(update => update.id);
+    const conflictsResult = await client.query(conflictQuery, [newTexts, existingTitleIds]);
+    
+    if (conflictsResult.rows.length > 0) {
+      // We have conflicts - need to merge rather than update
+      const conflicts = conflictsResult.rows;
+      const mergedTitles = [];
+      
+      for (const conflict of conflicts) {
+        // Find which of our updates conflicts with this existing title
+        const conflictingUpdate = titleUpdates.find(update => update.newText === conflict.text);
+        
+        if (conflictingUpdate) {
+          // Merge the updating title into the existing one
+          
+          // Update compositions to point to the existing title
+          await client.query(`
+            UPDATE compositions 
+            SET title_id = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE title_id = $2
+          `, [conflict.id, conflictingUpdate.id]);
 
-    res.json({
-      success: true,
-      message: `Successfully updated ${updatedTitles.length} titles`,
-      updatedTitles: updatedTitles,
-      originalBaseText,
-      newBaseText
-    });
+          // Merge function associations
+          const sourceFunctions = await client.query(`
+            SELECT function_id FROM functions_titles WHERE title_id = $1
+          `, [conflictingUpdate.id]);
+
+          for (const func of sourceFunctions.rows) {
+            // Check if association already exists
+            const existing = await client.query(`
+              SELECT 1 FROM functions_titles 
+              WHERE function_id = $1 AND title_id = $2
+            `, [func.function_id, conflict.id]);
+
+            if (existing.rows.length === 0) {
+              // Only insert if it doesn't exist
+              await client.query(`
+                INSERT INTO functions_titles (function_id, title_id)
+                VALUES ($1, $2)
+              `, [func.function_id, conflict.id]);
+            }
+          }
+
+          // Remove associations from source title
+          await client.query(`
+            DELETE FROM functions_titles WHERE title_id = $1
+          `, [conflictingUpdate.id]);
+
+          // Delete the source title
+          await client.query('DELETE FROM titles WHERE id = $1', [conflictingUpdate.id]);
+          
+          // Update the existing title's language if specified
+          if (language !== undefined) {
+            await client.query(`
+              UPDATE titles 
+              SET language = $1, updated_at = CURRENT_TIMESTAMP 
+              WHERE id = $2
+            `, [language, conflict.id]);
+          }
+          
+          mergedTitles.push({
+            action: 'merged',
+            originalId: conflictingUpdate.id,
+            originalText: conflictingUpdate.currentText,
+            mergedIntoId: conflict.id,
+            finalText: conflict.text
+          });
+          
+          // Remove this update from our list since we handled it via merge
+          const updateIndex = titleUpdates.findIndex(update => update.id === conflictingUpdate.id);
+          if (updateIndex > -1) {
+            titleUpdates.splice(updateIndex, 1);
+          }
+        }
+      }
+      
+      // Continue with remaining non-conflicting updates
+      const updatedTitles = [];
+      for (const update of titleUpdates) {
+        const updateQuery = `
+          UPDATE titles 
+          SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = $3 
+          RETURNING *
+        `;
+        
+        const updateResult = await client.query(updateQuery, [
+          update.newText,
+          update.language,
+          update.id
+        ]);
+        
+        updatedTitles.push({
+          action: 'updated',
+          ...updateResult.rows[0]
+        });
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: `Successfully processed ${updatedTitles.length + mergedTitles.length} titles (${updatedTitles.length} updated, ${mergedTitles.length} merged)`,
+        updatedTitles: updatedTitles,
+        mergedTitles: mergedTitles,
+        originalBaseText,
+        newBaseText,
+        hadConflicts: true
+      });
+
+    } else {
+      // No conflicts, proceed with normal updates
+      const updatedTitles = [];
+      
+      for (const update of titleUpdates) {
+        const updateQuery = `
+          UPDATE titles 
+          SET text = $1, language = $2, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = $3 
+          RETURNING *
+        `;
+        
+        const updateResult = await client.query(updateQuery, [
+          update.newText,
+          update.language,
+          update.id
+        ]);
+        
+        updatedTitles.push(updateResult.rows[0]);
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: `Successfully updated ${updatedTitles.length} titles`,
+        updatedTitles: updatedTitles,
+        originalBaseText,
+        newBaseText,
+        hadConflicts: false
+      });
+    }
 
   } catch (error) {
     await client.query('ROLLBACK');
