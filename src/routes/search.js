@@ -619,7 +619,7 @@ router.get('/groups', async (req, res) => {
             'publishers', COALESCE(pubs.publishers, '[]'::json),
             'scribes', COALESCE(scr.scribes, '[]'::json),
             'source_images', COALESCE(imgs.images, '[]'::json)
-          ) ORDER BY s.code, s.title)
+          ) ORDER BY s.from_year, s.code, s.title)
           FROM compositions comp
           JOIN inclusions i ON comp.id = i.composition_id
           JOIN sources s ON i.source_id = s.id
