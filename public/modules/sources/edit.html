@@ -2657,7 +2657,11 @@
         }
 
         function copyAttributionToAll() {
-            if (inclusionsData.length === 0) {
+            // Count all displayed rows, including blank ones
+            const allInclusionRows = document.querySelectorAll('.inclusion-row');
+            const totalDisplayedRows = allInclusionRows.length;
+            
+            if (totalDisplayedRows === 0) {
                 alert('No inclusions to copy to.');
                 return;
             }
@@ -2666,8 +2670,8 @@
             const firstAttributionInput = document.querySelector(`input[onchange*="updateAttribution(0, 0"]`);
             const firstComposerSelect = document.querySelector(`select[data-inclusion="0"][data-attribution="0"]`);
             
-            const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (inclusionsData[0].attribution_texts?.[0] || '');
-            const currentComposerId = firstComposerSelect && firstComposerSelect.value ? parseInt(firstComposerSelect.value) : (inclusionsData[0].composer_ids?.[0] || null);
+            const currentAttribution = firstAttributionInput ? firstAttributionInput.value : (inclusionsData[0]?.attribution_texts?.[0] || '');
+            const currentComposerId = firstComposerSelect && firstComposerSelect.value ? parseInt(firstComposerSelect.value) : (inclusionsData[0]?.composer_ids?.[0] || null);
             const currentComposerName = currentComposerId ? allComposers.find(c => c.id === currentComposerId)?.name || '' : '';
 
             if (!currentAttribution.trim()) {
@@ -2676,15 +2680,20 @@
             }
 
             const message = currentComposerName ? 
-                `Copy attribution "${currentAttribution}" and composer "${currentComposerName}" to all ${inclusionsData.length} inclusions on this page?` :
-                `Copy attribution "${currentAttribution}" to all ${inclusionsData.length} inclusions on this page?`;
+                `Copy attribution "${currentAttribution}" and composer "${currentComposerName}" to all ${totalDisplayedRows} inclusions on this page?` :
+                `Copy attribution "${currentAttribution}" to all ${totalDisplayedRows} inclusions on this page?`;
 
             if (!confirm(message)) {
                 return;
             }
 
-            // Update data for all inclusions (except first)
-            for (let i = 1; i < inclusionsData.length; i++) {
+            // Update data for ALL displayed inclusions (except first), including blank rows
+            for (let i = 1; i < totalDisplayedRows; i++) {
+                // Ensure the inclusion exists in data array (create blank if needed)
+                if (!inclusionsData[i]) {
+                    inclusionsData[i] = createBlankInclusion(i + 1);
+                }
+                
                 // Update attribution text
                 if (!inclusionsData[i].attribution_texts) {
                     inclusionsData[i].attribution_texts = [''];
