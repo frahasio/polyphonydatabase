@@ -548,6 +548,8 @@
                 const response = await fetch(`/api/admin/groups?${params}`);
                 const data = await response.json();
 
+                // Store results globally for selection functionality
+                window.currentSearchResults = data.groups || data;
                 displaySearchResults(data.groups || data);
             } catch (error) {
                 console.error('Search error:', error);
@@ -597,6 +599,29 @@
             `;
         }
 
+        // Add tone and even_odd mappings
+        const toneMapping = {
+            "1": "primi toni",
+            "2": "secundi toni", 
+            "3": "tertii toni",
+            "4": "quarti toni",
+            "5": "quinti toni",
+            "6": "sexti toni",
+            "7": "septimi toni",
+            "8": "octavi toni",
+            "9": "noni toni",
+            "12": "duodecimi toni",
+            "mix": "mixti toni",
+            "per": "peregrini toni",
+            "pro": "proprii toni"
+        };
+        
+        const evenOddMapping = {
+            0: "pares",
+            1: "impares", 
+            2: "pares et impares"
+        };
+
         function displaySearchResults(groups) {
             const resultsContainer = document.getElementById('searchResults');
 
@@ -614,13 +639,15 @@
                 <div class="group-card" onclick="toggleGroupSelection(${group.id})" data-group-id="${group.id}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
-                            <h6 class="mb-2">${group.display_title}</h6>
+                            <h6 class="mb-2">
+                                <strong>${group.display_title}</strong>
+                                ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                                ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
+                            </h6>
                             <div class="group-info">
                                 <span class="badge bg-secondary me-2">${group.number_of_voices || '?'}vv</span>
                                 <span class="text-muted">${group.composers || 'Anon'}</span>
                                 ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
-                                ${group.tone ? `<span class="badge bg-warning ms-1">${group.tone}</span>` : ''}
-                                ${group.even_odd ? `<span class="badge bg-success ms-1">${group.even_odd}</span>` : ''}
                             </div>
                             <div class="mt-2">
                                 <small class="text-muted">
@@ -673,46 +700,35 @@
                 selectedGroups = selectedGroups.filter(g => g.id !== groupId);
                 groupCard.classList.remove('selected');
             } else {
-                // Add to selection
-                const groupData = extractGroupData(groupCard);
-                selectedGroups.push({ id: groupId, ...groupData });
-                groupCard.classList.add('selected');
+                // Add to selection - find the group in the search results to get complete data
+                const groupData = findGroupInResults(groupId);
+                if (groupData) {
+                    selectedGroups.push(groupData);
+                    groupCard.classList.add('selected');
+                }
             }
 
             updateSelectedGroupsDisplay();
             updateMergePanel();
         }
 
-        function extractGroupData(groupCard) {
-            const title = groupCard.querySelector('h6').textContent;
-            const voicesBadge = groupCard.querySelector('.badge.bg-secondary');
-            const voices = voicesBadge ? voicesBadge.textContent.replace('vv', '') : null;
-            const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
-            const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
-            const toneBadge = groupCard.querySelector('.badge.bg-warning');
-            const tone = toneBadge ? toneBadge.textContent : null;
-            const evenOddBadge = groupCard.querySelector('.badge.bg-success');
-            const evenOdd = evenOddBadge ? evenOddBadge.textContent : null;
-            
-            // Extract composition details
-            const compositionDetails = [];
-            const compositionDivs = groupCard.querySelectorAll('.composition-detail');
-            compositionDivs.forEach(div => {
-                const titleEl = div.querySelector('.fw-bold');
-                const composersEl = div.querySelector('.text-muted');
-                const sources = [];
-                div.querySelectorAll('.source-item').forEach(sourceEl => {
-                    sources.push(sourceEl.textContent);
-                });
-                
-                compositionDetails.push({
-                    title: titleEl ? titleEl.textContent : 'Untitled',
-                    composers: composersEl ? composersEl.textContent : '',
-                    sources: sources
-                });
-            });
-
-            return { title, voices, compositionType, tone, evenOdd, compositions: compositionDetails };
+        function findGroupInResults(groupId) {
+            // Get the group data from the last search results stored in currentSearchResults
+            if (window.currentSearchResults) {
+                const group = window.currentSearchResults.find(g => g.id === groupId);
+                if (group) {
+                    return {
+                        id: group.id,
+                        title: group.display_title,
+                        voices: group.number_of_voices,
+                        compositionType: group.composition_type,
+                        tone: group.tone,
+                        evenOdd: group.even_odd,
+                        compositions: group.compositions_detail || []
+                    };
+                }
+            }
+            return null;
         }
 
         async function showEditionModal(groupId) {
@@ -1027,12 +1043,14 @@
                 <div class="border rounded p-3 mb-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <h6 class="mb-1">${group.title}</h6>
+                            <h6 class="mb-1">
+                                <strong>${group.title}</strong>
+                                ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                                ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.evenOdd] || group.evenOdd})</span>` : ''}
+                            </h6>
                             <div class="text-muted small">
                                 <span class="badge bg-secondary me-1">${group.voices || '?'}vv</span>
                                 ${group.compositionType ? `<span class="badge bg-info me-1">${group.compositionType}</span>` : ''}
-                                ${group.tone ? `<span class="badge bg-warning me-1">${group.tone}</span>` : ''}
-                                ${group.evenOdd ? `<span class="badge bg-success me-1">${group.evenOdd}</span>` : ''}
                             </div>
                         </div>
                         <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
@@ -1076,16 +1094,13 @@
                 return;
             }
 
-            const isCompatible = checkGroupCompatibility();
-            const statusClass = isCompatible ? 'compatible' : 'incompatible';
-            const icon = isCompatible ? 'bi-check-circle' : 'bi-x-circle';
-            const message = isCompatible ? 
-                'These groups are compatible and can be merged.' : 
-                'These groups cannot be merged due to incompatible properties (voices, composition type, tone, or even/odd values differ).';
+            const compatibilityResult = checkDetailedGroupCompatibility();
+            const statusClass = compatibilityResult.isCompatible ? 'compatible' : 'incompatible';
+            const icon = compatibilityResult.isCompatible ? 'bi-check-circle' : 'bi-x-circle';
 
             statusDiv.innerHTML = `
                 <div class="compatibility-check ${statusClass}">
-                    <i class="bi ${icon} me-2"></i>${message}
+                    <i class="bi ${icon} me-2"></i>${compatibilityResult.message}
                 </div>
             `;
         }
@@ -1100,6 +1115,63 @@
                 group.tone === first.tone &&
                 group.evenOdd === first.evenOdd
             );
+        }
+
+        function checkDetailedGroupCompatibility() {
+            if (selectedGroups.length < 2) {
+                return { isCompatible: true, message: 'Select at least 2 groups to check compatibility.' };
+            }
+
+            const first = selectedGroups[0];
+            const incompatibilities = [];
+
+            // Check voices
+            const voicesMismatch = selectedGroups.find(group => group.voices !== first.voices);
+            if (voicesMismatch) {
+                incompatibilities.push(`different number of voices (${first.voices}vv vs ${voicesMismatch.voices}vv)`);
+            }
+
+            // Check composition type
+            const typeMismatch = selectedGroups.find(group => group.compositionType !== first.compositionType);
+            if (typeMismatch) {
+                const firstType = first.compositionType || 'unspecified';
+                const mismatchType = typeMismatch.compositionType || 'unspecified';
+                incompatibilities.push(`different composition types (${firstType} vs ${mismatchType})`);
+            }
+
+            // Check tone
+            const toneMismatch = selectedGroups.find(group => group.tone !== first.tone);
+            if (toneMismatch) {
+                const firstToneDisplay = first.tone ? (toneMapping[first.tone] || first.tone) : 'unspecified';
+                const mismatchToneDisplay = toneMismatch.tone ? (toneMapping[toneMismatch.tone] || toneMismatch.tone) : 'unspecified';
+                incompatibilities.push(`different tones (${firstToneDisplay} vs ${mismatchToneDisplay})`);
+            }
+
+            // Check even/odd
+            const evenOddMismatch = selectedGroups.find(group => group.evenOdd !== first.evenOdd);
+            if (evenOddMismatch) {
+                const firstEvenOddDisplay = first.evenOdd !== null && first.evenOdd !== undefined ? 
+                    (evenOddMapping[first.evenOdd] || first.evenOdd) : 'unspecified';
+                const mismatchEvenOddDisplay = evenOddMismatch.evenOdd !== null && evenOddMismatch.evenOdd !== undefined ? 
+                    (evenOddMapping[evenOddMismatch.evenOdd] || evenOddMismatch.evenOdd) : 'unspecified';
+                incompatibilities.push(`different even/odd values (${firstEvenOddDisplay} vs ${mismatchEvenOddDisplay})`);
+            }
+
+            if (incompatibilities.length === 0) {
+                return { 
+                    isCompatible: true, 
+                    message: 'These groups are compatible and can be merged.' 
+                };
+            } else {
+                const incompatibilityText = incompatibilities.length === 1 ? 
+                    incompatibilities[0] : 
+                    incompatibilities.slice(0, -1).join(', ') + ' and ' + incompatibilities[incompatibilities.length - 1];
+                
+                return { 
+                    isCompatible: false, 
+                    message: `These groups cannot be merged due to ${incompatibilityText}.` 
+                };
+            }
         }
 
         function updateMergePanel() {
