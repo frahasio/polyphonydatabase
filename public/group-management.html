@@ -1073,11 +1073,16 @@
                 <div class="mt-2">
                     ${compositions.map(comp => `
                         <div class="bg-light p-2 rounded mb-1">
-                            <div class="fw-bold small">${comp.title}</div>
+                            <div class="fw-bold small">${comp.title || 'Untitled'}</div>
                             ${comp.composers ? `<div class="text-muted small">${comp.composers}</div>` : ''}
-                            ${comp.sources.length > 0 ? `
+                            ${comp.sources && comp.sources.length > 0 ? `
                                 <div class="mt-1">
-                                    ${comp.sources.map(source => `<span class="badge bg-secondary me-1 small">${source}</span>`).join('')}
+                                    ${comp.sources.map(source => {
+                                        // Handle both string sources and object sources
+                                        const sourceText = typeof source === 'string' ? source : 
+                                                         (source.code ? `${source.code} (${source.position || 'pos?'})` : source);
+                                        return `<span class="badge bg-secondary me-1 small">${sourceText}</span>`;
+                                    }).join('')}
                                 </div>
                             ` : ''}
                         </div>
