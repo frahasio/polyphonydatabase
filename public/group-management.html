@@ -619,6 +619,8 @@
                                 <span class="badge bg-secondary me-2">${group.number_of_voices || '?'}vv</span>
                                 <span class="text-muted">${group.composers || 'Anon'}</span>
                                 ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
+                                ${group.tone ? `<span class="badge bg-warning ms-1">${group.tone}</span>` : ''}
+                                ${group.even_odd ? `<span class="badge bg-success ms-1">${group.even_odd}</span>` : ''}
                             </div>
                             <div class="mt-2">
                                 <small class="text-muted">
@@ -687,6 +689,10 @@
             const voices = voicesBadge ? voicesBadge.textContent.replace('vv', '') : null;
             const compositionTypeBadge = groupCard.querySelector('.badge.bg-info');
             const compositionType = compositionTypeBadge ? compositionTypeBadge.textContent : null;
+            const toneBadge = groupCard.querySelector('.badge.bg-warning');
+            const tone = toneBadge ? toneBadge.textContent : null;
+            const evenOddBadge = groupCard.querySelector('.badge.bg-success');
+            const evenOdd = evenOddBadge ? evenOddBadge.textContent : null;
             
             // Extract composition details
             const compositionDetails = [];
@@ -706,7 +712,7 @@
                 });
             });
 
-            return { title, voices, compositionType, compositions: compositionDetails };
+            return { title, voices, compositionType, tone, evenOdd, compositions: compositionDetails };
         }
 
         async function showEditionModal(groupId) {
@@ -1020,7 +1026,15 @@
             list.innerHTML = selectedGroups.map(group => `
                 <div class="border rounded p-3 mb-3">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="mb-0">${group.title} (${group.voices}vv)</h6>
+                        <div>
+                            <h6 class="mb-1">${group.title}</h6>
+                            <div class="text-muted small">
+                                <span class="badge bg-secondary me-1">${group.voices || '?'}vv</span>
+                                ${group.compositionType ? `<span class="badge bg-info me-1">${group.compositionType}</span>` : ''}
+                                ${group.tone ? `<span class="badge bg-warning me-1">${group.tone}</span>` : ''}
+                                ${group.evenOdd ? `<span class="badge bg-success me-1">${group.evenOdd}</span>` : ''}
+                            </div>
+                        </div>
                         <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
                             <i class="bi bi-x"></i>
                         </button>
@@ -1067,7 +1081,7 @@
             const icon = isCompatible ? 'bi-check-circle' : 'bi-x-circle';
             const message = isCompatible ? 
                 'These groups are compatible and can be merged.' : 
-                'These groups cannot be merged due to incompatible properties (voices, composition type, etc.).';
+                'These groups cannot be merged due to incompatible properties (voices, composition type, tone, or even/odd values differ).';
 
             statusDiv.innerHTML = `
                 <div class="compatibility-check ${statusClass}">
@@ -1082,7 +1096,9 @@
             const first = selectedGroups[0];
             return selectedGroups.every(group => 
                 group.voices === first.voices && 
-                group.compositionType === first.compositionType
+                group.compositionType === first.compositionType &&
+                group.tone === first.tone &&
+                group.evenOdd === first.evenOdd
             );
         }
 

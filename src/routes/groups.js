@@ -498,6 +498,8 @@ router.get('/', async (req, res) => {
                 COUNT(DISTINCT r.id) as recording_count,
                 c.number_of_voices,
                 ct.name as composition_type,
+                c.tone,
+                c.even_odd,
                 -- Composers for the group
                 (
                   SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
@@ -514,7 +516,7 @@ router.get('/', async (req, res) => {
             LEFT JOIN editions e ON e.group_id = g.id
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
-            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name
+            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name, c.tone, c.even_odd
             ORDER BY g.updated_at DESC
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;
