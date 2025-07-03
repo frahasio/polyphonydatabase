@@ -906,6 +906,39 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         }
       }
 
+      // Log audit entry for bulk title group update
+      try {
+        await client.query(
+          `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user?.id || null,
+            req.user?.email || 'unknown@system.local',
+            'UPDATE',
+            'titles',
+            null, // No specific record ID for bulk operations
+            JSON.stringify({ 
+              action: 'bulk_title_group_update',
+              originalBaseText: originalBaseText,
+              titlesUpdated: updatedTitles.length,
+              titlesMerged: mergedTitles.length,
+              internalMerges: internalMerges.length,
+              groupDisplayUpdates: groupDisplayUpdates.length
+            }),
+            JSON.stringify({ 
+              action: 'bulk_title_group_update',
+              newBaseText: newBaseText,
+              totalProcessed: updatedTitles.length + mergedTitles.length + internalMerges.length,
+              updatedTitles: updatedTitles.map(t => ({ id: t.id, text: t.text })),
+              mergedTitles: mergedTitles.map(t => ({ id: t.id, text: t.text })),
+              internalMerges: internalMerges,
+              groupDisplayUpdates: groupDisplayUpdates.map(g => ({ id: g.id, display_title: g.display_title }))
+            })
+          ]
+        );
+      } catch (auditError) {
+        console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+      }
+
       await client.query('COMMIT');
 
       const totalProcessed = updatedTitles.length + mergedTitles.length + internalMerges.length;
@@ -1002,6 +1035,37 @@ router.put('/titles/group/bulk-update', async (req, res) => {
         }
       }
 
+      // Log audit entry for bulk title group update (no conflicts)
+      try {
+        await client.query(
+          `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user?.id || null,
+            req.user?.email || 'unknown@system.local',
+            'UPDATE',
+            'titles',
+            null, // No specific record ID for bulk operations
+            JSON.stringify({ 
+              action: 'bulk_title_group_update',
+              originalBaseText: originalBaseText,
+              titlesUpdated: updatedTitles.length,
+              internalMerges: internalMerges.length,
+              groupDisplayUpdates: groupDisplayUpdates.length
+            }),
+            JSON.stringify({ 
+              action: 'bulk_title_group_update',
+              newBaseText: newBaseText,
+              totalProcessed: updatedTitles.length + internalMerges.length,
+              updatedTitles: updatedTitles.map(t => ({ id: t.id, text: t.text })),
+              internalMerges: internalMerges,
+              groupDisplayUpdates: groupDisplayUpdates.map(g => ({ id: g.id, display_title: g.display_title }))
+            })
+          ]
+        );
+      } catch (auditError) {
+        console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+      }
+
       await client.query('COMMIT');
 
       const totalProcessed = updatedTitles.length + internalMerges.length;
@@ -1045,7 +1109,27 @@ router.post('/titles', async (req, res) => {
     `;
 
     const result = await pool.query(query, [text, language || null]);
-    res.status(201).json(result.rows[0]);
+    const newTitle = result.rows[0];
+
+    // Log audit entry for title creation
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'CREATE',
+          'titles',
+          newTitle.id,
+          null,
+          JSON.stringify({ text: newTitle.text, language: newTitle.language })
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
+    res.status(201).json(newTitle);
   } catch (error) {
     console.error('Error creating title:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -1087,6 +1171,24 @@ router.put('/titles/:id', async (req, res) => {
 
     const result = await client.query(updateQuery, [text, language || null, id]);
     const updatedTitle = result.rows[0];
+
+    // Log audit entry for title update
+    try {
+      await client.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'UPDATE',
+          'titles',
+          parseInt(id),
+          JSON.stringify({ text: currentTitle.text, language: currentTitle.language }),
+          JSON.stringify({ text: updatedTitle.text, language: updatedTitle.language })
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
 
     // If the base text changed, update other titles in the same group
     if (oldBaseText.toLowerCase() !== newBaseText.toLowerCase() && oldBaseText.trim() !== '') {
@@ -1415,6 +1517,17 @@ router.post('/titles/:titleId/functions/:functionId', async (req, res) => {
   try {
     const { titleId, functionId } = req.params;
 
+    // Get title and function details for audit trail
+    const titleResult = await pool.query('SELECT text FROM titles WHERE id = $1', [titleId]);
+    const functionResult = await pool.query('SELECT name FROM functions WHERE id = $1', [functionId]);
+    
+    if (titleResult.rows.length === 0 || functionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Title or function not found' });
+    }
+
+    const titleText = titleResult.rows[0].text;
+    const functionName = functionResult.rows[0].name;
+
     // Check if association already exists
     const existing = await pool.query(`
       SELECT 1 FROM functions_titles 
@@ -1427,6 +1540,30 @@ router.post('/titles/:titleId/functions/:functionId', async (req, res) => {
         INSERT INTO functions_titles (function_id, title_id)
         VALUES ($1, $2)
       `, [functionId, titleId]);
+
+      // Log audit entry for function assignment
+      try {
+        await pool.query(
+          `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user?.id || null,
+            req.user?.email || 'unknown@system.local',
+            'CREATE',
+            'functions_titles',
+            parseInt(titleId),
+            null,
+            JSON.stringify({
+              title_id: parseInt(titleId),
+              title_text: titleText,
+              function_id: parseInt(functionId),
+              function_name: functionName,
+              action: 'function_assigned'
+            })
+          ]
+        );
+      } catch (auditError) {
+        console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+      }
     }
 
     res.json({ success: true, message: 'Title assigned to function' });
@@ -1440,10 +1577,45 @@ router.delete('/titles/:titleId/functions/:functionId', async (req, res) => {
   try {
     const { titleId, functionId } = req.params;
 
+    // Get title and function details for audit trail before deletion
+    const titleResult = await pool.query('SELECT text FROM titles WHERE id = $1', [titleId]);
+    const functionResult = await pool.query('SELECT name FROM functions WHERE id = $1', [functionId]);
+    
+    if (titleResult.rows.length === 0 || functionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Title or function not found' });
+    }
+
+    const titleText = titleResult.rows[0].text;
+    const functionName = functionResult.rows[0].name;
+
     await pool.query(`
       DELETE FROM functions_titles 
       WHERE function_id = $1 AND title_id = $2
     `, [functionId, titleId]);
+
+    // Log audit entry for function unassignment
+    try {
+      await pool.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'DELETE',
+          'functions_titles',
+          parseInt(titleId),
+          JSON.stringify({
+            title_id: parseInt(titleId),
+            title_text: titleText,
+            function_id: parseInt(functionId),
+            function_name: functionName,
+            action: 'function_unassigned'
+          }),
+          null
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
 
     res.json({ success: true, message: 'Title unassigned from function' });
   } catch (error) {

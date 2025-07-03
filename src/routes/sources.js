@@ -1010,6 +1010,42 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
     }
 
+    // Log audit entry for source/inclusion changes
+    try {
+      await client.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'UPDATE',
+          'sources',
+          sourceId,
+          JSON.stringify({ 
+            action: 'source_inclusions_update',
+            sourceCode: source.code,
+            sourceTitle: source.title,
+            stagedInclusionsCount: stagedInclusionsCount,
+            formInclusionsCount: processedInclusions.length
+          }),
+          JSON.stringify({ 
+            action: 'source_inclusions_update',
+            sourceCode: source.code,
+            sourceTitle: source.title,
+            totalInclusionsProcessed: stagedInclusionsCount + processedInclusions.length,
+            stagedInclusionsCount: stagedInclusionsCount,
+            formInclusionsCount: processedInclusions.length,
+            inclusions: processedInclusions.map(inc => ({
+              compositionTitle: inc.composition?.title_text,
+              composerIds: inc.composer_ids,
+              clefs: inc.clefs?.length || 0
+            }))
+          })
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
     await client.query('COMMIT');
     
     console.log(`\n=== SAVE COMPLETE ===`);
@@ -1042,13 +1078,55 @@ router.delete('/inclusions/:id', requireAdmin, async (req, res) => {
   try {
     console.log(`Deleting inclusion with ID: ${id}`);
     
+    // Get inclusion details before deletion for audit trail
+    const inclusionResult = await client.query(`
+      SELECT i.*, s.code as source_code, s.title as source_title, c.title_id, t.text as composition_title
+      FROM inclusions i
+      JOIN sources s ON i.source_id = s.id
+      JOIN compositions c ON i.composition_id = c.id
+      JOIN titles t ON c.title_id = t.id
+      WHERE i.id = $1
+    `, [id]);
+    
+    if (inclusionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Inclusion not found' });
+    }
+    
+    const inclusion = inclusionResult.rows[0];
+    
     const deleteResult = await client.query(
       'DELETE FROM inclusions WHERE id = $1 RETURNING *',
       [id]
     );
     
-    if (deleteResult.rowCount === 0) {
-      return res.status(404).json({ error: 'Inclusion not found' });
+    // Log audit entry for inclusion deletion
+    try {
+      await client.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'DELETE',
+          'inclusions',
+          parseInt(id),
+          JSON.stringify({
+            id: inclusion.id,
+            source_id: inclusion.source_id,
+            source_code: inclusion.source_code,
+            source_title: inclusion.source_title,
+            composition_id: inclusion.composition_id,
+            composition_title: inclusion.composition_title,
+            order: inclusion.order,
+            position: inclusion.position,
+            notes: inclusion.notes,
+            composer_ids: inclusion.composer_ids,
+            clefs: inclusion.clefs
+          }),
+          null
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
     }
     
     console.log(`Successfully deleted inclusion ${id}`);

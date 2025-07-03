@@ -1147,14 +1147,26 @@
                         let changesDisplay = '';
                         if (item.changes) {
                             try {
-                                const changes = typeof item.changes === 'string' ? JSON.parse(item.changes) : item.changes;
-                                const changesSummary = getChangesSummary(changes);
-                                
-                                if (changesSummary) {
-                                    const activityIndex = data.activity.findIndex(a => a === item);
-                                    changesDisplay = `<br><small class="text-muted">${changesSummary}</small><br><small><a href="#" onclick="showActivityDetails(${activityIndex})">View detailed changes</a></small>`;
+                                // Handle both string and object formats for changes
+                                let changes;
+                                if (typeof item.changes === 'string') {
+                                    changes = JSON.parse(item.changes);
+                                } else if (typeof item.changes === 'object') {
+                                    changes = item.changes;
+                                } else {
+                                    changes = null;
                                 }
-                            } catch {
+                                
+                                if (changes) {
+                                    const changesSummary = getChangesSummary(changes);
+                                    
+                                    if (changesSummary) {
+                                        const activityIndex = data.activity.findIndex(a => a === item);
+                                        changesDisplay = `<br><small class="text-muted">${changesSummary}</small><br><small><a href="#" onclick="showActivityDetails(${activityIndex})">View detailed changes</a></small>`;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error parsing changes:', error);
                                 changesDisplay = '';
                             }
                         }
@@ -1453,7 +1465,47 @@
                 // Handle special action types
                 if (changes.new && changes.new.action === 'group_merge') {
                     const mergeData = changes.new;
-                    return `Merged ${mergeData.merged_count} groups into "${mergeData.result_group?.display_title}"`;
+                    if (mergeData.result_group && mergeData.result_group.display_title) {
+                        return `Merged ${mergeData.merged_count || mergeData.result_group.merged_count || 0} groups into "${mergeData.result_group.display_title}"`;
+                    } else {
+                        return `Merged ${mergeData.merged_count || 0} groups`;
+                    }
+                }
+                
+                // Handle bulk title group updates
+                if (changes.new && changes.new.action === 'bulk_title_group_update') {
+                    const updateData = changes.new;
+                    const details = [];
+                    if (updateData.updatedTitles && updateData.updatedTitles.length > 0) {
+                        details.push(`${updateData.updatedTitles.length} titles updated`);
+                    }
+                    if (updateData.mergedTitles && updateData.mergedTitles.length > 0) {
+                        details.push(`${updateData.mergedTitles.length} titles merged`);
+                    }
+                    if (updateData.internalMerges && updateData.internalMerges.length > 0) {
+                        details.push(`${updateData.internalMerges.length} internal merges`);
+                    }
+                    if (updateData.groupDisplayUpdates && updateData.groupDisplayUpdates.length > 0) {
+                        details.push(`${updateData.groupDisplayUpdates.length} group titles updated`);
+                    }
+                    return `Bulk update: ${details.join(', ')}`;
+                }
+                
+                // Handle source/inclusion updates
+                if (changes.new && changes.new.action === 'source_inclusions_update') {
+                    const updateData = changes.new;
+                    return `Source "${updateData.sourceCode}" updated: ${updateData.totalInclusionsProcessed} inclusions processed`;
+                }
+                
+                // Handle function assignments
+                if (changes.new && changes.new.action === 'function_assigned') {
+                    const assignData = changes.new;
+                    return `Function "${assignData.function_name}" assigned to title "${assignData.title_text}"`;
+                }
+                
+                if (changes.old && changes.old.action === 'function_unassigned') {
+                    const unassignData = changes.old;
+                    return `Function "${unassignData.function_name}" unassigned from title "${unassignData.title_text}"`;
                 }
                 
                 // Handle regular field changes
@@ -1479,6 +1531,7 @@
                 
                 return '';
             } catch (error) {
+                console.error('Error in getChangesSummary:', error);
                 return '';
             }
         }
@@ -1500,9 +1553,23 @@
             let changesDisplay = '';
             if (activity.changes) {
                 try {
-                    const changes = typeof activity.changes === 'string' ? JSON.parse(activity.changes) : activity.changes;
-                    changesDisplay = JSON.stringify(changes, null, 2);
+                    // Handle both string and object formats for changes
+                    let changes;
+                    if (typeof activity.changes === 'string') {
+                        changes = JSON.parse(activity.changes);
+                    } else if (typeof activity.changes === 'object') {
+                        changes = activity.changes;
+                    } else {
+                        changes = null;
+                    }
+                    
+                    if (changes) {
+                        changesDisplay = JSON.stringify(changes, null, 2);
+                    } else {
+                        changesDisplay = 'No changes data available';
+                    }
                 } catch (error) {
+                    console.error('Error parsing changes in details:', error);
                     changesDisplay = 'Error parsing changes data';
                 }
             } else {

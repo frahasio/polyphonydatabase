@@ -247,13 +247,25 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: legacyActivity.rows });
     }
     
-    // Get simplified audit log entries
+    // Get simplified audit log entries with enhanced record titles
     const auditActivity = await pool.query(`
       SELECT 
         al.user_email,
         al.action,
         al.table_name,
-        al.record_title,
+        CASE 
+          WHEN al.record_title IS NOT NULL AND al.record_title != '' THEN al.record_title
+          WHEN al.table_name = 'titles' AND al.new_values::jsonb ? 'text' THEN al.new_values->>'text'
+          WHEN al.table_name = 'sources' AND al.new_values::jsonb ? 'code' THEN al.new_values->>'code'
+          WHEN al.table_name = 'groups' AND al.new_values::jsonb ? 'display_title' THEN al.new_values->>'display_title'
+          WHEN al.table_name = 'composers' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
+          WHEN al.table_name = 'editors' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
+          WHEN al.table_name = 'performers' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
+          WHEN al.table_name = 'functions' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
+          WHEN al.table_name = 'functions_titles' AND al.new_values::jsonb ? 'title_text' THEN al.new_values->>'title_text'
+          WHEN al.table_name = 'inclusions' AND al.old_values::jsonb ? 'composition_title' THEN al.old_values->>'composition_title'
+          ELSE 'Unknown Record'
+        END as record_title,
         al.changes,
         al.created_at
       FROM audit_log al
