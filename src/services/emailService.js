@@ -26,6 +26,15 @@ class EmailService {
       delete emailConfig.service; // Remove service when using custom SMTP
     }
 
+    console.log('Email service configuration:');
+    console.log('- Service:', emailConfig.service || 'Custom SMTP');
+    console.log('- Host:', emailConfig.host || 'Gmail');
+    console.log('- Port:', emailConfig.port || 'Default');
+    console.log('- Secure:', emailConfig.secure || 'Default');
+    console.log('- User:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+    console.log('- Password:', process.env.EMAIL_PASSWORD ? 'Set' : 'Not set');
+    console.log('- From:', process.env.EMAIL_FROM || 'Not set');
+
     try {
       this.transporter = nodemailer.createTransport(emailConfig);
       console.log('Email service initialized successfully');
@@ -405,6 +414,11 @@ class EmailService {
     const adminEmail = 'polyphonydatabase@gmail.com';
     const adminUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/user-management`;
     
+    console.log('Sending admin notification email:');
+    console.log('- From:', process.env.EMAIL_FROM || process.env.EMAIL_USER);
+    console.log('- To:', adminEmail);
+    console.log('- User:', userName, userEmail);
+    
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: adminEmail,
@@ -485,10 +499,17 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('Admin notification email sent:', info.messageId);
+      console.log('Admin notification email sent successfully:');
+      console.log('- Message ID:', info.messageId);
+      console.log('- Response:', info.response);
+      console.log('- Accepted:', info.accepted);
+      console.log('- Rejected:', info.rejected);
       return true;
     } catch (error) {
-      console.error('Failed to send admin notification email:', error);
+      console.error('Failed to send admin notification email:');
+      console.error('- Error:', error.message);
+      console.error('- Code:', error.code);
+      console.error('- Command:', error.command);
       return false;
     }
   }

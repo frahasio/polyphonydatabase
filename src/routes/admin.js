@@ -232,20 +232,86 @@ router.get('/test-email', requireAdmin, async (req, res) => {
       });
     }
     
-    // Send a test email
-    const testEmailSent = await emailService.sendAdminNotificationEmail('test@example.com', 'Test User');
+    // Get the current user's email for testing
+    const currentUserEmail = req.user?.email || 'test@example.com';
+    
+    // Send a test email to the current user
+    const testEmailSent = await emailService.sendWelcomeEmail(currentUserEmail, 'Test User');
     
     res.json({
       success: true,
       connectionVerified,
       testEmailSent,
-      message: 'Email service test completed'
+      testEmailSentTo: currentUserEmail,
+      message: `Email service test completed. Test email sent to: ${currentUserEmail}`
     });
     
   } catch (error) {
     console.error('Email service test error:', error);
     res.status(500).json({ 
       error: 'Email service test failed',
+      details: error.message
+    });
+  }
+});
+
+// Test admin notification email specifically
+router.get('/test-admin-email', requireAdmin, async (req, res) => {
+  try {
+    const emailService = (await import('../services/emailService.js')).default;
+    
+    // Test the connection
+    const connectionVerified = await emailService.verifyConnection();
+    
+    if (!connectionVerified) {
+      return res.status(500).json({ 
+        error: 'Email service not configured properly',
+        details: 'Check EMAIL_USER, EMAIL_PASSWORD, and other email environment variables'
+      });
+    }
+    
+    // Send a test admin notification email (this goes to polyphonydatabase@gmail.com)
+    const testEmailSent = await emailService.sendAdminNotificationEmail('test@example.com', 'Test User Registration');
+    
+    res.json({
+      success: true,
+      connectionVerified,
+      testEmailSent,
+      adminEmailAddress: 'polyphonydatabase@gmail.com',
+      message: 'Admin notification email test completed. Check polyphonydatabase@gmail.com for the test email.'
+    });
+    
+  } catch (error) {
+    console.error('Admin email test error:', error);
+    res.status(500).json({ 
+      error: 'Admin email test failed',
+      details: error.message
+    });
+  }
+});
+
+// Check email configuration
+router.get('/email-config', requireAdmin, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      emailConfig: {
+        service: process.env.EMAIL_SERVICE || 'gmail',
+        host: process.env.SMTP_HOST || 'Gmail',
+        port: process.env.SMTP_PORT || 'Default',
+        secure: process.env.SMTP_SECURE === 'true',
+        user: process.env.EMAIL_USER ? 'Set' : 'Not set',
+        password: process.env.EMAIL_PASSWORD ? 'Set' : 'Not set',
+        from: process.env.EMAIL_FROM || 'Not set',
+        baseUrl: process.env.BASE_URL || 'Not set'
+      },
+      message: 'Email configuration details (passwords are hidden for security)'
+    });
+    
+  } catch (error) {
+    console.error('Email config check error:', error);
+    res.status(500).json({ 
+      error: 'Failed to check email configuration',
       details: error.message
     });
   }
