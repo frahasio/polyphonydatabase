@@ -217,105 +217,7 @@ router.post('/clef-combinations', async (req, res) => {
   }
 });
 
-// Test email service
-router.get('/test-email', requireAdmin, async (req, res) => {
-  try {
-    const emailService = (await import('../services/emailService.js')).default;
-    
-    // Test the connection
-    const connectionVerified = await emailService.verifyConnection();
-    
-    if (!connectionVerified) {
-      return res.status(500).json({ 
-        error: 'Email service not configured properly',
-        details: 'Check EMAIL_USER, EMAIL_PASSWORD, and other email environment variables'
-      });
-    }
-    
-    // Get the current user's email for testing
-    const currentUserEmail = req.user?.email || 'test@example.com';
-    
-    // Send a test email to the current user
-    const testEmailSent = await emailService.sendWelcomeEmail(currentUserEmail, 'Test User');
-    
-    res.json({
-      success: true,
-      connectionVerified,
-      testEmailSent,
-      testEmailSentTo: currentUserEmail,
-      message: `Email service test completed. Test email sent to: ${currentUserEmail}`
-    });
-    
-  } catch (error) {
-    console.error('Email service test error:', error);
-    res.status(500).json({ 
-      error: 'Email service test failed',
-      details: error.message
-    });
-  }
-});
 
-// Test admin notification email specifically
-router.get('/test-admin-email', requireAdmin, async (req, res) => {
-  try {
-    const emailService = (await import('../services/emailService.js')).default;
-    
-    // Test the connection
-    const connectionVerified = await emailService.verifyConnection();
-    
-    if (!connectionVerified) {
-      return res.status(500).json({ 
-        error: 'Email service not configured properly',
-        details: 'Check EMAIL_USER, EMAIL_PASSWORD, and other email environment variables'
-      });
-    }
-    
-    // Send a test admin notification email (this goes to polyphonydatabase@gmail.com)
-    const testEmailSent = await emailService.sendAdminNotificationEmail('test@example.com', 'Test User Registration');
-    
-    res.json({
-      success: true,
-      connectionVerified,
-      testEmailSent,
-      adminEmailAddress: 'polyphonydatabase@gmail.com',
-      message: 'Admin notification email test completed. Check polyphonydatabase@gmail.com for the test email.'
-    });
-    
-  } catch (error) {
-    console.error('Admin email test error:', error);
-    res.status(500).json({ 
-      error: 'Admin email test failed',
-      details: error.message
-    });
-  }
-});
-
-// Check email configuration
-router.get('/email-config', requireAdmin, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      emailConfig: {
-        service: process.env.EMAIL_SERVICE || 'gmail',
-        host: process.env.SMTP_HOST || 'Gmail',
-        port: process.env.SMTP_PORT || 'Default',
-        secure: process.env.SMTP_SECURE === 'true',
-        user: process.env.EMAIL_USER ? 'Set' : 'Not set',
-        password: process.env.EMAIL_PASSWORD ? 'Set' : 'Not set',
-        from: process.env.EMAIL_FROM || 'Not set',
-        baseUrl: process.env.BASE_URL || 'Not set'
-      },
-      message: 'Email configuration details (passwords are hidden for security)'
-    });
-    
-  } catch (error) {
-    console.error('Email config check error:', error);
-    res.status(500).json({ 
-      error: 'Failed to check email configuration',
-      details: error.message
-    });
-  }
-});
 
 // Check recent user registrations
 router.get('/recent-users', requireAdmin, async (req, res) => {
@@ -354,8 +256,6 @@ router.get('/recent-activity', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     
-    console.log('Fetching recent activity with limit:', limit);
-    
     // Check if audit_log table exists
     const tableExists = await pool.query(`
       SELECT EXISTS (
@@ -364,10 +264,7 @@ router.get('/recent-activity', async (req, res) => {
       );
     `);
     
-    console.log('Audit log table exists:', tableExists.rows[0].exists);
-    
     if (!tableExists.rows[0].exists) {
-      console.log('Audit log table does not exist, using legacy activity tracking');
       // Fallback to legacy activity tracking if audit_log doesn't exist
       const legacyActivity = await pool.query(`
         SELECT 'source' as type, 'CREATE' as action, id, 
@@ -392,10 +289,7 @@ router.get('/recent-activity', async (req, res) => {
       ORDER BY ordinal_position
     `);
     
-    console.log('Audit log table structure:', tableStructure.rows);
-    
     if (tableStructure.rows.length === 0) {
-      console.log('No columns found in audit_log table, using legacy activity tracking');
       // Fallback to legacy activity tracking if audit_log doesn't exist
       const legacyActivity = await pool.query(`
         SELECT 'source' as type, 'CREATE' as action, id, 
@@ -414,10 +308,8 @@ router.get('/recent-activity', async (req, res) => {
     
     // Check if the table has the changes column
     const hasChangesColumn = tableStructure.rows.some(col => col.column_name === 'changes');
-    console.log('Has changes column:', hasChangesColumn);
     
     if (!hasChangesColumn) {
-      console.log('No changes column found, using basic audit log query');
       // Fallback to basic audit log query without enhanced record titles
       const auditActivity = await pool.query(`
         SELECT 
@@ -435,7 +327,6 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: auditActivity.rows });
     }
     
-    console.log('Using enhanced audit log query with changes column');
     // Get simplified audit log entries with enhanced record titles
     const auditActivity = await pool.query(`
       SELECT 
@@ -463,12 +354,8 @@ router.get('/recent-activity', async (req, res) => {
       LIMIT $1
     `, [limit]);
     
-    console.log('Audit activity query completed, rows returned:', auditActivity.rows.length);
-    
     // If no audit log entries, fall back to recent user registrations and other activity
     if (auditActivity.rows.length === 0) {
-      console.log('No audit log entries found, checking for recent user registrations');
-      
       // Get recent user registrations
       const recentUsers = await pool.query(`
         SELECT 
@@ -483,12 +370,8 @@ router.get('/recent-activity', async (req, res) => {
         LIMIT $1
       `, [limit]);
       
-      console.log('Recent users found:', recentUsers.rows.length);
-      
       return res.json({ activity: recentUsers.rows });
     }
-    
-    console.log('Audit activity query completed, rows returned:', auditActivity.rows.length);
 
     res.json({ activity: auditActivity.rows });
   } catch (error) {
