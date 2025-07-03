@@ -1175,15 +1175,19 @@ router.put('/titles/:id', async (req, res) => {
     // Log audit entry for title update
     try {
       await client.query(
-        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO audit_log (user_id, user_email, action, table_name, record_id, record_title, changes, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
         [
           req.user?.id || null,
           req.user?.email || 'unknown@system.local',
           'UPDATE',
           'titles',
           parseInt(id),
-          JSON.stringify({ text: currentTitle.text, language: currentTitle.language }),
-          JSON.stringify({ text: updatedTitle.text, language: updatedTitle.language })
+          updatedTitle.text,
+          JSON.stringify({
+            old: { text: currentTitle.text, language: currentTitle.language },
+            new: { text: updatedTitle.text, language: updatedTitle.language }
+          })
         ]
       );
     } catch (auditError) {
@@ -1544,14 +1548,15 @@ router.post('/titles/:titleId/functions/:functionId', async (req, res) => {
       // Log audit entry for function assignment
       try {
         await pool.query(
-          `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO audit_log (user_id, user_email, action, table_name, record_id, record_title, changes, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
           [
             req.user?.id || null,
             req.user?.email || 'unknown@system.local',
             'CREATE',
             'functions_titles',
             parseInt(titleId),
-            null,
+            `${functionName} → ${titleText}`,
             JSON.stringify({
               title_id: parseInt(titleId),
               title_text: titleText,
@@ -1596,21 +1601,22 @@ router.delete('/titles/:titleId/functions/:functionId', async (req, res) => {
     // Log audit entry for function unassignment
     try {
       await pool.query(
-        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO audit_log (user_id, user_email, action, table_name, record_id, record_title, changes, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
         [
           req.user?.id || null,
           req.user?.email || 'unknown@system.local',
           'DELETE',
           'functions_titles',
           parseInt(titleId),
+          `${functionName} → ${titleText}`,
           JSON.stringify({
             title_id: parseInt(titleId),
             title_text: titleText,
             function_id: parseInt(functionId),
             function_name: functionName,
             action: 'function_unassigned'
-          }),
-          null
+          })
         ]
       );
     } catch (auditError) {

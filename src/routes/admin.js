@@ -217,10 +217,78 @@ router.post('/clef-combinations', async (req, res) => {
   }
 });
 
+// Test email service
+router.get('/test-email', requireAdmin, async (req, res) => {
+  try {
+    const emailService = (await import('../services/emailService.js')).default;
+    
+    // Test the connection
+    const connectionVerified = await emailService.verifyConnection();
+    
+    if (!connectionVerified) {
+      return res.status(500).json({ 
+        error: 'Email service not configured properly',
+        details: 'Check EMAIL_USER, EMAIL_PASSWORD, and other email environment variables'
+      });
+    }
+    
+    // Send a test email
+    const testEmailSent = await emailService.sendAdminNotificationEmail('test@example.com', 'Test User');
+    
+    res.json({
+      success: true,
+      connectionVerified,
+      testEmailSent,
+      message: 'Email service test completed'
+    });
+    
+  } catch (error) {
+    console.error('Email service test error:', error);
+    res.status(500).json({ 
+      error: 'Email service test failed',
+      details: error.message
+    });
+  }
+});
+
+// Check recent user registrations
+router.get('/recent-users', requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const recentUsers = await pool.query(`
+      SELECT 
+        id,
+        email,
+        name,
+        status,
+        role,
+        created_at,
+        updated_at
+      FROM users 
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [limit]);
+    
+    res.json({
+      success: true,
+      users: recentUsers.rows,
+      count: recentUsers.rows.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching recent users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get recent activity/audit trail from audit_log table
 router.get('/recent-activity', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
+    
+    console.log('Fetching recent activity with limit:', limit);
     
     // Check if audit_log table exists
     const tableExists = await pool.query(`
@@ -230,7 +298,10 @@ router.get('/recent-activity', async (req, res) => {
       );
     `);
     
+    console.log('Audit log table exists:', tableExists.rows[0].exists);
+    
     if (!tableExists.rows[0].exists) {
+      console.log('Audit log table does not exist, using legacy activity tracking');
       // Fallback to legacy activity tracking if audit_log doesn't exist
       const legacyActivity = await pool.query(`
         SELECT 'source' as type, 'CREATE' as action, id, 
@@ -247,6 +318,58 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: legacyActivity.rows });
     }
     
+    // Check if audit_log table has the expected structure
+    const tableStructure = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'audit_log' 
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('Audit log table structure:', tableStructure.rows);
+    
+    if (tableStructure.rows.length === 0) {
+      console.log('No columns found in audit_log table, using legacy activity tracking');
+      // Fallback to legacy activity tracking if audit_log doesn't exist
+      const legacyActivity = await pool.query(`
+        SELECT 'source' as type, 'CREATE' as action, id, 
+               COALESCE(code, 'Untitled Source') as title, 
+               'Unknown User' as user_email,
+               COALESCE(created_at, updated_at, NOW()) as created_at
+        FROM sources 
+        WHERE (created_at >= NOW() - INTERVAL '30 days' 
+               OR updated_at >= NOW() - INTERVAL '30 days')
+        ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return res.json({ activity: legacyActivity.rows });
+    }
+    
+    // Check if the table has the changes column
+    const hasChangesColumn = tableStructure.rows.some(col => col.column_name === 'changes');
+    console.log('Has changes column:', hasChangesColumn);
+    
+    if (!hasChangesColumn) {
+      console.log('No changes column found, using basic audit log query');
+      // Fallback to basic audit log query without enhanced record titles
+      const auditActivity = await pool.query(`
+        SELECT 
+          al.user_email,
+          al.action,
+          al.table_name,
+          al.record_title,
+          al.created_at
+        FROM audit_log al
+        WHERE al.created_at >= NOW() - INTERVAL '30 days'
+        ORDER BY al.created_at DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return res.json({ activity: auditActivity.rows });
+    }
+    
+    console.log('Using enhanced audit log query with changes column');
     // Get simplified audit log entries with enhanced record titles
     const auditActivity = await pool.query(`
       SELECT 
@@ -255,15 +378,15 @@ router.get('/recent-activity', async (req, res) => {
         al.table_name,
         CASE 
           WHEN al.record_title IS NOT NULL AND al.record_title != '' THEN al.record_title
-          WHEN al.table_name = 'titles' AND al.new_values::jsonb ? 'text' THEN al.new_values->>'text'
-          WHEN al.table_name = 'sources' AND al.new_values::jsonb ? 'code' THEN al.new_values->>'code'
-          WHEN al.table_name = 'groups' AND al.new_values::jsonb ? 'display_title' THEN al.new_values->>'display_title'
-          WHEN al.table_name = 'composers' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
-          WHEN al.table_name = 'editors' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
-          WHEN al.table_name = 'performers' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
-          WHEN al.table_name = 'functions' AND al.new_values::jsonb ? 'name' THEN al.new_values->>'name'
-          WHEN al.table_name = 'functions_titles' AND al.new_values::jsonb ? 'title_text' THEN al.new_values->>'title_text'
-          WHEN al.table_name = 'inclusions' AND al.old_values::jsonb ? 'composition_title' THEN al.old_values->>'composition_title'
+          WHEN al.table_name = 'titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'text' THEN al.changes->'new'->>'text'
+          WHEN al.table_name = 'sources' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'code' THEN al.changes->'new'->>'code'
+          WHEN al.table_name = 'groups' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'display_title' THEN al.changes->'new'->>'display_title'
+          WHEN al.table_name = 'composers' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
+          WHEN al.table_name = 'editors' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
+          WHEN al.table_name = 'performers' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
+          WHEN al.table_name = 'functions' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
+          WHEN al.table_name = 'functions_titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'title_text' THEN al.changes->'new'->>'title_text'
+          WHEN al.table_name = 'inclusions' AND al.changes::jsonb ? 'old' AND al.changes->'old' ? 'composition_title' THEN al.changes->'old'->>'composition_title'
           ELSE 'Unknown Record'
         END as record_title,
         al.changes,
@@ -273,6 +396,33 @@ router.get('/recent-activity', async (req, res) => {
       ORDER BY al.created_at DESC
       LIMIT $1
     `, [limit]);
+    
+    console.log('Audit activity query completed, rows returned:', auditActivity.rows.length);
+    
+    // If no audit log entries, fall back to recent user registrations and other activity
+    if (auditActivity.rows.length === 0) {
+      console.log('No audit log entries found, checking for recent user registrations');
+      
+      // Get recent user registrations
+      const recentUsers = await pool.query(`
+        SELECT 
+          email as user_email,
+          'CREATE' as action,
+          'users' as table_name,
+          name as record_title,
+          created_at
+        FROM users 
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        ORDER BY created_at DESC
+        LIMIT $1
+      `, [limit]);
+      
+      console.log('Recent users found:', recentUsers.rows.length);
+      
+      return res.json({ activity: recentUsers.rows });
+    }
+    
+    console.log('Audit activity query completed, rows returned:', auditActivity.rows.length);
 
     res.json({ activity: auditActivity.rows });
   } catch (error) {
