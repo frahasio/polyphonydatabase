@@ -440,7 +440,8 @@ router.get('/', async (req, res) => {
             composer = '',
             voices = '',
             has_editions = false,
-            has_recordings = false
+            has_recordings = false,
+            sort = 'title'
         } = req.query;
 
         const offset = (parseInt(page) - 1) * parseInt(page_size);
@@ -517,7 +518,7 @@ router.get('/', async (req, res) => {
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
             GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name, c.tone, c.even_odd
-            ORDER BY g.updated_at DESC
+            ORDER BY ${sort === 'title' ? 'g.display_title' : 'g.updated_at DESC'}
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;
 

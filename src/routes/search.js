@@ -658,6 +658,8 @@ router.get('/groups', async (req, res) => {
             'town', s.town,
             'from_year', s.from_year,
             'to_year', s.to_year,
+            'from_year_annotation', s.from_year_annotation,
+            'to_year_annotation', s.to_year_annotation,
             'rism_link', s.rism_link,
             'source_notes', s.notes,
             'position', i.position,

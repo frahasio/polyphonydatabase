@@ -1251,9 +1251,9 @@
                                                     ${source.town || source.from_year || source.to_year ? `
                                                         <br><small>${[
                                                             source.town,
-                                                            source.from_year && source.to_year ? `${source.from_year}–${source.to_year}` :
-                                                            source.from_year ? `${source.from_year}` :
-                                                            source.to_year ? `${source.to_year}` : ''
+                                                            source.from_year && source.to_year ? `${source.from_year_annotation || ''}${source.from_year}–${source.to_year_annotation || ''}${source.to_year}` :
+                                                            source.from_year ? `${source.from_year_annotation || ''}${source.from_year}` :
+                                                            source.to_year ? `${source.to_year_annotation || ''}${source.to_year}` : ''
                                                         ].filter(Boolean).join(', ')}</small>
                                                     ` : ''}
                                                     ${source.publishers && source.publishers.length > 0 ? `

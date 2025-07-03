@@ -163,6 +163,12 @@
         .search-results {
             max-height: 600px;
             overflow-y: auto;
+            position: relative;
+        }
+
+        #loadingIndicator {
+            border-top: 1px solid #e9ecef;
+            background: rgba(255, 255, 255, 0.9);
         }
 
         .media-form {
@@ -298,6 +304,7 @@
                                 <p>Enter search terms to find groups</p>
                             </div>
                         </div>
+                        <div id="searchStats" class="text-muted small mt-2" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -502,6 +509,10 @@
     <script>
         let selectedGroups = [];
         let searchTimeout;
+        let currentPage = 1;
+        let isLoading = false;
+        let hasMoreResults = true;
+        let allSearchResults = [];
 
         document.addEventListener('DOMContentLoaded', function() {
             loadFilters();
@@ -511,18 +522,66 @@
         function setupEventListeners() {
             // Search functionality
             document.getElementById('searchInput').addEventListener('input', debounceSearch);
-            document.getElementById('voicesFilter').addEventListener('change', performSearch);
-            document.getElementById('composerFilter').addEventListener('change', performSearch);
+            document.getElementById('voicesFilter').addEventListener('change', () => performSearch(true));
+            document.getElementById('composerFilter').addEventListener('change', () => performSearch(true));
 
-
+            // Infinite scroll
+            const searchResults = document.getElementById('searchResults');
+            searchResults.addEventListener('scroll', handleScroll);
         }
 
         function debounceSearch() {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 300);
+            searchTimeout = setTimeout(() => performSearch(true), 300);
         }
 
-        async function performSearch() {
+        function handleScroll(event) {
+            const element = event.target;
+            const scrollPosition = element.scrollTop + element.clientHeight;
+            const scrollHeight = element.scrollHeight;
+            
+            // Load more when user is near the bottom (within 100px)
+            if (scrollHeight - scrollPosition < 100 && !isLoading && hasMoreResults) {
+                performSearch(false);
+            }
+        }
+
+        function showLoadingIndicator() {
+            const resultsContainer = document.getElementById('searchResults');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loadingIndicator';
+            loadingDiv.className = 'text-center py-3';
+            loadingDiv.innerHTML = `
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="ms-2 text-muted">Loading more results...</span>
+            `;
+            resultsContainer.appendChild(loadingDiv);
+        }
+
+        function hideLoadingIndicator() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+        }
+
+        function updateSearchStats(total, loaded) {
+            const statsDiv = document.getElementById('searchStats');
+            if (total > 0) {
+                statsDiv.style.display = 'block';
+                if (loaded < total) {
+                    statsDiv.innerHTML = `Showing ${loaded} of ${total} results. Scroll down to load more.`;
+                } else {
+                    statsDiv.innerHTML = `Showing all ${total} results.`;
+                }
+            } else {
+                statsDiv.style.display = 'none';
+            }
+        }
+
+        async function performSearch(resetPagination = true) {
             const searchTerm = document.getElementById('searchInput').value.trim();
             const voices = document.getElementById('voicesFilter').value;
             const composer = document.getElementById('composerFilter').value;
@@ -534,31 +593,66 @@
                         <p>Enter search terms to find groups</p>
                     </div>
                 `;
+                document.getElementById('searchStats').style.display = 'none';
                 return;
             }
+
+            if (resetPagination) {
+                currentPage = 1;
+                allSearchResults = [];
+                hasMoreResults = true;
+            }
+
+            if (isLoading || !hasMoreResults) return;
+
+            isLoading = true;
+            showLoadingIndicator();
 
             try {
                 const params = new URLSearchParams({
                     title: searchTerm,
                     voices: voices,
                     composer: composer,
-                    page_size: 50
+                    page_size: 25,
+                    sort: 'title',
+                    page: currentPage.toString()
                 });
 
                 const response = await fetch(`/api/admin/groups?${params}`);
                 const data = await response.json();
 
+                const newGroups = data.groups || [];
+                
+                if (resetPagination) {
+                    allSearchResults = newGroups;
+                } else {
+                    allSearchResults = allSearchResults.concat(newGroups);
+                }
+
                 // Store results globally for selection functionality
-                window.currentSearchResults = data.groups || data;
-                displaySearchResults(data.groups || data);
+                window.currentSearchResults = allSearchResults;
+                
+                displaySearchResults(allSearchResults);
+                updateSearchStats(data.total, allSearchResults.length);
+                
+                // Update pagination state
+                hasMoreResults = currentPage < data.total_pages;
+                currentPage++;
+                
             } catch (error) {
                 console.error('Search error:', error);
-                document.getElementById('searchResults').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Error searching groups
-                    </div>
-                `;
+                if (resetPagination) {
+                    document.getElementById('searchResults').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error searching groups
+                        </div>
+                    `;
+                    document.getElementById('searchStats').style.display = 'none';
+                }
+            } finally {
+                isLoading = false;
+                hideLoadingIndicator();
             }
         }
 
@@ -634,6 +728,9 @@
                 `;
                 return;
             }
+
+            // Remove loading indicator if it exists
+            hideLoadingIndicator();
 
             resultsContainer.innerHTML = groups.map(group => `
                 <div class="group-card" onclick="toggleGroupSelection(${group.id})" data-group-id="${group.id}">
@@ -1018,7 +1115,7 @@
                     bootstrap.Modal.getInstance(document.getElementById('editTitleModal')).hide();
                     
                     // Refresh search results to show updated title
-                    performSearch();
+                    performSearch(true);
                 } else {
                     const error = await response.json();
                     alert(`Error updating title: ${error.error}`);
@@ -1307,7 +1404,7 @@
         }
 
         function refreshSearch() {
-            performSearch();
+            performSearch(true);
         }
 
 
@@ -1374,7 +1471,7 @@
                     alert(`Success! "${compositionTitle}" moved to new group "${result.newGroupTitle}"`);
                     
                     // Refresh search results to show updated groups
-                    refreshSearch();
+                    performSearch(true);
                     
                     // Update any selected groups that may have been affected
                     selectedGroups = selectedGroups.filter(g => g.id !== groupId);
