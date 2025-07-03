@@ -1,7 +1,11 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Apply authentication to all routes in this router
+router.use(requireAuth);
 
 // POST /api/admin/groups/merge - Merge multiple groups into one
 router.post('/merge', async (req, res) => {

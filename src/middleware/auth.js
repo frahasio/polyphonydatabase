@@ -67,6 +67,44 @@ export const requireAuthWeb = async (req, res, next) => {
   }
 };
 
+// Middleware to require specific role for data access
+export const requireRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      await requireAuth(req, res, () => {});
+      
+      if (!allowedRoles.includes(req.user?.role)) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+      
+      next();
+    } catch (error) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+  };
+};
+
+// Middleware for public data access with optional authentication
+export const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.session?.token || req.headers.authorization?.replace('Bearer ', '');
+    
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await getUserById(decoded.userId);
+      
+      if (user && user.status === 'approved') {
+        req.user = user;
+      }
+    }
+    
+    next();
+  } catch (error) {
+    // Continue without authentication
+    next();
+  }
+};
+
 // Helper function to get user by ID
 async function getUserById(id) {
   try {

@@ -1,8 +1,11 @@
 import express from 'express';
 import { pool } from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Apply authentication to all routes in this router
+router.use(requireAuth);
 
 // Convert tone values to standardized string format for database storage
 function convertToneToString(toneValue) {
