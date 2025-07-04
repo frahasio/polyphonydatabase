@@ -12,9 +12,12 @@ export async function runDatabaseCleanup(dbClient = pool, cleanup_type = 'all') 
   let results = {};
   try {
     // Accept either a pool or a client
-    if (typeof dbClient.connect === 'function') {
+    // Check if it's a pool (has totalCount property) or an already connected client
+    if (typeof dbClient.totalCount === 'number') {
+      // It's a pool, need to get a client
       client = await dbClient.connect();
     } else {
+      // It's an already connected client
       client = dbClient;
       externalClient = true;
     }
