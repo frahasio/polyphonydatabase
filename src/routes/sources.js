@@ -735,7 +735,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           else evenOdd = null;
           
           const numberOfVoices = tempInclusion.number_of_voices ? parseInt(tempInclusion.number_of_voices) : null;
-          const isAnonymous = composerIds.length === 0;
+          const isAnonymous = composerIds.length === 1 && composerIds[0] === 23;
           
           // Check for existing composition
           let existingComposition;
