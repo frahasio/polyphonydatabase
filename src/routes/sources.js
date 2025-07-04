@@ -932,7 +932,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         groupId = existingComposition.rows[0].group_id;
         
         if (!groupId) {
-          // Create group for existing composition
+                                // Create group for existing composition
           const newGroupResult = await client.query(`
             INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
           `, [inclusion.composition.title_text, now, now]);
@@ -1121,13 +1121,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
     }
 
-    // Run cleanup twice after save
-    try {
-      await runDatabaseCleanup(client);
-      await runDatabaseCleanup(client);
-    } catch (cleanupError) {
-      console.error('Cleanup after save failed:', cleanupError);
-    }
+    // Database cleanup removed from automatic execution after save
+    // Run cleanup manually from time to time to avoid interfering with save operations
 
     await client.query('COMMIT');
     
