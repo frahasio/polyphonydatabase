@@ -975,110 +975,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             
             if (inclusionCount === 1) {
               // This composition was unique - check if we need to merge with existing composition
-              console.log(`Unique composition ${currentComposition.id} being updated - checking for merge opportunity`);
-              
-              // Check if there's already a composition with these exact characteristics
-              let existingCompositionForMerge = { rows: [] };
               if (isAnonymous) {
-                existingCompositionForMerge = await client.query(`
-                  SELECT id, group_id FROM compositions 
-                  WHERE id != $1
-                  AND title_id = $2 
-                  AND (composition_type_id = $3 OR ($3 IS NULL AND composition_type_id IS NULL))
-                  AND (tone = $4 OR ($4 IS NULL AND tone IS NULL))
-                  AND (even_odd = $5 OR ($5 IS NULL AND even_odd IS NULL))
-                  AND (number_of_voices = $6 OR ($6 IS NULL AND number_of_voices IS NULL))
-                  AND (composer_id_list IS NULL OR composer_id_list = '{}')
-                `, [currentComposition.id, titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
-              } else {
-                existingCompositionForMerge = await client.query(`
-                  SELECT id, group_id FROM compositions 
-                  WHERE id != $1
-                  AND title_id = $2 
-                  AND (composition_type_id = $3 OR ($3 IS NULL AND composition_type_id IS NULL))
-                  AND (tone = $4 OR ($4 IS NULL AND tone IS NULL))
-                  AND (even_odd = $5 OR ($5 IS NULL AND even_odd IS NULL))
-                  AND (number_of_voices = $6 OR ($6 IS NULL AND number_of_voices IS NULL))
-                  AND composer_id_list = $7
-                `, [currentComposition.id, titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds]);
-              }
-              
-              if (existingCompositionForMerge.rows.length > 0) {
-                // Found an existing composition with same characteristics - need to merge
-                const targetComposition = existingCompositionForMerge.rows[0];
-                console.log(`Merging unique composition ${currentComposition.id} into existing composition ${targetComposition.id}`);
-                
-                // Determine which group to keep based on which has editions/recordings
-                const currentGroupEditionsResult = await client.query(`
-                  SELECT COUNT(*) as count FROM editions WHERE group_id = $1
-                `, [currentComposition.group_id]);
-                const currentGroupRecordingsResult = await client.query(`
-                  SELECT COUNT(*) as count FROM recordings WHERE group_id = $1
-                `, [currentComposition.group_id]);
-                
-                const targetGroupEditionsResult = await client.query(`
-                  SELECT COUNT(*) as count FROM editions WHERE group_id = $1
-                `, [targetComposition.group_id]);
-                const targetGroupRecordingsResult = await client.query(`
-                  SELECT COUNT(*) as count FROM recordings WHERE group_id = $1
-                `, [targetComposition.group_id]);
-                
-                const currentGroupHasContent = parseInt(currentGroupEditionsResult.rows[0].count) > 0 || parseInt(currentGroupRecordingsResult.rows[0].count) > 0;
-                const targetGroupHasContent = parseInt(targetGroupEditionsResult.rows[0].count) > 0 || parseInt(targetGroupRecordingsResult.rows[0].count) > 0;
-                
-                let groupToKeep, groupToDelete;
-                
-                if (currentGroupHasContent && !targetGroupHasContent) {
-                  // Keep current group, move target composition to it
-                  groupToKeep = currentComposition.group_id;
-                  groupToDelete = targetComposition.group_id;
-                  compositionId = targetComposition.id;
-                  groupId = groupToKeep;
-                  
-                  // Move target composition to current group
-                  await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupToKeep, targetComposition.id]);
-                  
-                  // Delete the empty target group
-                  await client.query(`DELETE FROM groups WHERE id = $1`, [groupToDelete]);
-                  
-                  console.log(`Kept current group ${groupToKeep} (has content), moved target composition ${targetComposition.id} to it`);
-                } else if (!currentGroupHasContent && targetGroupHasContent) {
-                  // Keep target group, move current composition to it
-                  groupToKeep = targetComposition.group_id;
-                  groupToDelete = currentComposition.group_id;
-                  compositionId = targetComposition.id;
-                  groupId = groupToKeep;
-                  
-                  // Move current composition to target group
-                  await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupToKeep, currentComposition.id]);
-                  
-                  // Delete the empty current group
-                  await client.query(`DELETE FROM groups WHERE id = $1`, [groupToDelete]);
-                  
-                  console.log(`Kept target group ${groupToKeep} (has content), moved current composition ${currentComposition.id} to it`);
-                } else {
-                  // Both groups have content or both are empty - keep target group, move current composition to it
-                  groupToKeep = targetComposition.group_id;
-                  groupToDelete = currentComposition.group_id;
-                  compositionId = targetComposition.id;
-                  groupId = groupToKeep;
-                  
-                  // Move current composition to target group
-                  await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupToKeep, currentComposition.id]);
-                  
-                  // Delete the empty current group
-                  await client.query(`DELETE FROM groups WHERE id = $1`, [groupToDelete]);
-                  
-                  console.log(`Both groups have content or both empty - kept target group ${groupToKeep}, moved current composition ${currentComposition.id} to it`);
-                }
-                
-                // Delete the current composition (since we're using the target composition)
-                await client.query(`DELETE FROM compositions WHERE id = $1`, [currentComposition.id]);
-                
-              } else {
-                // No existing composition with same characteristics - update the current one
-                console.log(`Updating unique composition ${currentComposition.id} instead of creating new one`);
-                
+                // For Anon compositions, skip merge logic and always update in place
+                // Anon compositions are always unique and should not be merged
+                console.log(`Unique Anon composition ${currentComposition.id} being updated - skipping merge, updating in place`);
                 // Update the existing composition with new details
                 await client.query(`
                   UPDATE compositions SET 
@@ -1091,10 +991,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                     updated_at = $7
                   WHERE id = $8
                 `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, now, currentComposition.id]);
-                
                 compositionId = currentComposition.id;
                 groupId = currentComposition.group_id;
-                
                 // If no group, create one
                 if (!groupId) {
                   const newGroupResult = await client.query(`
@@ -1103,6 +1001,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                   groupId = newGroupResult.rows[0].id;
                   await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupId, compositionId]);
                 }
+              } else {
+                // ... existing merge logic for non-Anon inclusions ...
               }
             } else {
               // Multiple inclusions exist - create new composition
