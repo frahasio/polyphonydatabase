@@ -500,6 +500,44 @@ router.get('/groups', async (req, res) => {
           WHERE comp.group_id = g.id AND s.to_year IS NOT NULL
         ) DESC`;
         break;
+      case 'order_in_source':
+        if (sourceIds.length === 1) {
+          // Sort by order in the selected source
+          orderByClause = `ORDER BY (
+            SELECT MIN(i.order)
+            FROM compositions comp
+            JOIN inclusions i ON comp.id = i.composition_id
+            WHERE comp.group_id = g.id AND i.source_id = ${sourceIds[0]}
+          )`;
+        } else {
+          // Sort by lowest order across all sources
+          orderByClause = `ORDER BY (
+            SELECT MIN(i.order)
+            FROM compositions comp
+            JOIN inclusions i ON comp.id = i.composition_id
+            WHERE comp.group_id = g.id
+          )`;
+        }
+        break;
+      case 'order_in_source_desc':
+        if (sourceIds.length === 1) {
+          // Sort by order in the selected source (descending)
+          orderByClause = `ORDER BY (
+            SELECT MIN(i.order)
+            FROM compositions comp
+            JOIN inclusions i ON comp.id = i.composition_id
+            WHERE comp.group_id = g.id AND i.source_id = ${sourceIds[0]}
+          ) DESC`;
+        } else {
+          // Sort by lowest order across all sources (descending)
+          orderByClause = `ORDER BY (
+            SELECT MIN(i.order)
+            FROM compositions comp
+            JOIN inclusions i ON comp.id = i.composition_id
+            WHERE comp.group_id = g.id
+          ) DESC`;
+        }
+        break;
       default:
         orderByClause = 'ORDER BY g.display_title';
         break;

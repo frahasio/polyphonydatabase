@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { runDatabaseCleanup } from '../cleanup.js';
 
 const router = express.Router();
 
@@ -1129,6 +1130,14 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       );
     } catch (auditError) {
       console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+    }
+
+    // Run cleanup twice after save
+    try {
+      await runDatabaseCleanup(client);
+      await runDatabaseCleanup(client);
+    } catch (cleanupError) {
+      console.error('Cleanup after save failed:', cleanupError);
     }
 
     await client.query('COMMIT');

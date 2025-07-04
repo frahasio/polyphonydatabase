@@ -466,6 +466,8 @@
                                                 <option value="voices_desc">Voices (descending)</option>
                                                 <option value="sources_earliest">Sources (earliest first)</option>
                                                 <option value="sources_latest">Sources (latest first)</option>
+                                                <option value="order_in_source" id="orderInSourceOption">Order in source</option>
+                                                <option value="order_in_source_desc" id="orderInSourceDescOption">Order in source (descending)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -572,6 +574,8 @@
                                 <option value="voices_desc">Voices (descending)</option>
                                 <option value="sources_earliest">Sources (earliest first)</option>
                                 <option value="sources_latest">Sources (latest first)</option>
+                                <option value="order_in_source" id="orderInSourceOptionDesktop">Order in source</option>
+                                <option value="order_in_source_desc" id="orderInSourceDescOptionDesktop">Order in source (descending)</option>
                             </select>
                         </div>
                     </div>
@@ -774,6 +778,7 @@
             // Set up Select2 change listeners for mobile
             $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing').on('change', function() {
                 syncMultiSelectFields(this.id, this.id + 'Desktop');
+                updateOrderInSourceOptions();
                 debounceSearch();
             });
             
@@ -781,6 +786,7 @@
             $('#searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchSourcesDesktop, #searchPublishersDesktop, #searchCitiesDesktop, #searchVoicingDesktop').on('change', function() {
                 let mobileId = this.id.replace('Desktop', '');
                 syncMultiSelectFields(this.id, mobileId);
+                updateOrderInSourceOptions();
                 debounceSearch();
             });
             
@@ -794,6 +800,7 @@
             // Load filters, then URL parameters, then perform search
             await loadFilters();
             loadFiltersFromURL();
+            updateOrderInSourceOptions();
             performSearch();
         }
 
@@ -816,6 +823,49 @@
         function syncMultiSelectFields(sourceId, targetId) {
             const sourceValues = $(`#${sourceId}`).val();
             $(`#${targetId}`).val(sourceValues).trigger('change.select2');
+        }
+
+        function updateOrderInSourceOptions() {
+            // Get the selected sources from both mobile and desktop forms
+            const mobileSources = $('#searchSources').val() || [];
+            const desktopSources = $('#searchSourcesDesktop').val() || [];
+            
+            // Check if exactly one source is selected (use mobile as primary, but both should be synced)
+            const selectedSources = mobileSources.length > 0 ? mobileSources : desktopSources;
+            const hasSingleSource = selectedSources.length === 1;
+            
+            // Get the order in source options
+            const mobileOption = document.getElementById('orderInSourceOption');
+            const mobileDescOption = document.getElementById('orderInSourceDescOption');
+            const desktopOption = document.getElementById('orderInSourceOptionDesktop');
+            const desktopDescOption = document.getElementById('orderInSourceDescOptionDesktop');
+            
+            // Enable/disable and style the options
+            [mobileOption, mobileDescOption, desktopOption, desktopDescOption].forEach(option => {
+                if (option) {
+                    if (hasSingleSource) {
+                        option.disabled = false;
+                        option.style.color = '';
+                        option.style.fontStyle = '';
+                    } else {
+                        option.disabled = true;
+                        option.style.color = '#6c757d';
+                        option.style.fontStyle = 'italic';
+                    }
+                }
+            });
+            
+            // If options are disabled and currently selected, reset to default
+            if (!hasSingleSource) {
+                const mobileSort = document.getElementById('sortBy');
+                const desktopSort = document.getElementById('sortByDesktop');
+                
+                if (mobileSort && (mobileSort.value === 'order_in_source' || mobileSort.value === 'order_in_source_desc')) {
+                    mobileSort.value = '';
+                    desktopSort.value = '';
+                    currentSort = '';
+                }
+            }
         }
 
         async function checkAuthStatus() {

@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { runDatabaseCleanup } from '../cleanup.js';
 
 const router = express.Router();
 
@@ -216,8 +217,6 @@ router.post('/clef-combinations', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 // Check recent user registrations
 router.get('/recent-users', requireAdmin, async (req, res) => {
@@ -794,113 +793,15 @@ router.post('/ignore-alert', async (req, res) => {
 // Database cleanup routines
 router.post('/cleanup', async (req, res) => {
   const client = await pool.connect();
-  
   try {
-    await client.query('BEGIN');
-    
     const { cleanup_type } = req.body;
-    let results = {};
-
-    if (!cleanup_type || cleanup_type === 'all') {
-      // 1. Clean up unused titles = titles not referenced in compositions
-      const unusedTitles = await client.query(`
-        DELETE FROM titles 
-        WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
-        RETURNING id, text
-      `);
-      results.removed_titles = unusedTitles.rowCount;
-
-      // 2. Clean up empty groups = groups with no compositions
-      const emptyGroups = await client.query(`
-        DELETE FROM groups 
-        WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
-        RETURNING id, display_title
-      `);
-      results.removed_groups = emptyGroups.rowCount;
-
-      // 3. Clean up orphaned compositions = compositions not in any inclusions
-      const orphanedCompositions = await client.query(`
-        DELETE FROM compositions 
-        WHERE id NOT IN (SELECT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
-        RETURNING id
-      `);
-      results.removed_compositions = orphanedCompositions.rowCount;
-
-      // 4. Clean up orphaned clef combinations = clef combinations not used in inclusions
-      try {
-        const orphanedClefCombos = await client.query(`
-          DELETE FROM clef_combinations 
-          WHERE clef_combination NOT IN (
-            SELECT sorted_clef_combination_required FROM inclusions 
-            WHERE sorted_clef_combination_required IS NOT NULL
-          )
-          AND clef_combination NOT IN (
-            SELECT sorted_clef_combination_all FROM inclusions 
-            WHERE sorted_clef_combination_all IS NOT NULL
-          )
-          RETURNING id, clef_combination
-        `);
-        results.removed_clef_combinations = orphanedClefCombos.rowCount;
-      } catch (error) {
-        console.log('Clef combinations cleanup skipped (table may not exist):', error.message);
-        results.removed_clef_combinations = 0;
-      }
-
-    } else if (cleanup_type === 'titles') {
-      const unusedTitles = await client.query(`
-        DELETE FROM titles 
-        WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
-        RETURNING id, text
-      `);
-      results.removed_titles = unusedTitles.rowCount;
-
-    } else if (cleanup_type === 'groups') {
-      const emptyGroups = await client.query(`
-        DELETE FROM groups 
-        WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
-        RETURNING id, display_title
-      `);
-      results.removed_groups = emptyGroups.rowCount;
-
-    } else if (cleanup_type === 'compositions') {
-      const orphanedCompositions = await client.query(`
-        DELETE FROM compositions 
-        WHERE id NOT IN (SELECT composition_id FROM inclusions WHERE composition_id IS NOT NULL)
-        RETURNING id
-      `);
-      results.removed_compositions = orphanedCompositions.rowCount;
-
-    } else if (cleanup_type === 'clef_combinations') {
-      // Remove orphaned clef combinations using the same logic as preview
-      try {
-        const orphanedClefCombos = await client.query(`
-          DELETE FROM clef_combinations 
-          WHERE clef_combination NOT IN (
-            SELECT sorted_clef_combination_required FROM inclusions 
-            WHERE sorted_clef_combination_required IS NOT NULL
-          )
-          AND clef_combination NOT IN (
-            SELECT sorted_clef_combination_all FROM inclusions 
-            WHERE sorted_clef_combination_all IS NOT NULL
-          )
-          RETURNING id, clef_combination
-        `);
-        results.removed_clef_combinations = orphanedClefCombos.rowCount;
-      } catch (error) {
-        console.log('Clef combinations cleanup skipped (table may not exist):', error.message);
-        results.removed_clef_combinations = 0;
-      }
-    }
-
-    await client.query('COMMIT');
+    const results = await runDatabaseCleanup(client, cleanup_type);
     res.json({ 
       success: true, 
       message: 'Database cleanup completed successfully',
       results: results
     });
-
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Error during database cleanup:', error);
     res.status(500).json({ error: 'Database cleanup failed' });
   } finally {
