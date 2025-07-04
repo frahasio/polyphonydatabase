@@ -738,17 +738,12 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           const isAnonymous = composerIds.length === 1 && composerIds[0] === 23;
           
           // Check for existing composition
-          let existingComposition;
+          let existingComposition = { rows: [] };
+          
           if (isAnonymous) {
-            existingComposition = await client.query(`
-              SELECT id, group_id FROM compositions 
-              WHERE title_id = $1 
-              AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
-              AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
-              AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
-              AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
-              AND (composer_id_list IS NULL OR composer_id_list = '{}')
-            `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices]);
+            // BUGFIX: Anonymous compositions should NEVER be matched against existing ones
+            // Always create new compositions for anonymous works, even if they have identical properties
+            existingComposition = { rows: [] }; // Force creation of new composition
           } else {
             existingComposition = await client.query(`
               SELECT id, group_id FROM compositions 
@@ -915,15 +910,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       let existingComposition = { rows: [] };
       
       if (isAnonymous) {
-        existingComposition = await client.query(`
-          SELECT id, group_id FROM compositions 
-          WHERE title_id = $1 
-          AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
-          AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
-          AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
-          AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
-          AND (composer_id_list IS NULL OR composer_id_list = '{}')
-        `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt]);
+        // BUGFIX: Anonymous compositions should NEVER be matched against existing ones
+        // Always create new compositions for anonymous works, even if they have identical properties
+        existingComposition = { rows: [] }; // Force creation of new composition
       } else {
         existingComposition = await client.query(`
           SELECT id, group_id FROM compositions 
