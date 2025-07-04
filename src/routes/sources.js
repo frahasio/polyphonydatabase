@@ -837,8 +837,15 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     for (let i = 0; i < processedInclusions.length; i++) {
       const inclusion = processedInclusions[i];
       let compositionId = null;
+      
+      console.log(`\n--- RAW INCLUSION DATA ${i + 1} ---`);
+      console.log(`Full inclusion object:`, JSON.stringify(inclusion, null, 2));
 
       console.log(`Processing inclusion ${i + 1}: "${inclusion.composition.title_text}" (${inclusion.id ? 'existing ID: ' + inclusion.id : 'new'})`);
+      console.log(`  - Composition Type ID: ${inclusion.composition.composition_type_id}`);
+      console.log(`  - Composition Type Name: ${inclusion.composition.composition_type_name}`);
+      console.log(`  - Tone: ${inclusion.composition.tone}`);
+      console.log(`  - Even/Odd: ${inclusion.composition.even_odd}`);
 
       // Calculate number of voices from clefs
       let numberOfVoices = null;
@@ -912,8 +919,17 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       if (isAnonymous) {
         // BUGFIX: Anonymous compositions should NEVER be matched against existing ones
         // Always create new compositions for anonymous works, even if they have identical properties
+        console.log(`  - Anonymous composition - forcing new composition creation`);
         existingComposition = { rows: [] }; // Force creation of new composition
       } else {
+        console.log(`  - Searching for existing composition with:`);
+        console.log(`    - titleId: ${titleId}`);
+        console.log(`    - compositionTypeId: ${compositionTypeId}`);
+        console.log(`    - tone: ${tone}`);
+        console.log(`    - evenOdd: ${evenOdd}`);
+        console.log(`    - numberOfVoicesInt: ${numberOfVoicesInt}`);
+        console.log(`    - composerIds: ${JSON.stringify(composerIds)}`);
+        
         existingComposition = await client.query(`
           SELECT id, group_id FROM compositions 
           WHERE title_id = $1 
@@ -923,6 +939,11 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
           AND composer_id_list = $6
         `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds]);
+        
+        console.log(`  - Found ${existingComposition.rows.length} existing compositions`);
+        if (existingComposition.rows.length > 0) {
+          console.log(`  - Using existing composition ID: ${existingComposition.rows[0].id}`);
+        }
       }
 
       let groupId;
@@ -942,7 +963,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       } else {
         // No existing composition found - check if this is an update to an existing inclusion
         // that was previously unique (only inclusion for its composition)
+        console.log(`  - No existing composition found, checking if this is an update to existing inclusion`);
         if (inclusion.id) {
+          console.log(`  - This is an existing inclusion (ID: ${inclusion.id}), checking current composition`);
           // Get the current composition this inclusion is linked to
           const currentCompositionResult = await client.query(`
             SELECT c.id, c.group_id, c.title_id, c.composition_type_id, c.tone, c.even_odd, c.number_of_voices, c.composer_id_list
@@ -953,6 +976,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           
           if (currentCompositionResult.rows.length > 0) {
             const currentComposition = currentCompositionResult.rows[0];
+            console.log(`  - Current composition ID: ${currentComposition.id}`);
+            console.log(`  - Current composition details:`, currentComposition);
             
             // Check if this composition has only this one inclusion
             const inclusionCountResult = await client.query(`
@@ -962,13 +987,17 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             `, [currentComposition.id]);
             
             const inclusionCount = parseInt(inclusionCountResult.rows[0].count);
+            console.log(`  - This composition has ${inclusionCount} inclusion(s)`);
             
             if (inclusionCount === 1) {
               // This composition was unique - check if we need to merge with existing composition
+              console.log(`  - This is a unique composition, deciding whether to update in place or create new`);
               if (isAnonymous) {
                 // For Anon compositions, skip merge logic and always update in place
                 // Anon compositions are always unique and should not be merged
-                console.log(`Unique Anon composition ${currentComposition.id} being updated - skipping merge, updating in place`);
+                console.log(`  - Unique Anon composition ${currentComposition.id} being updated - skipping merge, updating in place`);
+                console.log(`  - Updating composition with: titleId=${titleId}, compositionTypeId=${compositionTypeId}, tone=${tone}, evenOdd=${evenOdd}, numberOfVoicesInt=${numberOfVoicesInt}, composerIds=${JSON.stringify(composerIds)}`);
+                
                 // Update the existing composition with new details
                 await client.query(`
                   UPDATE compositions SET 
@@ -992,10 +1021,23 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                   await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupId, compositionId]);
                 }
               } else {
-                // ... existing merge logic for non-Anon inclusions ...
+                console.log(`  - Non-anonymous composition, but merge logic is incomplete - creating new composition instead`);
+                // Create new composition instead of trying to merge
+                const newGroupResult = await client.query(`
+                  INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
+                `, [inclusion.composition.title_text, now, now]);
+                groupId = newGroupResult.rows[0].id;
+                
+                const compositionResult = await client.query(`
+                  INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
+                `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+                compositionId = compositionResult.rows[0].id;
+                console.log(`  - Created new composition ID: ${compositionId}`);
               }
             } else {
               // Multiple inclusions exist - create new composition
+              console.log(`  - Multiple inclusions exist for this composition, creating new composition`);
               const newGroupResult = await client.query(`
                 INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
               `, [inclusion.composition.title_text, now, now]);
@@ -1006,9 +1048,11 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
               `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
               compositionId = compositionResult.rows[0].id;
+              console.log(`  - Created new composition ID: ${compositionId}`);
             }
           } else {
             // Fallback - create new composition
+            console.log(`  - No current composition found for inclusion, creating new composition`);
             const newGroupResult = await client.query(`
               INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
             `, [inclusion.composition.title_text, now, now]);
@@ -1019,9 +1063,11 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
             `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
             compositionId = compositionResult.rows[0].id;
+            console.log(`  - Created new composition ID: ${compositionId}`);
           }
         } else {
           // New inclusion - create new composition
+          console.log(`  - This is a new inclusion, creating new composition`);
           const newGroupResult = await client.query(`
             INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
           `, [inclusion.composition.title_text, now, now]);
@@ -1032,12 +1078,15 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
           `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
           compositionId = compositionResult.rows[0].id;
+          console.log(`  - Created new composition ID: ${compositionId}`);
         }
       }
 
       // Update existing inclusion or create new one
+      console.log(`  - Final compositionId to use: ${compositionId}`);
       if (inclusion.id) {
         // Update existing inclusion
+        console.log(`  - Updating existing inclusion ${inclusion.id} with composition ${compositionId}`);
         await client.query(`
           UPDATE inclusions SET 
             composition_id = $1, 
@@ -1061,7 +1110,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           inclusion.id,
           sourceId
         ]);
-        console.log(`Updated existing inclusion ID: ${inclusion.id}`);
+        console.log(`Updated existing inclusion ID: ${inclusion.id} with composition ID: ${compositionId}`);
       } else {
         // Create new inclusion
         const newInclusionResult = await client.query(`
