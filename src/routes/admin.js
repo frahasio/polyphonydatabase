@@ -332,8 +332,9 @@ router.get('/recent-activity', async (req, res) => {
         al.user_email,
         al.action,
         al.table_name,
+        al.record_id,
         CASE 
-          WHEN al.record_title IS NOT NULL AND al.record_title != '' THEN al.record_title
+          WHEN al.record_title IS NOT NULL AND al.record_title != '' AND al.record_title NOT LIKE 'Untitled %' THEN al.record_title
           WHEN al.table_name = 'titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'text' THEN al.changes->'new'->>'text'
           WHEN al.table_name = 'sources' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'code' THEN al.changes->'new'->>'code'
           WHEN al.table_name = 'groups' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'display_title' THEN al.changes->'new'->>'display_title'
@@ -343,6 +344,12 @@ router.get('/recent-activity', async (req, res) => {
           WHEN al.table_name = 'functions' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
           WHEN al.table_name = 'functions_titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'title_text' THEN al.changes->'new'->>'title_text'
           WHEN al.table_name = 'inclusions' AND al.changes::jsonb ? 'old' AND al.changes->'old' ? 'composition_title' THEN al.changes->'old'->>'composition_title'
+          -- Fallback: try to lookup the actual source code from database for sources
+          WHEN al.table_name = 'sources' AND al.record_id IS NOT NULL THEN (
+            SELECT COALESCE(s.code, 'Source #' || s.id)
+            FROM sources s 
+            WHERE s.id = al.record_id
+          )
           ELSE 'Unknown Record'
         END as record_title,
         al.changes,
