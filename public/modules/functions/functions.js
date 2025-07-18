@@ -17,6 +17,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadLanguages();
     await loadFunctions();
     setupEventListeners();
+    
+    // Ensure checkboxes start with desired default states
+    const groupTitlesCheckbox = document.getElementById('groupTitles');
+    if (groupTitlesCheckbox) {
+        groupTitlesCheckbox.checked = false; // Default to unchecked
+    }
+    
     handleURLFilters();
     loadFunctionsDisplay();
 });
