@@ -1119,7 +1119,7 @@
 
         async function loadRecentActivity() {
             try {
-                const response = await fetch('/api/admin/recent-activity?limit=20');
+                const response = await fetch('/api/admin/recent-activity?limit=50');
                 if (response.ok) {
                     const data = await response.json();
                     currentActivityData = data.activity || []; // Store globally
@@ -1171,13 +1171,68 @@
                             }
                         }
                         
+                        // Enhanced title display with fallback logic
+                        let displayTitle = item.record_title || 'Unknown Record';
+                        
+                        // If we still have "Untitled" or "Unknown Record", try to extract from changes
+                        if (displayTitle === 'Unknown Record' || displayTitle.startsWith('Untitled') || !displayTitle) {
+                            if (item.changes) {
+                                try {
+                                    let changes = typeof item.changes === 'string' ? JSON.parse(item.changes) : item.changes;
+                                    if (changes && changes.new) {
+                                        // Sources: use code
+                                        if (item.table_name === 'sources' && changes.new.code) {
+                                            displayTitle = `Source: ${changes.new.code}`;
+                                        }
+                                        // Titles: use text
+                                        else if (item.table_name === 'titles' && changes.new.text) {
+                                            displayTitle = `Title: ${changes.new.text}`;
+                                        }
+                                        // Groups: use display_title or build from parts
+                                        else if (item.table_name === 'groups') {
+                                            if (changes.new.display_title) {
+                                                displayTitle = `Group: ${changes.new.display_title}`;
+                                            } else {
+                                                // Build from parts if available
+                                                let parts = [];
+                                                if (changes.new.title) parts.push(changes.new.title);
+                                                if (changes.new.composer_name) parts.push(`by ${changes.new.composer_name}`);
+                                                if (changes.new.voice_count) parts.push(`(${changes.new.voice_count}v)`);
+                                                if (parts.length > 0) {
+                                                    displayTitle = `Group: ${parts.join(' ')}`;
+                                                }
+                                            }
+                                        }
+                                        // Composers, editors, performers, etc.: use name
+                                        else if (['composers', 'editors', 'performers', 'scribes', 'publishers'].includes(item.table_name) && changes.new.name) {
+                                            displayTitle = `${item.table_name.slice(0, -1).charAt(0).toUpperCase() + item.table_name.slice(1, -1)}: ${changes.new.name}`;
+                                        }
+                                        // Functions: use name
+                                        else if (item.table_name === 'functions' && changes.new.name) {
+                                            displayTitle = `Function: ${changes.new.name}`;
+                                        }
+                                        // Function-title relations
+                                        else if (item.table_name === 'functions_titles' && changes.new.title_text) {
+                                            displayTitle = `Function-Title: ${changes.new.title_text}`;
+                                        }
+                                        // Inclusions: try to use composition title from old data
+                                        else if (item.table_name === 'inclusions' && changes.old && changes.old.composition_title) {
+                                            displayTitle = `Inclusion: ${changes.old.composition_title}`;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse changes for better title:', e);
+                                }
+                            }
+                        }
+
                         return `
                             <div class="d-flex align-items-start py-2 border-bottom">
                                 <div class="me-3">
                                     <i class="bi bi-${getActivityIcon(item.table_name)} text-${getTypeColor(item.table_name)}"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-medium">${item.record_title || 'Unknown Record'}</div>
+                                    <div class="fw-medium">${displayTitle}</div>
                                     <small class="text-muted">
                                         <span class="badge bg-${actionColor} me-1" style="font-size: 0.65em;">
                                             ${item.action || 'MODIFIED'}

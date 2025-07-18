@@ -253,7 +253,7 @@ router.get('/recent-users', requireAdmin, async (req, res) => {
 // Get recent activity/audit trail from audit_log table
 router.get('/recent-activity', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 50;
     
     // Check if audit_log table exists
     const tableExists = await pool.query(`

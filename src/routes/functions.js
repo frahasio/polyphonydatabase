@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { triggerCleanup } from '../cleanup.js';
 
 const router = express.Router();
 
@@ -945,6 +946,11 @@ router.put('/titles/group/bulk-update', async (req, res) => {
 
       await client.query('COMMIT');
 
+      // Trigger cleanup after bulk title update (async, with delay to ensure all operations complete)
+      if (internalMerges.length > 0 || mergedTitles.length > 0) {
+        triggerCleanup(true, 'all', 'after bulk title update', 3000);
+      }
+
       const totalProcessed = updatedTitles.length + mergedTitles.length + internalMerges.length;
       const messageDetails = [];
       if (updatedTitles.length > 0) messageDetails.push(`${updatedTitles.length} updated`);
@@ -1492,6 +1498,9 @@ router.post('/titles/merge', async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Trigger cleanup after merge (async, with delay to ensure all operations complete)
+    triggerCleanup(true, 'all', 'after title merge', 3000);
 
     // Return updated target title
     const result = await client.query(`
