@@ -928,20 +928,27 @@
 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('Bulk correction response:', result);
                     
-                    let message = `Success!\n\n${result.message}`;
+                    let message = `Success!\n\n${result.message || 'Corrections applied'}`;
                     
-                    if (result.corrections && result.corrections.length > 0) {
+                    // Safely handle corrections array
+                    if (result.corrections && Array.isArray(result.corrections) && result.corrections.length > 0) {
                         message += `\n\nCorrected groups:`;
                         result.corrections.forEach(correction => {
-                            message += `\n• "${correction.oldTitle}" → "${correction.newTitle}"`;
+                            if (correction && correction.oldTitle && correction.newTitle) {
+                                message += `\n• "${correction.oldTitle}" → "${correction.newTitle}"`;
+                            }
                         });
                     }
                     
-                    if (result.errors && result.errors.length > 0) {
+                    // Safely handle errors array
+                    if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
                         message += `\n\nErrors encountered:`;
                         result.errors.forEach(error => {
-                            message += `\n• ${error}`;
+                            if (error) {
+                                message += `\n• ${error}`;
+                            }
                         });
                     }
                     
@@ -954,12 +961,18 @@
                     loadDashboardData();
                     
                 } else {
-                    const error = await response.json();
-                    alert(`Error applying corrections: ${error.error}`);
+                    const errorText = await response.text();
+                    console.error('Server error response:', errorText);
+                    try {
+                        const error = JSON.parse(errorText);
+                        alert(`Error applying corrections: ${error.error || 'Unknown error'}`);
+                    } catch (parseError) {
+                        alert(`Error applying corrections: Server returned status ${response.status}`);
+                    }
                 }
             } catch (error) {
                 console.error('Error applying bulk corrections:', error);
-                alert('Network error occurred while applying corrections.');
+                alert(`Network error occurred while applying corrections: ${error.message}`);
             }
         }
 
