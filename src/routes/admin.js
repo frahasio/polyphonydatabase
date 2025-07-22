@@ -1115,54 +1115,50 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
              WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
            ) as voice_count,
            
-           -- Get clef combinations
+           -- Get clef combinations as text array
            (
-             SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+             SELECT array_agg(i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              WHERE c2.group_id = g.id
            ) as clef_combinations,
            
-           -- Get titles and languages properly paired for translation detection
+           -- Get titles as simple text aggregation
            (
-             SELECT json_agg(jsonb_build_object(
-               'text', t.text,
-               'language', t.language
-             )) FILTER (WHERE t.text IS NOT NULL)
+             SELECT string_agg(t.text, '|||') FILTER (WHERE t.text IS NOT NULL)
              FROM compositions c2
              JOIN titles t ON c2.title_id = t.id
              WHERE c2.group_id = g.id
-           ) as title_language_pairs,
+           ) as composition_titles,
+           
+           -- Get languages as simple text aggregation
+           (
+             SELECT string_agg(t.language, '|||') FILTER (WHERE t.language IS NOT NULL)
+             FROM compositions c2
+             JOIN titles t ON c2.title_id = t.id
+             WHERE c2.group_id = g.id
+           ) as title_languages,
            
            -- Get tone information
            (
-             SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+             SELECT array_agg(c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
              FROM compositions c2
              WHERE c2.group_id = g.id
            ) as tones,
            
-           -- Get composer information with dates for chronological analysis
+           -- Get composer information as text aggregation
            (
-             SELECT json_agg(jsonb_build_object(
-               'id', comp.id,
-               'name', comp.name,
-               'from_year', comp.from_year,
-               'to_year', comp.to_year
-             )) FILTER (WHERE comp.id IS NOT NULL)
+             SELECT string_agg(comp.name || '::' || COALESCE(comp.from_year::text, '') || '::' || COALESCE(comp.to_year::text, ''), '|||')
+             FILTER (WHERE comp.id IS NOT NULL)
              FROM compositions c2
              JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
              WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
            ) as composer_details,
            
-           -- Get source information
+           -- Get source information as text aggregation
            (
-             SELECT json_agg(jsonb_build_object(
-               'id', s.id,
-               'name', s.title,
-               'location', s.town,
-               'from_year', s.from_year,
-               'to_year', s.to_year
-             )) FILTER (WHERE s.id IS NOT NULL)
+             SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, ''), '|||')
+             FILTER (WHERE s.id IS NOT NULL)
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              JOIN sources s ON i.source_id = s.id
@@ -1190,104 +1186,100 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
        )
        SELECT * FROM anonymousGroups 
        WHERE voice_count IS NOT NULL 
-         AND title_language_pairs IS NOT NULL 
+         AND composition_titles IS NOT NULL 
          AND composer_details IS NOT NULL
          ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
        ORDER BY voice_count, id;
      `;
-    
-    // Query to get ALL other groups (potential matches for anonymous groups)
-    const allGroupsQuery = `
-      WITH allGroups AS (
-        SELECT 
-           g.id,
-           g.display_title,
-           
-           -- Get voice count
-           (
-             SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
-             FROM compositions c2
-             WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
-           ) as voice_count,
-           
-           -- Get clef combinations
-           (
-             SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
-             FROM compositions c2
-             JOIN inclusions i ON c2.id = i.composition_id
-             WHERE c2.group_id = g.id
-           ) as clef_combinations,
-           
-           -- Get titles and languages properly paired for translation detection
-           (
-             SELECT json_agg(jsonb_build_object(
-               'text', t.text,
-               'language', t.language
-             )) FILTER (WHERE t.text IS NOT NULL)
-             FROM compositions c2
-             JOIN titles t ON c2.title_id = t.id
-             WHERE c2.group_id = g.id
-           ) as title_language_pairs,
-           
-           -- Get tone information
-           (
-             SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
-             FROM compositions c2
-             WHERE c2.group_id = g.id
-           ) as tones,
-           
-           -- Get composer information with dates for chronological analysis
-           (
-             SELECT json_agg(jsonb_build_object(
-               'id', comp.id,
-               'name', comp.name,
-               'from_year', comp.from_year,
-               'to_year', comp.to_year
-             )) FILTER (WHERE comp.id IS NOT NULL)
-             FROM compositions c2
-             JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
-             WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
-           ) as composer_details,
-           
-           -- Get source information
-           (
-             SELECT json_agg(jsonb_build_object(
-               'id', s.id,
-               'name', s.title,
-               'location', s.town,
-               'from_year', s.from_year,
-               'to_year', s.to_year
-             )) FILTER (WHERE s.id IS NOT NULL)
-             FROM compositions c2
-             JOIN inclusions i ON c2.id = i.composition_id
-             JOIN sources s ON i.source_id = s.id
-             WHERE c2.group_id = g.id
-           ) as source_details,
-           
-           -- Get inclusion notes for text analysis
-           (
-             SELECT string_agg(i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
-             FROM compositions c2
-             JOIN inclusions i ON c2.id = i.composition_id
-             WHERE c2.group_id = g.id
-           ) as inclusion_notes
-           
-        FROM groups g
-        WHERE g.id IN (
-          SELECT DISTINCT c.group_id 
-          FROM compositions c 
-          WHERE c.group_id IS NOT NULL
-          ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
-        )
-        ORDER BY g.id
-      )
-      SELECT * FROM allGroups 
-      WHERE voice_count IS NOT NULL 
-        AND title_language_pairs IS NOT NULL 
-        AND composer_details IS NOT NULL
-        ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
-      ORDER BY voice_count, id;
-    `;
+     
+     // Query to get ALL other groups (potential matches for anonymous groups)
+     const allGroupsQuery = `
+       WITH allGroups AS (
+         SELECT 
+            g.id,
+            g.display_title,
+            
+            -- Get voice count
+            (
+              SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
+              FROM compositions c2
+              WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
+            ) as voice_count,
+            
+            -- Get clef combinations as text array
+            (
+              SELECT array_agg(i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+              FROM compositions c2
+              JOIN inclusions i ON c2.id = i.composition_id
+              WHERE c2.group_id = g.id
+            ) as clef_combinations,
+            
+            -- Get titles as simple text aggregation
+            (
+              SELECT string_agg(t.text, '|||') FILTER (WHERE t.text IS NOT NULL)
+              FROM compositions c2
+              JOIN titles t ON c2.title_id = t.id
+              WHERE c2.group_id = g.id
+            ) as composition_titles,
+            
+            -- Get languages as simple text aggregation
+            (
+              SELECT string_agg(t.language, '|||') FILTER (WHERE t.language IS NOT NULL)
+              FROM compositions c2
+              JOIN titles t ON c2.title_id = t.id
+              WHERE c2.group_id = g.id
+            ) as title_languages,
+            
+            -- Get tone information
+            (
+              SELECT array_agg(c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+              FROM compositions c2
+              WHERE c2.group_id = g.id
+            ) as tones,
+            
+            -- Get composer information as text aggregation
+            (
+              SELECT string_agg(comp.name || '::' || COALESCE(comp.from_year::text, '') || '::' || COALESCE(comp.to_year::text, ''), '|||')
+              FILTER (WHERE comp.id IS NOT NULL)
+              FROM compositions c2
+              JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
+              WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
+            ) as composer_details,
+            
+            -- Get source information as text aggregation
+            (
+              SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, ''), '|||')
+              FILTER (WHERE s.id IS NOT NULL)
+              FROM compositions c2
+              JOIN inclusions i ON c2.id = i.composition_id
+              JOIN sources s ON i.source_id = s.id
+              WHERE c2.group_id = g.id
+            ) as source_details,
+            
+            -- Get inclusion notes for text analysis
+            (
+              SELECT string_agg(i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
+              FROM compositions c2
+              JOIN inclusions i ON c2.id = i.composition_id
+              WHERE c2.group_id = g.id
+            ) as inclusion_notes
+            
+         FROM groups g
+         WHERE g.id IN (
+           SELECT DISTINCT c.group_id 
+           FROM compositions c 
+           WHERE c.group_id IS NOT NULL
+           ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
+         )
+         ORDER BY g.id
+       )
+       SELECT * FROM allGroups 
+       WHERE voice_count IS NOT NULL 
+         AND composition_titles IS NOT NULL 
+         AND composer_details IS NOT NULL
+         ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
+       ORDER BY voice_count, id;
+     `;
 
     // Execute both queries
     const [anonymousResult, allGroupsResult] = await Promise.all([
@@ -1295,8 +1287,8 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       pool.query(allGroupsQuery)
     ]);
     
-    const anonymousGroups = anonymousResult.rows;
-    const allGroups = allGroupsResult.rows;
+    const anonymousGroups = anonymousResult.rows.map(parseGroupData);
+    const allGroups = allGroupsResult.rows.map(parseGroupData);
     
     console.log(`Loaded ${anonymousGroups.length} anonymous groups and ${allGroups.length} total groups for comparison`);
     
@@ -1411,6 +1403,57 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to generate suggestions' });
   }
 });
+
+// Helper function to parse text-based aggregated data back to structured format
+function parseGroupData(row) {
+  // Parse titles and languages
+  const titles = row.composition_titles ? row.composition_titles.split('|||') : [];
+  const languages = row.title_languages ? row.title_languages.split('|||') : [];
+  
+  // Create title-language pairs
+  const title_language_pairs = titles.map((title, index) => ({
+    text: title,
+    language: languages[index] || null
+  }));
+  
+  // Parse composer details
+  const composer_details = [];
+  if (row.composer_details) {
+    const composerStrings = row.composer_details.split('|||');
+    for (const composerStr of composerStrings) {
+      const [name, from_year, to_year] = composerStr.split('::');
+      composer_details.push({
+        id: name === 'Anonymous' ? 23 : null, // Simple anonymous detection
+        name: name,
+        from_year: from_year ? parseInt(from_year) : null,
+        to_year: to_year ? parseInt(to_year) : null
+      });
+    }
+  }
+  
+  // Parse source details
+  const source_details = [];
+  if (row.source_details) {
+    const sourceStrings = row.source_details.split('|||');
+    for (const sourceStr of sourceStrings) {
+      const [title, location, from_year, to_year] = sourceStr.split('::');
+      source_details.push({
+        id: null, // We don't have source IDs in this format
+        name: title,
+        location: location || null,
+        from_year: from_year ? parseInt(from_year) : null,
+        to_year: to_year ? parseInt(to_year) : null
+      });
+    }
+  }
+  
+  return {
+    ...row,
+    title_language_pairs,
+    composer_details,
+    source_details
+  };
+}
 
 // Helper function to analyze potential matches between two groups
 function analyzeGroupMatch(group1, group2) {
