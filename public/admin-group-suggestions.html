@@ -552,16 +552,41 @@
             const anonGroup = groupData.anonymousGroup;
             const matches = groupData.potentialMatches;
             
+            // Tone and even/odd mappings (same as public page)
+            const toneMapping = {
+                "1": "primi toni",
+                "2": "secundi toni",
+                "3": "tertii toni",
+                "4": "quarti toni",
+                "5": "quinti toni",
+                "6": "sexti toni",
+                "7": "septimi toni",
+                "8": "octavi toni",
+                "9": "noni toni",
+                "12": "duodecimi toni",
+                "mix": "mixti toni",
+                "per": "peregrini toni",
+                "pro": "proprii toni"
+            };
+            
+            const evenOddMapping = {
+                0: "pares",
+                1: "impares", 
+                2: "pares et impares"
+            };
+            
             // Helper function to format composition properties (tone/even-odd in grey)
             const formatTitleWithProperties = (title, group) => {
                 let result = title;
                 let greyProperties = [];
                 
                 if (group.tones && group.tones.length > 0) {
-                    greyProperties.push(group.tones.join(', '));
+                    const toneDisplay = group.tones.map(tone => toneMapping[tone] || tone).join(', ');
+                    greyProperties.push(toneDisplay);
                 }
                 if (group.evenOdd && group.evenOdd.length > 0) {
-                    greyProperties.push(`(${group.evenOdd.join(', ')})`);
+                    const evenOddDisplay = group.evenOdd.map(eo => evenOddMapping[eo] || eo).join(', ');
+                    greyProperties.push(`(${evenOddDisplay})`);
                 }
                 
                 if (greyProperties.length > 0) {
@@ -600,20 +625,22 @@
                 if (!sources || sources.length === 0) return 'No sources';
                 
                 return sources.map((source, sourceIndex) => {
-                    let sourceHtml = `<strong>${source.code || 'Unknown Code'}</strong>`;
+                    let sourceHtml = '';
+                    
+                    // Build the main source link
+                    const sourceText = `${source.code || 'Unknown Code'}${source.position ? ` (${source.position})` : ''}`;
+                    
+                    // If there are images, make the source code clickable to the first image
+                    if (source.images && source.images.length > 0) {
+                        sourceHtml = `<strong><a href="${source.images[0].url}" target="_blank" class="text-decoration-none">${sourceText}</a></strong>`;
+                    } else {
+                        sourceHtml = `<strong>${sourceText}</strong>`;
+                    }
+                    
+                    // Add location and date info
                     if (source.location) sourceHtml += ` (${source.location})`;
                     if (source.from_year || source.to_year) {
                         sourceHtml += ` [${source.from_year || '?'}–${source.to_year || '?'}]`;
-                    }
-                    
-                    // Add image links if available
-                    if (source.images && source.images.length > 0) {
-                        const imageLinks = source.images.map(img => 
-                            `<a href="${img.url}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">
-                                <i class="bi bi-image"></i>
-                            </a>`
-                        ).join('');
-                        sourceHtml += imageLinks;
                     }
                     
                     // Add clef information underneath each source (if available for this source)
@@ -625,7 +652,7 @@
                             const clefImages = sortedClefs.map(clef => {
                                 const clefName = typeof clef === 'string' ? clef : (clef.clef || clef.name || clef);
                                 if (clefName) {
-                                    return `<img src="/clef_images/${clefName}.png" alt="${clefName}" style="height: 24px; margin: 0 2px;" title="${clefName}">`;
+                                    return `<img src="/clef_images/${clefName}.png" alt="${clefName}" style="height: 32px; margin: 0; display: inline-block;" title="${clefName}">`;
                                 }
                                 return '';
                             }).filter(img => img).join('');
@@ -673,6 +700,7 @@
                                 <p class="mb-2"><strong>Voices:</strong> ${anonGroup.voice_count || 'Unknown'}</p>
                                 <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(anonGroup.titles?.join(', ') || 'No titles', anonGroup)} ${formatTypeBadges(anonGroup)}</p>
                                 <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
+                                ${anonGroup.types && anonGroup.types.length > 0 ? `<p class="mb-2"><strong>Composition Type:</strong> ${anonGroup.types.join(', ')}</p>` : ''}
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
                                     <div class="ms-2">${formatSources(anonGroup.sources, anonGroup.clef_combinations)}</div>
@@ -692,12 +720,14 @@
                                                     <strong>${match.namedGroup.name || 'Unnamed Group'}</strong>
                                                     <span class="badge bg-${match.confidence === 'High' ? 'success' : 'warning'} ms-2">${match.matchScore}% ${match.confidence}</span>
                                                 </div>
-                                                <a href="/modules/sources/index.html?group=${match.namedGroup.id}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
                                             </div>
                                             <p class="mb-1 small"><strong>Composer(s):</strong> ${match.namedGroup.composers?.join(', ') || 'Unknown'}</p>
                                             <p class="mb-1 small"><strong>Titles:</strong> ${formatTitleWithProperties(match.namedGroup.titles?.join(', ') || 'No titles', match.namedGroup)}</p>
+                                            ${match.namedGroup.types && match.namedGroup.types.length > 0 ? `<p class="mb-1 small"><strong>Type:</strong> ${match.namedGroup.types.join(', ')}</p>` : ''}
+                                            <div class="mb-1 small">
+                                                <strong>Sources:</strong>
+                                                <div class="ms-2">${formatSources(match.namedGroup.sources, match.namedGroup.clef_combinations)}</div>
+                                            </div>
                                             ${match.factors && match.factors.length > 0 ? `
                                                 <details class="mt-1">
                                                     <summary class="small text-muted">Matching Evidence (${match.factors.length} factors)</summary>

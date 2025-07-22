@@ -1162,9 +1162,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images and clefs
+             -- Get source information as text aggregation with images, clefs, and position
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]') || '::' || COALESCE(i.position, ''), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1283,9 +1283,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images and clefs
+             -- Get source information as text aggregation with images, clefs, and position
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]') || '::' || COALESCE(i.position, ''), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1402,9 +1402,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images and clefs
+             -- Get source information as text aggregation with images, clefs, and position
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]') || '::' || COALESCE(i.position, ''), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1712,13 +1712,13 @@ function parseGroupData(row) {
     }
   }
   
-  // Parse source details with images and clefs
+  // Parse source details with images, clefs, and position
   const source_details = [];
   const source_clefs = [];
   if (row.source_details) {
     const sourceStrings = row.source_details.split('|||');
     for (const sourceStr of sourceStrings) {
-      const [title, location, from_year, to_year, code, imagesJson, clefsJson] = sourceStr.split('::');
+      const [title, location, from_year, to_year, code, imagesJson, clefsJson, position] = sourceStr.split('::');
       let images = [];
       let clefs = [];
       
@@ -1748,6 +1748,7 @@ function parseGroupData(row) {
         from_year: from_year ? parseInt(from_year) : null,
         to_year: to_year ? parseInt(to_year) : null,
         code: code || null,
+        position: position || null,
         images: images
       });
       
@@ -2381,6 +2382,23 @@ function getConfidenceLevel(score) {
 function analyzeCompositionProperties(group1, group2, factors) {
   let score = 0;
   
+  // Tone mapping for display (same as frontend)
+  const toneMapping = {
+    "1": "primi toni",
+    "2": "secundi toni",
+    "3": "tertii toni",
+    "4": "quarti toni",
+    "5": "quinti toni",
+    "6": "sexti toni",
+    "7": "septimi toni",
+    "8": "octavi toni",
+    "9": "noni toni",
+    "12": "duodecimi toni",
+    "mix": "mixti toni",
+    "per": "peregrini toni",
+    "pro": "proprii toni"
+  };
+  
   // Use the directly parsed composition data
   const types1 = group1.composition_types || [];
   const types2 = group2.composition_types || [];
@@ -2410,9 +2428,11 @@ function analyzeCompositionProperties(group1, group2, factors) {
     const commonTones = [...tone1Set].filter(t => tone2Set.has(t));
     
     if (commonTones.length > 0) {
+      // Format tones for display using the mapping
+      const displayTones = commonTones.map(tone => toneMapping[tone] || tone);
       score += 10;
       factors.push({
-        description: `Same musical tone/mode: ${commonTones.join(', ')}`,
+        description: `Same musical tone/mode: ${displayTones.join(', ')}`,
         score: 10,
         strength: 'strong'
       });
@@ -2420,6 +2440,12 @@ function analyzeCompositionProperties(group1, group2, factors) {
   }
   
   // EVEN/ODD ANALYSIS (up to 3 points)
+  const evenOddMapping = {
+    0: "pares",
+    1: "impares", 
+    2: "pares et impares"
+  };
+  
   const evenOdd1 = group1.composition_even_odd || [];
   const evenOdd2 = group2.composition_even_odd || [];
   
@@ -2429,9 +2455,11 @@ function analyzeCompositionProperties(group1, group2, factors) {
     const commonEvenOdd = [...eo1Set].filter(eo => eo2Set.has(eo));
     
     if (commonEvenOdd.length > 0) {
+      // Format even/odd for display using the mapping
+      const displayEvenOdd = commonEvenOdd.map(eo => evenOddMapping[eo] || eo);
       score += 3;
       factors.push({
-        description: `Same even/odd: ${commonEvenOdd.join(', ')}`,
+        description: `Same even/odd: ${displayEvenOdd.join(', ')}`,
         score: 3,
         strength: 'weak'
       });
@@ -2477,7 +2505,7 @@ function calculateWordOverlap(title1, title2) {
 
 // Helper function to check for conflicting composition properties
 function hasConflictingProperties(group1, group2) {
-  // Check composition types
+  // Check composition types - only reject if both have values that don't match
   const types1 = new Set(group1.composition_types || []);
   const types2 = new Set(group2.composition_types || []);
   
@@ -2488,7 +2516,7 @@ function hasConflictingProperties(group1, group2) {
     }
   }
   
-  // Check tones (modes)
+  // Check tones (modes) - only reject if both have values that don't match
   const tones1 = new Set(group1.composition_tones || []);
   const tones2 = new Set(group2.composition_tones || []);
   
@@ -2499,7 +2527,7 @@ function hasConflictingProperties(group1, group2) {
     }
   }
   
-  // Check even/odd
+  // Check even/odd - only reject if both have values that don't match
   const evenOdd1 = new Set(group1.composition_even_odd || []);
   const evenOdd2 = new Set(group2.composition_even_odd || []);
   
