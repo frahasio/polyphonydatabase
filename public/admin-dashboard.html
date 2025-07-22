@@ -793,8 +793,28 @@
                 return;
             }
 
-            const correctable = groups.filter(g => g.can_auto_correct);
-            const nonCorrectable = groups.filter(g => !g.can_auto_correct);
+            // Process groups to ensure proper correction flags
+            const processedGroups = groups.map(group => {
+                const compositions = group.compositions || [];
+                const hasValidCompositions = compositions.length > 0 && compositions.some(c => c.title && c.title.trim());
+                
+                return {
+                    ...group,
+                    can_auto_correct: group.composition_count === 1 && hasValidCompositions,
+                    suggested_title: group.composition_count === 1 && hasValidCompositions ? compositions[0].title : null,
+                    composition_count: group.composition_count || 0
+                };
+            });
+
+            const correctable = processedGroups.filter(g => g.can_auto_correct);
+            const nonCorrectable = processedGroups.filter(g => !g.can_auto_correct);
+
+            console.log('Groups breakdown:', {
+                total: processedGroups.length,
+                correctable: correctable.length,
+                nonCorrectable: nonCorrectable.length,
+                sample: processedGroups.slice(0, 3)
+            });
 
             content.innerHTML = `
                 ${correctable.length > 0 ? `
@@ -826,7 +846,9 @@
                                             <div class="flex-grow-1">
                                                 <strong>Current:</strong> "${group.display_title}"
                                                 <br><span class="text-success"><strong>Will become:</strong> "${group.suggested_title}"</span>
-                                                <br><small class="text-muted">Composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}</small>
+                                                <br><small class="text-muted">
+                                                    Composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}
+                                                </small>
                                             </div>
                                         </div>
                                     </label>
@@ -841,15 +863,20 @@
                         <h6 class="mb-3">
                             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
                             Manual Review Required (${nonCorrectable.length})
-                            <small class="text-muted">— Multiple compositions each</small>
+                            <small class="text-muted">— Multiple compositions or missing data</small>
                         </h6>
                         <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
                             ${nonCorrectable.map(group => `
                                 <div class="border-bottom pb-2 mb-2">
-                                    <div><strong>"${group.display_title}"</strong> <span class="badge bg-secondary">${group.composition_count} compositions</span></div>
-                                    <small class="text-muted">
-                                        Compositions: ${group.compositions.map(c => c.title).join(', ')}
-                                    </small>
+                                    <div>
+                                        <strong>"${group.display_title}"</strong> 
+                                        <span class="badge bg-secondary">${group.composition_count} composition${group.composition_count !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    ${group.compositions && group.compositions.length > 0 ? `
+                                        <small class="text-muted">
+                                            Compositions: ${group.compositions.map(c => c.title).join(', ')}
+                                        </small>
+                                    ` : '<small class="text-muted">No composition data available</small>'}
                                     <div class="mt-1">
                                         <a href="/group-management.html" target="_blank" class="btn btn-xs btn-outline-primary">
                                             <i class="bi bi-arrow-right me-1"></i>Review Manually
@@ -858,6 +885,14 @@
                                 </div>
                             `).join('')}
                         </div>
+                    </div>
+                ` : ''}
+                
+                ${correctable.length === 0 && nonCorrectable.length === 0 ? `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle text-success display-4"></i>
+                        <h5 class="mt-3">No corrections needed</h5>
+                        <p>All groups have matching display titles.</p>
                     </div>
                 ` : ''}
             `;

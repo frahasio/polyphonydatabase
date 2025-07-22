@@ -516,16 +516,21 @@ router.get('/data-quality-groups-for-correction', async (req, res) => {
         g.id, 
         g.display_title,
         COUNT(DISTINCT c.id) as composition_count,
-        ARRAY_AGG(
-          jsonb_build_object(
-            'id', c.id,
-            'title', t.text,
-            'composers', (
-              SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
-              FROM composers comp
-              WHERE comp.id = ANY(c.composer_id_list)
+        (
+          SELECT jsonb_agg(
+            DISTINCT jsonb_build_object(
+              'id', c2.id,
+              'title', t2.text,
+              'composers', (
+                SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
+                FROM composers comp
+                WHERE comp.id = ANY(c2.composer_id_list)
+              )
             )
-          ) ORDER BY t.text
+          )
+          FROM compositions c2
+          LEFT JOIN titles t2 ON c2.title_id = t2.id
+          WHERE c2.group_id = g.id
         ) as compositions
       FROM groups g
       LEFT JOIN compositions c ON c.group_id = g.id
