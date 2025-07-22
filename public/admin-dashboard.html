@@ -797,12 +797,13 @@
             const processedGroups = groups.map(group => {
                 const compositions = group.compositions || [];
                 const hasValidCompositions = compositions.length > 0 && compositions.some(c => c.title && c.title.trim());
+                const compositionCount = parseInt(group.composition_count) || 0;
                 
                 return {
                     ...group,
-                    can_auto_correct: group.composition_count === 1 && hasValidCompositions,
-                    suggested_title: group.composition_count === 1 && hasValidCompositions ? compositions[0].title : null,
-                    composition_count: group.composition_count || 0
+                    can_auto_correct: compositionCount === 1 && hasValidCompositions,
+                    suggested_title: compositionCount === 1 && hasValidCompositions ? compositions[0].title : null,
+                    composition_count: compositionCount
                 };
             });
 
