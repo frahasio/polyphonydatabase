@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Suggestions - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .suggestions-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .confidence-high {
+            border-left: 4px solid #198754;
+            background: rgba(25, 135, 84, 0.05);
+        }
+
+        .confidence-medium {
+            border-left: 4px solid #ffc107;
+            background: rgba(255, 193, 7, 0.05);
+        }
+
+        .confidence-low {
+            border-left: 4px solid #6c757d;
+            background: rgba(108, 117, 125, 0.05);
+        }
+
+        .match-score {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .match-arrow {
+            font-size: 2rem;
+            color: #6c757d;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 4rem 0;
+        }
+
+        .analysis-badge {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analysis-badge::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, 
+                transparent 30%, 
+                rgba(255,255,255,0.1) 50%, 
+                transparent 70%);
+            animation: sparkle 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes sparkle {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-info" id="authInfo" style="display: none;">
+        <span class="user-name" id="userName"></span>
+        <span class="logout-btn" onclick="logout()">Logout</span>
+    </div>
+
+    <div class="suggestions-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="display-5 mb-0">
+                        <i class="bi bi-lightbulb me-3"></i>Group Suggestions
+                    </h1>
+                    <p class="lead mb-0">AI-powered analysis to discover potential composition duplicates</p>
+                </div>
+                <div class="col-auto">
+                    <a href="/admin" class="btn btn-outline-light">
+                        <i class="bi bi-house me-2"></i>Admin Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Analysis Stats -->
+        <div id="analysisStats" class="row g-3 mb-4" style="display: none;">
+            <div class="col-md-3">
+                <div class="card stats-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-collection text-primary display-6"></i>
+                        <h4 id="totalGroups" class="mt-2 mb-0">-</h4>
+                        <small class="text-muted">Groups Analyzed</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-search text-success display-6"></i>
+                        <h4 id="totalSuggestions" class="mt-2 mb-0">-</h4>
+                        <small class="text-muted">Potential Matches</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-star text-warning display-6"></i>
+                        <h4 id="highConfidence" class="mt-2 mb-0">-</h4>
+                        <small class="text-muted">High Confidence</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-stopwatch text-info display-6"></i>
+                        <h4 id="analysisTime" class="mt-2 mb-0">-</h4>
+                        <small class="text-muted">Analysis Time</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingContainer" class="loading-container">
+            <div class="analysis-badge d-inline-block p-4 rounded">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h4>Analyzing Your Database</h4>
+                <p class="text-muted mb-0">Deep-scanning compositions for potential duplicates and attribution patterns...</p>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="resultsContainer" style="display: none;">
+            <!-- High Confidence Matches -->
+            <div id="highConfidenceSection" style="display: none;">
+                <h3 class="text-success mb-3">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    High Confidence Matches (80%+)
+                </h3>
+                <div id="highConfidenceResults" class="row g-3 mb-5"></div>
+            </div>
+
+            <!-- Medium Confidence Matches -->
+            <div id="mediumConfidenceSection" style="display: none;">
+                <h3 class="text-warning mb-3">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    Medium Confidence Matches (60-79%)
+                </h3>
+                <div id="mediumConfidenceResults" class="row g-3 mb-5"></div>
+            </div>
+
+            <!-- Low Confidence Matches -->
+            <div id="lowConfidenceSection" style="display: none;">
+                <h3 class="text-secondary mb-3">
+                    <i class="bi bi-question-circle-fill me-2"></i>
+                    Low Confidence Matches (30-59%)
+                </h3>
+                <div id="lowConfidenceResults" class="row g-3 mb-5"></div>
+            </div>
+
+            <!-- No Results -->
+            <div id="noResults" style="display: none;">
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success display-1"></i>
+                    <h4 class="mt-3">No Potential Duplicates Found</h4>
+                    <p class="text-muted">Your database appears to be well-organized with no obvious duplicate compositions.</p>
+                    <a href="/admin" class="btn btn-outline-primary mt-3">
+                        <i class="bi bi-house me-2"></i>Return to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorContainer" class="alert alert-danger" style="display: none;">
+            <h4 class="alert-heading">
+                <i class="bi bi-exclamation-triangle me-2"></i>Analysis Error
+            </h4>
+            <p id="errorMessage" class="mb-0"></p>
+            <hr>
+            <div class="mb-0">
+                <button class="btn btn-outline-danger" onclick="retryAnalysis()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Retry Analysis
+                </button>
+                <a href="/admin" class="btn btn-outline-secondary ms-2">
+                    <i class="bi bi-house me-2"></i>Return to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div id="actionBar" class="row g-2 mb-4" style="display: none;">
+            <div class="col">
+                <button class="btn btn-primary" onclick="retryAnalysis()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Analysis
+                </button>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" onclick="exportResults()">
+                        <i class="bi bi-download me-2"></i>Export Results
+                    </button>
+                    <button class="btn btn-outline-info" onclick="showHelp()">
+                        <i class="bi bi-question-circle me-2"></i>Help
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentSuggestions = [];
+        let analysisStats = {};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
+            startAnalysis();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    // Show auth info
+                    document.getElementById('userName').textContent = user.name;
+                    document.getElementById('authInfo').style.display = 'block';
+                    
+                    // Check admin privileges
+                    if (user.role !== 'admin') {
+                        showError('Admin access required to view group suggestions.');
+                        return;
+                    }
+                } else {
+                    window.location.href = '/admin/login';
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                window.location.href = '/admin/login';
+            }
+        }
+
+        async function startAnalysis() {
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch('/api/admin/group-suggestions');
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `Server error: ${response.status}`);
+                }
+                
+                const suggestions = await response.json();
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                currentSuggestions = suggestions;
+                analysisStats = {
+                    totalSuggestions: suggestions.length,
+                    highConfidence: suggestions.filter(s => s.match_score >= 80).length,
+                    mediumConfidence: suggestions.filter(s => s.match_score >= 60 && s.match_score < 80).length,
+                    lowConfidence: suggestions.filter(s => s.match_score >= 30 && s.match_score < 60).length,
+                    analysisTime: duration
+                };
+                
+                displayResults(suggestions);
+                
+            } catch (error) {
+                console.error('Error during analysis:', error);
+                showError(error.message);
+            }
+        }
+
+        function displayResults(suggestions) {
+            // Hide loading
+            document.getElementById('loadingContainer').style.display = 'none';
+            
+            if (suggestions.length === 0) {
+                document.getElementById('noResults').style.display = 'block';
+                return;
+            }
+            
+            // Show results container and action bar
+            document.getElementById('resultsContainer').style.display = 'block';
+            document.getElementById('actionBar').style.display = 'flex';
+            
+            // Update stats
+            displayStats();
+            
+            // Group suggestions by confidence
+            const grouped = {
+                high: suggestions.filter(s => s.match_score >= 80),
+                medium: suggestions.filter(s => s.match_score >= 60 && s.match_score < 80),
+                low: suggestions.filter(s => s.match_score >= 30 && s.match_score < 60)
+            };
+            
+            // Display each group
+            displayConfidenceGroup('high', grouped.high, 'success');
+            displayConfidenceGroup('medium', grouped.medium, 'warning');
+            displayConfidenceGroup('low', grouped.low, 'secondary');
+        }
+
+        function displayConfidenceGroup(level, suggestions, colorClass) {
+            if (suggestions.length === 0) return;
+            
+            const sectionId = `${level}ConfidenceSection`;
+            const resultsId = `${level}ConfidenceResults`;
+            
+            document.getElementById(sectionId).style.display = 'block';
+            
+            const container = document.getElementById(resultsId);
+            container.innerHTML = suggestions.map(suggestion => generateSuggestionCard(suggestion, colorClass)).join('');
+        }
+
+        function generateSuggestionCard(suggestion, colorClass) {
+            return `
+                <div class="col-12">
+                    <div class="card confidence-${colorClass === 'success' ? 'high' : colorClass === 'warning' ? 'medium' : 'low'} h-100">
+                        <div class="card-header bg-${colorClass} text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-link-45deg me-2"></i>
+                                    Potential Match: ${suggestion.match_score}% confidence
+                                </h6>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group1.display_title)}" 
+                                       target="_blank" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 1
+                                    </a>
+                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group2.display_title)}" 
+                                       target="_blank" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 2
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-5">
+                                    <h6 class="text-primary fw-bold">${suggestion.group1.display_title}</h6>
+                                    <small class="text-muted">
+                                        <strong>Composer:</strong> ${suggestion.group1.composer || 'Unknown'}<br>
+                                        <strong>Voices:</strong> ${suggestion.group1.voices || 'Unknown'}<br>
+                                        <strong>Sources:</strong> ${suggestion.group1.source_count || 0}
+                                    </small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="match-score text-${colorClass}">${suggestion.match_score}%</div>
+                                    <div class="match-arrow">⟷</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <h6 class="text-primary fw-bold">${suggestion.group2.display_title}</h6>
+                                    <small class="text-muted">
+                                        <strong>Composer:</strong> ${suggestion.group2.composer || 'Unknown'}<br>
+                                        <strong>Voices:</strong> ${suggestion.group2.voices || 'Unknown'}<br>
+                                        <strong>Sources:</strong> ${suggestion.group2.source_count || 0}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>Match Analysis:</h6>
+                                <div class="row g-2 mb-2">
+                                    ${suggestion.matching_factors.map(factor => `
+                                        <div class="col-auto">
+                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : 
+                                                                   factor.strength === 'medium' ? 'warning' : 'info'}">
+                                                ${factor.description} (+${factor.score})
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <p class="small text-muted mb-0">${suggestion.notes}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayStats() {
+            document.getElementById('analysisStats').style.display = 'flex';
+            
+            // Simulate total groups count (we can get this from the API response later)
+            document.getElementById('totalGroups').textContent = '~1000'; // Placeholder
+            document.getElementById('totalSuggestions').textContent = analysisStats.totalSuggestions;
+            document.getElementById('highConfidence').textContent = analysisStats.highConfidence;
+            document.getElementById('analysisTime').textContent = `${(analysisStats.analysisTime / 1000).toFixed(1)}s`;
+        }
+
+        function showError(message) {
+            document.getElementById('loadingContainer').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorContainer').style.display = 'block';
+        }
+
+        function retryAnalysis() {
+            // Reset UI
+            document.getElementById('errorContainer').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('actionBar').style.display = 'none';
+            document.getElementById('analysisStats').style.display = 'none';
+            document.getElementById('loadingContainer').style.display = 'block';
+            
+            // Restart analysis
+            startAnalysis();
+        }
+
+        function exportResults() {
+            if (currentSuggestions.length === 0) {
+                alert('No results to export');
+                return;
+            }
+            
+            const csv = generateCSV(currentSuggestions);
+            downloadCSV(csv, 'group-suggestions.csv');
+        }
+
+        function generateCSV(suggestions) {
+            const headers = [
+                'Match Score', 'Group 1 Title', 'Group 1 Composer', 'Group 1 Voices',
+                'Group 2 Title', 'Group 2 Composer', 'Group 2 Voices', 'Match Factors', 'Notes'
+            ];
+            
+            const rows = suggestions.map(s => [
+                s.match_score,
+                `"${s.group1.display_title}"`,
+                `"${s.group1.composer}"`,
+                s.group1.voices,
+                `"${s.group2.display_title}"`,
+                `"${s.group2.composer}"`,
+                s.group2.voices,
+                `"${s.matching_factors.map(f => f.description).join('; ')}"`,
+                `"${s.notes}"`
+            ]);
+            
+            return [headers, ...rows].map(row => row.join(',')).join('\\n');
+        }
+
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function showHelp() {
+            alert(`Group Suggestions Help:
+
+High Confidence (80%+): Very likely duplicates requiring immediate review
+Medium Confidence (60-79%): Possible matches worth investigating  
+Low Confidence (30-59%): Weak similarities, potential anonymous attribution candidates
+
+Click the "Group 1" or "Group 2" buttons to view detailed information about each composition in a new tab.
+
+The analysis considers:
+• Voice count and clef combinations
+• Title similarity (including historical spelling variations)
+• Composer attributions and anonymous patterns
+• Source geographical and temporal proximity
+• Inclusion notes and textual similarities`);
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/admin/login';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/admin/login';
+            }
+        }
+    </script>
+</body>
+</html> 

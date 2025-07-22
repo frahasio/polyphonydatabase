@@ -1102,7 +1102,7 @@ router.get('/group-suggestions', async (req, res) => {
           COUNT(DISTINCT c.id) as composition_count,
           -- Get voice counts (prioritize most common)
           MODE() WITHIN GROUP (ORDER BY c.number_of_voices) as primary_voices,
-          array_agg(DISTINCT c.number_of_voices ORDER BY c.number_of_voices) FILTER (WHERE c.number_of_voices IS NOT NULL) as all_voices,
+          array_agg(DISTINCT c.number_of_voices) FILTER (WHERE c.number_of_voices IS NOT NULL) as all_voices,
           
           -- Get composer information with anonymous detection
           (
@@ -1152,11 +1152,10 @@ router.get('/group-suggestions', async (req, res) => {
           
           -- Get most common clef combinations from inclusions
           (
-            SELECT array_agg(DISTINCT i.clefs ORDER BY i.clefs::text) FILTER (WHERE i.clefs IS NOT NULL)
+            SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL)
             FROM compositions c2
             JOIN inclusions i ON c2.id = i.composition_id
             WHERE c2.group_id = g.id
-            LIMIT 5
           ) as clef_combinations,
           
           -- Get source date ranges and locations
@@ -1183,15 +1182,26 @@ router.get('/group-suggestions', async (req, res) => {
           
           -- Get all titles used in this group
           (
-            SELECT array_agg(DISTINCT t.text ORDER BY t.text) FILTER (WHERE t.text IS NOT NULL)
+            SELECT array_agg(DISTINCT t.text) FILTER (WHERE t.text IS NOT NULL)
             FROM compositions c2
             JOIN titles t ON c2.title_id = t.id
             WHERE c2.group_id = g.id
           ) as composition_titles,
           
+          -- Get titles and languages properly paired for translation detection
+          (
+            SELECT json_agg(DISTINCT jsonb_build_object(
+              'text', t.text,
+              'language', t.language
+            )) FILTER (WHERE t.text IS NOT NULL)
+            FROM compositions c2
+            JOIN titles t ON c2.title_id = t.id
+            WHERE c2.group_id = g.id
+          ) as title_language_pairs,
+          
           -- Get tone information
           (
-            SELECT array_agg(DISTINCT c2.tone ORDER BY c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+            SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
             FROM compositions c2
             WHERE c2.group_id = g.id
           ) as tones
@@ -1356,12 +1366,16 @@ function analyzeVoices(group1, group2, factors) {
 function analyzeTitles(group1, group2, factors) {
   let score = 0;
   
-  if (!group1.composition_titles || !group2.composition_titles) {
+  if (!group1.title_language_pairs || !group2.title_language_pairs) {
     return 0;
   }
   
-  const titles1 = group1.composition_titles;
-  const titles2 = group2.composition_titles;
+  const titlePairs1 = group1.title_language_pairs || [];
+  const titlePairs2 = group2.title_language_pairs || [];
+  
+  // Extract just the titles for backward compatibility
+  const titles1 = titlePairs1.map(pair => pair.text);
+  const titles2 = titlePairs2.map(pair => pair.text);
   
   // Exact title match (very high score)
   const exactMatches = titles1.filter(t1 => 
@@ -1376,27 +1390,67 @@ function analyzeTitles(group1, group2, factors) {
       strength: 'strong'
     });
   } else {
-    // Fuzzy title matching with historical variations
+    // Enhanced fuzzy title matching with translation/contrafacta detection
     let bestSimilarity = 0;
     let bestMatch = null;
+    let isPotentialTranslation = false;
     
-    for (const title1 of titles1) {
-      for (const title2 of titles2) {
-        const similarity = calculateTitleSimilarity(title1, title2);
+    for (const pair1 of titlePairs1) {
+      for (const pair2 of titlePairs2) {
+        const similarity = calculateTitleSimilarity(pair1.text, pair2.text);
+        
         if (similarity > bestSimilarity) {
           bestSimilarity = similarity;
-          bestMatch = { title1, title2 };
+          bestMatch = { 
+            title1: pair1.text, 
+            title2: pair2.text, 
+            lang1: pair1.language, 
+            lang2: pair2.language 
+          };
+          
+          // Check if this might be a translation (different languages, high similarity)
+          isPotentialTranslation = pair1.language && pair2.language && 
+            pair1.language !== pair2.language && 
+            similarity >= 0.75;
         }
       }
     }
     
     if (bestSimilarity >= 0.7) {
-      const similarityScore = Math.round(bestSimilarity * 20);
-      score += similarityScore;
+      let similarityScore = Math.round(bestSimilarity * 20);
+      
+      // Bonus for potential translations/contrafacta
+      if (isPotentialTranslation) {
+        const translationBonus = 8;
+        score += similarityScore + translationBonus;
+        
+        factors.push({
+          description: `Potential translation/contrafactum: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (different languages)`,
+          score: similarityScore + translationBonus,
+          strength: 'strong'
+        });
+      } else {
+        score += similarityScore;
+        factors.push({
+          description: `Similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${Math.round(bestSimilarity * 100)}%)`,
+          score: similarityScore,
+          strength: bestSimilarity >= 0.85 ? 'strong' : 'medium'
+        });
+      }
+    }
+  }
+  
+  // Additional check: very similar titles but different languages (even if not caught above)
+  if (!exactMatches.length && bestSimilarity < 0.7) {
+    const crossLanguageMatches = findCrossLanguageMatches(group1, group2);
+    if (crossLanguageMatches.length > 0) {
+      const crossLangScore = 12;
+      score += crossLangScore;
+      
       factors.push({
-        description: `Similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${Math.round(bestSimilarity * 100)}%)`,
-        score: similarityScore,
-        strength: bestSimilarity >= 0.85 ? 'strong' : 'medium'
+        description: `Cross-language title similarity - potential translation: "${crossLanguageMatches[0].title1}" / "${crossLanguageMatches[0].title2}"`,
+        score: crossLangScore,
+        strength: 'strong'
       });
     }
   }
@@ -1697,6 +1751,46 @@ function checkComposerChronology(composerDetails1, composerDetails2) {
   
   // If we get here, we had date data but couldn't determine clear compatibility
   return null;
+}
+
+// Helper function to find cross-language title matches for translation detection
+function findCrossLanguageMatches(group1, group2) {
+  const matches = [];
+  
+  if (!group1.title_language_pairs || !group2.title_language_pairs) {
+    return matches;
+  }
+  
+  const titlePairs1 = group1.title_language_pairs || [];
+  const titlePairs2 = group2.title_language_pairs || [];
+  
+  // Check each title in group1 against each title in group2
+  for (const pair1 of titlePairs1) {
+    for (const pair2 of titlePairs2) {
+      // Different languages but similar titles
+      if (pair1.language && pair2.language && pair1.language !== pair2.language) {
+        const similarity = calculateTitleSimilarity(pair1.text, pair2.text);
+        
+        // Lower threshold for cross-language matches since they're inherently valuable
+        if (similarity >= 0.6) {
+          matches.push({
+            title1: pair1.text,
+            title2: pair2.text,
+            lang1: pair1.language,
+            lang2: pair2.language,
+            similarity
+          });
+        }
+      }
+    }
+  }
+  
+  // Return the best match if any
+  if (matches.length > 0) {
+    return matches.sort((a, b) => b.similarity - a.similarity).slice(0, 1);
+  }
+  
+  return matches;
 }
 
 export default router; 

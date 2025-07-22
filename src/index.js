@@ -13,6 +13,7 @@ import authRouter from './routes/auth.js';
 import searchRouter from './routes/search.js';
 import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
+import path from 'path';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -41,8 +42,13 @@ app.get('/favicon.ico', (req, res) => res.status(204).send());
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
-// Serve public static files without authentication
+// Serve static files
 app.use(express.static('public'));
+
+// Admin group suggestions page
+app.get('/admin/group-suggestions', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'public', 'admin-group-suggestions.html'));
+});
 
 // PUBLIC ROUTES (no authentication required)
 // Root URL serves the public search interface
