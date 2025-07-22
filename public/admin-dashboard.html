@@ -130,6 +130,84 @@
         .public-link-card .btn:hover {
             background: #000;
         }
+
+        /* New Feature Sparkly Styling */
+        .new-feature-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .new-feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, 
+                transparent 30%, 
+                rgba(255,255,255,0.1) 50%, 
+                transparent 70%);
+            animation: sparkle 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes sparkle {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .new-feature-card .card-title {
+            color: white;
+            font-weight: 700;
+            position: relative;
+            z-index: 2;
+        }
+
+        .new-feature-card .card-text {
+            color: rgba(255,255,255,0.9);
+            position: relative;
+            z-index: 2;
+        }
+
+        .new-feature-card .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+
+        .new-feature-card .btn:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        .new-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff6b6b;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 12px;
+            z-index: 3;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -230,6 +308,22 @@
                         <p class="card-text">Manage liturgical functions, composition title, and title languages.</p>
                         <a href="/admin/modules/functions/index.html" class="btn btn-primary">
                             <i class="bi bi-arrow-right me-2"></i>Access Functions
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group Suggestions Card - NEW FEATURE -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 new-feature-card">
+                    <div class="new-badge">NEW</div>
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-lightbulb me-2"></i>Group Suggestions
+                        </h5>
+                        <p class="card-text">AI-powered analysis to discover potential composition duplicates and resolve anonymous attributions.</p>
+                        <a href="#" onclick="loadGroupSuggestions()" class="btn">
+                            <i class="bi bi-magic me-2"></i>Analyze Suggestions
                         </a>
                     </div>
                 </div>
@@ -1906,6 +2000,234 @@
             `;
             
             modal.show();
+        }
+
+        // Group Suggestions functionality
+        async function loadGroupSuggestions() {
+            // Show loading state
+            const originalCard = event.target.closest('.new-feature-card');
+            const originalButton = event.target;
+            const originalContent = originalButton.innerHTML;
+            
+            originalButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Analyzing...';
+            originalButton.disabled = true;
+            
+            try {
+                const response = await fetch('/api/admin/group-suggestions');
+                
+                if (response.ok) {
+                    const suggestions = await response.json();
+                    showGroupSuggestions(suggestions);
+                } else {
+                    const error = await response.json();
+                    alert(`Error loading suggestions: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error loading group suggestions:', error);
+                alert('Network error occurred while loading suggestions');
+            } finally {
+                originalButton.innerHTML = originalContent;
+                originalButton.disabled = false;
+            }
+        }
+
+        function showGroupSuggestions(suggestions) {
+            // Create and show suggestions modal
+            const existingModal = document.getElementById('groupSuggestionsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modalHtml = `
+                <div class="modal fade" id="groupSuggestionsModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-lightbulb me-2"></i>Group Suggestions - Potential Duplicates
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" id="groupSuggestionsContent">
+                                ${generateSuggestionsContent(suggestions)}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-primary" onclick="refreshGroupSuggestions()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            const modal = new bootstrap.Modal(document.getElementById('groupSuggestionsModal'));
+            modal.show();
+            
+            // Clean up modal when closed
+            document.getElementById('groupSuggestionsModal').addEventListener('hidden.bs.modal', function () {
+                this.remove();
+            });
+        }
+
+        function generateSuggestionsContent(suggestions) {
+            if (!suggestions || !suggestions.length) {
+                return `
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle-fill text-success display-1"></i>
+                        <h4 class="mt-3">No Potential Duplicates Found</h4>
+                        <p class="text-muted">Your database appears to be well-organized with no obvious duplicate compositions.</p>
+                    </div>
+                `;
+            }
+
+            const groupedByScore = suggestions.reduce((acc, suggestion) => {
+                const scoreRange = suggestion.match_score >= 80 ? 'high' : 
+                                 suggestion.match_score >= 60 ? 'medium' : 'low';
+                if (!acc[scoreRange]) acc[scoreRange] = [];
+                acc[scoreRange].push(suggestion);
+                return acc;
+            }, {});
+
+            let content = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>${suggestions.length} potential duplicate${suggestions.length !== 1 ? 's' : ''} found.</strong> 
+                    Review the suggestions below, ordered by likelihood of match.
+                </div>
+            `;
+
+            const scoreRanges = [
+                { key: 'high', title: 'High Confidence Matches', class: 'success', threshold: '80%+' },
+                { key: 'medium', title: 'Medium Confidence Matches', class: 'warning', threshold: '60-79%' },
+                { key: 'low', title: 'Low Confidence Matches', class: 'secondary', threshold: 'Below 60%' }
+            ];
+
+            scoreRanges.forEach(range => {
+                const rangeSuggestions = groupedByScore[range.key];
+                if (rangeSuggestions && rangeSuggestions.length > 0) {
+                    content += `
+                        <div class="mb-4">
+                            <h6 class="text-${range.class}">
+                                <i class="bi bi-circle-fill me-2"></i>
+                                ${range.title} (${range.threshold})
+                            </h6>
+                            <div class="row g-3">
+                                ${rangeSuggestions.map(suggestion => generateSuggestionCard(suggestion)).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            return content;
+        }
+
+        function generateSuggestionCard(suggestion) {
+            const scoreColor = suggestion.match_score >= 80 ? 'success' : 
+                              suggestion.match_score >= 60 ? 'warning' : 'secondary';
+            
+            return `
+                <div class="col-12">
+                    <div class="card border-${scoreColor}">
+                        <div class="card-header bg-${scoreColor} text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-link-45deg me-2"></i>
+                                    Potential Match: ${suggestion.match_score}% confidence
+                                </h6>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group1.display_title)}" 
+                                       target="_blank" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 1
+                                    </a>
+                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group2.display_title)}" 
+                                       target="_blank" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 2
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <h6 class="text-primary">${suggestion.group1.display_title}</h6>
+                                    <small class="text-muted">
+                                        <strong>Composer:</strong> ${suggestion.group1.composer || 'Unknown'}<br>
+                                        <strong>Voices:</strong> ${suggestion.group1.voices || 'Unknown'}<br>
+                                        <strong>Sources:</strong> ${suggestion.group1.source_count || 0}
+                                    </small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="fs-1 text-${scoreColor}">⟷</div>
+                                    <small class="text-muted">${suggestion.match_score}%</small>
+                                </div>
+                                <div class="col-md-5">
+                                    <h6 class="text-primary">${suggestion.group2.display_title}</h6>
+                                    <small class="text-muted">
+                                        <strong>Composer:</strong> ${suggestion.group2.composer || 'Unknown'}<br>
+                                        <strong>Voices:</strong> ${suggestion.group2.voices || 'Unknown'}<br>
+                                        <strong>Sources:</strong> ${suggestion.group2.source_count || 0}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>Match Analysis:</h6>
+                                <div class="row g-2">
+                                    ${suggestion.matching_factors.map(factor => `
+                                        <div class="col-auto">
+                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : 
+                                                                   factor.strength === 'medium' ? 'warning' : 'info'}">
+                                                ${factor.description} (+${factor.score})
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ${suggestion.notes ? `<p class="mt-2 mb-0 small text-muted">${suggestion.notes}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshGroupSuggestions() {
+            const contentDiv = document.getElementById('groupSuggestionsContent');
+            contentDiv.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Re-analyzing database for potential duplicates...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/admin/group-suggestions');
+                if (response.ok) {
+                    const suggestions = await response.json();
+                    contentDiv.innerHTML = generateSuggestionsContent(suggestions);
+                } else {
+                    const error = await response.json();
+                    contentDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Error: ${error.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error refreshing suggestions:', error);
+                contentDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Network error occurred while refreshing suggestions
+                    </div>
+                `;
+            }
         }
     </script>
 </body>

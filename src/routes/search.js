@@ -55,7 +55,7 @@ router.get('/groups', async (req, res) => {
     whereConditions.push('EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)');
 
     // Title search - search both group display_title AND composition titles
-    // with historical character substitutions (i/j, u/v interchangeability)
+    // with historical character substitutions (i/j, u/v interchangeability) and punctuation-insensitive matching
     if (title.trim()) {
       const searchTerm = title.trim();
       
@@ -90,11 +90,11 @@ router.get('/groups', async (req, res) => {
       // Build search conditions for all variations
       const titleConditions = searchVariations.map((variation) => {
         const condition = `(
-          g.display_title ILIKE $${paramIndex} OR
+          REGEXP_REPLACE(LOWER(g.display_title), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9\\s]', '', 'g') OR
           EXISTS (
             SELECT 1 FROM compositions c2
             JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND t2.text ILIKE $${paramIndex}
+            WHERE c2.group_id = g.id AND REGEXP_REPLACE(LOWER(t2.text), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9\\s]', '', 'g')
           )
         )`;
         queryParams.push(`%${variation}%`);

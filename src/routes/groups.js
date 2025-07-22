@@ -459,11 +459,11 @@ router.get('/', async (req, res) => {
         if (title.trim()) {
             paramCount++;
             conditions.push(`(
-                g.display_title ILIKE $${paramCount} OR 
+                REGEXP_REPLACE(LOWER(g.display_title), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramCount}), '[^a-z0-9\\s]', '', 'g') OR 
                 EXISTS (
                     SELECT 1 FROM compositions c2
                     JOIN titles t2 ON c2.title_id = t2.id
-                    WHERE c2.group_id = g.id AND t2.text ILIKE $${paramCount}
+                    WHERE c2.group_id = g.id AND REGEXP_REPLACE(LOWER(t2.text), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramCount}), '[^a-z0-9\\s]', '', 'g')
                 )
             )`);
             params.push(`%${title.trim()}%`);
