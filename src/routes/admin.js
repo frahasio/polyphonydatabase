@@ -516,6 +516,7 @@ router.get('/data-quality-groups-for-correction', async (req, res) => {
         g.id, 
         g.display_title,
         COUNT(DISTINCT c.id) as composition_count,
+        COUNT(DISTINCT t.text) as unique_title_count,
         (
           SELECT jsonb_agg(
             DISTINCT jsonb_build_object(
@@ -531,7 +532,14 @@ router.get('/data-quality-groups-for-correction', async (req, res) => {
           FROM compositions c2
           LEFT JOIN titles t2 ON c2.title_id = t2.id
           WHERE c2.group_id = g.id
-        ) as compositions
+        ) as compositions,
+        (
+          SELECT t3.text
+          FROM compositions c3
+          LEFT JOIN titles t3 ON c3.title_id = t3.id
+          WHERE c3.group_id = g.id
+          LIMIT 1
+        ) as common_title
       FROM groups g
       LEFT JOIN compositions c ON c.group_id = g.id
       LEFT JOIN titles t ON c.title_id = t.id
@@ -556,8 +564,11 @@ router.get('/data-quality-groups-for-correction', async (req, res) => {
     // Process the results to add correction flags
     const processedResults = result.rows.map(row => ({
       ...row,
-      can_auto_correct: row.composition_count === 1,
-      suggested_title: row.composition_count === 1 && row.compositions[0] ? row.compositions[0].title : null
+      can_auto_correct: (row.composition_count === 1) || 
+                       (row.composition_count > 1 && row.unique_title_count === 1),
+      suggested_title: ((row.composition_count === 1) || 
+                       (row.composition_count > 1 && row.unique_title_count === 1)) 
+                       ? row.common_title : null
     }));
 
     res.json(processedResults);

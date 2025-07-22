@@ -798,12 +798,25 @@
                 const compositions = group.compositions || [];
                 const hasValidCompositions = compositions.length > 0 && compositions.some(c => c.title && c.title.trim());
                 const compositionCount = parseInt(group.composition_count) || 0;
+                const uniqueTitleCount = parseInt(group.unique_title_count) || 0;
+                
+                // Auto-correctable if:
+                // 1. Single composition with valid title, OR
+                // 2. Multiple compositions but all have the same title
+                const canAutoCorrect = hasValidCompositions && 
+                    ((compositionCount === 1) || 
+                     (compositionCount > 1 && uniqueTitleCount === 1));
+                
+                // Use common_title from backend if available, otherwise fall back to first composition's title
+                const suggestedTitle = canAutoCorrect ? 
+                    (group.common_title || (compositions.length > 0 ? compositions[0].title : null)) : null;
                 
                 return {
                     ...group,
-                    can_auto_correct: compositionCount === 1 && hasValidCompositions,
-                    suggested_title: compositionCount === 1 && hasValidCompositions ? compositions[0].title : null,
-                    composition_count: compositionCount
+                    can_auto_correct: canAutoCorrect,
+                    suggested_title: suggestedTitle,
+                    composition_count: compositionCount,
+                    unique_title_count: uniqueTitleCount
                 };
             });
 
@@ -824,7 +837,7 @@
                             <h6 class="mb-0">
                                 <i class="bi bi-check-circle text-success me-2"></i>
                                 Auto-Correctable Groups (${correctable.length})
-                                <small class="text-muted">— Single composition each</small>
+                                <small class="text-muted">— Single composition or all compositions share same title</small>
                             </h6>
                             <div>
                                 <button class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllCorrectableGroups(true)">
@@ -848,7 +861,10 @@
                                                 <strong>Current:</strong> "${group.display_title}"
                                                 <br><span class="text-success"><strong>Will become:</strong> "${group.suggested_title}"</span>
                                                 <br><small class="text-muted">
-                                                    Composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}
+                                                    ${group.composition_count === 1 ? 
+                                                        `Single composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}` :
+                                                        `${group.composition_count} compositions, all titled: "${group.suggested_title}"`
+                                                    }
                                                 </small>
                                             </div>
                                         </div>
@@ -864,7 +880,7 @@
                         <h6 class="mb-3">
                             <i class="bi bi-exclamation-triangle text-warning me-2"></i>
                             Manual Review Required (${nonCorrectable.length})
-                            <small class="text-muted">— Multiple compositions or missing data</small>
+                            <small class="text-muted">— Multiple compositions with different titles</small>
                         </h6>
                         <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
                             ${nonCorrectable.map(group => `
