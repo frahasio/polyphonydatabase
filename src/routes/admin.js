@@ -1133,7 +1133,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get languages as simple text aggregation
            (
-             SELECT string_agg(t.language, '|||') FILTER (WHERE t.language IS NOT NULL)
+             SELECT string_agg(t.language::text, '|||') FILTER (WHERE t.language IS NOT NULL)
              FROM compositions c2
              JOIN titles t ON c2.title_id = t.id
              WHERE c2.group_id = g.id
@@ -1223,7 +1223,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get languages as simple text aggregation
            (
-             SELECT string_agg(t.language, '|||') FILTER (WHERE t.language IS NOT NULL)
+             SELECT string_agg(t.language::text, '|||') FILTER (WHERE t.language IS NOT NULL)
              FROM compositions c2
              JOIN titles t ON c2.title_id = t.id
              WHERE c2.group_id = g.id
