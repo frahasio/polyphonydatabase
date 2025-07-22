@@ -231,20 +231,15 @@
                     const data = await response.json();
                     const user = data.user;
                     
-                    // Show auth info
-                    document.getElementById('userName').textContent = user.name;
-                    document.getElementById('authInfo').style.display = 'block';
-                    
-                    // Check admin privileges
-                    if (user.role !== 'admin') {
-                        showError('Admin access required to view group suggestions.');
+                    if (!user.is_admin) {
+                        window.location.href = '/admin';
                         return;
                     }
                 } else {
                     window.location.href = '/admin/login';
                 }
             } catch (error) {
-                console.error('Error loading user info:', error);
+                console.error('Auth check failed:', error);
                 window.location.href = '/admin/login';
             }
         }
@@ -265,6 +260,10 @@
                 const suggestions = data.suggestions || [];
                 const stats = data.stats || {};
                 
+                // Update global variables for export functionality
+                currentSuggestions = suggestions;
+                analysisStats = stats;
+                
                 showLoading(false);
                 
                 if (suggestions.length === 0) {
@@ -272,6 +271,7 @@
                 } else {
                     displayResults(suggestions);
                     displayStats(stats);
+                    document.getElementById('actionBar').style.display = 'flex';
                 }
                 
             } catch (error) {
@@ -279,6 +279,22 @@
                 showLoading(false);
                 showError(error.message || 'Failed to analyze group suggestions. Please try again.');
             }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingContainer').style.display = show ? 'block' : 'none';
+        }
+
+        function resetResults() {
+            document.getElementById('errorContainer').style.display = 'none';
+            document.getElementById('results-container').style.display = 'none';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('actionBar').style.display = 'none';
+            document.getElementById('stats-container').style.display = 'none';
+        }
+
+        function showNoResults() {
+            document.getElementById('noResults').style.display = 'block';
         }
 
         function displayResults(suggestions) {
@@ -405,15 +421,7 @@
         }
 
         function retryAnalysis() {
-            // Reset UI
-            document.getElementById('errorContainer').style.display = 'none';
-            document.getElementById('results-container').style.display = 'none';
-            document.getElementById('noResults').style.display = 'none';
-            document.getElementById('actionBar').style.display = 'none';
-            document.getElementById('stats-container').style.display = 'none';
-            document.getElementById('loadingContainer').style.display = 'block';
-            
-            // Restart analysis
+            resetResults();
             startAnalysis();
         }
 
@@ -429,20 +437,23 @@
 
         function generateCSV(suggestions) {
             const headers = [
-                'Match Score', 'Group 1 Title', 'Group 1 Composer', 'Group 1 Voices',
-                'Group 2 Title', 'Group 2 Composer', 'Group 2 Voices', 'Match Factors', 'Notes'
+                'Match Score', 'Confidence', 'Group 1 ID', 'Group 1 Name', 'Group 1 Composers', 'Group 1 Voices',
+                'Group 2 ID', 'Group 2 Name', 'Group 2 Composers', 'Group 2 Voices', 'Match Factors', 'Notes'
             ];
             
             const rows = suggestions.map(s => [
-                s.match_score,
-                `"${s.group1.display_title}"`,
-                `"${s.group1.composer}"`,
-                s.group1.voices,
-                `"${s.group2.display_title}"`,
-                `"${s.group2.composer}"`,
-                s.group2.voices,
-                `"${s.matching_factors.map(f => f.description).join('; ')}"`,
-                `"${s.notes}"`
+                s.matchScore,
+                s.confidence,
+                s.group1.id,
+                `"${s.group1.name || 'Unnamed Group'}"`,
+                `"${s.group1.composers?.join(', ') || 'Unknown'}"`,
+                s.group1.voice_count,
+                s.group2.id,
+                `"${s.group2.name || 'Unnamed Group'}"`,
+                `"${s.group2.composers?.join(', ') || 'Unknown'}"`,
+                s.group2.voice_count,
+                `"${s.factors?.map(f => `${f.description} (+${f.score})`).join('; ') || 'No factors'}"`,
+                `"${s.notes || ''}"`
             ]);
             
             return [headers, ...rows].map(row => row.join(',')).join('\\n');
