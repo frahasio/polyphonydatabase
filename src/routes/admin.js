@@ -1162,9 +1162,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images
+             -- Get source information as text aggregation with images and clefs
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1283,9 +1283,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images
+             -- Get source information as text aggregation with images and clefs
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1329,12 +1329,14 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
              ) as inclusion_notes
              
           FROM groups g
-          WHERE EXISTS (
-            -- Group contains at least one anonymous composition
+          WHERE NOT EXISTS (
+            -- Group contains NO named composers (only anonymous compositions)
             SELECT 1 FROM compositions c 
+            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
             WHERE c.group_id = g.id 
             AND c.composer_id_list IS NOT NULL 
-            AND 23 = ANY(c.composer_id_list)
+            AND array_length(c.composer_id_list, 1) > 0
+            AND composer_id != 23
             ${voiceFilter ? 'AND c.number_of_voices = $1' : ''}
           )
           ORDER BY g.id
@@ -1400,9 +1402,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation with images
+             -- Get source information as text aggregation with images and clefs
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]') || '::' || COALESCE(i.clefs::text, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
@@ -1616,14 +1618,53 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       }
     }
     
-    // Sort by score and limit results
-    suggestions.sort((a, b) => b.matchScore - a.matchScore);
+    // Group suggestions by anonymous group for better UX
+    const groupedSuggestions = [];
+    const suggestionsByAnonGroup = {};
     
+    // Group all suggestions by anonymous group ID
+    for (const suggestion of suggestions) {
+      const anonGroupId = suggestion.group1.isAnonymous ? suggestion.group1.id : suggestion.group2.id;
+      if (!suggestionsByAnonGroup[anonGroupId]) {
+        suggestionsByAnonGroup[anonGroupId] = {
+          anonymousGroup: suggestion.group1.isAnonymous ? suggestion.group1 : suggestion.group2,
+          potentialMatches: []
+        };
+      }
+      
+      // Add the named group as a potential match
+      const namedGroup = suggestion.group1.isAnonymous ? suggestion.group2 : suggestion.group1;
+      suggestionsByAnonGroup[anonGroupId].potentialMatches.push({
+        namedGroup: namedGroup,
+        matchScore: suggestion.matchScore,
+        confidence: suggestion.confidence,
+        factors: suggestion.factors,
+        notes: suggestion.notes
+      });
+    }
+    
+    // Convert to array and sort each group's matches by score
+    for (const anonGroupId in suggestionsByAnonGroup) {
+      const groupData = suggestionsByAnonGroup[anonGroupId];
+      // Sort matches by score (highest first)
+      groupData.potentialMatches.sort((a, b) => b.matchScore - a.matchScore);
+      groupedSuggestions.push(groupData);
+    }
+    
+    // Sort anonymous groups by their best match score
+    groupedSuggestions.sort((a, b) => {
+      const bestScoreA = a.potentialMatches.length > 0 ? a.potentialMatches[0].matchScore : 0;
+      const bestScoreB = b.potentialMatches.length > 0 ? b.potentialMatches[0].matchScore : 0;
+      return bestScoreB - bestScoreA;
+    });
+    
+    const totalSuggestions = suggestions.length;
     const stats = {
       totalAnonymousGroups: composerFilter ? 0 : anonymousGroups.length,
       totalGroups: allGroups.length,
       composerGroups: composerFilter ? anonymousGroups.length : 0,
-      suggestionsFound: suggestions.length,
+      suggestionsFound: totalSuggestions,
+      groupedSuggestions: groupedSuggestions.length,
       highConfidence: suggestions.filter(s => s.confidence === 'High').length,
       mediumConfidence: suggestions.filter(s => s.confidence === 'Medium').length,
       lowConfidence: suggestions.filter(s => s.confidence === 'Low').length,
@@ -1632,12 +1673,12 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     };
     
     if (composerFilter) {
-      console.log(`Analysis complete. Found ${suggestions.length} potential title variations/duplicates for composer in ${stats.analysisTime}ms`);
+      console.log(`Analysis complete. Found ${totalSuggestions} potential title variations/duplicates for composer in ${stats.analysisTime}ms`);
     } else {
-      console.log(`Analysis complete. Found ${suggestions.length} potential attribution resolutions in ${stats.analysisTime}ms`);
+      console.log(`Analysis complete. Found ${totalSuggestions} potential attribution resolutions for ${groupedSuggestions.length} anonymous groups in ${stats.analysisTime}ms`);
     }
     
-    res.json({ suggestions, stats });
+    res.json({ suggestions: groupedSuggestions, stats });
   } catch (error) {
     console.error('Error generating group suggestions:', error);
     res.status(500).json({ error: 'Failed to generate suggestions' });
@@ -1671,19 +1712,33 @@ function parseGroupData(row) {
     }
   }
   
-  // Parse source details with images
+  // Parse source details with images and clefs
   const source_details = [];
+  const source_clefs = [];
   if (row.source_details) {
     const sourceStrings = row.source_details.split('|||');
     for (const sourceStr of sourceStrings) {
-      const [title, location, from_year, to_year, code, imagesJson] = sourceStr.split('::');
+      const [title, location, from_year, to_year, code, imagesJson, clefsJson] = sourceStr.split('::');
       let images = [];
+      let clefs = [];
+      
       try {
         if (imagesJson && imagesJson !== '[]') {
           images = JSON.parse(imagesJson);
         }
       } catch (e) {
         console.warn('Failed to parse source images:', e);
+      }
+      
+      try {
+        if (clefsJson && clefsJson !== '[]') {
+          const parsedClefs = JSON.parse(clefsJson);
+          if (Array.isArray(parsedClefs)) {
+            clefs = parsedClefs;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse source clefs:', e);
       }
       
       source_details.push({
@@ -1695,6 +1750,8 @@ function parseGroupData(row) {
         code: code || null,
         images: images
       });
+      
+      source_clefs.push(clefs);
     }
   }
   
@@ -1737,10 +1794,11 @@ function parseGroupData(row) {
     title_language_pairs,
     composer_details,
     source_details,
+    source_clefs,
     composition_types,
     composition_tones,
     composition_even_odd,
-    clef_combinations: parsed_clef_combinations
+    clef_combinations: source_clefs // Use source-specific clefs instead of group-level
   };
 }
 

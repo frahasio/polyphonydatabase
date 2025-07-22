@@ -499,36 +499,41 @@
             }
         }
 
-        function displayResults(suggestions) {
+        function displayResults(groupedSuggestions) {
             resetResults();
             
-            const highConfidence = suggestions.filter(s => s.confidence === 'High');
-            const mediumConfidence = suggestions.filter(s => s.confidence === 'Medium');
-            // Remove low confidence - don't show them at all
+            // Filter groups by their best match confidence
+            const highConfidenceGroups = groupedSuggestions.filter(group => 
+                group.potentialMatches.some(m => m.confidence === 'High')
+            );
+            const mediumConfidenceGroups = groupedSuggestions.filter(group => 
+                group.potentialMatches.some(m => m.confidence === 'Medium') && 
+                !group.potentialMatches.some(m => m.confidence === 'High')
+            );
             
             document.getElementById('results-container').style.display = 'block';
             
-            if (highConfidence.length > 0) {
-                displayConfidenceGroup('High', highConfidence, 'success');
+            if (highConfidenceGroups.length > 0) {
+                displayConfidenceGroup('High', highConfidenceGroups, 'success');
             }
             
-            if (mediumConfidence.length > 0) {
-                displayConfidenceGroup('Medium', mediumConfidence, 'warning');
+            if (mediumConfidenceGroups.length > 0) {
+                displayConfidenceGroup('Medium', mediumConfidenceGroups, 'warning');
             }
             
             // Show message if no high or medium confidence results
-            if (highConfidence.length === 0 && mediumConfidence.length === 0) {
+            if (highConfidenceGroups.length === 0 && mediumConfidenceGroups.length === 0) {
                 showNoResults();
             }
         }
 
-        function displayConfidenceGroup(level, suggestions, colorClass) {
+        function displayConfidenceGroup(level, groupedSuggestions, colorClass) {
             const containerId = `${level.toLowerCase()}-confidence`;
             const container = document.getElementById(containerId);
             
             if (!container) return;
             
-            if (suggestions.length === 0) {
+            if (groupedSuggestions.length === 0) {
                 container.innerHTML = `
                     <div class="text-muted text-center py-3">
                         <i class="bi bi-info-circle me-2"></i>
@@ -538,18 +543,14 @@
                 return;
             }
             
-            container.innerHTML = suggestions.map(suggestion => 
-                generateSuggestionCard(suggestion, colorClass)
+            container.innerHTML = groupedSuggestions.map(groupData => 
+                generateGroupSuggestionCard(groupData, colorClass, level)
             ).join('');
         }
 
-        function generateSuggestionCard(suggestion, colorClass) {
-            const group1 = suggestion.group1;
-            const group2 = suggestion.group2;
-            
-            // Determine which group is anonymous for better display
-            const anonGroup = group1.isAnonymous ? group1 : group2;
-            const namedGroup = group1.isAnonymous ? group2 : group1;
+        function generateGroupSuggestionCard(groupData, colorClass, level) {
+            const anonGroup = groupData.anonymousGroup;
+            const matches = groupData.potentialMatches;
             
             // Helper function to format composition properties (tone/even-odd in grey)
             const formatTitleWithProperties = (title, group) => {
@@ -578,11 +579,27 @@
                 return '';
             };
             
-            // Helper function to format sources with images
-            const formatSources = (sources) => {
+            // Clef display order (same as public page)
+            const clefDisplayOrder = [
+                'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+            ];
+            
+            // Helper function to sort clefs according to display order
+            const sortClefs = (clefs) => {
+                return clefs.sort((a, b) => {
+                    const clefA = typeof a === 'string' ? a : (a.clef || a.name || a);
+                    const clefB = typeof b === 'string' ? b : (b.clef || b.name || b);
+                    const aIndex = clefDisplayOrder.indexOf(clefA);
+                    const bIndex = clefDisplayOrder.indexOf(clefB);
+                    return aIndex - bIndex;
+                });
+            };
+            
+            // Helper function to format sources with images and clefs
+            const formatSources = (sources, groupClefCombinations) => {
                 if (!sources || sources.length === 0) return 'No sources';
                 
-                return sources.map((source, index) => {
+                return sources.map((source, sourceIndex) => {
                     let sourceHtml = `<strong>${source.code || 'Unknown Code'}</strong>`;
                     if (source.location) sourceHtml += ` (${source.location})`;
                     if (source.from_year || source.to_year) {
@@ -599,36 +616,33 @@
                         sourceHtml += imageLinks;
                     }
                     
-                    return `<div class="mb-1">${sourceHtml}</div>`;
+                    // Add clef information underneath each source (if available for this source)
+                    let clefHtml = '';
+                    if (groupClefCombinations && Array.isArray(groupClefCombinations) && sourceIndex < groupClefCombinations.length) {
+                        const clefCombination = groupClefCombinations[sourceIndex];
+                        if (Array.isArray(clefCombination) && clefCombination.length > 0) {
+                            const sortedClefs = sortClefs([...clefCombination]);
+                            const clefImages = sortedClefs.map(clef => {
+                                const clefName = typeof clef === 'string' ? clef : (clef.clef || clef.name || clef);
+                                if (clefName) {
+                                    return `<img src="/clef_images/${clefName}.png" alt="${clefName}" style="height: 24px; margin: 0 2px;" title="${clefName}">`;
+                                }
+                                return '';
+                            }).filter(img => img).join('');
+                            
+                            if (clefImages) {
+                                clefHtml = `<div class="mt-1">${clefImages}</div>`;
+                            }
+                        }
+                    }
+                    
+                    return `<div class="mb-2">${sourceHtml}${clefHtml}</div>`;
                 }).join('');
             };
             
-            // Helper function to format clef combinations for a group
-            const formatClefCombinations = (clefCombinations) => {
-                if (!clefCombinations || !Array.isArray(clefCombinations) || clefCombinations.length === 0) {
-                    return '';
-                }
-                
-                const clefImages = [];
-                for (const combination of clefCombinations) {
-                    if (Array.isArray(combination)) {
-                        const combImages = combination.map(clef => {
-                            // Handle both string clefs and clef objects
-                            const clefName = typeof clef === 'string' ? clef : (clef.clef || clef.name || clef);
-                            if (clefName) {
-                                return `<img src="/clef_images/${clefName}.png" alt="${clefName}" style="height: 16px; margin: 0 1px;" title="${clefName}">`;
-                            }
-                            return '';
-                        }).filter(img => img).join('');
-                        
-                        if (combImages) {
-                            clefImages.push(`<span class="me-2">${combImages}</span>`);
-                        }
-                    }
-                }
-                
-                return clefImages.length > 0 ? `<div class="mt-1"><small class="text-muted">Clefs:</small> ${clefImages.join('')}</div>` : '';
-            };
+            // Get the best match for header display
+            const bestMatch = matches.length > 0 ? matches[0] : null;
+            const matchCount = matches.length;
             
             return `
                 <div class="card mb-3 border-${colorClass}">
@@ -637,25 +651,21 @@
                             <div class="col">
                                 <h6 class="mb-0 text-${colorClass}">
                                     <i class="bi bi-star-fill me-2"></i>
-                                    Match Score: ${suggestion.matchScore} (${suggestion.confidence} Confidence)
-                                    ${suggestion.potentialAttribution ? '<span class="badge bg-warning text-dark ms-2">Attribution Resolution</span>' : ''}
+                                    ${bestMatch ? `Best Match: ${bestMatch.matchScore} (${bestMatch.confidence} Confidence)` : 'No matches'}
+                                    <span class="badge bg-warning text-dark ms-2">Attribution Resolution</span>
+                                    <span class="badge bg-info text-dark ms-1">${matchCount} potential match${matchCount !== 1 ? 'es' : ''}</span>
                                 </h6>
                             </div>
                             <div class="col-auto">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="/modules/sources/index.html?group=${anonGroup.id}" target="_blank" class="btn btn-outline-warning">
-                                        <i class="bi bi-question-circle me-1"></i>Anonymous Group
-                                    </a>
-                                    <a href="/modules/sources/index.html?group=${namedGroup.id}" target="_blank" class="btn btn-outline-primary">
-                                        <i class="bi bi-person me-1"></i>Named Group
-                                    </a>
-                                </div>
+                                <a href="/modules/sources/index.html?group=${anonGroup.id}" target="_blank" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-question-circle me-1"></i>View Anonymous Group
+                                </a>
                             </div>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="bi bi-question-circle text-warning me-2"></i>
                                     <h6 class="text-warning mb-0">Anonymous: ${anonGroup.name || 'Unnamed Group'}</h6>
@@ -665,50 +675,50 @@
                                 <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(anonGroup.sources)}</div>
+                                    <div class="ms-2">${formatSources(anonGroup.sources, anonGroup.clef_combinations)}</div>
                                 </div>
-                                ${formatClefCombinations(anonGroup.clef_combinations)}
-                                ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 150)}${anonGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
+                                ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 100)}${anonGroup.inclusionNotes.length > 100 ? '...' : ''}</small></p>` : ''}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-7">
                                 <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-person text-primary me-2"></i>
-                                    <h6 class="text-primary mb-0">Named: ${namedGroup.name || 'Unnamed Group'}</h6>
+                                    <i class="bi bi-people text-primary me-2"></i>
+                                    <h6 class="text-primary mb-0">Potential Attribution Matches (${matchCount})</h6>
                                 </div>
-                                <p class="mb-2"><strong>Voices:</strong> ${namedGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(namedGroup.titles?.join(', ') || 'No titles', namedGroup)} ${formatTypeBadges(namedGroup)}</p>
-                                <p class="mb-2"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
-                                <div class="mb-2">
-                                    <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(namedGroup.sources)}</div>
+                                <div class="potential-matches" style="max-height: 400px; overflow-y: auto;">
+                                    ${matches.map((match, index) => `
+                                        <div class="border rounded p-2 mb-2 ${index === 0 ? 'border-' + colorClass + ' bg-' + colorClass + ' bg-opacity-5' : 'border-light'}">
+                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                <div class="flex-grow-1">
+                                                    <strong>${match.namedGroup.name || 'Unnamed Group'}</strong>
+                                                    <span class="badge bg-${match.confidence === 'High' ? 'success' : 'warning'} ms-2">${match.matchScore}% ${match.confidence}</span>
+                                                </div>
+                                                <a href="/modules/sources/index.html?group=${match.namedGroup.id}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </div>
+                                            <p class="mb-1 small"><strong>Composer(s):</strong> ${match.namedGroup.composers?.join(', ') || 'Unknown'}</p>
+                                            <p class="mb-1 small"><strong>Titles:</strong> ${formatTitleWithProperties(match.namedGroup.titles?.join(', ') || 'No titles', match.namedGroup)}</p>
+                                            ${match.factors && match.factors.length > 0 ? `
+                                                <details class="mt-1">
+                                                    <summary class="small text-muted">Matching Evidence (${match.factors.length} factors)</summary>
+                                                    <div class="mt-1">
+                                                        ${match.factors.slice(0, 3).map(factor => `
+                                                            <div class="small">
+                                                                <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-1">
+                                                                    ${factor.score > 0 ? '+' : ''}${factor.score}
+                                                                </span>
+                                                                ${factor.description}
+                                                            </div>
+                                                        `).join('')}
+                                                        ${match.factors.length > 3 ? `<div class="small text-muted">...and ${match.factors.length - 3} more factors</div>` : ''}
+                                                    </div>
+                                                </details>
+                                            ` : ''}
+                                        </div>
+                                    `).join('')}
                                 </div>
-                                ${formatClefCombinations(namedGroup.clef_combinations)}
-                                ${namedGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${namedGroup.inclusionNotes.substring(0, 150)}${namedGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
                         </div>
-                        
-                        ${suggestion.factors && suggestion.factors.length > 0 ? `
-                        <hr>
-                        <h6 class="text-secondary">Matching Evidence:</h6>
-                        <div class="row">
-                            ${suggestion.factors.map(factor => `
-                                <div class="col-12 mb-2">
-                                    <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-2">
-                                        ${factor.score > 0 ? '+' : ''}${factor.score}
-                                    </span>
-                                    <small>${factor.description}</small>
-                                    ${factor.notes1 && factor.notes2 ? `
-                                        <div class="mt-1 ms-4">
-                                            <small class="text-muted">
-                                                <strong>Group 1 notes:</strong> "${factor.notes1}"<br>
-                                                <strong>Group 2 notes:</strong> "${factor.notes2}"
-                                            </small>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
             `;
@@ -727,11 +737,11 @@
                 document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Title Variations';
             } else {
                 document.getElementById('total-anonymous').textContent = stats.totalAnonymousGroups || 0;
-                document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Anonymous Groups';
+                document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Anonymous Groups Found';
                 document.getElementById('total-groups').textContent = stats.totalGroups || 0;
                 document.querySelector('#total-groups').parentElement.querySelector('small').textContent = 'Total Groups Compared';
-                document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
-                document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Attribution Candidates';
+                document.getElementById('total-suggestions').textContent = stats.groupedSuggestions || 0;
+                document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Anonymous Groups with Matches';
             }
             
             document.getElementById('analysis-time').textContent = `${(stats.analysisTime || 0)}ms`;
@@ -772,26 +782,32 @@
             downloadCSV(csv, 'group-suggestions.csv');
         }
 
-        function generateCSV(suggestions) {
+        function generateCSV(groupedSuggestions) {
             const headers = [
-                'Match Score', 'Confidence', 'Group 1 ID', 'Group 1 Name', 'Group 1 Composers', 'Group 1 Voices',
-                'Group 2 ID', 'Group 2 Name', 'Group 2 Composers', 'Group 2 Voices', 'Match Factors', 'Notes'
+                'Anonymous Group ID', 'Anonymous Group Name', 'Anonymous Voices', 'Match Rank', 'Match Score', 'Confidence', 
+                'Named Group ID', 'Named Group Name', 'Named Group Composers', 'Named Voices', 'Match Factors', 'Notes'
             ];
             
-            const rows = suggestions.map(s => [
-                s.matchScore,
-                s.confidence,
-                s.group1.id,
-                `"${s.group1.name || 'Unnamed Group'}"`,
-                `"${s.group1.composers?.join(', ') || 'Unknown'}"`,
-                s.group1.voice_count,
-                s.group2.id,
-                `"${s.group2.name || 'Unnamed Group'}"`,
-                `"${s.group2.composers?.join(', ') || 'Unknown'}"`,
-                s.group2.voice_count,
-                `"${s.factors?.map(f => `${f.description} (+${f.score})`).join('; ') || 'No factors'}"`,
-                `"${s.notes || ''}"`
-            ]);
+            const rows = [];
+            groupedSuggestions.forEach(groupData => {
+                const anonGroup = groupData.anonymousGroup;
+                groupData.potentialMatches.forEach((match, index) => {
+                    rows.push([
+                        anonGroup.id,
+                        `"${anonGroup.name || 'Unnamed Group'}"`,
+                        anonGroup.voice_count,
+                        index + 1, // Rank
+                        match.matchScore,
+                        match.confidence,
+                        match.namedGroup.id,
+                        `"${match.namedGroup.name || 'Unnamed Group'}"`,
+                        `"${match.namedGroup.composers?.join(', ') || 'Unknown'}"`,
+                        match.namedGroup.voice_count,
+                        `"${match.factors?.map(f => `${f.description} (+${f.score})`).join('; ') || 'No factors'}"`,
+                        `"${match.notes || ''}"`
+                    ]);
+                });
+            });
             
             return [headers, ...rows].map(row => row.join(',')).join('\\n');
         }
