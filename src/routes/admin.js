@@ -1462,7 +1462,8 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           const matchResult = analyzeGroupMatch(anonGroup, compareGroup);
           
           // Lower threshold for anonymous matches since they're inherently valuable
-          if (matchResult.totalScore >= 12) {
+          // BUT with stricter algorithm, we can raise the threshold
+          if (matchResult.totalScore >= 25) {
             suggestions.push({
               group1: {
                 id: anonGroup.id,
@@ -1575,23 +1576,27 @@ function analyzeGroupMatch(group1, group2) {
   const matchingFactors = [];
   let totalScore = 0;
   
-  // 1. Voice count and clef combination analysis (25 points max)
+  // 1. Voice count and clef combination analysis (30 points max) - CLEF-FOCUSED
   const voiceScore = analyzeVoices(group1, group2, matchingFactors);
   totalScore += voiceScore;
   
-  // 2. Title similarity analysis (30 points max)
+  // 2. Title similarity analysis (25 points max) - STRICTER
   const titleScore = analyzeTitles(group1, group2, matchingFactors);
   totalScore += titleScore;
   
-  // 3. Composer attribution analysis (20 points max)
+  // 3. Composition properties analysis (25 points max) - NEW
+  const propertiesScore = analyzeCompositionProperties(group1, group2, matchingFactors);
+  totalScore += propertiesScore;
+  
+  // 4. Composer attribution analysis (15 points max) - REDUCED
   const composerScore = analyzeComposers(group1, group2, matchingFactors);
   totalScore += composerScore;
   
-  // 4. Source geographical and temporal analysis (15 points max)
+  // 5. Source geographical and temporal analysis (10 points max) - REDUCED
   const sourceScore = analyzeSources(group1, group2, matchingFactors);
   totalScore += sourceScore;
   
-  // 5. Inclusion notes similarity (10 points max)
+  // 6. Inclusion notes similarity (5 points max) - REDUCED
   const notesScore = analyzeInclusionNotes(group1, group2, matchingFactors);
   totalScore += notesScore;
   
@@ -1607,34 +1612,59 @@ function analyzeGroupMatch(group1, group2) {
 function analyzeVoices(group1, group2, factors) {
   let score = 0;
   
-  // Exact voice count match (high value)
-  if (group1.voice_count && group2.voice_count && group1.voice_count === group2.voice_count) {
-    score += 15;
-    factors.push({
-      description: `Same voice count (${group1.voice_count})`,
-      score: 15,
-      strength: 'strong'
-    });
+  // Voice count must match (prerequisite, not scoring factor)
+  if (!group1.voice_count || !group2.voice_count || group1.voice_count !== group2.voice_count) {
+    return 0; // No points if voice counts don't match
+  }
+  
+  // Small points for matching voice count (just acknowledgment)
+  score += 3;
+  factors.push({
+    description: `Same voice count (${group1.voice_count})`,
+    score: 3,
+    strength: 'weak'
+  });
+  
+  // CLEF COMBINATION IS THE MAIN FACTOR (up to 27 points)
+  if (group1.clef_combinations && group2.clef_combinations && 
+      group1.clef_combinations.length > 0 && group2.clef_combinations.length > 0) {
     
-    // Bonus for clef combination similarity
-    if (group1.clef_combinations && group2.clef_combinations) {
-      const clef1Set = new Set(group1.clef_combinations.map(c => JSON.stringify(c)));
-      const clef2Set = new Set(group2.clef_combinations.map(c => JSON.stringify(c)));
+    const clef1Set = new Set(group1.clef_combinations.map(c => JSON.stringify(c)));
+    const clef2Set = new Set(group2.clef_combinations.map(c => JSON.stringify(c)));
+    
+    const intersection = new Set([...clef1Set].filter(x => clef2Set.has(x)));
+    const union = new Set([...clef1Set, ...clef2Set]);
+    
+    if (intersection.size > 0 && union.size > 0) {
+      const similarity = intersection.size / union.size;
       
-      const intersection = new Set([...clef1Set].filter(x => clef2Set.has(x)));
-      const union = new Set([...clef1Set, ...clef2Set]);
-      
-      if (intersection.size > 0 && union.size > 0) {
-        const similarity = intersection.size / union.size;
-        if (similarity >= 0.5) {
-          const bonusScore = Math.round(similarity * 10);
-          score += bonusScore;
-          factors.push({
-            description: `Similar clef combinations (${Math.round(similarity * 100)}% overlap)`,
-            score: bonusScore,
-            strength: similarity >= 0.8 ? 'strong' : 'medium'
-          });
-        }
+      if (similarity >= 0.9) {
+        // Nearly identical clef combinations - very strong evidence
+        const clefScore = 27;
+        score += clefScore;
+        factors.push({
+          description: `Nearly identical clef combinations (${Math.round(similarity * 100)}% match)`,
+          score: clefScore,
+          strength: 'strong'
+        });
+      } else if (similarity >= 0.7) {
+        // Good clef similarity - strong evidence
+        const clefScore = Math.round(similarity * 20);
+        score += clefScore;
+        factors.push({
+          description: `Strong clef combination similarity (${Math.round(similarity * 100)}% match)`,
+          score: clefScore,
+          strength: 'strong'
+        });
+      } else if (similarity >= 0.5) {
+        // Moderate clef similarity - medium evidence
+        const clefScore = Math.round(similarity * 12);
+        score += clefScore;
+        factors.push({
+          description: `Moderate clef combination similarity (${Math.round(similarity * 100)}% match)`,
+          score: clefScore,
+          strength: 'medium'
+        });
       }
     }
   }
@@ -1673,65 +1703,63 @@ function analyzeTitles(group1, group2, factors) {
       strength: 'strong'
     });
   } else {
-    // Enhanced fuzzy title matching with translation/contrafacta detection
+    // MUCH STRICTER fuzzy title matching
     let isPotentialTranslation = false;
     
     for (const pair1 of titlePairs1) {
       for (const pair2 of titlePairs2) {
+        // Check for substantial word overlap (new strict requirement)
+        const wordOverlap = calculateWordOverlap(pair1.text, pair2.text);
         const similarity = calculateTitleSimilarity(pair1.text, pair2.text);
         
-        if (similarity > bestSimilarity) {
+        if (similarity > bestSimilarity && wordOverlap.commonWords >= 2) {
           bestSimilarity = similarity;
           bestMatch = { 
             title1: pair1.text, 
             title2: pair2.text, 
             lang1: pair1.language, 
-            lang2: pair2.language 
+            lang2: pair2.language,
+            wordOverlap: wordOverlap
           };
           
           // Check if this might be a translation (different languages, high similarity)
           isPotentialTranslation = pair1.language && pair2.language && 
             pair1.language !== pair2.language && 
-            similarity >= 0.75;
+            similarity >= 0.85 && wordOverlap.commonWords >= 3;
         }
       }
     }
     
-    if (bestSimilarity >= 0.7) {
+    // STRICTER thresholds: require both high similarity AND word overlap
+    if (bestSimilarity >= 0.85 && bestMatch.wordOverlap.commonWords >= 3) {
       let similarityScore = Math.round(bestSimilarity * 20);
       
       // Bonus for potential translations/contrafacta
       if (isPotentialTranslation) {
-        const translationBonus = 8;
+        const translationBonus = 5;
         score += similarityScore + translationBonus;
         
         factors.push({
-          description: `Potential translation/contrafactum: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (different languages)`,
+          description: `Potential translation/contrafactum: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words)`,
           score: similarityScore + translationBonus,
           strength: 'strong'
         });
       } else {
         score += similarityScore;
         factors.push({
-          description: `Similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${Math.round(bestSimilarity * 100)}%)`,
+          description: `Very similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words, ${Math.round(bestSimilarity * 100)}% similarity)`,
           score: similarityScore,
-          strength: bestSimilarity >= 0.85 ? 'strong' : 'medium'
+          strength: bestSimilarity >= 0.9 ? 'strong' : 'medium'
         });
       }
-    }
-  }
-  
-  // Additional check: very similar titles but different languages (even if not caught above)
-  if (!exactMatches.length && bestSimilarity < 0.7) {
-    const crossLanguageMatches = findCrossLanguageMatches(group1, group2);
-    if (crossLanguageMatches.length > 0) {
-      const crossLangScore = 12;
-      score += crossLangScore;
-      
+    } else if (bestSimilarity >= 0.75 && bestMatch.wordOverlap.commonWords >= 2) {
+      // Lower threshold still requires word overlap
+      const similarityScore = Math.round(bestSimilarity * 12);
+      score += similarityScore;
       factors.push({
-        description: `Cross-language title similarity - potential translation: "${crossLanguageMatches[0].title1}" / "${crossLanguageMatches[0].title2}"`,
-        score: crossLangScore,
-        strength: 'strong'
+        description: `Similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words)`,
+        score: similarityScore,
+        strength: 'medium'
       });
     }
   }
@@ -2077,39 +2105,33 @@ function findCrossLanguageMatches(group1, group2) {
   return matches;
 }
 
-// Helper function for quick pre-filtering
+// Helper function for quick pre-filtering - MUCH STRICTER
 function hasQuickTitleOverlap(group1, group2) {
   if (!group1.title_language_pairs || !group2.title_language_pairs) {
     return false;
   }
   
-  const titles1 = group1.title_language_pairs.map(p => p.text.toLowerCase().trim());
-  const titles2 = group2.title_language_pairs.map(p => p.text.toLowerCase().trim());
+  const titles1 = group1.title_language_pairs.map(p => p.text);
+  const titles2 = group2.title_language_pairs.map(p => p.text);
   
-  // Quick check for exact matches or similar first words
+  // Check for meaningful word overlap (stricter pre-filter)
   for (const title1 of titles1) {
     for (const title2 of titles2) {
       // Exact match
-      if (title1 === title2) return true;
+      if (title1.toLowerCase().trim() === title2.toLowerCase().trim()) {
+        return true;
+      }
       
-      // Similar length and first word
-      const words1 = title1.split(' ');
-      const words2 = title2.split(' ');
+      // Check for substantial word overlap
+      const wordOverlap = calculateWordOverlap(title1, title2);
+      if (wordOverlap.commonWords >= 2) {
+        return true;
+      }
       
-      if (words1.length > 0 && words2.length > 0) {
-        const firstWord1 = words1[0];
-        const firstWord2 = words2[0];
-        
-        // Same first word (at least 3 chars)
-        if (firstWord1.length >= 3 && firstWord1 === firstWord2) {
-          return true;
-        }
-        
-        // Very similar length titles (potential translations)
-        if (Math.abs(title1.length - title2.length) <= 5 && 
-            Math.min(title1.length, title2.length) >= 8) {
-          return true;
-        }
+      // For very short titles, allow single meaningful word match
+      if (wordOverlap.words1.length <= 2 && wordOverlap.words2.length <= 2 && 
+          wordOverlap.commonWords >= 1 && wordOverlap.overlap[0].length >= 4) {
+        return true;
       }
     }
   }
@@ -2122,6 +2144,137 @@ function getConfidenceLevel(score) {
   if (score >= 50) return 'High';
   if (score >= 30) return 'Medium';
   return 'Low';
+}
+
+function analyzeCompositionProperties(group1, group2, factors) {
+  let score = 0;
+  
+  // Extract composition properties from parsed data
+  const tones1 = group1.tones || [];
+  const tones2 = group2.tones || [];
+  
+  // For composition type, we'll need to extract it from group names/titles
+  // This is a simplified approach - in a full implementation you'd want to store this separately
+  
+  // TONE ANALYSIS (up to 12 points)
+  if (tones1.length > 0 && tones2.length > 0) {
+    const tone1Set = new Set(tones1);
+    const tone2Set = new Set(tones2);
+    const commonTones = [...tone1Set].filter(t => tone2Set.has(t));
+    
+    if (commonTones.length > 0) {
+      if (tone1Set.size === 1 && tone2Set.size === 1 && commonTones.length === 1) {
+        // Exact single tone match - strong evidence
+        score += 12;
+        factors.push({
+          description: `Same musical tone: ${commonTones[0]}`,
+          score: 12,
+          strength: 'strong'
+        });
+      } else if (commonTones.length > 0) {
+        // Some tone overlap
+        const toneScore = Math.min(commonTones.length * 6, 10);
+        score += toneScore;
+        factors.push({
+          description: `Common musical tones: ${commonTones.join(', ')}`,
+          score: toneScore,
+          strength: 'medium'
+        });
+      }
+    } else {
+      // Different tones - deduct points for certain types
+      const conflictingTones = tones1.length === 1 && tones2.length === 1 && 
+                               tones1[0] !== tones2[0] &&
+                               ['1', '2', '3', '4', '5', '6', '7', '8'].includes(tones1[0]) &&
+                               ['1', '2', '3', '4', '5', '6', '7', '8'].includes(tones2[0]);
+      
+      if (conflictingTones) {
+        score -= 8;
+        factors.push({
+          description: `Different musical modes: ${tones1[0]} vs ${tones2[0]} (likely different works)`,
+          score: -8,
+          strength: 'strong'
+        });
+      }
+    }
+  }
+  
+  // COMPOSITION TYPE ANALYSIS (up to 8 points)
+  // Look for type indicators in titles
+  const getTypeFromTitles = (group) => {
+    const titles = group.title_language_pairs?.map(p => p.text.toLowerCase()) || [];
+    for (const title of titles) {
+      if (title.includes('magnificat')) return 'magnificat';
+      if (title.includes('mass') || title.includes('missa')) return 'mass';
+      if (title.includes('motet')) return 'motet';
+      if (title.includes('hymn')) return 'hymn';
+      if (title.includes('psalm')) return 'psalm';
+      if (title.includes('antiphon')) return 'antiphon';
+      if (title.includes('responsory')) return 'responsory';
+    }
+    return null;
+  };
+  
+  const type1 = getTypeFromTitles(group1);
+  const type2 = getTypeFromTitles(group2);
+  
+  if (type1 && type2) {
+    if (type1 === type2) {
+      score += 8;
+      factors.push({
+        description: `Same composition type: ${type1}`,
+        score: 8,
+        strength: 'medium'
+      });
+    } else {
+      score -= 5;
+      factors.push({
+        description: `Different composition types: ${type1} vs ${type2}`,
+        score: -5,
+        strength: 'medium'
+      });
+    }
+  }
+  
+  // EVEN/ODD ANALYSIS (up to 5 points)
+  // This would need to be extracted from the parsed data
+  // For now, we'll skip this as it's not easily accessible in current data structure
+  
+  return Math.max(score, -10); // Don't allow too negative scores
+}
+
+// Helper function to calculate meaningful word overlap between titles
+function calculateWordOverlap(title1, title2) {
+  if (!title1 || !title2) return { commonWords: 0, words1: [], words2: [], overlap: [] };
+  
+  // Normalize and split into words
+  const normalize = (title) => {
+    return title.toLowerCase()
+      .replace(/[^\w\s]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ')    // Normalize whitespace
+      .trim()
+      // Historical character substitutions
+      .replace(/[ij]/g, 'i')   // i/j interchangeability
+      .replace(/[uv]/g, 'u');  // u/v interchangeability
+  };
+  
+  const words1 = normalize(title1).split(' ').filter(w => w.length > 2); // Ignore very short words
+  const words2 = normalize(title2).split(' ').filter(w => w.length > 2);
+  
+  // Find common words (excluding very common Latin/music terms that don't add meaning)
+  const stopwords = new Set(['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an', 'de', 'la', 'le', 'il', 'del', 'della', 'von', 'van', 'da', 'di']);
+  
+  const meaningfulWords1 = words1.filter(w => !stopwords.has(w));
+  const meaningfulWords2 = words2.filter(w => !stopwords.has(w));
+  
+  const overlap = meaningfulWords1.filter(w => meaningfulWords2.includes(w));
+  
+  return {
+    commonWords: overlap.length,
+    words1: meaningfulWords1,
+    words2: meaningfulWords2,
+    overlap: overlap
+  };
 }
 
 export default router; 
