@@ -596,23 +596,26 @@ router.post('/groups/bulk-title-correction', async (req, res) => {
 
     for (const groupId of groupIds) {
       try {
-        // Get the group and verify it has exactly one composition
+        // Get the group and verify it has either:
+        // 1. Exactly one composition, OR
+        // 2. Multiple compositions that all have the same title
         const groupResult = await client.query(`
           SELECT 
             g.id, 
             g.display_title,
             COUNT(DISTINCT c.id) as composition_count,
+            COUNT(DISTINCT t.text) as unique_title_count,
             t.text as composition_title
           FROM groups g
           LEFT JOIN compositions c ON c.group_id = g.id
           LEFT JOIN titles t ON c.title_id = t.id
           WHERE g.id = $1
           GROUP BY g.id, g.display_title, t.text
-          HAVING COUNT(DISTINCT c.id) = 1
+          HAVING COUNT(DISTINCT c.id) >= 1 AND COUNT(DISTINCT t.text) = 1
         `, [groupId]);
 
         if (groupResult.rows.length === 0) {
-          errors.push(`Group ${groupId}: Not found or does not have exactly one composition`);
+          errors.push(`Group ${groupId}: Not found, has no compositions, or compositions have different titles`);
           continue;
         }
 
