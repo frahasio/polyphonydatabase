@@ -439,11 +439,12 @@
                 
                 showLoading(false);
                 
-                if (suggestions.length === 0) {
-                    showNoResults();
-                } else {
-                    displayResults(suggestions);
-                    displayStats(stats);
+                // Always call displayResults - it handles empty cases properly
+                displayResults(suggestions);
+                displayStats(stats);
+                
+                // Only show action bar if we have results
+                if (suggestions.length > 0) {
                     document.getElementById('actionBar').style.display = 'flex';
                 }
                 
@@ -653,13 +654,20 @@
             
             // Filter groups by their best match confidence
             const highConfidenceGroups = groupedSuggestions.filter(group => 
-                group.potentialMatches.some(m => m.confidence === 'High')
+                group.potentialMatches && group.potentialMatches.some(m => m.confidence === 'High')
             );
             const mediumConfidenceGroups = groupedSuggestions.filter(group => 
-                group.potentialMatches.some(m => m.confidence === 'Medium') && 
+                group.potentialMatches && group.potentialMatches.some(m => m.confidence === 'Medium') && 
                 !group.potentialMatches.some(m => m.confidence === 'High')
             );
             
+            // Show message if no high or medium confidence results
+            if (highConfidenceGroups.length === 0 && mediumConfidenceGroups.length === 0) {
+                showNoResults();
+                return;
+            }
+            
+            // Only show results container if we have actual results to display
             document.getElementById('results-container').style.display = 'block';
             
             if (highConfidenceGroups.length > 0) {
@@ -668,11 +676,6 @@
             
             if (mediumConfidenceGroups.length > 0) {
                 displayConfidenceGroup('Medium', mediumConfidenceGroups, 'warning');
-            }
-            
-            // Show message if no high or medium confidence results
-            if (highConfidenceGroups.length === 0 && mediumConfidenceGroups.length === 0) {
-                showNoResults();
             }
         }
 
