@@ -1087,175 +1087,220 @@ router.get('/cleanup-preview', async (req, res) => {
   }
 });
 
-// Group Suggestions - AI-powered duplicate detection
-router.get('/group-suggestions', async (req, res) => {
+// GET /api/admin/group-suggestions - Generate composition merge suggestions
+router.get('/api/admin/group-suggestions', requireAdmin, async (req, res) => {
   try {
     console.log('Starting group suggestions analysis...');
     const startTime = Date.now();
     
-    // Get all groups with their detailed composition information
+    // Enhanced query with pre-filtering for efficiency
     const groupsQuery = `
-      WITH group_details AS (
+      WITH groupsQuery AS (
         SELECT 
-          g.id,
-          g.display_title,
-          COUNT(DISTINCT c.id) as composition_count,
-          -- Get voice counts (prioritize most common)
-          MODE() WITHIN GROUP (ORDER BY c.number_of_voices) as primary_voices,
-          array_agg(DISTINCT c.number_of_voices) FILTER (WHERE c.number_of_voices IS NOT NULL) as all_voices,
-          
-          -- Get composer information with anonymous detection
-          (
-            SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
-            FROM composers comp
-            WHERE comp.id = ANY(
-              SELECT DISTINCT unnest(composer_id_list)
-              FROM compositions c2
-              WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
-            )
-          ) as composers,
-          
-          -- Get composer date ranges for chronological analysis
-          (
-            SELECT json_agg(DISTINCT jsonb_build_object(
-              'id', comp.id,
-              'name', comp.name,
-              'from_year', comp.from_year,
-              'to_year', comp.to_year
-            )) FILTER (WHERE comp.id IS NOT NULL)
-            FROM composers comp
-            WHERE comp.id = ANY(
-              SELECT DISTINCT unnest(composer_id_list)
-              FROM compositions c2
-              WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
-            )
-          ) as composer_details,
-          
-          -- Check if any composition has anonymous (ID 23) composer
-          (
-            SELECT COUNT(*) > 0 
-            FROM compositions c2
-            WHERE c2.group_id = g.id 
-            AND c2.composer_id_list IS NOT NULL 
-            AND 23 = ANY(c2.composer_id_list)
-          ) as has_anonymous,
-          
-          -- Get unique composer count (excluding anonymous)
-          (
-            SELECT COUNT(DISTINCT composer_id)
-            FROM compositions c2
-            CROSS JOIN unnest(c2.composer_id_list) AS composer_id
-            WHERE c2.group_id = g.id 
-            AND c2.composer_id_list IS NOT NULL
-            AND composer_id != 23
-          ) as unique_composer_count,
-          
-          -- Get most common clef combinations from inclusions
-          (
-            SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL)
-            FROM compositions c2
-            JOIN inclusions i ON c2.id = i.composition_id
-            WHERE c2.group_id = g.id
-          ) as clef_combinations,
-          
-          -- Get source date ranges and locations
-          (
-            SELECT json_agg(DISTINCT jsonb_build_object(
-              'from_year', s.from_year,
-              'to_year', s.to_year,
-              'town', s.town,
-              'type', s.type
-            )) FILTER (WHERE s.id IS NOT NULL)
-            FROM compositions c2
-            JOIN inclusions i ON c2.id = i.composition_id
-            JOIN sources s ON i.source_id = s.id
-            WHERE c2.group_id = g.id
-          ) as source_info,
-          
-          -- Get inclusion notes for text analysis
-          (
-            SELECT string_agg(i.notes, ' | ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
-            FROM compositions c2
-            JOIN inclusions i ON c2.id = i.composition_id
-            WHERE c2.group_id = g.id
-          ) as inclusion_notes,
-          
-          -- Get all titles used in this group
-          (
-            SELECT array_agg(DISTINCT t.text) FILTER (WHERE t.text IS NOT NULL)
-            FROM compositions c2
-            JOIN titles t ON c2.title_id = t.id
-            WHERE c2.group_id = g.id
-          ) as composition_titles,
-          
-          -- Get titles and languages properly paired for translation detection
-          (
-            SELECT json_agg(DISTINCT jsonb_build_object(
-              'text', t.text,
-              'language', t.language
-            )) FILTER (WHERE t.text IS NOT NULL)
-            FROM compositions c2
-            JOIN titles t ON c2.title_id = t.id
-            WHERE c2.group_id = g.id
-          ) as title_language_pairs,
-          
-          -- Get tone information
-          (
-            SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
-            FROM compositions c2
-            WHERE c2.group_id = g.id
-          ) as tones
-          
+           g.id,
+           g.name,
+           
+           -- Get voice count for initial filtering
+           (
+             SELECT MODE() WITHIN GROUP (ORDER BY i.voices)
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             WHERE c2.group_id = g.id AND i.voices IS NOT NULL
+           ) as voice_count,
+           
+           -- Get most common clef combination for filtering
+           (
+             SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             WHERE c2.group_id = g.id
+           ) as clef_combinations,
+           
+           -- Get titles and languages properly paired for translation detection
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'text', t.text,
+               'language', t.language
+             )) FILTER (WHERE t.text IS NOT NULL)
+             FROM compositions c2
+             JOIN titles t ON c2.title_id = t.id
+             WHERE c2.group_id = g.id
+           ) as title_language_pairs,
+           
+           -- Get tone information
+           (
+             SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+             FROM compositions c2
+             WHERE c2.group_id = g.id
+           ) as tones,
+           
+           -- Get composer information with dates for chronological analysis
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'id', comp.id,
+               'name', comp.name,
+               'from_year', comp.from_year,
+               'to_year', comp.to_year
+             )) FILTER (WHERE comp.id IS NOT NULL)
+             FROM compositions c2
+             JOIN composer_composition cc ON c2.id = cc.composition_id
+             JOIN composers comp ON cc.composer_id = comp.id
+             WHERE c2.group_id = g.id
+           ) as composer_details,
+           
+           -- Get source information
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'id', s.id,
+               'name', s.name,
+               'location', s.location,
+               'from_year', s.from_year,
+               'to_year', s.to_year
+             )) FILTER (WHERE s.id IS NOT NULL)
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             JOIN sources s ON i.source_id = s.id
+             WHERE c2.group_id = g.id
+           ) as source_details,
+           
+           -- Get inclusion notes for text analysis
+           (
+             SELECT string_agg(DISTINCT i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             WHERE c2.group_id = g.id
+           ) as inclusion_notes
+           
         FROM groups g
-        LEFT JOIN compositions c ON g.id = c.group_id
-        WHERE EXISTS (SELECT 1 FROM compositions c2 WHERE c2.group_id = g.id)
-        GROUP BY g.id, g.display_title
-        HAVING COUNT(DISTINCT c.id) > 0
+        WHERE g.id IN (
+          SELECT DISTINCT c.group_id 
+          FROM compositions c 
+          WHERE c.group_id IS NOT NULL
+        )
+        -- Pre-filter: only groups with multiple potential match criteria
+        AND EXISTS (
+          SELECT 1 FROM compositions c2 
+          JOIN inclusions i ON c2.id = i.composition_id 
+          WHERE c2.group_id = g.id AND i.voices BETWEEN 2 AND 8
+        )
+        -- Limit to reduce memory usage and processing time
+        ORDER BY g.id
+        LIMIT 5000
       )
-      SELECT * FROM group_details
-      ORDER BY id
+      SELECT * FROM groupsQuery 
+      WHERE voice_count IS NOT NULL 
+        AND title_language_pairs IS NOT NULL 
+        AND composer_details IS NOT NULL
+      ORDER BY voice_count, id;
     `;
-    
-    const groupsResult = await pool.query(groupsQuery);
-    const groups = groupsResult.rows;
+
+    const result = await pool.query(groupsQuery);
+    const groups = result.rows;
     
     console.log(`Loaded ${groups.length} groups for analysis`);
     
-    if (groups.length < 2) {
-      return res.json([]);
+    if (groups.length === 0) {
+      return res.json({
+        suggestions: [],
+        stats: {
+          totalGroups: 0,
+          suggestionsFound: 0,
+          highConfidence: 0,
+          mediumConfidence: 0,
+          lowConfidence: 0,
+          analysisTime: Date.now() - startTime
+        }
+      });
     }
     
     const suggestions = [];
+    const batchSize = 100; // Process in smaller batches
+    const maxSuggestions = 200; // Limit total suggestions
     
-    // Compare each group with every other group
-    for (let i = 0; i < groups.length; i++) {
-      for (let j = i + 1; j < groups.length; j++) {
-        const group1 = groups[i];
-        const group2 = groups[j];
+    // Group by voice count for efficient comparison
+    const groupsByVoices = {};
+    for (const group of groups) {
+      const voices = group.voice_count;
+      if (!groupsByVoices[voices]) {
+        groupsByVoices[voices] = [];
+      }
+      groupsByVoices[voices].push(group);
+    }
+    
+    // Only compare groups with same voice count
+    for (const [voiceCount, voiceGroups] of Object.entries(groupsByVoices)) {
+      if (voiceGroups.length < 2) continue;
+      
+      console.log(`Analyzing ${voiceGroups.length} groups with ${voiceCount} voices`);
+      
+      // Process in batches to avoid memory issues
+      for (let i = 0; i < voiceGroups.length && suggestions.length < maxSuggestions; i += batchSize) {
+        const batch = voiceGroups.slice(i, Math.min(i + batchSize, voiceGroups.length));
         
-        const suggestion = analyzeGroupMatch(group1, group2);
+        for (let j = 0; j < batch.length && suggestions.length < maxSuggestions; j++) {
+          for (let k = j + 1; k < voiceGroups.length && suggestions.length < maxSuggestions; k++) {
+            const group1 = batch[j];
+            const group2 = voiceGroups[k];
+            
+            if (group1.id === group2.id) continue;
+            
+            // Quick pre-filter: skip if no title overlap potential
+            if (!hasQuickTitleOverlap(group1, group2)) continue;
+            
+            const matchResult = analyzeGroupMatch(group1, group2);
+            
+            if (matchResult.totalScore >= 15) { // Only keep decent matches
+              suggestions.push({
+                group1: {
+                  id: group1.id,
+                  name: group1.name,
+                  voice_count: group1.voice_count,
+                  titles: group1.title_language_pairs?.map(p => p.text) || [],
+                  composers: group1.composer_details?.map(c => c.name) || []
+                },
+                group2: {
+                  id: group2.id,
+                  name: group2.name,
+                  voice_count: group2.voice_count,
+                  titles: group2.title_language_pairs?.map(p => p.text) || [],
+                  composers: group2.composer_details?.map(c => c.name) || []
+                },
+                matchScore: matchResult.totalScore,
+                confidence: getConfidenceLevel(matchResult.totalScore),
+                factors: matchResult.factors,
+                notes: generateMatchNotes(group1, group2, matchResult.totalScore)
+              });
+            }
+          }
+        }
         
-        // Only include suggestions with meaningful scores
-        if (suggestion.match_score >= 30) {
-          suggestions.push(suggestion);
+        // Force garbage collection between batches
+        if (global.gc) {
+          global.gc();
         }
       }
     }
     
-    // Sort by match score (highest first)
-    suggestions.sort((a, b) => b.match_score - a.match_score);
+    // Sort by score and limit results
+    suggestions.sort((a, b) => b.matchScore - a.matchScore);
+    suggestions.splice(150); // Keep top 150 suggestions max
     
-    // Limit to top 50 results to keep response manageable
-    const topSuggestions = suggestions.slice(0, 50);
+    const stats = {
+      totalGroups: groups.length,
+      suggestionsFound: suggestions.length,
+      highConfidence: suggestions.filter(s => s.confidence === 'High').length,
+      mediumConfidence: suggestions.filter(s => s.confidence === 'Medium').length,
+      lowConfidence: suggestions.filter(s => s.confidence === 'Low').length,
+      analysisTime: Date.now() - startTime
+    };
     
-    const endTime = Date.now();
-    console.log(`Analysis completed in ${endTime - startTime}ms, found ${topSuggestions.length} suggestions`);
+    console.log(`Analysis complete. Found ${suggestions.length} suggestions in ${stats.analysisTime}ms`);
     
-    res.json(topSuggestions);
+    res.json({ suggestions, stats });
     
   } catch (error) {
     console.error('Error generating group suggestions:', error);
-    res.status(500).json({ error: 'Failed to generate group suggestions' });
+    res.status(500).json({ error: 'Failed to generate suggestions' });
   }
 });
 
@@ -1793,6 +1838,46 @@ function findCrossLanguageMatches(group1, group2) {
   }
   
   return matches;
+}
+
+// Helper function for quick pre-filtering
+function hasQuickTitleOverlap(group1, group2) {
+  if (!group1.title_language_pairs || !group2.title_language_pairs) {
+    return false;
+  }
+  
+  const titles1 = group1.title_language_pairs.map(p => p.text.toLowerCase().trim());
+  const titles2 = group2.title_language_pairs.map(p => p.text.toLowerCase().trim());
+  
+  // Quick check for exact matches or similar first words
+  for (const title1 of titles1) {
+    for (const title2 of titles2) {
+      // Exact match
+      if (title1 === title2) return true;
+      
+      // Similar length and first word
+      const words1 = title1.split(' ');
+      const words2 = title2.split(' ');
+      
+      if (words1.length > 0 && words2.length > 0) {
+        const firstWord1 = words1[0];
+        const firstWord2 = words2[0];
+        
+        // Same first word (at least 3 chars)
+        if (firstWord1.length >= 3 && firstWord1 === firstWord2) {
+          return true;
+        }
+        
+        // Very similar length titles (potential translations)
+        if (Math.abs(title1.length - title2.length) <= 5 && 
+            Math.min(title1.length, title2.length) >= 8) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
 }
 
 export default router; 

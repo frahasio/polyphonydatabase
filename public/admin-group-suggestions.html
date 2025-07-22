@@ -103,12 +103,12 @@
 
     <div class="container">
         <!-- Analysis Stats -->
-        <div id="analysisStats" class="row g-3 mb-4" style="display: none;">
+        <div id="stats-container" class="row g-3 mb-4" style="display: none;">
             <div class="col-md-3">
                 <div class="card stats-card h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-collection text-primary display-6"></i>
-                        <h4 id="totalGroups" class="mt-2 mb-0">-</h4>
+                        <h4 id="total-groups" class="mt-2 mb-0">-</h4>
                         <small class="text-muted">Groups Analyzed</small>
                     </div>
                 </div>
@@ -117,7 +117,7 @@
                 <div class="card stats-card h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-search text-success display-6"></i>
-                        <h4 id="totalSuggestions" class="mt-2 mb-0">-</h4>
+                        <h4 id="total-suggestions" class="mt-2 mb-0">-</h4>
                         <small class="text-muted">Potential Matches</small>
                     </div>
                 </div>
@@ -126,7 +126,7 @@
                 <div class="card stats-card h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-star text-warning display-6"></i>
-                        <h4 id="highConfidence" class="mt-2 mb-0">-</h4>
+                        <h4 id="high-confidence" class="mt-2 mb-0">-</h4>
                         <small class="text-muted">High Confidence</small>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
                 <div class="card stats-card h-100">
                     <div class="card-body text-center">
                         <i class="bi bi-stopwatch text-info display-6"></i>
-                        <h4 id="analysisTime" class="mt-2 mb-0">-</h4>
+                        <h4 id="analysis-time" class="mt-2 mb-0">-</h4>
                         <small class="text-muted">Analysis Time</small>
                     </div>
                 </div>
@@ -154,33 +154,15 @@
         </div>
 
         <!-- Results Container -->
-        <div id="resultsContainer" style="display: none;">
+        <div id="results-container" style="display: none;">
             <!-- High Confidence Matches -->
-            <div id="highConfidenceSection" style="display: none;">
-                <h3 class="text-success mb-3">
-                    <i class="bi bi-check-circle-fill me-2"></i>
-                    High Confidence Matches (80%+)
-                </h3>
-                <div id="highConfidenceResults" class="row g-3 mb-5"></div>
-            </div>
+            <div id="high-confidence" class="row g-3 mb-5"></div>
 
             <!-- Medium Confidence Matches -->
-            <div id="mediumConfidenceSection" style="display: none;">
-                <h3 class="text-warning mb-3">
-                    <i class="bi bi-exclamation-circle-fill me-2"></i>
-                    Medium Confidence Matches (60-79%)
-                </h3>
-                <div id="mediumConfidenceResults" class="row g-3 mb-5"></div>
-            </div>
+            <div id="medium-confidence" class="row g-3 mb-5"></div>
 
             <!-- Low Confidence Matches -->
-            <div id="lowConfidenceSection" style="display: none;">
-                <h3 class="text-secondary mb-3">
-                    <i class="bi bi-question-circle-fill me-2"></i>
-                    Low Confidence Matches (30-59%)
-                </h3>
-                <div id="lowConfidenceResults" class="row g-3 mb-5"></div>
-            </div>
+            <div id="low-confidence" class="row g-3 mb-5"></div>
 
             <!-- No Results -->
             <div id="noResults" style="display: none;">
@@ -268,151 +250,152 @@
         }
 
         async function startAnalysis() {
-            const startTime = Date.now();
+            showLoading(true);
+            resetResults();
             
             try {
                 const response = await fetch('/api/admin/group-suggestions');
-                
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || `Server error: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const suggestions = await response.json();
-                const endTime = Date.now();
-                const duration = endTime - startTime;
+                const data = await response.json();
                 
-                currentSuggestions = suggestions;
-                analysisStats = {
-                    totalSuggestions: suggestions.length,
-                    highConfidence: suggestions.filter(s => s.match_score >= 80).length,
-                    mediumConfidence: suggestions.filter(s => s.match_score >= 60 && s.match_score < 80).length,
-                    lowConfidence: suggestions.filter(s => s.match_score >= 30 && s.match_score < 60).length,
-                    analysisTime: duration
-                };
+                // Handle new response format with suggestions and stats
+                const suggestions = data.suggestions || [];
+                const stats = data.stats || {};
                 
-                displayResults(suggestions);
+                showLoading(false);
+                
+                if (suggestions.length === 0) {
+                    showNoResults();
+                } else {
+                    displayResults(suggestions);
+                    displayStats(stats);
+                }
                 
             } catch (error) {
-                console.error('Error during analysis:', error);
-                showError(error.message);
+                console.error('Analysis failed:', error);
+                showLoading(false);
+                showError(error.message || 'Failed to analyze group suggestions. Please try again.');
             }
         }
 
         function displayResults(suggestions) {
-            // Hide loading
-            document.getElementById('loadingContainer').style.display = 'none';
+            // Categorize suggestions by confidence
+            const highConfidence = suggestions.filter(s => s.confidence === 'High');
+            const mediumConfidence = suggestions.filter(s => s.confidence === 'Medium');
+            const lowConfidence = suggestions.filter(s => s.confidence === 'Low');
             
-            if (suggestions.length === 0) {
-                document.getElementById('noResults').style.display = 'block';
-                return;
-            }
+            // Show results container
+            document.getElementById('results-container').style.display = 'block';
             
-            // Show results container and action bar
-            document.getElementById('resultsContainer').style.display = 'block';
-            document.getElementById('actionBar').style.display = 'flex';
-            
-            // Update stats
-            displayStats();
-            
-            // Group suggestions by confidence
-            const grouped = {
-                high: suggestions.filter(s => s.match_score >= 80),
-                medium: suggestions.filter(s => s.match_score >= 60 && s.match_score < 80),
-                low: suggestions.filter(s => s.match_score >= 30 && s.match_score < 60)
-            };
-            
-            // Display each group
-            displayConfidenceGroup('high', grouped.high, 'success');
-            displayConfidenceGroup('medium', grouped.medium, 'warning');
-            displayConfidenceGroup('low', grouped.low, 'secondary');
+            // Display each confidence level
+            displayConfidenceGroup('High', highConfidence, 'success');
+            displayConfidenceGroup('Medium', mediumConfidence, 'warning');
+            displayConfidenceGroup('Low', lowConfidence, 'secondary');
         }
 
         function displayConfidenceGroup(level, suggestions, colorClass) {
-            if (suggestions.length === 0) return;
+            const containerId = `${level.toLowerCase()}-confidence`;
+            const container = document.getElementById(containerId);
             
-            const sectionId = `${level}ConfidenceSection`;
-            const resultsId = `${level}ConfidenceResults`;
+            if (!container) return;
             
-            document.getElementById(sectionId).style.display = 'block';
+            if (suggestions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-muted text-center py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No ${level.toLowerCase()} confidence matches found
+                    </div>
+                `;
+                return;
+            }
             
-            const container = document.getElementById(resultsId);
-            container.innerHTML = suggestions.map(suggestion => generateSuggestionCard(suggestion, colorClass)).join('');
+            container.innerHTML = suggestions.map(suggestion => 
+                generateSuggestionCard(suggestion, colorClass)
+            ).join('');
         }
 
         function generateSuggestionCard(suggestion, colorClass) {
+            const group1 = suggestion.group1;
+            const group2 = suggestion.group2;
+            
             return `
-                <div class="col-12">
-                    <div class="card confidence-${colorClass === 'success' ? 'high' : colorClass === 'warning' ? 'medium' : 'low'} h-100">
-                        <div class="card-header bg-${colorClass} text-white">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-link-45deg me-2"></i>
-                                    Potential Match: ${suggestion.match_score}% confidence
+                <div class="card mb-3 border-${colorClass}">
+                    <div class="card-header bg-${colorClass} bg-opacity-10">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="mb-0 text-${colorClass}">
+                                    <i class="bi bi-star-fill me-2"></i>
+                                    Match Score: ${suggestion.matchScore} (${suggestion.confidence} Confidence)
                                 </h6>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group1.display_title)}" 
-                                       target="_blank" class="btn btn-outline-light btn-sm">
-                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 1
+                            </div>
+                            <div class="col-auto">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="/modules/sources/index.html?group=${group1.id}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-eye me-1"></i>View Group 1
                                     </a>
-                                    <a href="/admin/groups?search=${encodeURIComponent(suggestion.group2.display_title)}" 
-                                       target="_blank" class="btn btn-outline-light btn-sm">
-                                        <i class="bi bi-box-arrow-up-right me-1"></i>Group 2
+                                    <a href="/modules/sources/index.html?group=${group2.id}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-eye me-1"></i>View Group 2
                                     </a>
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-5">
-                                    <h6 class="text-primary fw-bold">${suggestion.group1.display_title}</h6>
-                                    <small class="text-muted">
-                                        <strong>Composer:</strong> ${suggestion.group1.composer || 'Unknown'}<br>
-                                        <strong>Voices:</strong> ${suggestion.group1.voices || 'Unknown'}<br>
-                                        <strong>Sources:</strong> ${suggestion.group1.source_count || 0}
-                                    </small>
-                                </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="match-score text-${colorClass}">${suggestion.match_score}%</div>
-                                    <div class="match-arrow">⟷</div>
-                                </div>
-                                <div class="col-md-5">
-                                    <h6 class="text-primary fw-bold">${suggestion.group2.display_title}</h6>
-                                    <small class="text-muted">
-                                        <strong>Composer:</strong> ${suggestion.group2.composer || 'Unknown'}<br>
-                                        <strong>Voices:</strong> ${suggestion.group2.voices || 'Unknown'}<br>
-                                        <strong>Sources:</strong> ${suggestion.group2.source_count || 0}
-                                    </small>
-                                </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Group ${group1.id}: ${group1.name || 'Unnamed Group'}</h6>
+                                <p class="mb-2"><strong>Voices:</strong> ${group1.voice_count || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${group1.titles?.join(', ') || 'No titles'}</p>
+                                <p class="mb-0"><strong>Composers:</strong> ${group1.composers?.join(', ') || 'Unknown'}</p>
                             </div>
-                            <div class="mt-3">
-                                <h6>Match Analysis:</h6>
-                                <div class="row g-2 mb-2">
-                                    ${suggestion.matching_factors.map(factor => `
-                                        <div class="col-auto">
-                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : 
-                                                                   factor.strength === 'medium' ? 'warning' : 'info'}">
-                                                ${factor.description} (+${factor.score})
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <p class="small text-muted mb-0">${suggestion.notes}</p>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Group ${group2.id}: ${group2.name || 'Unnamed Group'}</h6>
+                                <p class="mb-2"><strong>Voices:</strong> ${group2.voice_count || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${group2.titles?.join(', ') || 'No titles'}</p>
+                                <p class="mb-0"><strong>Composers:</strong> ${group2.composers?.join(', ') || 'Unknown'}</p>
                             </div>
                         </div>
+                        
+                        ${suggestion.factors && suggestion.factors.length > 0 ? `
+                        <hr>
+                        <h6 class="text-secondary">Matching Factors:</h6>
+                        <div class="row">
+                            ${suggestion.factors.map(factor => `
+                                <div class="col-md-6 mb-2">
+                                    <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-2">
+                                        +${factor.score}
+                                    </span>
+                                    <small>${factor.description}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ` : ''}
+                        
+                        ${suggestion.notes ? `
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            ${suggestion.notes}
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }
 
-        function displayStats() {
-            document.getElementById('analysisStats').style.display = 'flex';
+        function displayStats(stats) {
+            if (!stats) return;
             
-            // Simulate total groups count (we can get this from the API response later)
-            document.getElementById('totalGroups').textContent = '~1000'; // Placeholder
-            document.getElementById('totalSuggestions').textContent = analysisStats.totalSuggestions;
-            document.getElementById('highConfidence').textContent = analysisStats.highConfidence;
-            document.getElementById('analysisTime').textContent = `${(analysisStats.analysisTime / 1000).toFixed(1)}s`;
+            // Update stats cards
+            document.getElementById('total-groups').textContent = stats.totalGroups || 0;
+            document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
+            document.getElementById('high-confidence').textContent = stats.highConfidence || 0;
+            document.getElementById('analysis-time').textContent = `${(stats.analysisTime || 0)}ms`;
+            
+            // Show stats container
+            document.getElementById('stats-container').style.display = 'block';
         }
 
         function showError(message) {
@@ -424,10 +407,10 @@
         function retryAnalysis() {
             // Reset UI
             document.getElementById('errorContainer').style.display = 'none';
-            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('results-container').style.display = 'none';
             document.getElementById('noResults').style.display = 'none';
             document.getElementById('actionBar').style.display = 'none';
-            document.getElementById('analysisStats').style.display = 'none';
+            document.getElementById('stats-container').style.display = 'none';
             document.getElementById('loadingContainer').style.display = 'block';
             
             // Restart analysis
