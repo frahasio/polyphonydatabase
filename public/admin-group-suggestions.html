@@ -102,14 +102,92 @@
     </div>
 
     <div class="container">
+        <!-- Voice Count Selection -->
+        <div id="voice-selection-container" class="mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-music-note-list me-2"></i>
+                        Select Voice Count to Analyze
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <strong>Focus:</strong> This analysis specifically targets <strong>Anonymous compositions</strong> to help resolve attributions. 
+                        Choose the number of voices to compare anonymous works against all other compositions with the same voice count.
+                    </p>
+                    
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-lightbulb me-2"></i>
+                        <strong>Tip:</strong> This will find potential attribution resolutions, contrafacta, and translation relationships for compositions currently marked as "Anonymous".
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="2">
+                                <i class="bi bi-music-note me-1"></i>2 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="3">
+                                <i class="bi bi-music-note me-1"></i>3 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="4">
+                                <i class="bi bi-music-note me-1"></i>4 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="5">
+                                <i class="bi bi-music-note me-1"></i>5 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="6">
+                                <i class="bi bi-music-note me-1"></i>6 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="7">
+                                <i class="bi bi-music-note me-1"></i>7 Voices
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary voice-btn" data-voices="8">
+                                <i class="bi bi-music-note me-1"></i>8 Voices
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-auto">
+                            <button class="btn btn-secondary" onclick="analyzeAllVoices()">
+                                <i class="bi bi-collection me-1"></i>Analyze All (Slower)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Analysis Stats -->
         <div id="stats-container" class="row g-3 mb-4" style="display: none;">
             <div class="col-md-3">
                 <div class="card stats-card h-100">
                     <div class="card-body text-center">
+                        <i class="bi bi-question-circle text-warning display-6"></i>
+                        <h4 id="total-anonymous" class="mt-2 mb-0">-</h4>
+                        <small class="text-muted">Anonymous Groups</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card h-100">
+                    <div class="card-body text-center">
                         <i class="bi bi-collection text-primary display-6"></i>
                         <h4 id="total-groups" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Groups Analyzed</small>
+                        <small class="text-muted">Total Groups Compared</small>
                     </div>
                 </div>
             </div>
@@ -118,16 +196,7 @@
                     <div class="card-body text-center">
                         <i class="bi bi-search text-success display-6"></i>
                         <h4 id="total-suggestions" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Potential Matches</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-star text-warning display-6"></i>
-                        <h4 id="high-confidence" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">High Confidence</small>
+                        <small class="text-muted">Attribution Candidates</small>
                     </div>
                 </div>
             </div>
@@ -142,14 +211,15 @@
             </div>
         </div>
 
-        <!-- Loading State -->
-        <div id="loadingContainer" class="loading-container">
-            <div class="analysis-badge d-inline-block p-4 rounded">
-                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+        <!-- Loading Container -->
+        <div id="loadingContainer" style="display: none;">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <h4>Analyzing Your Database</h4>
-                <p class="text-muted mb-0">Deep-scanning compositions for potential duplicates and attribution patterns...</p>
+                <h5 class="text-primary">Analyzing Groups...</h5>
+                <p class="text-muted mb-0">This may take a few moments as we compare composition data.</p>
+                <div id="progress-info" class="mt-2 text-muted small"></div>
             </div>
         </div>
 
@@ -197,8 +267,8 @@
         <!-- Action Bar -->
         <div id="actionBar" class="row g-2 mb-4" style="display: none;">
             <div class="col">
-                <button class="btn btn-primary" onclick="retryAnalysis()">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Analysis
+                <button class="btn btn-outline-secondary" onclick="returnToVoiceSelection()">
+                    <i class="bi bi-arrow-left me-2"></i>Try Different Voice Count
                 </button>
             </div>
             <div class="col-auto">
@@ -221,35 +291,59 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             loadUserInfo();
-            startAnalysis();
+            setupVoiceSelection();
         });
 
-        async function loadUserInfo() {
-            try {
-                const response = await fetch('/api/auth/me');
-                if (response.ok) {
-                    const data = await response.json();
-                    const user = data.user;
-                    
-                    if (!user.is_admin) {
-                        window.location.href = '/admin';
-                        return;
-                    }
-                } else {
-                    window.location.href = '/admin/login';
-                }
-            } catch (error) {
-                console.error('Auth check failed:', error);
-                window.location.href = '/admin/login';
-            }
+        function setupVoiceSelection() {
+            // Add click handlers for voice count buttons
+            document.querySelectorAll('.voice-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const voiceCount = this.dataset.voices;
+                    selectVoiceCount(voiceCount);
+                });
+            });
         }
 
-        async function startAnalysis() {
+        function selectVoiceCount(voiceCount) {
+            // Update button states
+            document.querySelectorAll('.voice-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // Highlight selected button
+            const selectedBtn = document.querySelector(`[data-voices="${voiceCount}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.remove('btn-outline-primary');
+                selectedBtn.classList.add('btn-primary');
+            }
+            
+            // Start analysis with selected voice count
+            startAnalysis(voiceCount);
+        }
+
+        function analyzeAllVoices() {
+            // Start analysis without voice count filter
+            startAnalysis();
+        }
+
+        async function startAnalysis(voiceCount = null) {
+            // Hide voice selection and show loading
+            document.getElementById('voice-selection-container').style.display = 'none';
             showLoading(true);
             resetResults();
             
             try {
-                const response = await fetch('/api/admin/group-suggestions');
+                // Build API URL with voice count parameter if specified
+                let apiUrl = '/api/admin/group-suggestions';
+                if (voiceCount) {
+                    apiUrl += `?voices=${voiceCount}`;
+                    document.getElementById('progress-info').textContent = `Analyzing groups with ${voiceCount} voices...`;
+                } else {
+                    document.getElementById('progress-info').textContent = 'Analyzing all groups...';
+                }
+                
+                const response = await fetch(apiUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -281,6 +375,26 @@
             }
         }
 
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    if (!user.is_admin) {
+                        window.location.href = '/admin';
+                        return;
+                    }
+                } else {
+                    window.location.href = '/admin/login';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/admin/login';
+            }
+        }
+
         function showLoading(show) {
             document.getElementById('loadingContainer').style.display = show ? 'block' : 'none';
         }
@@ -295,6 +409,16 @@
 
         function showNoResults() {
             document.getElementById('noResults').style.display = 'block';
+            
+            // Add back button to no results message
+            const noResultsDiv = document.getElementById('noResults');
+            if (!noResultsDiv.querySelector('.back-button')) {
+                const backButton = document.createElement('button');
+                backButton.className = 'btn btn-primary mt-3 back-button';
+                backButton.innerHTML = '<i class="bi bi-arrow-left me-2"></i>Try Different Voice Count';
+                backButton.onclick = returnToVoiceSelection;
+                noResultsDiv.appendChild(backButton);
+            }
         }
 
         function displayResults(suggestions) {
@@ -337,6 +461,10 @@
             const group1 = suggestion.group1;
             const group2 = suggestion.group2;
             
+            // Determine which group is anonymous for better display
+            const anonGroup = group1.isAnonymous ? group1 : group2;
+            const namedGroup = group1.isAnonymous ? group2 : group1;
+            
             return `
                 <div class="card mb-3 border-${colorClass}">
                     <div class="card-header bg-${colorClass} bg-opacity-10">
@@ -345,15 +473,16 @@
                                 <h6 class="mb-0 text-${colorClass}">
                                     <i class="bi bi-star-fill me-2"></i>
                                     Match Score: ${suggestion.matchScore} (${suggestion.confidence} Confidence)
+                                    ${suggestion.potentialAttribution ? '<span class="badge bg-warning text-dark ms-2">Attribution Resolution</span>' : ''}
                                 </h6>
                             </div>
                             <div class="col-auto">
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="/modules/sources/index.html?group=${group1.id}" target="_blank" class="btn btn-outline-primary">
-                                        <i class="bi bi-eye me-1"></i>View Group 1
+                                    <a href="/modules/sources/index.html?group=${anonGroup.id}" target="_blank" class="btn btn-outline-warning">
+                                        <i class="bi bi-question-circle me-1"></i>Anonymous Group
                                     </a>
-                                    <a href="/modules/sources/index.html?group=${group2.id}" target="_blank" class="btn btn-outline-primary">
-                                        <i class="bi bi-eye me-1"></i>View Group 2
+                                    <a href="/modules/sources/index.html?group=${namedGroup.id}" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-person me-1"></i>Named Group
                                     </a>
                                 </div>
                             </div>
@@ -362,22 +491,28 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <h6 class="text-primary">Group ${group1.id}: ${group1.name || 'Unnamed Group'}</h6>
-                                <p class="mb-2"><strong>Voices:</strong> ${group1.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${group1.titles?.join(', ') || 'No titles'}</p>
-                                <p class="mb-0"><strong>Composers:</strong> ${group1.composers?.join(', ') || 'Unknown'}</p>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-question-circle text-warning me-2"></i>
+                                    <h6 class="text-warning mb-0">Anonymous: ${anonGroup.name || 'Unnamed Group'}</h6>
+                                </div>
+                                <p class="mb-2"><strong>Voices:</strong> ${anonGroup.voice_count || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${anonGroup.titles?.join(', ') || 'No titles'}</p>
+                                <p class="mb-0"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
                             </div>
                             <div class="col-md-6">
-                                <h6 class="text-primary">Group ${group2.id}: ${group2.name || 'Unnamed Group'}</h6>
-                                <p class="mb-2"><strong>Voices:</strong> ${group2.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${group2.titles?.join(', ') || 'No titles'}</p>
-                                <p class="mb-0"><strong>Composers:</strong> ${group2.composers?.join(', ') || 'Unknown'}</p>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-person text-primary me-2"></i>
+                                    <h6 class="text-primary mb-0">Named: ${namedGroup.name || 'Unnamed Group'}</h6>
+                                </div>
+                                <p class="mb-2"><strong>Voices:</strong> ${namedGroup.voice_count || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${namedGroup.titles?.join(', ') || 'No titles'}</p>
+                                <p class="mb-0"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
                             </div>
                         </div>
                         
                         ${suggestion.factors && suggestion.factors.length > 0 ? `
                         <hr>
-                        <h6 class="text-secondary">Matching Factors:</h6>
+                        <h6 class="text-secondary">Matching Evidence:</h6>
                         <div class="row">
                             ${suggestion.factors.map(factor => `
                                 <div class="col-md-6 mb-2">
@@ -392,8 +527,8 @@
                         
                         ${suggestion.notes ? `
                         <div class="alert alert-info mt-3 mb-0">
-                            <i class="bi bi-info-circle me-2"></i>
-                            ${suggestion.notes}
+                            <i class="bi bi-lightbulb me-2"></i>
+                            <strong>Recommendation:</strong> ${suggestion.notes}
                         </div>
                         ` : ''}
                     </div>
@@ -404,10 +539,10 @@
         function displayStats(stats) {
             if (!stats) return;
             
-            // Update stats cards
+            // Update stats cards with anonymous-focused metrics
+            document.getElementById('total-anonymous').textContent = stats.totalAnonymousGroups || 0;
             document.getElementById('total-groups').textContent = stats.totalGroups || 0;
             document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
-            document.getElementById('high-confidence').textContent = stats.highConfidence || 0;
             document.getElementById('analysis-time').textContent = `${(stats.analysisTime || 0)}ms`;
             
             // Show stats container
@@ -421,8 +556,19 @@
         }
 
         function retryAnalysis() {
+            returnToVoiceSelection();
+        }
+
+        function returnToVoiceSelection() {
             resetResults();
-            startAnalysis();
+            document.getElementById('voice-selection-container').style.display = 'block';
+            document.getElementById('loadingContainer').style.display = 'none';
+            
+            // Reset button states
+            document.querySelectorAll('.voice-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
         }
 
         function exportResults() {
@@ -470,20 +616,29 @@
         }
 
         function showHelp() {
-            alert(`Group Suggestions Help:
+            alert(`Anonymous Attribution Resolution Help:
 
-High Confidence (80%+): Very likely duplicates requiring immediate review
-Medium Confidence (60-79%): Possible matches worth investigating  
-Low Confidence (30-59%): Weak similarities, potential anonymous attribution candidates
+This tool specifically analyzes compositions currently marked as "Anonymous" to find potential attribution resolutions.
 
-Click the "Group 1" or "Group 2" buttons to view detailed information about each composition in a new tab.
+How it works:
+• Finds all groups containing anonymous compositions
+• Compares them against ALL other groups with the same voice count
+• Uses sophisticated matching including title similarity, clef patterns, source proximity, and translation detection
 
-The analysis considers:
-• Voice count and clef combinations
-• Title similarity (including historical spelling variations)
-• Composer attributions and anonymous patterns
-• Source geographical and temporal proximity
-• Inclusion notes and textual similarities`);
+Match Types:
+• High Confidence (50+): Very likely attribution candidates - review immediately
+• Medium Confidence (30-49): Possible matches worth investigating
+• Low Confidence (12-29): Weak similarities but potentially valuable for anonymous works
+
+What to look for:
+• Anonymous vs. Named: Potential attribution resolution (most valuable!)
+• Translation/Contrafacta: Same melody with different text/language
+• Historical variations: i/j and u/v interchangeability handled automatically
+• Source proximity: Geographically and temporally related manuscripts
+
+Click "Anonymous Group" and "Named Group" buttons to view detailed information about each composition in new tabs.
+
+This focuses on the most scholarly valuable discoveries: resolving anonymous attributions and finding related works!`);
         }
 
         async function logout() {

@@ -1093,21 +1093,124 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     console.log('Starting group suggestions analysis...');
     const startTime = Date.now();
     
-    // Enhanced query with pre-filtering for efficiency
-    const groupsQuery = `
-      WITH groupsQuery AS (
-        SELECT 
+    // Get voice count filter from query parameter
+    const { voices } = req.query;
+    const voiceFilter = voices ? parseInt(voices) : null;
+    
+    if (voiceFilter) {
+      console.log(`Filtering analysis to ${voiceFilter}-voice compositions only`);
+    }
+    
+    // Query to get Anonymous groups (groups containing anonymous compositions)
+    const anonymousGroupsQuery = `
+      WITH anonymousGroups AS (
+        SELECT DISTINCT
            g.id,
            g.display_title,
            
-           -- Get voice count for initial filtering
+           -- Get voice count
            (
              SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
              FROM compositions c2
              WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
            ) as voice_count,
            
-           -- Get most common clef combination for filtering
+           -- Get clef combinations
+           (
+             SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             WHERE c2.group_id = g.id
+           ) as clef_combinations,
+           
+           -- Get titles and languages properly paired for translation detection
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'text', t.text,
+               'language', t.language
+             )) FILTER (WHERE t.text IS NOT NULL)
+             FROM compositions c2
+             JOIN titles t ON c2.title_id = t.id
+             WHERE c2.group_id = g.id
+           ) as title_language_pairs,
+           
+           -- Get tone information
+           (
+             SELECT array_agg(DISTINCT c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+             FROM compositions c2
+             WHERE c2.group_id = g.id
+           ) as tones,
+           
+           -- Get composer information with dates for chronological analysis
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'id', comp.id,
+               'name', comp.name,
+               'from_year', comp.from_year,
+               'to_year', comp.to_year
+             )) FILTER (WHERE comp.id IS NOT NULL)
+             FROM compositions c2
+             JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
+             WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
+           ) as composer_details,
+           
+           -- Get source information
+           (
+             SELECT json_agg(DISTINCT jsonb_build_object(
+               'id', s.id,
+               'name', s.title,
+               'location', s.town,
+               'from_year', s.from_year,
+               'to_year', s.to_year
+             )) FILTER (WHERE s.id IS NOT NULL)
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             JOIN sources s ON i.source_id = s.id
+             WHERE c2.group_id = g.id
+           ) as source_details,
+           
+           -- Get inclusion notes for text analysis
+           (
+             SELECT string_agg(DISTINCT i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
+             FROM compositions c2
+             JOIN inclusions i ON c2.id = i.composition_id
+             WHERE c2.group_id = g.id
+           ) as inclusion_notes
+           
+        FROM groups g
+        WHERE EXISTS (
+          -- Group contains at least one anonymous composition
+          SELECT 1 FROM compositions c 
+          WHERE c.group_id = g.id 
+          AND c.composer_id_list IS NOT NULL 
+          AND 23 = ANY(c.composer_id_list)
+          ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
+        )
+        ORDER BY g.id
+      )
+      SELECT * FROM anonymousGroups 
+      WHERE voice_count IS NOT NULL 
+        AND title_language_pairs IS NOT NULL 
+        AND composer_details IS NOT NULL
+        ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
+      ORDER BY voice_count, id;
+    `;
+    
+    // Query to get ALL other groups (potential matches for anonymous groups)
+    const allGroupsQuery = `
+      WITH allGroups AS (
+        SELECT 
+           g.id,
+           g.display_title,
+           
+           -- Get voice count
+           (
+             SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
+             FROM compositions c2
+             WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
+           ) as voice_count,
+           
+           -- Get clef combinations
            (
              SELECT array_agg(DISTINCT i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
              FROM compositions c2
@@ -1174,33 +1277,35 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           SELECT DISTINCT c.group_id 
           FROM compositions c 
           WHERE c.group_id IS NOT NULL
+          ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
         )
-        -- Pre-filter: only groups with multiple potential match criteria
-        AND EXISTS (
-          SELECT 1 FROM compositions c2 
-          WHERE c2.group_id = g.id AND c2.number_of_voices BETWEEN 2 AND 8
-        )
-        -- Limit to reduce memory usage and processing time
         ORDER BY g.id
-        LIMIT 5000
       )
-      SELECT * FROM groupsQuery 
+      SELECT * FROM allGroups 
       WHERE voice_count IS NOT NULL 
         AND title_language_pairs IS NOT NULL 
         AND composer_details IS NOT NULL
+        ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
       ORDER BY voice_count, id;
     `;
 
-    const result = await pool.query(groupsQuery);
-    const groups = result.rows;
+    // Execute both queries
+    const [anonymousResult, allGroupsResult] = await Promise.all([
+      pool.query(anonymousGroupsQuery),
+      pool.query(allGroupsQuery)
+    ]);
     
-    console.log(`Loaded ${groups.length} groups for analysis`);
+    const anonymousGroups = anonymousResult.rows;
+    const allGroups = allGroupsResult.rows;
     
-    if (groups.length === 0) {
+    console.log(`Loaded ${anonymousGroups.length} anonymous groups and ${allGroups.length} total groups for comparison`);
+    
+    if (anonymousGroups.length === 0) {
       return res.json({
         suggestions: [],
         stats: {
-          totalGroups: 0,
+          totalAnonymousGroups: 0,
+          totalGroups: allGroups.length,
           suggestionsFound: 0,
           highConfidence: 0,
           mediumConfidence: 0,
@@ -1211,79 +1316,86 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     }
     
     const suggestions = [];
-    const batchSize = 100; // Process in smaller batches
-    const maxSuggestions = 200; // Limit total suggestions
+    const maxSuggestions = 500; // Increased since we're being more targeted
     
-    // Group by voice count for efficient comparison
-    const groupsByVoices = {};
-    for (const group of groups) {
+    // Group both sets by voice count for efficient comparison
+    const anonymousByVoices = {};
+    const allGroupsByVoices = {};
+    
+    for (const group of anonymousGroups) {
       const voices = group.voice_count;
-      if (!groupsByVoices[voices]) {
-        groupsByVoices[voices] = [];
+      if (!anonymousByVoices[voices]) {
+        anonymousByVoices[voices] = [];
       }
-      groupsByVoices[voices].push(group);
+      anonymousByVoices[voices].push(group);
     }
     
-    // Only compare groups with same voice count
-    for (const [voiceCount, voiceGroups] of Object.entries(groupsByVoices)) {
-      if (voiceGroups.length < 2) continue;
+    for (const group of allGroups) {
+      const voices = group.voice_count;
+      if (!allGroupsByVoices[voices]) {
+        allGroupsByVoices[voices] = [];
+      }
+      allGroupsByVoices[voices].push(group);
+    }
+    
+    // Compare anonymous groups against all groups with same voice count
+    for (const [voiceCount, anonGroups] of Object.entries(anonymousByVoices)) {
+      const compareGroups = allGroupsByVoices[voiceCount] || [];
       
-      console.log(`Analyzing ${voiceGroups.length} groups with ${voiceCount} voices`);
+      if (compareGroups.length === 0) continue;
       
-      // Process in batches to avoid memory issues
-      for (let i = 0; i < voiceGroups.length && suggestions.length < maxSuggestions; i += batchSize) {
-        const batch = voiceGroups.slice(i, Math.min(i + batchSize, voiceGroups.length));
+      console.log(`Analyzing ${anonGroups.length} anonymous groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
+      
+      for (const anonGroup of anonGroups) {
+        if (suggestions.length >= maxSuggestions) break;
         
-        for (let j = 0; j < batch.length && suggestions.length < maxSuggestions; j++) {
-          for (let k = j + 1; k < voiceGroups.length && suggestions.length < maxSuggestions; k++) {
-            const group1 = batch[j];
-            const group2 = voiceGroups[k];
-            
-            if (group1.id === group2.id) continue;
-            
-            // Quick pre-filter: skip if no title overlap potential
-            if (!hasQuickTitleOverlap(group1, group2)) continue;
-            
-            const matchResult = analyzeGroupMatch(group1, group2);
-            
-            if (matchResult.totalScore >= 15) { // Only keep decent matches
-              suggestions.push({
-                group1: {
-                  id: group1.id,
-                  name: group1.display_title,
-                  voice_count: group1.voice_count,
-                  titles: group1.title_language_pairs?.map(p => p.text) || [],
-                  composers: group1.composer_details?.map(c => c.name) || []
-                },
-                group2: {
-                  id: group2.id,
-                  name: group2.display_title,
-                  voice_count: group2.voice_count,
-                  titles: group2.title_language_pairs?.map(p => p.text) || [],
-                  composers: group2.composer_details?.map(c => c.name) || []
-                },
-                matchScore: matchResult.totalScore,
-                confidence: getConfidenceLevel(matchResult.totalScore),
-                factors: matchResult.factors,
-                notes: generateMatchNotes(group1, group2, matchResult.totalScore)
-              });
-            }
+        for (const compareGroup of compareGroups) {
+          if (suggestions.length >= maxSuggestions) break;
+          
+          // Don't compare group to itself
+          if (anonGroup.id === compareGroup.id) continue;
+          
+          // Quick pre-filter: skip if no title overlap potential
+          if (!hasQuickTitleOverlap(anonGroup, compareGroup)) continue;
+          
+          const matchResult = analyzeGroupMatch(anonGroup, compareGroup);
+          
+          // Lower threshold for anonymous matches since they're inherently valuable
+          if (matchResult.totalScore >= 12) {
+            suggestions.push({
+              group1: {
+                id: anonGroup.id,
+                name: anonGroup.display_title,
+                voice_count: anonGroup.voice_count,
+                titles: anonGroup.title_language_pairs?.map(p => p.text) || [],
+                composers: anonGroup.composer_details?.map(c => c.name) || [],
+                isAnonymous: true
+              },
+              group2: {
+                id: compareGroup.id,
+                name: compareGroup.display_title,
+                voice_count: compareGroup.voice_count,
+                titles: compareGroup.title_language_pairs?.map(p => p.text) || [],
+                composers: compareGroup.composer_details?.map(c => c.name) || [],
+                isAnonymous: false
+              },
+              matchScore: matchResult.totalScore,
+              confidence: getConfidenceLevel(matchResult.totalScore),
+              factors: matchResult.factors,
+              notes: generateMatchNotes(anonGroup, compareGroup, matchResult.totalScore),
+              potentialAttribution: true // Flag this as potential attribution resolution
+            });
           }
-        }
-        
-        // Force garbage collection between batches
-        if (global.gc) {
-          global.gc();
         }
       }
     }
     
     // Sort by score and limit results
     suggestions.sort((a, b) => b.matchScore - a.matchScore);
-    suggestions.splice(150); // Keep top 150 suggestions max
     
     const stats = {
-      totalGroups: groups.length,
+      totalAnonymousGroups: anonymousGroups.length,
+      totalGroups: allGroups.length,
       suggestionsFound: suggestions.length,
       highConfidence: suggestions.filter(s => s.confidence === 'High').length,
       mediumConfidence: suggestions.filter(s => s.confidence === 'Medium').length,
@@ -1291,10 +1403,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       analysisTime: Date.now() - startTime
     };
     
-    console.log(`Analysis complete. Found ${suggestions.length} suggestions in ${stats.analysisTime}ms`);
+    console.log(`Analysis complete. Found ${suggestions.length} potential attribution resolutions in ${stats.analysisTime}ms`);
     
     res.json({ suggestions, stats });
-    
   } catch (error) {
     console.error('Error generating group suggestions:', error);
     res.status(500).json({ error: 'Failed to generate suggestions' });
@@ -1330,23 +1441,8 @@ function analyzeGroupMatch(group1, group2) {
   const finalScore = Math.min(Math.round(totalScore), 100);
   
   return {
-    group1: {
-      id: group1.id,
-      display_title: group1.display_title,
-      composer: group1.composers || 'Unknown',
-      voices: group1.primary_voices || 'Unknown',
-      source_count: group1.source_info ? group1.source_info.length : 0
-    },
-    group2: {
-      id: group2.id,
-      display_title: group2.display_title,
-      composer: group2.composers || 'Unknown',
-      voices: group2.primary_voices || 'Unknown',
-      source_count: group2.source_info ? group2.source_info.length : 0
-    },
-    match_score: finalScore,
-    matching_factors: matchingFactors,
-    notes: generateMatchNotes(group1, group2, finalScore)
+    totalScore: finalScore,
+    factors: matchingFactors
   };
 }
 
@@ -1354,10 +1450,10 @@ function analyzeVoices(group1, group2, factors) {
   let score = 0;
   
   // Exact voice count match (high value)
-  if (group1.primary_voices && group2.primary_voices && group1.primary_voices === group2.primary_voices) {
+  if (group1.voice_count && group2.voice_count && group1.voice_count === group2.voice_count) {
     score += 15;
     factors.push({
-      description: `Same voice count (${group1.primary_voices})`,
+      description: `Same voice count (${group1.voice_count})`,
       score: 15,
       strength: 'strong'
     });
@@ -1381,23 +1477,6 @@ function analyzeVoices(group1, group2, factors) {
             strength: similarity >= 0.8 ? 'strong' : 'medium'
           });
         }
-      }
-    }
-  }
-  // Voice count in same range (medium value)
-  else if (group1.all_voices && group2.all_voices) {
-    const voices1 = group1.all_voices.filter(v => v != null);
-    const voices2 = group2.all_voices.filter(v => v != null);
-    
-    if (voices1.length > 0 && voices2.length > 0) {
-      const intersection = voices1.filter(v => voices2.includes(v));
-      if (intersection.length > 0) {
-        score += 5;
-        factors.push({
-          description: `Overlapping voice counts (${intersection.join(', ')})`,
-          score: 5,
-          strength: 'medium'
-        });
       }
     }
   }
@@ -1505,87 +1584,90 @@ function analyzeTitles(group1, group2, factors) {
 function analyzeComposers(group1, group2, factors) {
   let score = 0;
   
-  // Same composer (non-anonymous) - strong evidence of match
-  if (group1.composers && group2.composers && 
-      !group1.has_anonymous && !group2.has_anonymous &&
-      group1.composers === group2.composers) {
-    score += 15;
+  const composers1 = group1.composer_details || [];
+  const composers2 = group2.composer_details || [];
+  
+  // Check if groups have anonymous compositions
+  const hasAnon1 = composers1.some(c => c.id === 23);
+  const hasAnon2 = composers2.some(c => c.id === 23);
+  
+  // Get named composers (excluding anonymous)
+  const named1 = composers1.filter(c => c.id !== 23);
+  const named2 = composers2.filter(c => c.id !== 23);
+  
+  if (hasAnon1 && !hasAnon2) {
+    // Anonymous vs named - excellent for attribution resolution
+    score += 12;
+    const namedComposer = named2.length > 0 ? named2[0].name : 'Named composer';
     factors.push({
-      description: `Same composer: ${group1.composers}`,
-      score: 15,
+      description: `Anonymous vs. named (${namedComposer}) - potential attribution resolution`,
+      score: 12,
       strength: 'strong'
     });
-  }
-  // Anonymous attribution patterns - high value for resolution
-  else if (group1.has_anonymous || group2.has_anonymous) {
-    if (group1.has_anonymous && group2.has_anonymous) {
-      score += 8;
+  } else if (!hasAnon1 && hasAnon2) {
+    // Named vs anonymous - excellent for attribution resolution
+    score += 12;
+    const namedComposer = named1.length > 0 ? named1[0].name : 'Named composer';
+    factors.push({
+      description: `Named (${namedComposer}) vs. anonymous - potential attribution resolution`,
+      score: 12,
+      strength: 'strong'
+    });
+  } else if (hasAnon1 && hasAnon2) {
+    // Both anonymous
+    score += 8;
+    factors.push({
+      description: 'Both have anonymous attributions',
+      score: 8,
+      strength: 'medium'
+    });
+  } else if (named1.length > 0 && named2.length > 0) {
+    // Both have named composers
+    if (named1[0].name === named2[0].name) {
+      score += 15;
       factors.push({
-        description: 'Both have anonymous attributions',
-        score: 8,
-        strength: 'medium'
-      });
-    } else {
-      // One anonymous, one attributed - excellent potential for attribution resolution
-      score += 12;
-      const namedComposer = group1.has_anonymous ? group2.composers : group1.composers;
-      factors.push({
-        description: `Anonymous vs. named (${namedComposer}) - potential attribution resolution`,
-        score: 12,
+        description: `Same composer: ${named1[0].name}`,
+        score: 15,
         strength: 'strong'
       });
-    }
-  }
-  // Different named composers - check chronological compatibility
-  else if (group1.composers && group2.composers && 
-           group1.composers !== group2.composers &&
-           group1.unique_composer_count === 1 && group2.unique_composer_count === 1) {
-    
-    // Check if composers are chronologically compatible (within ~10 years)
-    const areChronologicallyCompatible = checkComposerChronology(group1.composer_details, group2.composer_details);
-    
-    if (areChronologicallyCompatible === false) {
-      // Only penalize if composers are clearly from different eras
-      score -= 8;
-      factors.push({
-        description: 'Chronologically incompatible composers (different eras)',
-        score: -8,
-        strength: 'medium'
-      });
-    } else if (areChronologicallyCompatible === true) {
-      // Contemporary composers with different attributions - potentially interesting misattribution
-      score += 5;
-      factors.push({
-        description: `Contemporary composers with different attributions - potential misattribution case`,
-        score: 5,
-        strength: 'medium'
-      });
     } else {
-      // Insufficient date information - neutral, don't penalize
-      factors.push({
-        description: 'Different attributions (insufficient date data for chronological check)',
-        score: 0,
-        strength: 'weak'
-      });
+      // Different named composers - check chronological compatibility
+      const areChronologicallyCompatible = checkComposerChronology(named1, named2);
+      
+      if (areChronologicallyCompatible === false) {
+        score -= 8;
+        factors.push({
+          description: 'Chronologically incompatible composers (different eras)',
+          score: -8,
+          strength: 'medium'
+        });
+      } else if (areChronologicallyCompatible === true) {
+        score += 5;
+        factors.push({
+          description: `Contemporary composers with different attributions - potential misattribution case`,
+          score: 5,
+          strength: 'medium'
+        });
+      }
     }
   }
   
-  return Math.max(score, 0); // Don't allow negative total scores
+  return Math.max(score, 0);
 }
 
 function analyzeSources(group1, group2, factors) {
   let score = 0;
   
-  if (!group1.source_info || !group2.source_info) {
+  if (!group1.source_details || !group2.source_details) {
     return 0;
   }
   
-  const sources1 = group1.source_info;
-  const sources2 = group2.source_info;
+  const sources1 = group1.source_details;
+  const sources2 = group2.source_details;
   
   // Check for geographical proximity
-  const locations1 = sources1.map(s => s.town).filter(Boolean);
-  const locations2 = sources2.map(s => s.town).filter(Boolean);
+  const locations1 = sources1.map(s => s.location).filter(Boolean);
+  const locations2 = sources2.map(s => s.location).filter(Boolean);
   
   const commonLocations = locations1.filter(loc => 
     locations2.some(loc2 => loc2 && loc.toLowerCase() === loc2.toLowerCase())
