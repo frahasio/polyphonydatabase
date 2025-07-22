@@ -517,7 +517,7 @@ router.get('/data-quality-groups-for-correction', async (req, res) => {
         g.display_title,
         COUNT(DISTINCT c.id) as composition_count,
         ARRAY_AGG(
-          DISTINCT jsonb_build_object(
+          jsonb_build_object(
             'id', c.id,
             'title', t.text,
             'composers', (

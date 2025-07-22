@@ -773,79 +773,187 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // Verify group exists
-        const groupCheck = await client.query(`
-            SELECT id, display_title FROM groups WHERE id = $1
+        // Verify group exists and get compositions
+        const groupResult = await client.query(`
+            SELECT g.id, g.display_title, 
+                   COUNT(DISTINCT c.id) as composition_count
+            FROM groups g
+            LEFT JOIN compositions c ON c.group_id = g.id
+            WHERE g.id = $1
+            GROUP BY g.id, g.display_title
         `, [groupId]);
 
-        if (groupCheck.rows.length === 0) {
+        if (groupResult.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Group not found' });
         }
 
-        const group = groupCheck.rows[0];
+        const group = groupResult.rows[0];
+
+        if (group.composition_count === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No compositions found in this group' });
+        }
 
         // Get compositions in this group before update
         const compositionsBeforeResult = await client.query(`
-            SELECT c.id, t.text as title, ct.name as composition_type, c.tone, c.even_odd
+            SELECT c.id, c.title_id, c.composition_type_id, c.tone, c.even_odd, 
+                   c.number_of_voices, c.composer_id_list, c.group_id,
+                   t.text as title
             FROM compositions c
             LEFT JOIN titles t ON c.title_id = t.id
-            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
             WHERE c.group_id = $1
             ORDER BY t.text
         `, [groupId]);
 
         const compositionsBefore = compositionsBeforeResult.rows;
 
-        if (compositionsBefore.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: 'No compositions found in this group' });
-        }
+        // Check if any properties are being updated
+        const hasUpdates = (compositionTypeId !== undefined && compositionTypeId !== '') ||
+                          (tone !== undefined && tone !== '') ||
+                          (evenOdd !== undefined && evenOdd !== '');
 
-        // Prepare update query parts
-        let updateParts = [];
-        let updateParams = [];
-        let paramIndex = 1;
-
-        if (compositionTypeId !== undefined && compositionTypeId !== '') {
-            updateParts.push(`composition_type_id = $${paramIndex}`);
-            updateParams.push(compositionTypeId ? parseInt(compositionTypeId) : null);
-            paramIndex++;
-        }
-
-        if (tone !== undefined && tone !== '') {
-            updateParts.push(`tone = $${paramIndex}`);
-            updateParams.push(tone || null);
-            paramIndex++;
-        }
-
-        if (evenOdd !== undefined && evenOdd !== '') {
-            updateParts.push(`even_odd = $${paramIndex}`);
-            updateParams.push(evenOdd !== '' ? parseInt(evenOdd) : null);
-            paramIndex++;
-        }
-
-        if (updateParts.length === 0) {
+        if (!hasUpdates) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: 'No properties to update were provided' });
         }
 
-        // Add updated_at timestamp
-        updateParts.push(`updated_at = CURRENT_TIMESTAMP`);
-        
-        // Add group_id parameter for WHERE clause
-        updateParams.push(groupId);
+        const now = new Date();
+        const results = {
+            updated: [],
+            merged: [],
+            errors: []
+        };
 
-        // Execute bulk update
-        const updateQuery = `
-            UPDATE compositions 
-            SET ${updateParts.join(', ')}
-            WHERE group_id = $${paramIndex}
-            RETURNING id
-        `;
+        // Process each composition individually
+        for (const composition of compositionsBefore) {
+            try {
+                // Calculate new properties for this composition
+                const newCompositionTypeId = compositionTypeId !== undefined && compositionTypeId !== '' ? 
+                    (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
+                const newTone = tone !== undefined && tone !== '' ? 
+                    (tone || null) : composition.tone;
+                const newEvenOdd = evenOdd !== undefined && evenOdd !== '' ? 
+                    (evenOdd !== '' ? parseInt(evenOdd) : null) : composition.even_odd;
 
-        const updateResult = await client.query(updateQuery, updateParams);
-        const updatedCount = updateResult.rowCount;
+                const isAnonymous = composition.composer_id_list && 
+                    composition.composer_id_list.length === 1 && 
+                    composition.composer_id_list[0] === 23;
+
+                if (isAnonymous) {
+                    // For anonymous compositions, always update in place (no checking for duplicates)
+                    const updateResult = await client.query(`
+                        UPDATE compositions 
+                        SET composition_type_id = $1, tone = $2, even_odd = $3, updated_at = $4
+                        WHERE id = $5
+                        RETURNING id
+                    `, [newCompositionTypeId, newTone, newEvenOdd, now, composition.id]);
+
+                    if (updateResult.rowCount > 0) {
+                        results.updated.push({
+                            compositionId: composition.id,
+                            title: composition.title,
+                            action: 'updated_in_place',
+                            oldProperties: {
+                                composition_type_id: composition.composition_type_id,
+                                tone: composition.tone,
+                                even_odd: composition.even_odd
+                            },
+                            newProperties: {
+                                composition_type_id: newCompositionTypeId,
+                                tone: newTone,
+                                even_odd: newEvenOdd
+                            }
+                        });
+                    }
+                } else {
+                    // For non-anonymous compositions, check if a composition with these properties exists
+                    const existingCompositionResult = await client.query(`
+                        SELECT id, group_id FROM compositions 
+                        WHERE title_id = $1 
+                        AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
+                        AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
+                        AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
+                        AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
+                        AND composer_id_list = $6
+                        AND id != $7
+                    `, [
+                        composition.title_id,
+                        newCompositionTypeId,
+                        newTone,
+                        newEvenOdd,
+                        composition.number_of_voices,
+                        composition.composer_id_list,
+                        composition.id
+                    ]);
+
+                    if (existingCompositionResult.rows.length > 0) {
+                        // Found existing composition - merge by reassigning inclusions
+                        const existingComposition = existingCompositionResult.rows[0];
+                        
+                        // Get all inclusions currently pointing to the old composition
+                        const inclusionsResult = await client.query(`
+                            SELECT id FROM inclusions WHERE composition_id = $1
+                        `, [composition.id]);
+
+                        // Reassign all inclusions to the existing composition
+                        await client.query(`
+                            UPDATE inclusions 
+                            SET composition_id = $1, updated_at = $2
+                            WHERE composition_id = $3
+                        `, [existingComposition.id, now, composition.id]);
+
+                        // The old composition will be orphaned and cleaned up later
+                        results.merged.push({
+                            oldCompositionId: composition.id,
+                            newCompositionId: existingComposition.id,
+                            title: composition.title,
+                            action: 'merged_to_existing',
+                            inclusionCount: inclusionsResult.rows.length,
+                            newProperties: {
+                                composition_type_id: newCompositionTypeId,
+                                tone: newTone,
+                                even_odd: newEvenOdd
+                            }
+                        });
+                    } else {
+                        // No existing composition found - update in place
+                        const updateResult = await client.query(`
+                            UPDATE compositions 
+                            SET composition_type_id = $1, tone = $2, even_odd = $3, updated_at = $4
+                            WHERE id = $5
+                            RETURNING id
+                        `, [newCompositionTypeId, newTone, newEvenOdd, now, composition.id]);
+
+                        if (updateResult.rowCount > 0) {
+                            results.updated.push({
+                                compositionId: composition.id,
+                                title: composition.title,
+                                action: 'updated_in_place',
+                                oldProperties: {
+                                    composition_type_id: composition.composition_type_id,
+                                    tone: composition.tone,
+                                    even_odd: composition.even_odd
+                                },
+                                newProperties: {
+                                    composition_type_id: newCompositionTypeId,
+                                    tone: newTone,
+                                    even_odd: newEvenOdd
+                                }
+                            });
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error(`Error processing composition ${composition.id}:`, error);
+                results.errors.push({
+                    compositionId: composition.id,
+                    title: composition.title,
+                    error: error.message
+                });
+            }
+        }
 
         // Get updated compositions for audit trail
         const compositionsAfterResult = await client.query(`
@@ -861,6 +969,14 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
 
         await client.query('COMMIT');
 
+        // Import cleanup function and trigger it
+        const { triggerCleanup } = await import('../cleanup.js');
+        
+        // Trigger cleanup after bulk operations (async, with delay to ensure all operations complete)
+        if (results.merged.length > 0) {
+            triggerCleanup(true, 'all', 'after bulk composition update', 3000);
+        }
+
         // Log audit entry
         try {
             await pool.query(
@@ -873,13 +989,19 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
                     groupId,
                     JSON.stringify({ 
                         group_title: group.display_title,
-                        compositions_before: compositionsBefore,
+                        compositions_before: compositionsBefore.map(c => ({
+                            id: c.id,
+                            title: c.title,
+                            composition_type_id: c.composition_type_id,
+                            tone: c.tone,
+                            even_odd: c.even_odd
+                        })),
                         update_parameters: { compositionTypeId, tone, evenOdd }
                     }),
                     JSON.stringify({ 
                         group_title: group.display_title,
                         compositions_after: compositionsAfter,
-                        updated_count: updatedCount
+                        results: results
                     })
                 ]
             );
@@ -887,11 +1009,17 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
             console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
         }
 
+        const totalProcessed = results.updated.length + results.merged.length;
+        const messageDetails = [];
+        if (results.updated.length > 0) messageDetails.push(`${results.updated.length} updated`);
+        if (results.merged.length > 0) messageDetails.push(`${results.merged.length} merged to existing compositions`);
+        if (results.errors.length > 0) messageDetails.push(`${results.errors.length} errors`);
+
         res.json({ 
             success: true,
-            message: `Successfully updated ${updatedCount} composition${updatedCount !== 1 ? 's' : ''} in group "${group.display_title}"`,
-            updatedCount: updatedCount,
+            message: `Successfully processed ${totalProcessed} composition${totalProcessed !== 1 ? 's' : ''} in group "${group.display_title}" (${messageDetails.join(', ')})`,
             groupTitle: group.display_title,
+            results: results,
             compositionsBefore: compositionsBefore,
             compositionsAfter: compositionsAfter
         });
