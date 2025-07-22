@@ -169,6 +169,29 @@
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Composer Analysis:</strong> Finds title variations, attribution inconsistencies, and potential duplicates for works by the same composer across all voice counts.
                     </div>
+                    
+                    <div class="text-center mb-3">
+                        <strong>OR</strong>
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small">Analyze by Source (all voice counts)</label>
+                            <select id="sourceSelect" class="form-select">
+                                <option value="">Select a source...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button id="analyzeSourceBtn" class="btn btn-info" onclick="analyzeBySource()" disabled>
+                                <i class="bi bi-file-text me-2"></i>Analyze Source
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Source Analysis:</strong> Shows all compositions from the selected source and finds potential concordances, attribution resolutions, and cataloging corrections. Perfect for post-cataloging review.
+                    </div>
                 </div>
             </div>
         </div>
@@ -239,12 +262,23 @@
             <!-- No Results -->
             <div id="noResults" style="display: none;">
                 <div class="text-center py-5">
-                    <i class="bi bi-check-circle-fill text-success display-1"></i>
-                    <h4 class="mt-3">No Potential Duplicates Found</h4>
-                    <p class="text-muted">Your database appears to be well-organized with no obvious duplicate compositions.</p>
-                    <a href="/admin" class="btn btn-outline-primary mt-3">
-                        <i class="bi bi-house me-2"></i>Return to Dashboard
-                    </a>
+                    <i class="bi bi-search text-info display-1"></i>
+                    <h4 class="mt-3">No Attribution Suggestions Found</h4>
+                    <p class="text-muted">No potential attribution matches were found for anonymous compositions with the selected criteria. This could mean:</p>
+                    <ul class="text-muted text-start" style="max-width: 500px; margin: 0 auto;">
+                        <li>All anonymous works are truly unique</li>
+                        <li>Try analyzing a different voice count</li>
+                        <li>Consider using composer-specific analysis instead</li>
+                        <li>The matching threshold may be set too high for available data</li>
+                    </ul>
+                    <div class="mt-4">
+                        <button class="btn btn-primary me-2" onclick="returnToVoiceSelection()">
+                            <i class="bi bi-arrow-left me-2"></i>Try Different Voice Count
+                        </button>
+                        <a href="/admin" class="btn btn-outline-secondary">
+                            <i class="bi bi-house me-2"></i>Return to Dashboard
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -295,6 +329,7 @@
             loadUserInfo();
             setupVoiceSelection();
             loadComposers();
+            loadSources();
         });
 
         function setupVoiceSelection() {
@@ -321,12 +356,11 @@
                 selectedBtn.classList.add('btn-primary');
             }
             
-            // Clear composer selection
-            document.getElementById('composerSelect').value = '';
-            document.getElementById('analyzeComposerBtn').disabled = true;
+            // Clear other selections
+            clearOtherSelections('voice');
             
             // Start analysis with selected voice count
-            startAnalysis(voiceCount);
+            startAnalysis(voiceCount, null, null);
         }
 
         function analyzeByComposer() {
@@ -336,17 +370,44 @@
                 return;
             }
             
+            // Clear other selections
+            clearAllSelections();
+            
+            // Start analysis with composer ID
+            startAnalysis(null, composerId, null);
+        }
+
+        function analyzeBySource() {
+            const sourceId = document.getElementById('sourceSelect').value;
+            if (!sourceId) {
+                alert('Please select a source first.');
+                return;
+            }
+            
+            // Clear other selections
+            clearAllSelections();
+            
+            // Start analysis with source ID
+            startAnalysis(null, null, sourceId);
+        }
+
+        function clearAllSelections() {
             // Clear voice button selection
             document.querySelectorAll('.voice-btn').forEach(btn => {
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-outline-primary');
             });
             
-            // Start analysis with composer ID
-            startAnalysis(null, composerId);
+            // Clear composer selection
+            document.getElementById('composerSelect').value = '';
+            document.getElementById('analyzeComposerBtn').disabled = true;
+            
+            // Clear source selection
+            document.getElementById('sourceSelect').value = '';
+            document.getElementById('analyzeSourceBtn').disabled = true;
         }
 
-        async function startAnalysis(voiceCount = null, composerId = null) {
+        async function startAnalysis(voiceCount = null, composerId = null, sourceId = null) {
             // Hide voice selection and show loading
             document.getElementById('voice-selection-container').style.display = 'none';
             showLoading(true);
@@ -364,6 +425,10 @@
                     params.set('composer', composerId);
                     const composerName = document.getElementById('composerSelect').selectedOptions[0].textContent;
                     document.getElementById('progress-info').textContent = `Analyzing all compositions by ${composerName}...`;
+                } else if (sourceId) {
+                    params.set('source', sourceId);
+                    const sourceName = document.getElementById('sourceSelect').selectedOptions[0].textContent;
+                    document.getElementById('progress-info').textContent = `Analyzing all compositions in ${sourceName}...`;
                 } else {
                     document.getElementById('progress-info').textContent = 'Analyzing groups...';
                 }
@@ -466,10 +531,61 @@
                     // Enable/disable button based on selection
                     select.addEventListener('change', function() {
                         document.getElementById('analyzeComposerBtn').disabled = !this.value;
+                        if (this.value) clearOtherSelections('composer');
                     });
                 }
             } catch (error) {
                 console.error('Error loading composers:', error);
+            }
+        }
+
+        async function loadSources() {
+            try {
+                const response = await fetch('/api/search/sources');
+                if (response.ok) {
+                    const sources = await response.json();
+                    const select = document.getElementById('sourceSelect');
+                    
+                    // Clear existing options except the first
+                    while (select.children.length > 1) {
+                        select.removeChild(select.lastChild);
+                    }
+                    
+                    // Add sources sorted by code
+                    sources
+                        .sort((a, b) => (a.code || '').localeCompare(b.code || ''))
+                        .forEach(source => {
+                            const option = document.createElement('option');
+                            option.value = source.id;
+                            option.textContent = `${source.code || 'Unknown Code'} - ${source.title || 'Untitled'}`;
+                            select.appendChild(option);
+                        });
+                    
+                    // Enable/disable button based on selection
+                    select.addEventListener('change', function() {
+                        document.getElementById('analyzeSourceBtn').disabled = !this.value;
+                        if (this.value) clearOtherSelections('source');
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading sources:', error);
+            }
+        }
+
+        function clearOtherSelections(keepType) {
+            if (keepType !== 'voice') {
+                document.querySelectorAll('.voice-btn').forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+            }
+            if (keepType !== 'composer') {
+                document.getElementById('composerSelect').value = '';
+                document.getElementById('analyzeComposerBtn').disabled = true;
+            }
+            if (keepType !== 'source') {
+                document.getElementById('sourceSelect').value = '';
+                document.getElementById('analyzeSourceBtn').disabled = true;
             }
         }
 
@@ -501,6 +617,12 @@
 
         function displayResults(groupedSuggestions) {
             resetResults();
+            
+            // Check if we have any results at all
+            if (!groupedSuggestions || groupedSuggestions.length === 0) {
+                showNoResults();
+                return;
+            }
             
             // Filter groups by their best match confidence
             const highConfidenceGroups = groupedSuggestions.filter(group => 
@@ -549,8 +671,13 @@
         }
 
         function generateGroupSuggestionCard(groupData, colorClass, level) {
-            const anonGroup = groupData.anonymousGroup;
+            const primaryGroup = groupData.primaryGroup || groupData.anonymousGroup; // Support both old and new structure
             const matches = groupData.potentialMatches;
+            
+            // Determine analysis type based on URL parameters or group properties
+            const urlParams = new URLSearchParams(window.location.search);
+            const isComposerAnalysis = urlParams.has('composer') || (!primaryGroup.isAnonymous && !urlParams.has('source'));
+            const isSourceAnalysis = urlParams.has('source');
             
             // Tone and even/odd mappings (same as public page)
             const toneMapping = {
@@ -679,38 +806,55 @@
                                 <h6 class="mb-0 text-${colorClass}">
                                     <i class="bi bi-star-fill me-2"></i>
                                     ${bestMatch ? `Best Match: ${bestMatch.matchScore} (${bestMatch.confidence} Confidence)` : 'No matches'}
-                                    <span class="badge bg-warning text-dark ms-2">Attribution Resolution</span>
+                                    <span class="badge bg-${isSourceAnalysis ? 'success' : (isComposerAnalysis ? 'info' : 'warning')} text-dark ms-2">
+                                        ${isSourceAnalysis ? 'Source Analysis' : (isComposerAnalysis ? 'Concordance Analysis' : 'Attribution Resolution')}
+                                    </span>
                                     <span class="badge bg-info text-dark ms-1">${matchCount} potential match${matchCount !== 1 ? 'es' : ''}</span>
                                 </h6>
                             </div>
-                            <div class="col-auto">
-                                <a href="/modules/sources/index.html?group=${anonGroup.id}" target="_blank" class="btn btn-outline-warning btn-sm">
-                                    <i class="bi bi-question-circle me-1"></i>View Anonymous Group
-                                </a>
-                            </div>
+
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-5">
                                 <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-question-circle text-warning me-2"></i>
-                                    <h6 class="text-warning mb-0">Anonymous: ${anonGroup.name || 'Unnamed Group'}</h6>
+                                    <i class="bi bi-${isSourceAnalysis ? 'file-text' : (isComposerAnalysis ? 'person' : 'question-circle')} text-${isSourceAnalysis ? 'success' : (isComposerAnalysis ? 'primary' : 'warning')} me-2"></i>
+                                    <h6 class="text-${isSourceAnalysis ? 'success' : (isComposerAnalysis ? 'primary' : 'warning')} mb-0">
+                                        ${isSourceAnalysis ? 'Source Composition' : (isComposerAnalysis ? 'Composer Work' : 'Anonymous')}: ${primaryGroup.name || 'Unnamed Group'}
+                                    </h6>
                                 </div>
-                                <p class="mb-2"><strong>Voices:</strong> ${anonGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(anonGroup.titles?.join(', ') || 'No titles', anonGroup)} ${formatTypeBadges(anonGroup)}</p>
-                                <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
-                                ${anonGroup.types && anonGroup.types.length > 0 ? `<p class="mb-2"><strong>Composition Type:</strong> ${anonGroup.types.join(', ')}</p>` : ''}
+                                <p class="mb-2"><strong>Voices:</strong> ${primaryGroup.voice_count || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(primaryGroup.titles?.join(', ') || 'No titles', primaryGroup)} ${formatTypeBadges(primaryGroup)}</p>
+                                <p class="mb-2"><strong>Attribution:</strong> 
+                                    ${isSourceAnalysis ? 
+                                        (primaryGroup.composers?.join(', ') || '<em>Anonymous</em>') :
+                                        (isComposerAnalysis ? 
+                                            (primaryGroup.composers?.join(', ') || 'Unknown') : 
+                                            '<em>Anonymous</em>'
+                                        )
+                                    }
+                                </p>
+                                ${isSourceAnalysis && primaryGroup.position ? `<p class="mb-2"><strong>Position:</strong> ${primaryGroup.position}</p>` : ''}
+                                ${primaryGroup.types && primaryGroup.types.length > 0 ? `<p class="mb-2"><strong>Composition Type:</strong> ${primaryGroup.types.join(', ')}</p>` : ''}
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(anonGroup.sources, anonGroup.clef_combinations)}</div>
+                                    <div class="ms-2">${formatSources(primaryGroup.sources, primaryGroup.clef_combinations)}</div>
                                 </div>
-                                ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 100)}${anonGroup.inclusionNotes.length > 100 ? '...' : ''}</small></p>` : ''}
+                                ${primaryGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${primaryGroup.inclusionNotes.substring(0, 100)}${primaryGroup.inclusionNotes.length > 100 ? '...' : ''}</small></p>` : ''}
                             </div>
                             <div class="col-md-7">
                                 <div class="d-flex align-items-center mb-2">
                                     <i class="bi bi-people text-primary me-2"></i>
-                                    <h6 class="text-primary mb-0">Potential Attribution Matches (${matchCount})</h6>
+                                    <h6 class="text-primary mb-0">
+                                        ${isSourceAnalysis ? 
+                                            `Potential Concordances & Matches (${matchCount})` :
+                                            (isComposerAnalysis ? 
+                                                `Potential Concordances & Variants (${matchCount})` : 
+                                                `Potential Attribution Matches (${matchCount})`
+                                            )
+                                        }
+                                    </h6>
                                 </div>
                                 <div class="potential-matches" style="max-height: 400px; overflow-y: auto;">
                                     ${matches.map((match, index) => `
@@ -758,7 +902,14 @@
             if (!stats) return;
             
             // Update stats cards based on analysis type
-            if (stats.analysisType === 'composer') {
+            if (stats.analysisType === 'source') {
+                document.getElementById('total-anonymous').textContent = stats.sourceGroups || 0;
+                document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Source Compositions';
+                document.getElementById('total-groups').textContent = stats.totalGroups || 0;
+                document.querySelector('#total-groups').parentElement.querySelector('small').textContent = 'Total Groups Compared';
+                document.getElementById('total-suggestions').textContent = stats.groupedSuggestions || 0;
+                document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Compositions with Matches';
+            } else if (stats.analysisType === 'composer') {
                 document.getElementById('total-anonymous').textContent = stats.composerGroups || 0;
                 document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Composer Groups';
                 document.getElementById('total-groups').textContent = stats.composerGroups || 0;

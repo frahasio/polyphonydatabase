@@ -883,7 +883,7 @@ router.get('/countries', async (req, res) => {
 router.get('/sources', async (req, res) => {
   try {
     const query = `
-      SELECT DISTINCT s.id, s.code
+      SELECT DISTINCT s.id, s.code, s.title
       FROM sources s
       INNER JOIN inclusions i ON s.id = i.source_id
       INNER JOIN compositions c ON i.composition_id = c.id
