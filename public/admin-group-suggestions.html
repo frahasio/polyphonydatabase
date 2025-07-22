@@ -543,6 +543,46 @@
             const anonGroup = group1.isAnonymous ? group1 : group2;
             const namedGroup = group1.isAnonymous ? group2 : group1;
             
+            // Helper function to format composition properties
+            const formatProperties = (group) => {
+                let properties = [];
+                if (group.types && group.types.length > 0) {
+                    properties.push(`<span class="badge bg-info">${group.types.join(', ')}</span>`);
+                }
+                if (group.tones && group.tones.length > 0) {
+                    properties.push(`<span class="text-muted">${group.tones.join(', ')}</span>`);
+                }
+                if (group.evenOdd && group.evenOdd.length > 0) {
+                    properties.push(`<span class="text-muted">(${group.evenOdd.join(', ')})</span>`);
+                }
+                return properties.length > 0 ? properties.join(' ') : '';
+            };
+            
+            // Helper function to format sources with images
+            const formatSources = (sources) => {
+                if (!sources || sources.length === 0) return 'No sources';
+                
+                return sources.map(source => {
+                    let sourceHtml = `<strong>${source.code || 'Unknown Code'}</strong>: ${source.name || 'Unknown Title'}`;
+                    if (source.location) sourceHtml += ` (${source.location})`;
+                    if (source.from_year || source.to_year) {
+                        sourceHtml += ` [${source.from_year || '?'}–${source.to_year || '?'}]`;
+                    }
+                    
+                    // Add image links if available
+                    if (source.images && source.images.length > 0) {
+                        const imageLinks = source.images.map(img => 
+                            `<a href="${img.url}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">
+                                <i class="bi bi-image"></i> ${img.label || 'Image'}
+                            </a>`
+                        ).join('');
+                        sourceHtml += imageLinks;
+                    }
+                    
+                    return `<div class="mb-1">${sourceHtml}</div>`;
+                }).join('');
+            };
+            
             return `
                 <div class="card mb-3 border-${colorClass}">
                     <div class="card-header bg-${colorClass} bg-opacity-10">
@@ -574,8 +614,13 @@
                                     <h6 class="text-warning mb-0">Anonymous: ${anonGroup.name || 'Unnamed Group'}</h6>
                                 </div>
                                 <p class="mb-2"><strong>Voices:</strong> ${anonGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${anonGroup.titles?.join(', ') || 'No titles'}</p>
-                                <p class="mb-0"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
+                                <p class="mb-2"><strong>Titles:</strong> ${anonGroup.titles?.join(', ') || 'No titles'} ${formatProperties(anonGroup)}</p>
+                                <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
+                                <div class="mb-2">
+                                    <strong>Sources:</strong>
+                                    <div class="ms-2">${formatSources(anonGroup.sources)}</div>
+                                </div>
+                                ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 150)}${anonGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
                             <div class="col-md-6">
                                 <div class="d-flex align-items-center mb-2">
@@ -583,8 +628,13 @@
                                     <h6 class="text-primary mb-0">Named: ${namedGroup.name || 'Unnamed Group'}</h6>
                                 </div>
                                 <p class="mb-2"><strong>Voices:</strong> ${namedGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${namedGroup.titles?.join(', ') || 'No titles'}</p>
-                                <p class="mb-0"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${namedGroup.titles?.join(', ') || 'No titles'} ${formatProperties(namedGroup)}</p>
+                                <p class="mb-2"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
+                                <div class="mb-2">
+                                    <strong>Sources:</strong>
+                                    <div class="ms-2">${formatSources(namedGroup.sources)}</div>
+                                </div>
+                                ${namedGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${namedGroup.inclusionNotes.substring(0, 150)}${namedGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
                         </div>
                         
@@ -593,11 +643,19 @@
                         <h6 class="text-secondary">Matching Evidence:</h6>
                         <div class="row">
                             ${suggestion.factors.map(factor => `
-                                <div class="col-md-6 mb-2">
+                                <div class="col-12 mb-2">
                                     <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-2">
-                                        +${factor.score}
+                                        ${factor.score > 0 ? '+' : ''}${factor.score}
                                     </span>
                                     <small>${factor.description}</small>
+                                    ${factor.notes1 && factor.notes2 ? `
+                                        <div class="mt-1 ms-4">
+                                            <small class="text-muted">
+                                                <strong>Group 1 notes:</strong> "${factor.notes1}"<br>
+                                                <strong>Group 2 notes:</strong> "${factor.notes2}"
+                                            </small>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             `).join('')}
                         </div>

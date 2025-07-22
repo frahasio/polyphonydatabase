@@ -1162,15 +1162,42 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation
+             -- Get source information as text aggregation with images
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, ''), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
                JOIN sources s ON i.source_id = s.id
+               LEFT JOIN (
+                 SELECT si2.source_id, json_agg(json_build_object('url', si2.url, 'label', si2.label)) as images
+                 FROM source_images si2
+                 GROUP BY si2.source_id
+               ) si ON s.id = si.source_id
                WHERE c2.group_id = g.id
              ) as source_details,
+             
+             -- Get composition type information from compositions table
+             (
+               SELECT string_agg(DISTINCT COALESCE(ct.name, 'Unknown'), '|||')
+               FROM compositions c2
+               LEFT JOIN composition_types ct ON c2.composition_type_id = ct.id
+               WHERE c2.group_id = g.id
+             ) as composition_types,
+             
+             -- Get tone information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.tone::text, '|||') FILTER (WHERE c2.tone IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_tones,
+             
+             -- Get even/odd information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.even_odd::text, '|||') FILTER (WHERE c2.even_odd IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_even_odd,
              
              -- Get inclusion notes for text analysis
              (
@@ -1256,15 +1283,42 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation
+             -- Get source information as text aggregation with images
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, ''), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
                JOIN sources s ON i.source_id = s.id
+               LEFT JOIN (
+                 SELECT si2.source_id, json_agg(json_build_object('url', si2.url, 'label', si2.label)) as images
+                 FROM source_images si2
+                 GROUP BY si2.source_id
+               ) si ON s.id = si.source_id
                WHERE c2.group_id = g.id
              ) as source_details,
+             
+             -- Get composition type information from compositions table
+             (
+               SELECT string_agg(DISTINCT COALESCE(ct.name, 'Unknown'), '|||')
+               FROM compositions c2
+               LEFT JOIN composition_types ct ON c2.composition_type_id = ct.id
+               WHERE c2.group_id = g.id
+             ) as composition_types,
+             
+             -- Get tone information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.tone::text, '|||') FILTER (WHERE c2.tone IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_tones,
+             
+             -- Get even/odd information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.even_odd::text, '|||') FILTER (WHERE c2.even_odd IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_even_odd,
              
              -- Get inclusion notes for text analysis
              (
@@ -1346,15 +1400,42 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
              ) as composer_details,
              
-             -- Get source information as text aggregation
+             -- Get source information as text aggregation with images
              (
-               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, ''), '|||')
+               SELECT string_agg(s.title || '::' || COALESCE(s.town, '') || '::' || COALESCE(s.from_year::text, '') || '::' || COALESCE(s.to_year::text, '') || '::' || COALESCE(s.code, '') || '::' || COALESCE(si.images, '[]'), '|||')
                FILTER (WHERE s.id IS NOT NULL)
                FROM compositions c2
                JOIN inclusions i ON c2.id = i.composition_id
                JOIN sources s ON i.source_id = s.id
+               LEFT JOIN (
+                 SELECT si2.source_id, json_agg(json_build_object('url', si2.url, 'label', si2.label)) as images
+                 FROM source_images si2
+                 GROUP BY si2.source_id
+               ) si ON s.id = si.source_id
                WHERE c2.group_id = g.id
              ) as source_details,
+             
+             -- Get composition type information from compositions table
+             (
+               SELECT string_agg(DISTINCT COALESCE(ct.name, 'Unknown'), '|||')
+               FROM compositions c2
+               LEFT JOIN composition_types ct ON c2.composition_type_id = ct.id
+               WHERE c2.group_id = g.id
+             ) as composition_types,
+             
+             -- Get tone information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.tone::text, '|||') FILTER (WHERE c2.tone IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_tones,
+             
+             -- Get even/odd information from compositions table
+             (
+               SELECT string_agg(DISTINCT c2.even_odd::text, '|||') FILTER (WHERE c2.even_odd IS NOT NULL)
+               FROM compositions c2
+               WHERE c2.group_id = g.id
+             ) as composition_even_odd,
              
              -- Get inclusion notes for text analysis
              (
@@ -1456,6 +1537,11 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           // Don't compare group to itself
           if (anonGroup.id === compareGroup.id) continue;
           
+          // STRICT ELIMINATION: Different composition properties = different works
+          if (hasConflictingProperties(anonGroup, compareGroup)) {
+            continue; // Skip this comparison entirely
+          }
+          
           // Quick pre-filter: skip if no title overlap potential
           if (!hasQuickTitleOverlap(anonGroup, compareGroup)) continue;
           
@@ -1471,6 +1557,11 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                 voice_count: anonGroup.voice_count,
                 titles: anonGroup.title_language_pairs?.map(p => p.text) || [],
                 composers: anonGroup.composer_details?.map(c => c.name) || [],
+                types: anonGroup.composition_types || [],
+                tones: anonGroup.composition_tones || [],
+                evenOdd: anonGroup.composition_even_odd || [],
+                sources: anonGroup.source_details || [],
+                inclusionNotes: anonGroup.inclusion_notes || '',
                 isAnonymous: true
               },
               group2: {
@@ -1479,6 +1570,11 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                 voice_count: compareGroup.voice_count,
                 titles: compareGroup.title_language_pairs?.map(p => p.text) || [],
                 composers: compareGroup.composer_details?.map(c => c.name) || [],
+                types: compareGroup.composition_types || [],
+                tones: compareGroup.composition_tones || [],
+                evenOdd: compareGroup.composition_even_odd || [],
+                sources: compareGroup.source_details || [],
+                inclusionNotes: compareGroup.inclusion_notes || '',
                 isAnonymous: false
               },
               matchScore: matchResult.totalScore,
@@ -1547,27 +1643,58 @@ function parseGroupData(row) {
     }
   }
   
-  // Parse source details
+  // Parse source details with images
   const source_details = [];
   if (row.source_details) {
     const sourceStrings = row.source_details.split('|||');
     for (const sourceStr of sourceStrings) {
-      const [title, location, from_year, to_year] = sourceStr.split('::');
+      const [title, location, from_year, to_year, code, imagesJson] = sourceStr.split('::');
+      let images = [];
+      try {
+        if (imagesJson && imagesJson !== '[]') {
+          images = JSON.parse(imagesJson);
+        }
+      } catch (e) {
+        console.warn('Failed to parse source images:', e);
+      }
+      
       source_details.push({
         id: null, // We don't have source IDs in this format
         name: title,
         location: location || null,
         from_year: from_year ? parseInt(from_year) : null,
-        to_year: to_year ? parseInt(to_year) : null
+        to_year: to_year ? parseInt(to_year) : null,
+        code: code || null,
+        images: images
       });
     }
   }
+  
+  // Parse composition types
+  const composition_types = row.composition_types ? 
+    row.composition_types.split('|||').filter(t => t && t !== 'Unknown') : [];
+  
+  // Parse composition tones
+  const composition_tones = row.composition_tones ? 
+    row.composition_tones.split('|||') : [];
+  
+  // Parse composition even/odd
+  const composition_even_odd = row.composition_even_odd ? 
+    row.composition_even_odd.split('|||').map(eo => {
+      if (eo === '0') return 'even';
+      if (eo === '1') return 'odd';
+      if (eo === '2') return 'both';
+      return eo;
+    }) : [];
   
   return {
     ...row,
     title_language_pairs,
     composer_details,
-    source_details
+    source_details,
+    composition_types,
+    composition_tones,
+    composition_even_odd
   };
 }
 
@@ -1918,11 +2045,13 @@ function analyzeInclusionNotes(group1, group2, factors) {
     const commonWords = words1.filter(w => words2.includes(w));
     
     if (commonWords.length >= 2) {
-      score += Math.min(commonWords.length * 2, 10);
+      score += Math.min(commonWords.length * 2, 5);
       factors.push({
-        description: `Similar inclusion notes (${commonWords.length} common terms)`,
-        score: Math.min(commonWords.length * 2, 10),
-        strength: 'weak'
+        description: `Similar inclusion notes (${commonWords.length} common terms): "${group1.inclusion_notes.substring(0, 100)}${group1.inclusion_notes.length > 100 ? '...' : ''}" vs "${group2.inclusion_notes.substring(0, 100)}${group2.inclusion_notes.length > 100 ? '...' : ''}"`,
+        score: Math.min(commonWords.length * 2, 5),
+        strength: 'weak',
+        notes1: group1.inclusion_notes,
+        notes2: group2.inclusion_notes
       });
     }
   }
@@ -2149,98 +2278,64 @@ function getConfidenceLevel(score) {
 function analyzeCompositionProperties(group1, group2, factors) {
   let score = 0;
   
-  // Extract composition properties from parsed data
-  const tones1 = group1.tones || [];
-  const tones2 = group2.tones || [];
+  // Use the directly parsed composition data
+  const types1 = group1.composition_types || [];
+  const types2 = group2.composition_types || [];
+  const tones1 = group1.composition_tones || [];
+  const tones2 = group2.composition_tones || [];
   
-  // For composition type, we'll need to extract it from group names/titles
-  // This is a simplified approach - in a full implementation you'd want to store this separately
+  // COMPOSITION TYPE ANALYSIS (up to 12 points)
+  if (types1.length > 0 && types2.length > 0) {
+    const type1Set = new Set(types1);
+    const type2Set = new Set(types2);
+    const commonTypes = [...type1Set].filter(t => type2Set.has(t));
+    
+    if (commonTypes.length > 0) {
+      score += 12;
+      factors.push({
+        description: `Same composition type: ${commonTypes.join(', ')}`,
+        score: 12,
+        strength: 'strong'
+      });
+    }
+  }
   
-  // TONE ANALYSIS (up to 12 points)
+  // TONE ANALYSIS (up to 10 points)
   if (tones1.length > 0 && tones2.length > 0) {
     const tone1Set = new Set(tones1);
     const tone2Set = new Set(tones2);
     const commonTones = [...tone1Set].filter(t => tone2Set.has(t));
     
     if (commonTones.length > 0) {
-      if (tone1Set.size === 1 && tone2Set.size === 1 && commonTones.length === 1) {
-        // Exact single tone match - strong evidence
-        score += 12;
-        factors.push({
-          description: `Same musical tone: ${commonTones[0]}`,
-          score: 12,
-          strength: 'strong'
-        });
-      } else if (commonTones.length > 0) {
-        // Some tone overlap
-        const toneScore = Math.min(commonTones.length * 6, 10);
-        score += toneScore;
-        factors.push({
-          description: `Common musical tones: ${commonTones.join(', ')}`,
-          score: toneScore,
-          strength: 'medium'
-        });
-      }
-    } else {
-      // Different tones - deduct points for certain types
-      const conflictingTones = tones1.length === 1 && tones2.length === 1 && 
-                               tones1[0] !== tones2[0] &&
-                               ['1', '2', '3', '4', '5', '6', '7', '8'].includes(tones1[0]) &&
-                               ['1', '2', '3', '4', '5', '6', '7', '8'].includes(tones2[0]);
-      
-      if (conflictingTones) {
-        score -= 8;
-        factors.push({
-          description: `Different musical modes: ${tones1[0]} vs ${tones2[0]} (likely different works)`,
-          score: -8,
-          strength: 'strong'
-        });
-      }
-    }
-  }
-  
-  // COMPOSITION TYPE ANALYSIS (up to 8 points)
-  // Look for type indicators in titles
-  const getTypeFromTitles = (group) => {
-    const titles = group.title_language_pairs?.map(p => p.text.toLowerCase()) || [];
-    for (const title of titles) {
-      if (title.includes('magnificat')) return 'magnificat';
-      if (title.includes('mass') || title.includes('missa')) return 'mass';
-      if (title.includes('motet')) return 'motet';
-      if (title.includes('hymn')) return 'hymn';
-      if (title.includes('psalm')) return 'psalm';
-      if (title.includes('antiphon')) return 'antiphon';
-      if (title.includes('responsory')) return 'responsory';
-    }
-    return null;
-  };
-  
-  const type1 = getTypeFromTitles(group1);
-  const type2 = getTypeFromTitles(group2);
-  
-  if (type1 && type2) {
-    if (type1 === type2) {
-      score += 8;
+      score += 10;
       factors.push({
-        description: `Same composition type: ${type1}`,
-        score: 8,
-        strength: 'medium'
-      });
-    } else {
-      score -= 5;
-      factors.push({
-        description: `Different composition types: ${type1} vs ${type2}`,
-        score: -5,
-        strength: 'medium'
+        description: `Same musical tone/mode: ${commonTones.join(', ')}`,
+        score: 10,
+        strength: 'strong'
       });
     }
   }
   
-  // EVEN/ODD ANALYSIS (up to 5 points)
-  // This would need to be extracted from the parsed data
-  // For now, we'll skip this as it's not easily accessible in current data structure
+  // EVEN/ODD ANALYSIS (up to 3 points)
+  const evenOdd1 = group1.composition_even_odd || [];
+  const evenOdd2 = group2.composition_even_odd || [];
   
-  return Math.max(score, -10); // Don't allow too negative scores
+  if (evenOdd1.length > 0 && evenOdd2.length > 0) {
+    const eo1Set = new Set(evenOdd1);
+    const eo2Set = new Set(evenOdd2);
+    const commonEvenOdd = [...eo1Set].filter(eo => eo2Set.has(eo));
+    
+    if (commonEvenOdd.length > 0) {
+      score += 3;
+      factors.push({
+        description: `Same even/odd: ${commonEvenOdd.join(', ')}`,
+        score: 3,
+        strength: 'weak'
+      });
+    }
+  }
+  
+  return score;
 }
 
 // Helper function to calculate meaningful word overlap between titles
@@ -2275,6 +2370,44 @@ function calculateWordOverlap(title1, title2) {
     words2: meaningfulWords2,
     overlap: overlap
   };
+}
+
+// Helper function to check for conflicting composition properties
+function hasConflictingProperties(group1, group2) {
+  // Check composition types
+  const types1 = new Set(group1.composition_types || []);
+  const types2 = new Set(group2.composition_types || []);
+  
+  if (types1.size > 0 && types2.size > 0) {
+    const hasCommonType = [...types1].some(t => types2.has(t));
+    if (!hasCommonType) {
+      return true; // Different types = different works
+    }
+  }
+  
+  // Check tones (modes)
+  const tones1 = new Set(group1.composition_tones || []);
+  const tones2 = new Set(group2.composition_tones || []);
+  
+  if (tones1.size > 0 && tones2.size > 0) {
+    const hasCommonTone = [...tones1].some(t => tones2.has(t));
+    if (!hasCommonTone) {
+      return true; // Different modes = different works
+    }
+  }
+  
+  // Check even/odd
+  const evenOdd1 = new Set(group1.composition_even_odd || []);
+  const evenOdd2 = new Set(group2.composition_even_odd || []);
+  
+  if (evenOdd1.size > 0 && evenOdd2.size > 0) {
+    const hasCommonEvenOdd = [...evenOdd1].some(eo => evenOdd2.has(eo));
+    if (!hasCommonEvenOdd) {
+      return true; // Different even/odd = different works
+    }
+  }
+  
+  return false; // No conflicts found
 }
 
 export default router; 
