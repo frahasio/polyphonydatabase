@@ -109,88 +109,72 @@
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-music-note-list me-2"></i>
-                        Select Voice Count to Analyze
+                        Choose Analysis Type
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">
-                        <strong>Focus:</strong> This analysis specifically targets <strong>Anonymous compositions</strong> to help resolve attributions. 
-                        Choose the number of voices to compare anonymous works against all other compositions with the same voice count.
+                    <p class="text-muted mb-4">
+                        Choose an analysis type below. The selected works will appear on the <strong>left side</strong> of each result card, with potential matches on the <strong>right side</strong>.
                     </p>
                     
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-lightbulb me-2"></i>
-                        <strong>Tip:</strong> This will find potential attribution resolutions, contrafacta, and translation relationships for compositions currently marked as "Anonymous".
-                    </div>
-                    
-                    <div class="row g-2 mb-3">
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="2">2 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="3">3 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="4">4 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="5">5 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="6">6 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="7">7 Voices</button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="8">8 Voices</button>
+                    <!-- Section 1: Anonymous Analysis -->
+                    <div class="border rounded p-3 mb-4">
+                        <h6 class="text-warning mb-2">
+                            <i class="bi bi-question-circle me-2"></i>
+                            Analyze Anonymous Works
+                        </h6>
+                        <p class="small text-muted mb-3">Find potential attribution resolutions for anonymous compositions. Choose voice count to compare anonymous works against all other compositions.</p>
+                        
+                        <div id="voice-buttons-container" class="row g-2">
+                            <!-- Voice count buttons will be dynamically generated here -->
+                            <div class="col-12 text-muted small" id="voice-loading">
+                                <i class="bi bi-hourglass-split me-2"></i>Loading available voice counts...
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="text-center mb-3">
-                        <strong>OR</strong>
-                    </div>
-                    
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label small">Analyze by Composer (all voice counts)</label>
-                            <select id="composerSelect" class="form-select">
-                                <option value="">Select a composer...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button id="analyzeComposerBtn" class="btn btn-success" onclick="analyzeByComposer()" disabled>
-                                <i class="bi bi-person me-2"></i>Analyze Composer
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Composer Analysis:</strong> Finds title variations, attribution inconsistencies, and potential duplicates for works by the same composer across all voice counts.
-                    </div>
-                    
-                    <div class="text-center mb-3">
-                        <strong>OR</strong>
-                    </div>
-                    
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label small">Analyze by Source (all voice counts)</label>
-                            <select id="sourceSelect" class="form-select">
-                                <option value="">Select a source...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button id="analyzeSourceBtn" class="btn btn-info" onclick="analyzeBySource()" disabled>
-                                <i class="bi bi-file-text me-2"></i>Analyze Source
-                            </button>
+                    <!-- Section 2: Composer Analysis -->
+                    <div class="border rounded p-3 mb-4">
+                        <h6 class="text-success mb-2">
+                            <i class="bi bi-person me-2"></i>
+                            Analyze Composer's Oeuvre
+                        </h6>
+                        <p class="small text-muted mb-3">Find title variations, attribution inconsistencies, and potential duplicates within a composer's works across all voice counts.</p>
+                        
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <select id="composerSelect" class="form-select">
+                                    <option value="">Select a composer...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button id="analyzeComposerBtn" class="btn btn-success w-100" onclick="analyzeByComposer()" disabled>
+                                    <i class="bi bi-person me-2"></i>Analyze Composer
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <strong>Source Analysis:</strong> Shows all compositions from the selected source and finds potential concordances, attribution resolutions, and cataloging corrections. Perfect for post-cataloging review.
+                    <!-- Section 3: Source Analysis -->
+                    <div class="border rounded p-3">
+                        <h6 class="text-info mb-2">
+                            <i class="bi bi-file-text me-2"></i>
+                            Analyze Source Contents
+                        </h6>
+                        <p class="small text-muted mb-3">Review all compositions from a source in manuscript order. Find concordances, resolve attributions, and catch cataloging errors. Perfect for post-cataloging review.</p>
+                        
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <select id="sourceSelect" class="form-select">
+                                    <option value="">Select a source...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button id="analyzeSourceBtn" class="btn btn-info w-100" onclick="analyzeBySource()" disabled>
+                                    <i class="bi bi-file-text me-2"></i>Analyze Source
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -330,6 +314,7 @@
             setupVoiceSelection();
             loadComposers();
             loadSources();
+            loadAnonymousVoiceCounts();
         });
 
         function setupVoiceSelection() {
@@ -345,15 +330,15 @@
         function selectVoiceCount(voiceCount) {
             // Update button states
             document.querySelectorAll('.voice-btn').forEach(btn => {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-primary');
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-warning');
             });
             
             // Highlight selected button
             const selectedBtn = document.querySelector(`[data-voices="${voiceCount}"]`);
             if (selectedBtn) {
-                selectedBtn.classList.remove('btn-outline-primary');
-                selectedBtn.classList.add('btn-primary');
+                selectedBtn.classList.remove('btn-outline-warning');
+                selectedBtn.classList.add('btn-warning');
             }
             
             // Clear other selections
@@ -394,8 +379,8 @@
         function clearAllSelections() {
             // Clear voice button selection
             document.querySelectorAll('.voice-btn').forEach(btn => {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-primary');
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-warning');
             });
             
             // Clear composer selection
@@ -420,15 +405,15 @@
                 
                 if (voiceCount) {
                     params.set('voices', voiceCount);
-                    document.getElementById('progress-info').textContent = `Analyzing anonymous groups with ${voiceCount} voices...`;
+                    document.getElementById('progress-info').textContent = `Analyzing anonymous works with ${voiceCount} voices against all other compositions...`;
                 } else if (composerId) {
                     params.set('composer', composerId);
                     const composerName = document.getElementById('composerSelect').selectedOptions[0].textContent;
-                    document.getElementById('progress-info').textContent = `Analyzing all compositions by ${composerName}...`;
+                    document.getElementById('progress-info').textContent = `Analyzing ${composerName}'s works against all other compositions...`;
                 } else if (sourceId) {
                     params.set('source', sourceId);
                     const sourceName = document.getElementById('sourceSelect').selectedOptions[0].textContent;
-                    document.getElementById('progress-info').textContent = `Analyzing all compositions in ${sourceName}...`;
+                    document.getElementById('progress-info').textContent = `Analyzing compositions in ${sourceName} against all other works...`;
                 } else {
                     document.getElementById('progress-info').textContent = 'Analyzing groups...';
                 }
@@ -557,7 +542,7 @@
                         .forEach(source => {
                             const option = document.createElement('option');
                             option.value = source.id;
-                            option.textContent = `${source.code || 'Unknown Code'} - ${source.title || 'Untitled'}`;
+                            option.textContent = source.code || 'Unknown Code';
                             select.appendChild(option);
                         });
                     
@@ -572,11 +557,53 @@
             }
         }
 
+        async function loadAnonymousVoiceCounts() {
+            try {
+                const response = await fetch('/api/admin/anonymous-voice-counts');
+                if (response.ok) {
+                    const voiceCounts = await response.json();
+                    const container = document.getElementById('voice-buttons-container');
+                    
+                    // Remove loading message
+                    document.getElementById('voice-loading')?.remove();
+                    
+                    if (voiceCounts.length === 0) {
+                        container.innerHTML = '<div class="col-12 text-muted small"><i class="bi bi-info-circle me-2"></i>No anonymous works found in database.</div>';
+                        return;
+                    }
+                    
+                    // Generate buttons for each voice count
+                    voiceCounts.forEach(voiceCount => {
+                        const colDiv = document.createElement('div');
+                        colDiv.className = 'col-auto';
+                        
+                        const button = document.createElement('button');
+                        button.className = 'btn btn-outline-warning voice-btn';
+                        button.setAttribute('data-voices', voiceCount);
+                        button.textContent = `${voiceCount} Voice${voiceCount !== 1 ? 's' : ''}`;
+                        
+                        colDiv.appendChild(button);
+                        container.appendChild(colDiv);
+                    });
+                    
+                    // Set up event handlers for the new buttons
+                    setupVoiceSelection();
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error loading anonymous voice counts:', error);
+                const container = document.getElementById('voice-buttons-container');
+                document.getElementById('voice-loading')?.remove();
+                container.innerHTML = '<div class="col-12 text-danger small"><i class="bi bi-exclamation-triangle me-2"></i>Error loading voice counts. Please refresh the page.</div>';
+            }
+        }
+
         function clearOtherSelections(keepType) {
             if (keepType !== 'voice') {
                 document.querySelectorAll('.voice-btn').forEach(btn => {
-                    btn.classList.remove('btn-primary');
-                    btn.classList.add('btn-outline-primary');
+                    btn.classList.remove('btn-warning');
+                    btn.classList.add('btn-outline-warning');
                 });
             }
             if (keepType !== 'composer') {
@@ -866,27 +893,24 @@
                                                 </div>
                                             </div>
                                             <p class="mb-1 small"><strong>Composer(s):</strong> ${match.namedGroup.composers?.join(', ') || 'Unknown'}</p>
-                                            <p class="mb-1 small"><strong>Titles:</strong> ${formatTitleWithProperties(match.namedGroup.titles?.join(', ') || 'No titles', match.namedGroup)}</p>
+                                            <p class="mb-1 small"><strong>Titles:</strong> ${formatTitleWithProperties(match.namedGroup.titles?.join(', ') || 'No titles', match.namedGroup)} ${formatTypeBadges(match.namedGroup)}</p>
                                             ${match.namedGroup.types && match.namedGroup.types.length > 0 ? `<p class="mb-1 small"><strong>Type:</strong> ${match.namedGroup.types.join(', ')}</p>` : ''}
                                             <div class="mb-1 small">
                                                 <strong>Sources:</strong>
                                                 <div class="ms-2">${formatSources(match.namedGroup.sources, match.namedGroup.clef_combinations)}</div>
                                             </div>
                                             ${match.factors && match.factors.length > 0 ? `
-                                                <details class="mt-1">
-                                                    <summary class="small text-muted">Matching Evidence (${match.factors.length} factors)</summary>
-                                                    <div class="mt-1">
-                                                        ${match.factors.slice(0, 3).map(factor => `
-                                                            <div class="small">
-                                                                <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-1">
-                                                                    ${factor.score > 0 ? '+' : ''}${factor.score}
-                                                                </span>
-                                                                ${factor.description}
-                                                            </div>
-                                                        `).join('')}
-                                                        ${match.factors.length > 3 ? `<div class="small text-muted">...and ${match.factors.length - 3} more factors</div>` : ''}
-                                                    </div>
-                                                </details>
+                                                <div class="mt-2">
+                                                    <div class="small text-muted mb-1"><strong>Matching Evidence:</strong></div>
+                                                    ${match.factors.map(factor => `
+                                                        <div class="small mb-1">
+                                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-1">
+                                                                ${factor.score > 0 ? '+' : ''}${factor.score}
+                                                            </span>
+                                                            ${factor.description}
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
                                             ` : ''}
                                         </div>
                                     `).join('')}
@@ -948,8 +972,8 @@
             
             // Reset button states
             document.querySelectorAll('.voice-btn').forEach(btn => {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-primary');
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-warning');
             });
         }
 

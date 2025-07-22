@@ -1087,6 +1087,49 @@ router.get('/cleanup-preview', async (req, res) => {
   }
 });
 
+// GET /anonymous-voice-counts - Get available voice counts for anonymous groups
+router.get('/anonymous-voice-counts', requireAdmin, async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT
+        (
+          SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
+          FROM compositions c2
+          WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
+        ) as voice_count
+      FROM groups g
+      WHERE NOT EXISTS (
+        -- Group contains NO named composers (only anonymous compositions)
+        SELECT 1 FROM compositions c
+        CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
+        WHERE c.group_id = g.id
+        AND c.composer_id_list IS NOT NULL
+        AND array_length(c.composer_id_list, 1) > 0
+        AND composer_id != 23
+      )
+      AND EXISTS (
+        -- Group contains at least one composition with composer_id_list
+        SELECT 1 FROM compositions c
+        WHERE c.group_id = g.id
+        AND c.composer_id_list IS NOT NULL
+        AND array_length(c.composer_id_list, 1) > 0
+      )
+      ORDER BY voice_count;
+    `;
+    
+    const result = await pool.query(query);
+    const voiceCounts = result.rows
+      .map(row => row.voice_count)
+      .filter(count => count !== null && count > 0)
+      .sort((a, b) => a - b);
+    
+    res.json(voiceCounts);
+  } catch (error) {
+    console.error('Error fetching anonymous voice counts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /group-suggestions - Generate composition merge suggestions
 router.get('/group-suggestions', requireAdmin, async (req, res) => {
   try {
@@ -1712,17 +1755,19 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       queryParams = voiceFilter ? [voiceFilter] : [];
     }
     
-    // Execute both queries with parameters
+    // Execute both queries with appropriate parameters
     const [anonymousResult, allGroupsResult] = await Promise.all([
       pool.query(anonymousQuery, queryParams),
-      pool.query(allGroupsQuery, queryParams)
+      pool.query(allGroupsQuery, sourceFilter ? [] : queryParams) // Source analysis allGroupsQuery needs no params
     ]);
     
     const anonymousGroups = anonymousResult.rows.map(parseGroupData);
     const allGroups = allGroupsResult.rows.map(parseGroupData);
     
-    if (composerFilter) {
-      console.log(`Loaded ${anonymousGroups.length} groups by composer for analysis`);
+    if (sourceFilter) {
+      console.log(`Loaded ${anonymousGroups.length} groups from source for analysis against ${allGroups.length} total groups`);
+    } else if (composerFilter) {
+      console.log(`Loaded ${anonymousGroups.length} groups by composer for analysis against ${allGroups.length} total groups`);
     } else {
       console.log(`Loaded ${anonymousGroups.length} anonymous groups and ${allGroups.length} total groups for comparison`);
     }
@@ -1731,15 +1776,17 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       return res.json({
         suggestions: [],
         stats: {
-          totalAnonymousGroups: composerFilter ? 0 : anonymousGroups.length,
+          totalAnonymousGroups: sourceFilter || composerFilter ? 0 : anonymousGroups.length,
           totalGroups: allGroups.length,
           composerGroups: composerFilter ? anonymousGroups.length : 0,
+          sourceGroups: sourceFilter ? anonymousGroups.length : 0,
           suggestionsFound: 0,
+          groupedSuggestions: 0,
           highConfidence: 0,
           mediumConfidence: 0,
           lowConfidence: 0,
           analysisTime: Date.now() - startTime,
-          analysisType: composerFilter ? 'composer' : 'anonymous'
+          analysisType: sourceFilter ? 'source' : (composerFilter ? 'composer' : 'anonymous')
         }
       });
     }
@@ -1748,15 +1795,15 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     const maxSuggestions = 500; // Increased since we're being more targeted
     
     // Group both sets by voice count for efficient comparison
-    const anonymousByVoices = {};
+    const primaryGroupsByVoices = {};
     const allGroupsByVoices = {};
     
     for (const group of anonymousGroups) {
       const voices = group.voice_count;
-      if (!anonymousByVoices[voices]) {
-        anonymousByVoices[voices] = [];
+      if (!primaryGroupsByVoices[voices]) {
+        primaryGroupsByVoices[voices] = [];
       }
-      anonymousByVoices[voices].push(group);
+      primaryGroupsByVoices[voices].push(group);
     }
     
     for (const group of allGroups) {
@@ -1767,13 +1814,14 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       allGroupsByVoices[voices].push(group);
     }
     
-    // Compare anonymous groups against all groups with same voice count
-    for (const [voiceCount, anonGroups] of Object.entries(anonymousByVoices)) {
+    // Compare primary groups against all groups with same voice count
+    for (const [voiceCount, anonGroups] of Object.entries(primaryGroupsByVoices)) {
       const compareGroups = allGroupsByVoices[voiceCount] || [];
       
       if (compareGroups.length === 0) continue;
       
-      console.log(`Analyzing ${anonGroups.length} anonymous groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
+      const analysisType = sourceFilter ? 'source' : (composerFilter ? 'composer' : 'anonymous');
+      console.log(`Analyzing ${anonGroups.length} ${analysisType} groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
       
       for (const anonGroup of anonGroups) {
         if (suggestions.length >= maxSuggestions) break;
@@ -1837,7 +1885,8 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                 sources: anonGroup.source_details || [],
                 clef_combinations: anonGroup.clef_combinations || [],
                 inclusionNotes: anonGroup.inclusion_notes || '',
-                isAnonymous: true
+                position: anonGroup.position || null,
+                isAnonymous: sourceFilter || composerFilter ? false : true // Only anonymous for voice analysis
               },
               group2: {
                 id: compareGroup.id,
@@ -1857,7 +1906,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
               confidence: getConfidenceLevel(matchResult.totalScore),
               factors: matchResult.factors,
               notes: generateMatchNotes(anonGroup, compareGroup, matchResult.totalScore),
-              potentialAttribution: true // Flag this as potential attribution resolution
+              potentialAttribution: !sourceFilter && !composerFilter // Flag anonymous analysis as potential attribution resolution
             });
           }
         }
