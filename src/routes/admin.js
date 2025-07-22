@@ -1102,10 +1102,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get voice count for initial filtering
            (
-             SELECT MODE() WITHIN GROUP (ORDER BY i.voices)
+             SELECT MODE() WITHIN GROUP (ORDER BY c2.number_of_voices)
              FROM compositions c2
-             JOIN inclusions i ON c2.id = i.composition_id
-             WHERE c2.group_id = g.id AND i.voices IS NOT NULL
+             WHERE c2.group_id = g.id AND c2.number_of_voices IS NOT NULL
            ) as voice_count,
            
            -- Get most common clef combination for filtering
@@ -1143,17 +1142,16 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                'to_year', comp.to_year
              )) FILTER (WHERE comp.id IS NOT NULL)
              FROM compositions c2
-             JOIN composer_composition cc ON c2.id = cc.composition_id
-             JOIN composers comp ON cc.composer_id = comp.id
-             WHERE c2.group_id = g.id
+             JOIN composers comp ON comp.id = ANY(c2.composer_id_list)
+             WHERE c2.group_id = g.id AND c2.composer_id_list IS NOT NULL
            ) as composer_details,
            
            -- Get source information
            (
              SELECT json_agg(DISTINCT jsonb_build_object(
                'id', s.id,
-               'name', s.name,
-               'location', s.location,
+               'name', s.title,
+               'location', s.town,
                'from_year', s.from_year,
                'to_year', s.to_year
              )) FILTER (WHERE s.id IS NOT NULL)
@@ -1180,8 +1178,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
         -- Pre-filter: only groups with multiple potential match criteria
         AND EXISTS (
           SELECT 1 FROM compositions c2 
-          JOIN inclusions i ON c2.id = i.composition_id 
-          WHERE c2.group_id = g.id AND i.voices BETWEEN 2 AND 8
+          WHERE c2.group_id = g.id AND c2.number_of_voices BETWEEN 2 AND 8
         )
         -- Limit to reduce memory usage and processing time
         ORDER BY g.id
