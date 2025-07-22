@@ -1098,7 +1098,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       WITH groupsQuery AS (
         SELECT 
            g.id,
-           g.name,
+           g.display_title,
            
            -- Get voice count for initial filtering
            (
@@ -1253,14 +1253,14 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
               suggestions.push({
                 group1: {
                   id: group1.id,
-                  name: group1.name,
+                  name: group1.display_title,
                   voice_count: group1.voice_count,
                   titles: group1.title_language_pairs?.map(p => p.text) || [],
                   composers: group1.composer_details?.map(c => c.name) || []
                 },
                 group2: {
                   id: group2.id,
-                  name: group2.name,
+                  name: group2.display_title,
                   voice_count: group2.voice_count,
                   titles: group2.title_language_pairs?.map(p => p.text) || [],
                   composers: group2.composer_details?.map(c => c.name) || []
