@@ -386,13 +386,18 @@
                     
                     console.log('User object:', user); // Debug log
                     console.log('is_admin value:', user?.is_admin); // Debug log
+                    console.log('role value:', user?.role); // Debug log
                     
-                    // Check multiple possible admin field names and be more permissive
-                    const isAdmin = user?.is_admin === true || user?.is_admin === 1 || user?.admin === true || user?.admin === 1;
+                    // Check multiple possible admin field formats
+                    const isAdmin = user?.is_admin === true || 
+                                  user?.is_admin === 1 || 
+                                  user?.admin === true || 
+                                  user?.admin === 1 ||
+                                  user?.role === 'admin';
                     
                     if (!isAdmin) {
                         console.log('Admin check failed, redirecting to dashboard');
-                        alert('Admin access required for Group Suggestions. Contact system administrator if you believe this is an error.');
+                        alert('Admin access required for Anonymous Attribution Suggestions. Contact system administrator if you believe this is an error.');
                         window.location.href = '/admin';
                         return;
                     }
