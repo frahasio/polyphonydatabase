@@ -500,18 +500,26 @@
         }
 
         function displayResults(suggestions) {
-            // Categorize suggestions by confidence
+            resetResults();
+            
             const highConfidence = suggestions.filter(s => s.confidence === 'High');
             const mediumConfidence = suggestions.filter(s => s.confidence === 'Medium');
-            const lowConfidence = suggestions.filter(s => s.confidence === 'Low');
+            // Remove low confidence - don't show them at all
             
-            // Show results container
             document.getElementById('results-container').style.display = 'block';
             
-            // Display each confidence level
-            displayConfidenceGroup('High', highConfidence, 'success');
-            displayConfidenceGroup('Medium', mediumConfidence, 'warning');
-            displayConfidenceGroup('Low', lowConfidence, 'secondary');
+            if (highConfidence.length > 0) {
+                displayConfidenceGroup('High', highConfidence, 'success');
+            }
+            
+            if (mediumConfidence.length > 0) {
+                displayConfidenceGroup('Medium', mediumConfidence, 'warning');
+            }
+            
+            // Show message if no high or medium confidence results
+            if (highConfidence.length === 0 && mediumConfidence.length === 0) {
+                showNoResults();
+            }
         }
 
         function displayConfidenceGroup(level, suggestions, colorClass) {
@@ -543,27 +551,39 @@
             const anonGroup = group1.isAnonymous ? group1 : group2;
             const namedGroup = group1.isAnonymous ? group2 : group1;
             
-            // Helper function to format composition properties
-            const formatProperties = (group) => {
-                let properties = [];
-                if (group.types && group.types.length > 0) {
-                    properties.push(`<span class="badge bg-info">${group.types.join(', ')}</span>`);
-                }
+            // Helper function to format composition properties (tone/even-odd in grey)
+            const formatTitleWithProperties = (title, group) => {
+                let result = title;
+                let greyProperties = [];
+                
                 if (group.tones && group.tones.length > 0) {
-                    properties.push(`<span class="text-muted">${group.tones.join(', ')}</span>`);
+                    greyProperties.push(group.tones.join(', '));
                 }
                 if (group.evenOdd && group.evenOdd.length > 0) {
-                    properties.push(`<span class="text-muted">(${group.evenOdd.join(', ')})</span>`);
+                    greyProperties.push(`(${group.evenOdd.join(', ')})`);
                 }
-                return properties.length > 0 ? properties.join(' ') : '';
+                
+                if (greyProperties.length > 0) {
+                    result += ` <span class="text-muted">${greyProperties.join(' ')}</span>`;
+                }
+                
+                return result;
             };
             
-            // Helper function to format sources with images
-            const formatSources = (sources) => {
+            // Helper function to format type badges
+            const formatTypeBadges = (group) => {
+                if (group.types && group.types.length > 0) {
+                    return group.types.map(type => `<span class="badge bg-info me-1">${type}</span>`).join('');
+                }
+                return '';
+            };
+            
+            // Helper function to format sources with images and clefs
+            const formatSources = (sources, clefData = null) => {
                 if (!sources || sources.length === 0) return 'No sources';
                 
-                return sources.map(source => {
-                    let sourceHtml = `<strong>${source.code || 'Unknown Code'}</strong>: ${source.name || 'Unknown Title'}`;
+                return sources.map((source, index) => {
+                    let sourceHtml = `<strong>${source.code || 'Unknown Code'}</strong>`;
                     if (source.location) sourceHtml += ` (${source.location})`;
                     if (source.from_year || source.to_year) {
                         sourceHtml += ` [${source.from_year || '?'}–${source.to_year || '?'}]`;
@@ -573,15 +593,29 @@
                     if (source.images && source.images.length > 0) {
                         const imageLinks = source.images.map(img => 
                             `<a href="${img.url}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">
-                                <i class="bi bi-image"></i> ${img.label || 'Image'}
+                                <i class="bi bi-image"></i>
                             </a>`
                         ).join('');
                         sourceHtml += imageLinks;
                     }
                     
+                    // Add clef information if available
+                    if (clefData && clefData.length > index) {
+                        const clefs = clefData[index];
+                        if (clefs && clefs.length > 0) {
+                            const clefImages = clefs.map(clef => 
+                                `<img src="/clef_images/${clef}.png" alt="${clef}" style="height: 16px; margin: 0 1px;" title="${clef}">`
+                            ).join('');
+                            sourceHtml += ` <span class="ms-2">${clefImages}</span>`;
+                        }
+                    }
+                    
                     return `<div class="mb-1">${sourceHtml}</div>`;
                 }).join('');
             };
+            
+            // Extract clef data for display
+            let clefFactor = suggestion.factors?.find(f => f.clefData);
             
             return `
                 <div class="card mb-3 border-${colorClass}">
@@ -614,11 +648,11 @@
                                     <h6 class="text-warning mb-0">Anonymous: ${anonGroup.name || 'Unnamed Group'}</h6>
                                 </div>
                                 <p class="mb-2"><strong>Voices:</strong> ${anonGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${anonGroup.titles?.join(', ') || 'No titles'} ${formatProperties(anonGroup)}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(anonGroup.titles?.join(', ') || 'No titles', anonGroup)} ${formatTypeBadges(anonGroup)}</p>
                                 <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(anonGroup.sources)}</div>
+                                    <div class="ms-2">${formatSources(anonGroup.sources, clefFactor?.clefData?.group1Clefs)}</div>
                                 </div>
                                 ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 150)}${anonGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
@@ -628,11 +662,11 @@
                                     <h6 class="text-primary mb-0">Named: ${namedGroup.name || 'Unnamed Group'}</h6>
                                 </div>
                                 <p class="mb-2"><strong>Voices:</strong> ${namedGroup.voice_count || 'Unknown'}</p>
-                                <p class="mb-2"><strong>Titles:</strong> ${namedGroup.titles?.join(', ') || 'No titles'} ${formatProperties(namedGroup)}</p>
+                                <p class="mb-2"><strong>Titles:</strong> ${formatTitleWithProperties(namedGroup.titles?.join(', ') || 'No titles', namedGroup)} ${formatTypeBadges(namedGroup)}</p>
                                 <p class="mb-2"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(namedGroup.sources)}</div>
+                                    <div class="ms-2">${formatSources(namedGroup.sources, clefFactor?.clefData?.group2Clefs)}</div>
                                 </div>
                                 ${namedGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${namedGroup.inclusionNotes.substring(0, 150)}${namedGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
@@ -658,13 +692,6 @@
                                     ` : ''}
                                 </div>
                             `).join('')}
-                        </div>
-                        ` : ''}
-                        
-                        ${suggestion.notes ? `
-                        <div class="alert alert-info mt-3 mb-0">
-                            <i class="bi bi-lightbulb me-2"></i>
-                            <strong>Recommendation:</strong> ${suggestion.notes}
                         </div>
                         ` : ''}
                     </div>

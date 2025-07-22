@@ -1549,7 +1549,8 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           
           // Lower threshold for anonymous matches since they're inherently valuable
           // BUT with stricter algorithm, we can raise the threshold
-          if (matchResult.totalScore >= 25) {
+          // Also filter out low confidence results (only show Medium and High)
+          if (matchResult.totalScore >= 30) {
             suggestions.push({
               group1: {
                 id: anonGroup.id,
@@ -1744,15 +1745,9 @@ function analyzeVoices(group1, group2, factors) {
     return 0; // No points if voice counts don't match
   }
   
-  // Small points for matching voice count (just acknowledgment)
-  score += 3;
-  factors.push({
-    description: `Same voice count (${group1.voice_count})`,
-    score: 3,
-    strength: 'weak'
-  });
+  // NO POINTS for matching voice count - it's a prerequisite only
   
-  // CLEF COMBINATION IS THE MAIN FACTOR (up to 27 points)
+  // CLEF COMBINATION IS THE MAIN FACTOR (up to 30 points)
   if (group1.clef_combinations && group2.clef_combinations && 
       group1.clef_combinations.length > 0 && group2.clef_combinations.length > 0) {
     
@@ -1765,14 +1760,33 @@ function analyzeVoices(group1, group2, factors) {
     if (intersection.size > 0 && union.size > 0) {
       const similarity = intersection.size / union.size;
       
-      if (similarity >= 0.9) {
+      if (similarity >= 0.99) {
+        // Identical clef combinations - very strong evidence
+        const clefScore = 30;
+        score += clefScore;
+        factors.push({
+          description: `Identical clef combinations (${Math.round(similarity * 100)}% match)`,
+          score: clefScore,
+          strength: 'strong',
+          clefData: {
+            group1Clefs: group1.clef_combinations,
+            group2Clefs: group2.clef_combinations,
+            similarity: similarity
+          }
+        });
+      } else if (similarity >= 0.9) {
         // Nearly identical clef combinations - very strong evidence
         const clefScore = 27;
         score += clefScore;
         factors.push({
           description: `Nearly identical clef combinations (${Math.round(similarity * 100)}% match)`,
           score: clefScore,
-          strength: 'strong'
+          strength: 'strong',
+          clefData: {
+            group1Clefs: group1.clef_combinations,
+            group2Clefs: group2.clef_combinations,
+            similarity: similarity
+          }
         });
       } else if (similarity >= 0.7) {
         // Good clef similarity - strong evidence
@@ -1781,7 +1795,12 @@ function analyzeVoices(group1, group2, factors) {
         factors.push({
           description: `Strong clef combination similarity (${Math.round(similarity * 100)}% match)`,
           score: clefScore,
-          strength: 'strong'
+          strength: 'strong',
+          clefData: {
+            group1Clefs: group1.clef_combinations,
+            group2Clefs: group2.clef_combinations,
+            similarity: similarity
+          }
         });
       } else if (similarity >= 0.5) {
         // Moderate clef similarity - medium evidence
@@ -1790,7 +1809,12 @@ function analyzeVoices(group1, group2, factors) {
         factors.push({
           description: `Moderate clef combination similarity (${Math.round(similarity * 100)}% match)`,
           score: clefScore,
-          strength: 'medium'
+          strength: 'medium',
+          clefData: {
+            group1Clefs: group1.clef_combinations,
+            group2Clefs: group2.clef_combinations,
+            similarity: similarity
+          }
         });
       }
     }
@@ -1978,7 +2002,7 @@ function analyzeSources(group1, group2, factors) {
   const sources1 = group1.source_details;
   const sources2 = group2.source_details;
   
-  // Check for geographical proximity
+  // Check for geographical proximity (reduced weight)
   const locations1 = sources1.map(s => s.location).filter(Boolean);
   const locations2 = sources2.map(s => s.location).filter(Boolean);
   
@@ -1987,40 +2011,16 @@ function analyzeSources(group1, group2, factors) {
   );
   
   if (commonLocations.length > 0) {
-    score += 8;
+    score += 3; // Reduced from 8 to 3
     factors.push({
-      description: `Same geographical area: ${commonLocations[0]}`,
-      score: 8,
-      strength: 'medium'
+      description: `Same geographical area: ${commonLocations[0]} (interesting but not strong evidence)`,
+      score: 3,
+      strength: 'weak'
     });
   }
   
-  // Check for temporal proximity
-  const dates1 = sources1.map(s => ({ from: s.from_year, to: s.to_year })).filter(d => d.from || d.to);
-  const dates2 = sources2.map(s => ({ from: s.from_year, to: s.to_year })).filter(d => d.from || d.to);
-  
-  if (dates1.length > 0 && dates2.length > 0) {
-    let temporalOverlap = false;
-    
-    for (const date1 of dates1) {
-      for (const date2 of dates2) {
-        if (datesOverlap(date1, date2)) {
-          temporalOverlap = true;
-          break;
-        }
-      }
-      if (temporalOverlap) break;
-    }
-    
-    if (temporalOverlap) {
-      score += 7;
-      factors.push({
-        description: 'Contemporary sources (overlapping dates)',
-        score: 7,
-        strength: 'medium'
-      });
-    }
-  }
+  // ELIMINATION CHECK: Composer birth vs source dates
+  // This will be implemented at the group comparison level to eliminate impossible matches
   
   return score;
 }
@@ -2404,6 +2404,34 @@ function hasConflictingProperties(group1, group2) {
     const hasCommonEvenOdd = [...evenOdd1].some(eo => evenOdd2.has(eo));
     if (!hasCommonEvenOdd) {
       return true; // Different even/odd = different works
+    }
+  }
+  
+  // CRITICAL ELIMINATION: Check composer birth dates vs source dates
+  const composers1 = group1.composer_details || [];
+  const composers2 = group2.composer_details || [];
+  const sources1 = group1.source_details || [];
+  const sources2 = group2.source_details || [];
+  
+  // Check if any composer from group1 was born after sources in group2
+  for (const composer of composers1) {
+    if (composer.from_year && composer.id !== 23) { // Skip anonymous
+      for (const source of sources2) {
+        if (source.to_year && composer.from_year > source.to_year + 10) {
+          return true; // Composer born after source was created - impossible match
+        }
+      }
+    }
+  }
+  
+  // Check if any composer from group2 was born after sources in group1
+  for (const composer of composers2) {
+    if (composer.from_year && composer.id !== 23) { // Skip anonymous
+      for (const source of sources1) {
+        if (source.to_year && composer.from_year > source.to_year + 10) {
+          return true; // Composer born after source was created - impossible match
+        }
+      }
     }
   }
   
