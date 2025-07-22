@@ -704,6 +704,9 @@
             
             if (records.length === 0) {
                 content.innerHTML = '<p class="text-muted">No issues found.</p>';
+            } else if (alertType === 'groups_title_mismatch') {
+                // Special interface for groups title mismatch correction
+                showGroupsTitleCorrectionModal(content, records.length);
             } else {
                 content.innerHTML = `
                     <div class="mb-3">
@@ -730,6 +733,198 @@
             }
             
             new bootstrap.Modal(modal).show();
+        }
+
+        async function showGroupsTitleCorrectionModal(container, totalCount) {
+            container.innerHTML = `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>${totalCount} groups need title correction.</strong>
+                            <br><small class="text-muted">Select groups with single compositions to auto-correct their display titles.</small>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="loadGroupsForCorrection()" id="loadGroupsBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Load Groups
+                        </button>
+                    </div>
+                </div>
+                <div id="groupsCorrectionContent">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-arrow-up me-2"></i>Click "Load Groups" to see correction options
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadGroupsForCorrection() {
+            const loadBtn = document.getElementById('loadGroupsBtn');
+            const content = document.getElementById('groupsCorrectionContent');
+            
+            loadBtn.disabled = true;
+            loadBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Loading...';
+            
+            try {
+                const response = await fetch('/api/admin/data-quality-groups-for-correction');
+                if (!response.ok) {
+                    throw new Error('Failed to load groups');
+                }
+                
+                const groups = await response.json();
+                displayGroupsForCorrection(groups);
+                
+            } catch (error) {
+                console.error('Error loading groups for correction:', error);
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Error loading groups: ${error.message}
+                    </div>
+                `;
+            } finally {
+                loadBtn.disabled = false;
+                loadBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Reload';
+            }
+        }
+
+        function displayGroupsForCorrection(groups) {
+            const content = document.getElementById('groupsCorrectionContent');
+            
+            if (groups.length === 0) {
+                content.innerHTML = '<div class="text-center text-muted py-4">No groups need correction.</div>';
+                return;
+            }
+
+            const correctable = groups.filter(g => g.can_auto_correct);
+            const nonCorrectable = groups.filter(g => !g.can_auto_correct);
+
+            content.innerHTML = `
+                ${correctable.length > 0 ? `
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Auto-Correctable Groups (${correctable.length})
+                                <small class="text-muted">— Single composition each</small>
+                            </h6>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllCorrectableGroups(true)">
+                                    Select All
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllCorrectableGroups(false)">
+                                    Clear All
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="applyBulkTitleCorrections()">
+                                    <i class="bi bi-check-lg me-1"></i>Apply Corrections
+                                </button>
+                            </div>
+                        </div>
+                        <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                            ${correctable.map(group => `
+                                <div class="form-check border-bottom pb-2 mb-2">
+                                    <input class="form-check-input" type="checkbox" value="${group.id}" id="group_${group.id}">
+                                    <label class="form-check-label w-100" for="group_${group.id}">
+                                        <div class="d-flex justify-content-between">
+                                            <div class="flex-grow-1">
+                                                <strong>Current:</strong> "${group.display_title}"
+                                                <br><span class="text-success"><strong>Will become:</strong> "${group.suggested_title}"</span>
+                                                <br><small class="text-muted">Composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}</small>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${nonCorrectable.length > 0 ? `
+                    <div>
+                        <h6 class="mb-3">
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                            Manual Review Required (${nonCorrectable.length})
+                            <small class="text-muted">— Multiple compositions each</small>
+                        </h6>
+                        <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                            ${nonCorrectable.map(group => `
+                                <div class="border-bottom pb-2 mb-2">
+                                    <div><strong>"${group.display_title}"</strong> <span class="badge bg-secondary">${group.composition_count} compositions</span></div>
+                                    <small class="text-muted">
+                                        Compositions: ${group.compositions.map(c => c.title).join(', ')}
+                                    </small>
+                                    <div class="mt-1">
+                                        <a href="/group-management.html" target="_blank" class="btn btn-xs btn-outline-primary">
+                                            <i class="bi bi-arrow-right me-1"></i>Review Manually
+                                        </a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function selectAllCorrectableGroups(select) {
+            const checkboxes = document.querySelectorAll('#groupsCorrectionContent .form-check-input');
+            checkboxes.forEach(cb => cb.checked = select);
+        }
+
+        async function applyBulkTitleCorrections() {
+            const checkboxes = document.querySelectorAll('#groupsCorrectionContent .form-check-input:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            if (selectedIds.length === 0) {
+                alert('Please select at least one group to correct.');
+                return;
+            }
+
+            const confirmMessage = `Apply title corrections to ${selectedIds.length} selected group${selectedIds.length !== 1 ? 's' : ''}?\n\nThis will update their display titles to match their composition titles. This action cannot be undone.`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/bulk-title-correction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupIds: selectedIds })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    let message = `Success!\n\n${result.message}`;
+                    
+                    if (result.corrections && result.corrections.length > 0) {
+                        message += `\n\nCorrected groups:`;
+                        result.corrections.forEach(correction => {
+                            message += `\n• "${correction.oldTitle}" → "${correction.newTitle}"`;
+                        });
+                    }
+                    
+                    if (result.errors && result.errors.length > 0) {
+                        message += `\n\nErrors encountered:`;
+                        result.errors.forEach(error => {
+                            message += `\n• ${error}`;
+                        });
+                    }
+                    
+                    alert(message);
+                    
+                    // Reload the groups list
+                    loadGroupsForCorrection();
+                    
+                    // Refresh the dashboard alerts
+                    loadDashboardData();
+                    
+                } else {
+                    const error = await response.json();
+                    alert(`Error applying corrections: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error applying bulk corrections:', error);
+                alert('Network error occurred while applying corrections.');
+            }
         }
 
         function createAlertDetailsModal() {

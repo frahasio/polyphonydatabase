@@ -506,6 +506,185 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
   }
 });
 
+// GET /api/admin/data-quality-groups-for-correction - Get groups for title mismatch correction
+router.get('/data-quality-groups-for-correction', async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    
+    const query = `
+      SELECT 
+        g.id, 
+        g.display_title,
+        COUNT(DISTINCT c.id) as composition_count,
+        ARRAY_AGG(
+          DISTINCT jsonb_build_object(
+            'id', c.id,
+            'title', t.text,
+            'composers', (
+              SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
+              FROM composers comp
+              WHERE comp.id = ANY(c.composer_id_list)
+            )
+          ) ORDER BY t.text
+        ) as compositions
+      FROM groups g
+      LEFT JOIN compositions c ON c.group_id = g.id
+      LEFT JOIN titles t ON c.title_id = t.id
+      WHERE g.display_title NOT IN (
+        SELECT DISTINCT t2.text
+        FROM compositions c2
+        JOIN titles t2 ON c2.title_id = t2.id
+        WHERE c2.group_id = g.id
+      )
+      AND EXISTS (SELECT 1 FROM compositions c3 WHERE c3.group_id = g.id)
+      AND g.id NOT IN (
+        SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts 
+        WHERE alert_type = 'groups_title_mismatch' AND entity_type = 'groups'
+      )
+      GROUP BY g.id, g.display_title
+      ORDER BY g.display_title
+      LIMIT $1
+    `;
+    
+    const result = await pool.query(query, [limit]);
+    
+    // Process the results to add correction flags
+    const processedResults = result.rows.map(row => ({
+      ...row,
+      can_auto_correct: row.composition_count === 1,
+      suggested_title: row.composition_count === 1 && row.compositions[0] ? row.compositions[0].title : null
+    }));
+
+    res.json(processedResults);
+  } catch (error) {
+    console.error('Error fetching groups for correction:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/groups/bulk-title-correction - Apply bulk title corrections
+router.post('/groups/bulk-title-correction', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { groupIds } = req.body;
+
+    if (!Array.isArray(groupIds) || groupIds.length === 0) {
+      return res.status(400).json({ error: 'Group IDs array is required' });
+    }
+
+    await client.query('BEGIN');
+
+    const corrections = [];
+    const errors = [];
+
+    for (const groupId of groupIds) {
+      try {
+        // Get the group and verify it has exactly one composition
+        const groupResult = await client.query(`
+          SELECT 
+            g.id, 
+            g.display_title,
+            COUNT(DISTINCT c.id) as composition_count,
+            t.text as composition_title
+          FROM groups g
+          LEFT JOIN compositions c ON c.group_id = g.id
+          LEFT JOIN titles t ON c.title_id = t.id
+          WHERE g.id = $1
+          GROUP BY g.id, g.display_title, t.text
+          HAVING COUNT(DISTINCT c.id) = 1
+        `, [groupId]);
+
+        if (groupResult.rows.length === 0) {
+          errors.push(`Group ${groupId}: Not found or does not have exactly one composition`);
+          continue;
+        }
+
+        const group = groupResult.rows[0];
+        const oldTitle = group.display_title;
+        const newTitle = group.composition_title;
+
+        if (!newTitle) {
+          errors.push(`Group ${groupId}: Composition has no title`);
+          continue;
+        }
+
+        if (oldTitle === newTitle) {
+          errors.push(`Group ${groupId}: Display title already matches composition title`);
+          continue;
+        }
+
+        // Update the group display title
+        const updateResult = await client.query(`
+          UPDATE groups 
+          SET display_title = $1, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = $2 
+          RETURNING id, display_title
+        `, [newTitle.trim(), groupId]);
+
+        if (updateResult.rowCount > 0) {
+          corrections.push({
+            groupId: groupId,
+            oldTitle: oldTitle,
+            newTitle: newTitle.trim()
+          });
+        } else {
+          errors.push(`Group ${groupId}: Failed to update`);
+        }
+
+      } catch (error) {
+        console.error(`Error processing group ${groupId}:`, error);
+        errors.push(`Group ${groupId}: ${error.message}`);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Log audit entry for successful corrections
+    if (corrections.length > 0) {
+      try {
+        await pool.query(
+          `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user?.id || null,
+            req.user?.email || 'unknown@system.local',
+            'BULK_UPDATE',
+            'groups',
+            null, // No specific ID since it's multiple groups
+            JSON.stringify({ 
+              action: 'bulk_title_correction',
+              corrections_before: corrections.map(c => ({ groupId: c.groupId, oldTitle: c.oldTitle }))
+            }),
+            JSON.stringify({ 
+              action: 'bulk_title_correction',
+              corrections_after: corrections,
+              corrected_count: corrections.length
+            })
+          ]
+        );
+      } catch (auditError) {
+        console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+      }
+    }
+
+    res.json({ 
+      success: true,
+      message: `Successfully corrected ${corrections.length} group title${corrections.length !== 1 ? 's' : ''}`,
+      corrections: corrections,
+      errors: errors,
+      correctedCount: corrections.length,
+      errorCount: errors.length
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Bulk title correction error:', error);
+    res.status(500).json({ error: 'Failed to apply bulk title corrections' });
+  } finally {
+    client.release();
+  }
+});
+
 // Get data quality alerts (filtered by ignored alerts)
 router.get('/data-quality-alerts', async (req, res) => {
   try {

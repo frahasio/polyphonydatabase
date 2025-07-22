@@ -759,6 +759,152 @@ router.post('/:groupId/remove-composition', async (req, res) => {
     }
 });
 
+// POST /api/admin/groups/:groupId/bulk-update-compositions - Bulk update composition properties
+router.post('/:groupId/bulk-update-compositions', async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+        const groupId = parseInt(req.params.groupId);
+        const { compositionTypeId, tone, evenOdd } = req.body;
+
+        if (!groupId) {
+            return res.status(400).json({ error: 'Group ID is required' });
+        }
+
+        await client.query('BEGIN');
+
+        // Verify group exists
+        const groupCheck = await client.query(`
+            SELECT id, display_title FROM groups WHERE id = $1
+        `, [groupId]);
+
+        if (groupCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Group not found' });
+        }
+
+        const group = groupCheck.rows[0];
+
+        // Get compositions in this group before update
+        const compositionsBeforeResult = await client.query(`
+            SELECT c.id, t.text as title, ct.name as composition_type, c.tone, c.even_odd
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            WHERE c.group_id = $1
+            ORDER BY t.text
+        `, [groupId]);
+
+        const compositionsBefore = compositionsBeforeResult.rows;
+
+        if (compositionsBefore.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No compositions found in this group' });
+        }
+
+        // Prepare update query parts
+        let updateParts = [];
+        let updateParams = [];
+        let paramIndex = 1;
+
+        if (compositionTypeId !== undefined && compositionTypeId !== '') {
+            updateParts.push(`composition_type_id = $${paramIndex}`);
+            updateParams.push(compositionTypeId ? parseInt(compositionTypeId) : null);
+            paramIndex++;
+        }
+
+        if (tone !== undefined && tone !== '') {
+            updateParts.push(`tone = $${paramIndex}`);
+            updateParams.push(tone || null);
+            paramIndex++;
+        }
+
+        if (evenOdd !== undefined && evenOdd !== '') {
+            updateParts.push(`even_odd = $${paramIndex}`);
+            updateParams.push(evenOdd !== '' ? parseInt(evenOdd) : null);
+            paramIndex++;
+        }
+
+        if (updateParts.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No properties to update were provided' });
+        }
+
+        // Add updated_at timestamp
+        updateParts.push(`updated_at = CURRENT_TIMESTAMP`);
+        
+        // Add group_id parameter for WHERE clause
+        updateParams.push(groupId);
+
+        // Execute bulk update
+        const updateQuery = `
+            UPDATE compositions 
+            SET ${updateParts.join(', ')}
+            WHERE group_id = $${paramIndex}
+            RETURNING id
+        `;
+
+        const updateResult = await client.query(updateQuery, updateParams);
+        const updatedCount = updateResult.rowCount;
+
+        // Get updated compositions for audit trail
+        const compositionsAfterResult = await client.query(`
+            SELECT c.id, t.text as title, ct.name as composition_type, c.tone, c.even_odd
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            WHERE c.group_id = $1
+            ORDER BY t.text
+        `, [groupId]);
+
+        const compositionsAfter = compositionsAfterResult.rows;
+
+        await client.query('COMMIT');
+
+        // Log audit entry
+        try {
+            await pool.query(
+                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    req.user?.id || null,
+                    req.user?.email || 'unknown@system.local',
+                    'BULK_UPDATE',
+                    'compositions',
+                    groupId,
+                    JSON.stringify({ 
+                        group_title: group.display_title,
+                        compositions_before: compositionsBefore,
+                        update_parameters: { compositionTypeId, tone, evenOdd }
+                    }),
+                    JSON.stringify({ 
+                        group_title: group.display_title,
+                        compositions_after: compositionsAfter,
+                        updated_count: updatedCount
+                    })
+                ]
+            );
+        } catch (auditError) {
+            console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
+        }
+
+        res.json({ 
+            success: true,
+            message: `Successfully updated ${updatedCount} composition${updatedCount !== 1 ? 's' : ''} in group "${group.display_title}"`,
+            updatedCount: updatedCount,
+            groupTitle: group.display_title,
+            compositionsBefore: compositionsBefore,
+            compositionsAfter: compositionsAfter
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Bulk update compositions error:', error);
+        res.status(500).json({ error: 'Failed to bulk update composition properties' });
+    } finally {
+        client.release();
+    }
+});
+
 // GET /api/admin/groups/:id/compositions - Get compositions for group splitting
 router.get('/:id/compositions', async (req, res) => {
     try {
