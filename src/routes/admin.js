@@ -1117,7 +1117,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get clef combinations as text array
            (
-             SELECT array_agg(i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+             SELECT array_agg(i.clefs::text) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              WHERE c2.group_id = g.id
@@ -1141,7 +1141,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get tone information
            (
-             SELECT array_agg(c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+             SELECT array_agg(c2.tone::text) FILTER (WHERE c2.tone IS NOT NULL)
              FROM compositions c2
              WHERE c2.group_id = g.id
            ) as tones,
@@ -1207,7 +1207,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get clef combinations as text array
            (
-             SELECT array_agg(i.clefs) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
+             SELECT array_agg(i.clefs::text) FILTER (WHERE i.clefs IS NOT NULL AND i.clefs != '[]')
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              WHERE c2.group_id = g.id
@@ -1231,7 +1231,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get tone information
            (
-             SELECT array_agg(c2.tone) FILTER (WHERE c2.tone IS NOT NULL)
+             SELECT array_agg(c2.tone::text) FILTER (WHERE c2.tone IS NOT NULL)
              FROM compositions c2
              WHERE c2.group_id = g.id
            ) as tones,
