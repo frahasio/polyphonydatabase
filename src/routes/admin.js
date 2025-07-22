@@ -1087,8 +1087,8 @@ router.get('/cleanup-preview', async (req, res) => {
   }
 });
 
-// GET /api/admin/group-suggestions - Generate composition merge suggestions
-router.get('/api/admin/group-suggestions', requireAdmin, async (req, res) => {
+// GET /group-suggestions - Generate composition merge suggestions
+router.get('/group-suggestions', requireAdmin, async (req, res) => {
   try {
     console.log('Starting group suggestions analysis...');
     const startTime = Date.now();
