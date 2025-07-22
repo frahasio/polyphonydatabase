@@ -1550,7 +1550,32 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           // Lower threshold for anonymous matches since they're inherently valuable
           // BUT with stricter algorithm, we can raise the threshold
           // Also filter out low confidence results (only show Medium and High)
-          if (matchResult.totalScore >= 30) {
+          
+          // Filter out suggestions where titles only differ by Roman numerals like [I] and [II]
+          // These likely represent already-reviewed distinct compositions
+          const shouldFilterRomanNumeralDifference = (group1, group2) => {
+            const titles1 = group1.title_language_pairs?.map(p => p.text) || [];
+            const titles2 = group2.title_language_pairs?.map(p => p.text) || [];
+            
+            for (const title1 of titles1) {
+              for (const title2 of titles2) {
+                // Remove Roman numeral annotations like [I], [II], [III], [IV], [V]
+                const cleanTitle1 = title1.replace(/\s*\[I+V?\]\s*$/gi, '').trim();
+                const cleanTitle2 = title2.replace(/\s*\[I+V?\]\s*$/gi, '').trim();
+                
+                // If titles are identical after removing Roman numerals, this is likely
+                // an already-reviewed distinction between movements/sections
+                if (cleanTitle1.toLowerCase() === cleanTitle2.toLowerCase() && 
+                    cleanTitle1.length > 0 && 
+                    title1 !== title2) {
+                  return true; // Should filter out
+                }
+              }
+            }
+            return false; // Don't filter
+          };
+          
+          if (matchResult.totalScore >= 30 && !shouldFilterRomanNumeralDifference(anonGroup, compareGroup)) {
             suggestions.push({
               group1: {
                 id: anonGroup.id,
@@ -1562,6 +1587,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                 tones: anonGroup.composition_tones || [],
                 evenOdd: anonGroup.composition_even_odd || [],
                 sources: anonGroup.source_details || [],
+                clef_combinations: anonGroup.clef_combinations || [],
                 inclusionNotes: anonGroup.inclusion_notes || '',
                 isAnonymous: true
               },
@@ -1575,6 +1601,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
                 tones: compareGroup.composition_tones || [],
                 evenOdd: compareGroup.composition_even_odd || [],
                 sources: compareGroup.source_details || [],
+                clef_combinations: compareGroup.clef_combinations || [],
                 inclusionNotes: compareGroup.inclusion_notes || '',
                 isAnonymous: false
               },
@@ -1688,6 +1715,23 @@ function parseGroupData(row) {
       return eo;
     }) : [];
   
+  // Parse clef combinations - they come as array of JSON strings
+  const parsed_clef_combinations = [];
+  if (row.clef_combinations && Array.isArray(row.clef_combinations)) {
+    for (const clefString of row.clef_combinations) {
+      try {
+        if (clefString && clefString !== '[]') {
+          const parsed = JSON.parse(clefString);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed_clef_combinations.push(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse clef combination:', e);
+      }
+    }
+  }
+  
   return {
     ...row,
     title_language_pairs,
@@ -1695,7 +1739,8 @@ function parseGroupData(row) {
     source_details,
     composition_types,
     composition_tones,
-    composition_even_odd
+    composition_even_odd,
+    clef_combinations: parsed_clef_combinations
   };
 }
 

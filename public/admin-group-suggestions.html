@@ -578,8 +578,8 @@
                 return '';
             };
             
-            // Helper function to format sources with images and clefs
-            const formatSources = (sources, clefData = null) => {
+            // Helper function to format sources with images
+            const formatSources = (sources) => {
                 if (!sources || sources.length === 0) return 'No sources';
                 
                 return sources.map((source, index) => {
@@ -599,23 +599,36 @@
                         sourceHtml += imageLinks;
                     }
                     
-                    // Add clef information if available
-                    if (clefData && clefData.length > index) {
-                        const clefs = clefData[index];
-                        if (clefs && clefs.length > 0) {
-                            const clefImages = clefs.map(clef => 
-                                `<img src="/clef_images/${clef}.png" alt="${clef}" style="height: 16px; margin: 0 1px;" title="${clef}">`
-                            ).join('');
-                            sourceHtml += ` <span class="ms-2">${clefImages}</span>`;
-                        }
-                    }
-                    
                     return `<div class="mb-1">${sourceHtml}</div>`;
                 }).join('');
             };
             
-            // Extract clef data for display
-            let clefFactor = suggestion.factors?.find(f => f.clefData);
+            // Helper function to format clef combinations for a group
+            const formatClefCombinations = (clefCombinations) => {
+                if (!clefCombinations || !Array.isArray(clefCombinations) || clefCombinations.length === 0) {
+                    return '';
+                }
+                
+                const clefImages = [];
+                for (const combination of clefCombinations) {
+                    if (Array.isArray(combination)) {
+                        const combImages = combination.map(clef => {
+                            // Handle both string clefs and clef objects
+                            const clefName = typeof clef === 'string' ? clef : (clef.clef || clef.name || clef);
+                            if (clefName) {
+                                return `<img src="/clef_images/${clefName}.png" alt="${clefName}" style="height: 16px; margin: 0 1px;" title="${clefName}">`;
+                            }
+                            return '';
+                        }).filter(img => img).join('');
+                        
+                        if (combImages) {
+                            clefImages.push(`<span class="me-2">${combImages}</span>`);
+                        }
+                    }
+                }
+                
+                return clefImages.length > 0 ? `<div class="mt-1"><small class="text-muted">Clefs:</small> ${clefImages.join('')}</div>` : '';
+            };
             
             return `
                 <div class="card mb-3 border-${colorClass}">
@@ -652,8 +665,9 @@
                                 <p class="mb-2"><strong>Current Attribution:</strong> <em>Anonymous</em></p>
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(anonGroup.sources, clefFactor?.clefData?.group1Clefs)}</div>
+                                    <div class="ms-2">${formatSources(anonGroup.sources)}</div>
                                 </div>
+                                ${formatClefCombinations(anonGroup.clef_combinations)}
                                 ${anonGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${anonGroup.inclusionNotes.substring(0, 150)}${anonGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
                             <div class="col-md-6">
@@ -666,8 +680,9 @@
                                 <p class="mb-2"><strong>Composer(s):</strong> ${namedGroup.composers?.join(', ') || 'Unknown'}</p>
                                 <div class="mb-2">
                                     <strong>Sources:</strong>
-                                    <div class="ms-2">${formatSources(namedGroup.sources, clefFactor?.clefData?.group2Clefs)}</div>
+                                    <div class="ms-2">${formatSources(namedGroup.sources)}</div>
                                 </div>
+                                ${formatClefCombinations(namedGroup.clef_combinations)}
                                 ${namedGroup.inclusionNotes ? `<p class="mb-0"><strong>Notes:</strong> <small class="text-muted">${namedGroup.inclusionNotes.substring(0, 150)}${namedGroup.inclusionNotes.length > 150 ? '...' : ''}</small></p>` : ''}
                             </div>
                         </div>
