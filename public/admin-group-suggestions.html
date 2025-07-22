@@ -125,48 +125,49 @@
                     
                     <div class="row g-2 mb-3">
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="2">
-                                <i class="bi bi-music-note me-1"></i>2 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="2">2 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="3">
-                                <i class="bi bi-music-note me-1"></i>3 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="3">3 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="4">
-                                <i class="bi bi-music-note me-1"></i>4 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="4">4 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="5">
-                                <i class="bi bi-music-note me-1"></i>5 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="5">5 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="6">
-                                <i class="bi bi-music-note me-1"></i>6 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="6">6 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="7">
-                                <i class="bi bi-music-note me-1"></i>7 Voices
-                            </button>
+                            <button class="btn btn-outline-primary voice-btn" data-voices="7">7 Voices</button>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-outline-primary voice-btn" data-voices="8">
-                                <i class="bi bi-music-note me-1"></i>8 Voices
+                            <button class="btn btn-outline-primary voice-btn" data-voices="8">8 Voices</button>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mb-3">
+                        <strong>OR</strong>
+                    </div>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small">Analyze by Composer (all voice counts)</label>
+                            <select id="composerSelect" class="form-select">
+                                <option value="">Select a composer...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button id="analyzeComposerBtn" class="btn btn-success" onclick="analyzeByComposer()" disabled>
+                                <i class="bi bi-person me-2"></i>Analyze Composer
                             </button>
                         </div>
                     </div>
                     
-                    <div class="row">
-                        <div class="col-auto">
-                            <button class="btn btn-secondary" onclick="analyzeAllVoices()">
-                                <i class="bi bi-collection me-1"></i>Analyze All (Slower)
-                            </button>
-                        </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Composer Analysis:</strong> Finds title variations, attribution inconsistencies, and potential duplicates for works by the same composer across all voice counts.
                     </div>
                 </div>
             </div>
@@ -293,6 +294,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadUserInfo();
             setupVoiceSelection();
+            loadComposers();
         });
 
         function setupVoiceSelection() {
@@ -319,29 +321,55 @@
                 selectedBtn.classList.add('btn-primary');
             }
             
+            // Clear composer selection
+            document.getElementById('composerSelect').value = '';
+            document.getElementById('analyzeComposerBtn').disabled = true;
+            
             // Start analysis with selected voice count
             startAnalysis(voiceCount);
         }
 
-        function analyzeAllVoices() {
-            // Start analysis without voice count filter
-            startAnalysis();
+        function analyzeByComposer() {
+            const composerId = document.getElementById('composerSelect').value;
+            if (!composerId) {
+                alert('Please select a composer first.');
+                return;
+            }
+            
+            // Clear voice button selection
+            document.querySelectorAll('.voice-btn').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // Start analysis with composer ID
+            startAnalysis(null, composerId);
         }
 
-        async function startAnalysis(voiceCount = null) {
+        async function startAnalysis(voiceCount = null, composerId = null) {
             // Hide voice selection and show loading
             document.getElementById('voice-selection-container').style.display = 'none';
             showLoading(true);
             resetResults();
             
             try {
-                // Build API URL with voice count parameter if specified
+                // Build API URL with parameters
                 let apiUrl = '/api/admin/group-suggestions';
+                const params = new URLSearchParams();
+                
                 if (voiceCount) {
-                    apiUrl += `?voices=${voiceCount}`;
-                    document.getElementById('progress-info').textContent = `Analyzing groups with ${voiceCount} voices...`;
+                    params.set('voices', voiceCount);
+                    document.getElementById('progress-info').textContent = `Analyzing anonymous groups with ${voiceCount} voices...`;
+                } else if (composerId) {
+                    params.set('composer', composerId);
+                    const composerName = document.getElementById('composerSelect').selectedOptions[0].textContent;
+                    document.getElementById('progress-info').textContent = `Analyzing all compositions by ${composerName}...`;
                 } else {
-                    document.getElementById('progress-info').textContent = 'Analyzing all groups...';
+                    document.getElementById('progress-info').textContent = 'Analyzing groups...';
+                }
+                
+                if (params.toString()) {
+                    apiUrl += `?${params.toString()}`;
                 }
                 
                 const response = await fetch(apiUrl);
@@ -372,7 +400,7 @@
             } catch (error) {
                 console.error('Analysis failed:', error);
                 showLoading(false);
-                showError(error.message || 'Failed to analyze group suggestions. Please try again.');
+                showError(`Analysis failed: ${error.message}`);
             }
         }
 
@@ -410,6 +438,38 @@
             } catch (error) {
                 console.error('Auth check failed:', error);
                 window.location.href = '/login.html';
+            }
+        }
+
+        async function loadComposers() {
+            try {
+                const response = await fetch('/api/search/composers');
+                if (response.ok) {
+                    const composers = await response.json();
+                    const select = document.getElementById('composerSelect');
+                    
+                    // Clear existing options except the first
+                    while (select.children.length > 1) {
+                        select.removeChild(select.lastChild);
+                    }
+                    
+                    // Add composers, excluding "Anonymous" (ID 23)
+                    composers
+                        .filter(composer => composer.id !== 23)
+                        .forEach(composer => {
+                            const option = document.createElement('option');
+                            option.value = composer.id;
+                            option.textContent = composer.name;
+                            select.appendChild(option);
+                        });
+                    
+                    // Enable/disable button based on selection
+                    select.addEventListener('change', function() {
+                        document.getElementById('analyzeComposerBtn').disabled = !this.value;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading composers:', error);
             }
         }
 
@@ -557,10 +617,23 @@
         function displayStats(stats) {
             if (!stats) return;
             
-            // Update stats cards with anonymous-focused metrics
-            document.getElementById('total-anonymous').textContent = stats.totalAnonymousGroups || 0;
-            document.getElementById('total-groups').textContent = stats.totalGroups || 0;
-            document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
+            // Update stats cards based on analysis type
+            if (stats.analysisType === 'composer') {
+                document.getElementById('total-anonymous').textContent = stats.composerGroups || 0;
+                document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Composer Groups';
+                document.getElementById('total-groups').textContent = stats.composerGroups || 0;
+                document.querySelector('#total-groups').parentElement.querySelector('small').textContent = 'Groups Analyzed';
+                document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
+                document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Title Variations';
+            } else {
+                document.getElementById('total-anonymous').textContent = stats.totalAnonymousGroups || 0;
+                document.querySelector('#total-anonymous').parentElement.querySelector('small').textContent = 'Anonymous Groups';
+                document.getElementById('total-groups').textContent = stats.totalGroups || 0;
+                document.querySelector('#total-groups').parentElement.querySelector('small').textContent = 'Total Groups Compared';
+                document.getElementById('total-suggestions').textContent = stats.suggestionsFound || 0;
+                document.querySelector('#total-suggestions').parentElement.querySelector('small').textContent = 'Attribution Candidates';
+            }
+            
             document.getElementById('analysis-time').textContent = `${(stats.analysisTime || 0)}ms`;
             
             // Show stats container
