@@ -1377,6 +1377,10 @@ function analyzeTitles(group1, group2, factors) {
   const titles1 = titlePairs1.map(pair => pair.text);
   const titles2 = titlePairs2.map(pair => pair.text);
   
+  // Initialize variables at function scope
+  let bestSimilarity = 0;
+  let bestMatch = null;
+  
   // Exact title match (very high score)
   const exactMatches = titles1.filter(t1 => 
     titles2.some(t2 => t1.toLowerCase().trim() === t2.toLowerCase().trim())
@@ -1391,8 +1395,6 @@ function analyzeTitles(group1, group2, factors) {
     });
   } else {
     // Enhanced fuzzy title matching with translation/contrafacta detection
-    let bestSimilarity = 0;
-    let bestMatch = null;
     let isPotentialTranslation = false;
     
     for (const pair1 of titlePairs1) {

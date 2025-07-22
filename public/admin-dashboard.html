@@ -133,60 +133,66 @@
 
         /* New Feature Sparkly Styling */
         .new-feature-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+            background-size: 400% 400%;
+            animation: sparkle 4s ease-in-out infinite;
             border: none;
-            color: white;
-            position: relative;
             overflow: hidden;
+            position: relative;
         }
 
         .new-feature-card::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, 
-                transparent 30%, 
-                rgba(255,255,255,0.1) 50%, 
-                transparent 70%);
-            animation: sparkle 3s linear infinite;
-            pointer-events: none;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 1;
         }
 
-        @keyframes sparkle {
-            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-        }
-
-        .new-feature-card .card-title {
-            color: white;
-            font-weight: 700;
+        .new-feature-card .card-body {
             position: relative;
             z-index: 2;
         }
 
+        .new-feature-card .card-title {
+            color: #333 !important;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+
+        .new-feature-card .card-title i {
+            color: #667eea !important;
+        }
+
         .new-feature-card .card-text {
-            color: rgba(255,255,255,0.9);
+            color: #666 !important;
             position: relative;
             z-index: 2;
         }
 
         .new-feature-card .btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
+            background: #667eea;
+            color: white !important;
+            border: none;
             font-weight: 600;
             position: relative;
             z-index: 2;
         }
 
         .new-feature-card .btn:hover {
-            background: rgba(255,255,255,0.3);
-            color: white;
-            border-color: rgba(255,255,255,0.5);
+            background: #5a6fd8;
+            color: white !important;
             transform: translateY(-2px);
+        }
+
+        @keyframes sparkle {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .new-badge {
