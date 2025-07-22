@@ -87,14 +87,14 @@ router.get('/groups', async (req, res) => {
       
       const searchVariations = createVariations(searchTerm);
       
-      // Build search conditions for all variations
+      // Build search conditions for all variations with punctuation normalization
       const titleConditions = searchVariations.map((variation) => {
         const condition = `(
-          REGEXP_REPLACE(LOWER(g.display_title), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9\\s]', '', 'g') OR
+          REGEXP_REPLACE(LOWER(g.display_title), '[^a-z0-9 ]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9 ]', '', 'g') OR
           EXISTS (
             SELECT 1 FROM compositions c2
             JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND REGEXP_REPLACE(LOWER(t2.text), '[^a-z0-9\\s]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9\\s]', '', 'g')
+            WHERE c2.group_id = g.id AND REGEXP_REPLACE(LOWER(t2.text), '[^a-z0-9 ]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9 ]', '', 'g')
           )
         )`;
         queryParams.push(`%${variation}%`);
