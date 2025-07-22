@@ -55,30 +55,38 @@ router.get('/groups', async (req, res) => {
     whereConditions.push('EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)');
 
     // Title search - search both group display_title AND composition titles
-    // with historical character substitutions (i/j, u/v interchangeability) and punctuation-insensitive matching
     if (title.trim()) {
       const searchTerm = title.trim();
       
-      // Create variations for historical character substitutions
-      const createVariations = (term) => {
+      // Function to normalize text by removing punctuation
+      const normalizeText = (text) => {
+        return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+      };
+      
+      const createVariations = (searchTerm) => {
         const variations = new Set();
+        const normalizedTerm = normalizeText(searchTerm);
         
-        // Always include original term
-        variations.add(term);
+        // Add the normalized version
+        variations.add(normalizedTerm);
         
-        // Simple i/j substitutions (common in historical texts like "alleluia" vs "alleluja")
-        if (term.match(/[ij]/i)) {
-          variations.add(term.replace(/i/gi, 'j'));
-          variations.add(term.replace(/j/gi, 'i'));
+        // Historical spelling variations (i/j and u/v interchangeability)
+        if (normalizedTerm.includes('i') || normalizedTerm.includes('j')) {
+          variations.add(normalizedTerm.replace(/i/g, 'j'));
+          variations.add(normalizedTerm.replace(/j/g, 'i'));
+        }
+        if (normalizedTerm.includes('u') || normalizedTerm.includes('v')) {
+          variations.add(normalizedTerm.replace(/u/g, 'v'));
+          variations.add(normalizedTerm.replace(/v/g, 'u'));
         }
         
-        // Simple u/v substitutions (common in historical texts like "versus" vs "versvs")
-        if (term.match(/[uv]/i)) {
-          // Apply u/v substitutions to all current variations
-          const currentVariations = Array.from(variations);
-          currentVariations.forEach(variant => {
-            variations.add(variant.replace(/u/gi, 'v'));
-            variations.add(variant.replace(/v/gi, 'u'));
+        // Create all combinations of i/j and u/v if both sets are present
+        if ((normalizedTerm.includes('i') || normalizedTerm.includes('j')) && 
+            (normalizedTerm.includes('u') || normalizedTerm.includes('v'))) {
+          const variants = Array.from(variations);
+          variants.forEach(variant => {
+            variations.add(variant.replace(/u/g, 'v'));
+            variations.add(variant.replace(/v/g, 'u'));
           });
         }
         
@@ -87,14 +95,14 @@ router.get('/groups', async (req, res) => {
       
       const searchVariations = createVariations(searchTerm);
       
-      // Build search conditions for all variations with punctuation normalization
+      // Build search conditions for all variations using punctuation-tolerant comparison
       const titleConditions = searchVariations.map((variation) => {
         const condition = `(
-          REGEXP_REPLACE(LOWER(g.display_title), '[^a-z0-9 ]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9 ]', '', 'g') OR
+          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]{}/-', '') ILIKE $${paramIndex} OR
           EXISTS (
             SELECT 1 FROM compositions c2
             JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND REGEXP_REPLACE(LOWER(t2.text), '[^a-z0-9 ]', '', 'g') ILIKE REGEXP_REPLACE(LOWER($${paramIndex}), '[^a-z0-9 ]', '', 'g')
+            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]{}/-', '') ILIKE $${paramIndex}
           )
         )`;
         queryParams.push(`%${variation}%`);
