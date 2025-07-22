@@ -1125,7 +1125,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get titles and languages properly paired for translation detection
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'text', t.text,
                'language', t.language
              )) FILTER (WHERE t.text IS NOT NULL)
@@ -1143,7 +1143,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get composer information with dates for chronological analysis
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'id', comp.id,
                'name', comp.name,
                'from_year', comp.from_year,
@@ -1156,7 +1156,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get source information
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'id', s.id,
                'name', s.title,
                'location', s.town,
@@ -1171,30 +1171,30 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get inclusion notes for text analysis
            (
-             SELECT string_agg(DISTINCT i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
+             SELECT string_agg(i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              WHERE c2.group_id = g.id
            ) as inclusion_notes
            
-        FROM groups g
-        WHERE EXISTS (
-          -- Group contains at least one anonymous composition
-          SELECT 1 FROM compositions c 
-          WHERE c.group_id = g.id 
-          AND c.composer_id_list IS NOT NULL 
-          AND 23 = ANY(c.composer_id_list)
-          ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
-        )
-        ORDER BY g.id
-      )
-      SELECT * FROM anonymousGroups 
-      WHERE voice_count IS NOT NULL 
-        AND title_language_pairs IS NOT NULL 
-        AND composer_details IS NOT NULL
-        ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
-      ORDER BY voice_count, id;
-    `;
+         FROM groups g
+         WHERE EXISTS (
+           -- Group contains at least one anonymous composition
+           SELECT 1 FROM compositions c 
+           WHERE c.group_id = g.id 
+           AND c.composer_id_list IS NOT NULL 
+           AND 23 = ANY(c.composer_id_list)
+           ${voiceFilter ? `AND c.number_of_voices = ${voiceFilter}` : ''}
+         )
+         ORDER BY g.id
+       )
+       SELECT * FROM anonymousGroups 
+       WHERE voice_count IS NOT NULL 
+         AND title_language_pairs IS NOT NULL 
+         AND composer_details IS NOT NULL
+         ${voiceFilter ? `AND voice_count = ${voiceFilter}` : ''}
+       ORDER BY voice_count, id;
+     `;
     
     // Query to get ALL other groups (potential matches for anonymous groups)
     const allGroupsQuery = `
@@ -1220,7 +1220,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get titles and languages properly paired for translation detection
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'text', t.text,
                'language', t.language
              )) FILTER (WHERE t.text IS NOT NULL)
@@ -1238,7 +1238,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get composer information with dates for chronological analysis
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'id', comp.id,
                'name', comp.name,
                'from_year', comp.from_year,
@@ -1251,7 +1251,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get source information
            (
-             SELECT json_agg(DISTINCT jsonb_build_object(
+             SELECT json_agg(jsonb_build_object(
                'id', s.id,
                'name', s.title,
                'location', s.town,
@@ -1266,7 +1266,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
            
            -- Get inclusion notes for text analysis
            (
-             SELECT string_agg(DISTINCT i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
+             SELECT string_agg(i.notes, ' ') FILTER (WHERE i.notes IS NOT NULL AND i.notes != '')
              FROM compositions c2
              JOIN inclusions i ON c2.id = i.composition_id
              WHERE c2.group_id = g.id
