@@ -58,9 +58,12 @@ router.get('/groups', async (req, res) => {
     if (title.trim()) {
       const searchTerm = title.trim();
       
-      // Function to normalize text by removing punctuation
+      // Function to normalize text by removing punctuation but preserving % wildcards
       const normalizeText = (text) => {
-        return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+        return text.toLowerCase()
+          .replace(/[^a-z0-9\s%]/g, '') // Keep % signs
+          .replace(/\s+/g, ' ')
+          .trim();
       };
       
       const createVariations = (searchTerm) => {
