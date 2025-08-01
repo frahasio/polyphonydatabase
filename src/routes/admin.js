@@ -1817,6 +1817,24 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     // Track compared pairs to avoid A=B and B=A duplicates
     const comparedPairs = new Set();
     
+    // COMPREHENSIVE SEARCH: Since we only show 2-3 results, we can afford to check more thoroughly
+    // Only limit if datasets are extremely large to prevent total memory exhaustion
+    for (const [voiceCount, groups] of Object.entries(primaryGroupsByVoices)) {
+      const limit = parseInt(voiceCount) >= 5 ? 200 : 400; // More generous limits since we show fewer results
+      if (groups.length > limit) {
+        console.log(`Voice count ${voiceCount} has ${groups.length} groups - limiting to first ${limit} for comprehensive search`);
+        primaryGroupsByVoices[voiceCount] = groups.slice(0, limit);
+      }
+    }
+    
+    for (const [voiceCount, groups] of Object.entries(allGroupsByVoices)) {
+      const limit = parseInt(voiceCount) >= 5 ? 800 : 1200; // Much more generous for comparison sets
+      if (groups.length > limit) {
+        console.log(`Voice count ${voiceCount} comparison set has ${groups.length} groups - limiting to first ${limit} for comprehensive search`);
+        allGroupsByVoices[voiceCount] = groups.slice(0, limit);
+      }
+    }
+    
     // Compare primary groups against all groups with same voice count
     for (const [voiceCount, anonGroups] of Object.entries(primaryGroupsByVoices)) {
       const compareGroups = allGroupsByVoices[voiceCount] || [];
@@ -1827,10 +1845,19 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       console.log(`Analyzing ${anonGroups.length} ${analysisType} groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
       
       for (const anonGroup of anonGroups) {
-        if (suggestions.length >= 300) break; // Reduce max suggestions for better performance
+        // DISPLAY LIMIT: Only show 2-3 primary records per page for focused review
+        if (suggestions.length >= 3) break;
+        
+        // Extended timeout since we're doing more comprehensive search but showing fewer results
+        const timeLimit = 45000; // 45 seconds for comprehensive analysis
+        if (Date.now() - startTime > timeLimit) {
+          console.log(`Analysis timeout reached after ${timeLimit}ms, stopping with ${suggestions.length} suggestions`);
+          break;
+        }
         
         for (const compareGroup of compareGroups) {
-          if (suggestions.length >= 300) break; // Reduce max suggestions for better performance
+          // DISPLAY LIMIT: Only show 2-3 primary records per page for focused review
+        if (suggestions.length >= 3) break;
           
           // Don't compare group to itself
           if (anonGroup.id === compareGroup.id) continue;
@@ -1839,6 +1866,105 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           const pairKey = `${Math.min(anonGroup.id, compareGroup.id)}-${Math.max(anonGroup.id, compareGroup.id)}`;
           if (comparedPairs.has(pairKey)) continue;
           comparedPairs.add(pairKey);
+          
+          // ===============================
+          // SMART PRE-FILTERING - ELIMINATE OBVIOUS NON-MATCHES EARLY
+          // ===============================
+          
+          // 1. QUICK CLEF CHECK - if clef sets have no overlap, skip expensive analysis
+          const clefs1 = new Set((anonGroup.clef_combination || '').split(/[,\s]+/).filter(Boolean));
+          const clefs2 = new Set((compareGroup.clef_combination || '').split(/[,\s]+/).filter(Boolean));
+          if (clefs1.size > 0 && clefs2.size > 0) {
+            const hasCommonClef = [...clefs1].some(c => clefs2.has(c));
+            if (!hasCommonClef) continue; // No clef overlap = definitely different
+          }
+          
+          // 2. BASIC TITLE LENGTH CHECK - very different lengths unlikely to match
+          const titles1 = anonGroup.all_titles || [];
+          const titles2 = compareGroup.all_titles || [];
+          if (titles1.length > 0 && titles2.length > 0) {
+            let hasReasonableMatch = false;
+            for (const t1 of titles1) {
+              for (const t2 of titles2) {
+                const len1 = (t1.text || '').length;
+                const len2 = (t2.text || '').length;
+                if (len1 > 0 && len2 > 0) {
+                  const ratio = Math.min(len1, len2) / Math.max(len1, len2);
+                  if (ratio >= 0.3) { // Titles within reasonable length ratio
+                    hasReasonableMatch = true;
+                    break;
+                  }
+                }
+              }
+              if (hasReasonableMatch) break;
+            }
+            if (!hasReasonableMatch) continue; // All titles have very different lengths
+          }
+          
+          // 3. OBVIOUS TITLE MISMATCH - simple word check before expensive analysis
+          if (titles1.length > 0 && titles2.length > 0) {
+            let hasWordOverlap = false;
+            for (const t1 of titles1) {
+              for (const t2 of titles2) {
+                const words1 = (t1.text || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                const words2 = (t2.text || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                if (words1.some(w => words2.includes(w))) {
+                  hasWordOverlap = true;
+                  break;
+                }
+              }
+              if (hasWordOverlap) break;
+            }
+            if (!hasWordOverlap && titles1.some(t => (t.text || '').length > 5) && titles2.some(t => (t.text || '').length > 5)) {
+              continue; // No word overlap in substantial titles
+            }
+          }
+          
+          // ===============================
+          // MEMORY-EFFICIENT PRE-FILTERING - ELIMINATE BEFORE EXPENSIVE OPERATIONS
+          // ===============================
+          
+          // 4. FAST PROPERTY CONFLICTS CHECK
+          if (hasConflictingProperties(anonGroup, compareGroup)) {
+            continue; // Skip if fundamental properties don't match
+          }
+          
+          // 5. QUICK COMPOSER MISMATCH - if both have same named composer, probably different works
+          const composers1 = (anonGroup.composer_details || []).filter(c => c.name && c.name !== 'Anon');
+          const composers2 = (compareGroup.composer_details || []).filter(c => c.name && c.name !== 'Anon');
+          if (composers1.length > 0 && composers2.length > 0) {
+            const sameComposer = composers1.some(c1 => composers2.some(c2 => c1.name === c2.name));
+            if (sameComposer) continue; // Same composer = likely different works, low priority
+          }
+          
+          // 6. MEMORY-SAVING: Don't load full details for obviously bad matches
+          let quickScore = 0;
+          
+          // Quick clef scoring (no expensive analysis)
+          if (clefs1.size > 0 && clefs2.size > 0) {
+            const intersection = [...clefs1].filter(c => clefs2.has(c)).length;
+            const union = new Set([...clefs1, ...clefs2]).size;
+            quickScore += Math.floor((intersection / union) * 30); // Max 30 points for clefs
+          }
+          
+          // Quick title word count
+          if (titles1.length > 0 && titles2.length > 0) {
+            let bestWordOverlap = 0;
+            for (const t1 of titles1.slice(0, 2)) { // Only check first 2 titles
+              for (const t2 of titles2.slice(0, 2)) {
+                const words1 = (t1.text || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                const words2 = (t2.text || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                const overlap = words1.filter(w => words2.includes(w)).length;
+                bestWordOverlap = Math.max(bestWordOverlap, overlap);
+              }
+            }
+            quickScore += Math.min(bestWordOverlap * 8, 25); // Max 25 points for word overlap
+          }
+          
+          // 7. EARLY REJECTION: If quick score is too low, skip expensive analysis
+          if (quickScore < 15) { // Minimum threshold for proceeding
+            continue; // Not worth the expensive analysis
+          }
           
           // Skip if this pair has been flagged as "not the same"
           try {
@@ -2914,14 +3040,14 @@ function calculateWordOverlap(title1, title2) {
 
 // Helper function to check for conflicting composition properties
 function hasConflictingProperties(group1, group2) {
-  // Check composition types - only reject if both have values that don't match
+  // STRICT PREREQUISITE: Check composition types - MUST match if both have values
   const types1 = new Set(group1.composition_types || []);
   const types2 = new Set(group2.composition_types || []);
   
   if (types1.size > 0 && types2.size > 0) {
     const hasCommonType = [...types1].some(t => types2.has(t));
     if (!hasCommonType) {
-      return true; // Different types = different works
+      return true; // Different types = different works (PREREQUISITE)
     }
   }
   

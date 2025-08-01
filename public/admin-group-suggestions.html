@@ -430,6 +430,9 @@
                     document.getElementById('progress-info').textContent = 'Analyzing groups...';
                 }
                 
+                // Store current search parameters for "Load More" functionality
+                currentSearchParams = params.toString();
+                
                 if (params.toString()) {
                     apiUrl += `?${params.toString()}`;
                 }
@@ -458,6 +461,7 @@
                 // Only show action bar if we have results
                 if (suggestions.length > 0) {
                     document.getElementById('actionBar').style.display = 'flex';
+                    showLoadMoreButton(); // Show load more option after results
                 }
                 
             } catch (error) {
@@ -645,14 +649,28 @@
             document.getElementById('results-container').style.display = 'block';
             document.getElementById('noResults').style.display = 'block';
             
-            // Add back button to no results message
+            // Add back button and load more button to no results message
             const noResultsDiv = document.getElementById('noResults');
-            if (!noResultsDiv.querySelector('.back-button')) {
+            if (!noResultsDiv.querySelector('.button-group')) {
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group mt-3';
+                
                 const backButton = document.createElement('button');
-                backButton.className = 'btn btn-primary mt-3 back-button';
+                backButton.className = 'btn btn-primary me-2';
                 backButton.innerHTML = '<i class="bi bi-arrow-left me-2"></i>Try Different Analysis';
                 backButton.onclick = returnToVoiceSelection;
-                noResultsDiv.appendChild(backButton);
+                
+                const loadMoreButton = document.createElement('button');
+                loadMoreButton.className = 'btn btn-secondary';
+                loadMoreButton.innerHTML = '<i class="bi bi-search-plus me-2"></i>Load More Results';
+                loadMoreButton.onclick = rerunCurrentSearch;
+                
+                buttonGroup.appendChild(backButton);
+                if (currentSearchParams) {
+                    buttonGroup.appendChild(loadMoreButton);
+                }
+                
+                noResultsDiv.appendChild(buttonGroup);
             }
         }
 
@@ -1118,6 +1136,52 @@ This focuses on the most scholarly valuable discoveries: resolving anonymous att
                 console.error('Error flagging suggestion:', error);
                 checkbox.checked = false; // Reset checkbox on error
                 alert('Error flagging suggestion. Please try again.');
+            }
+        }
+
+        function showLoadMoreButton() {
+            // Add a load more section if it doesn't exist
+            if (!document.getElementById('load-more-section')) {
+                const loadMoreSection = document.createElement('div');
+                loadMoreSection.id = 'load-more-section';
+                loadMoreSection.className = 'container mt-4';
+                loadMoreSection.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Get More Suggestions</h6>
+                                    <p class="card-text text-muted small">
+                                        Check the suggestions above first, then click below to load more potential matches for the same search criteria.
+                                    </p>
+                                    <button class="btn btn-primary" onclick="rerunCurrentSearch()">
+                                        <i class="bi bi-search-plus me-2"></i>Load More Results
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Insert after the results container
+                const resultsContainer = document.getElementById('results-container');
+                resultsContainer.parentNode.insertBefore(loadMoreSection, resultsContainer.nextSibling);
+            }
+            
+            document.getElementById('load-more-section').style.display = 'block';
+        }
+
+        function rerunCurrentSearch() {
+            if (currentSearchParams) {
+                // Extract parameters and rerun analysis
+                const params = new URLSearchParams(currentSearchParams);
+                const voiceCount = params.get('voices');
+                const composerId = params.get('composer');
+                const sourceId = params.get('source');
+                
+                startAnalysis(voiceCount, composerId, sourceId);
+            } else {
+                alert('No previous search to repeat');
             }
         }
 
