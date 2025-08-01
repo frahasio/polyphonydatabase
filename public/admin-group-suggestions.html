@@ -431,11 +431,6 @@
                 }
                 
                 // Store current search parameters for "Load More" functionality
-                // Add offset parameter if this is a continuation
-                const offsetParam = new URLSearchParams(window.location.search).get('offset');
-                if (offsetParam) {
-                    params.set('offset', offsetParam);
-                }
                 currentSearchParams = params.toString();
                 
                 if (params.toString()) {
@@ -1178,19 +1173,11 @@ This focuses on the most scholarly valuable discoveries: resolving anonymous att
 
         function rerunCurrentSearch() {
             if (currentSearchParams) {
-                // Extract parameters and add offset for continuation
+                // Extract parameters and rerun analysis
                 const params = new URLSearchParams(currentSearchParams);
                 const voiceCount = params.get('voices');
                 const composerId = params.get('composer');
                 const sourceId = params.get('source');
-                
-                // Add offset from last analysis for continuation
-                if (analysisStats && analysisStats.nextOffset) {
-                    params.set('offset', analysisStats.nextOffset);
-                }
-                
-                // Update stored params with offset
-                currentSearchParams = params.toString();
                 
                 startAnalysis(voiceCount, composerId, sourceId);
             } else {
