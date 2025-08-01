@@ -1814,6 +1814,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       allGroupsByVoices[voices].push(group);
     }
     
+    // Track compared pairs to avoid A=B and B=A duplicates
+    const comparedPairs = new Set();
+    
     // Compare primary groups against all groups with same voice count
     for (const [voiceCount, anonGroups] of Object.entries(primaryGroupsByVoices)) {
       const compareGroups = allGroupsByVoices[voiceCount] || [];
@@ -1824,13 +1827,46 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       console.log(`Analyzing ${anonGroups.length} ${analysisType} groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
       
       for (const anonGroup of anonGroups) {
-        if (suggestions.length >= maxSuggestions) break;
+        if (suggestions.length >= 300) break; // Reduce max suggestions for better performance
         
         for (const compareGroup of compareGroups) {
-          if (suggestions.length >= maxSuggestions) break;
+          if (suggestions.length >= 300) break; // Reduce max suggestions for better performance
           
           // Don't compare group to itself
           if (anonGroup.id === compareGroup.id) continue;
+          
+          // Consolidate A=B and B=A duplicates
+          const pairKey = `${Math.min(anonGroup.id, compareGroup.id)}-${Math.max(anonGroup.id, compareGroup.id)}`;
+          if (comparedPairs.has(pairKey)) continue;
+          comparedPairs.add(pairKey);
+          
+          // Skip if this pair has been flagged as "not the same"
+          const flagQuery = `
+            SELECT 1 FROM suggestion_flags 
+            WHERE ((group1_id = $1 AND group2_id = $2) OR (group1_id = $2 AND group2_id = $1))
+            AND flag_type = 'not_same'
+          `;
+          const flagResult = await client.query(flagQuery, [anonGroup.id, compareGroup.id]);
+          if (flagResult.rows.length > 0) continue;
+          
+          // Check if both groups share any sources (reject same-source suggestions)
+          const sourceIds1 = new Set();
+          const sourceIds2 = new Set();
+          
+          if (anonGroup.source_details) {
+            anonGroup.source_details.forEach(source => {
+              if (source.id) sourceIds1.add(source.id);
+            });
+          }
+          
+          if (compareGroup.source_details) {
+            compareGroup.source_details.forEach(source => {
+              if (source.id) sourceIds2.add(source.id);
+            });
+          }
+          
+          const hasCommonSource = [...sourceIds1].some(id => sourceIds2.has(id));
+          if (hasCommonSource) continue;
           
           // STRICT ELIMINATION: Different composition properties = different works
           if (hasConflictingProperties(anonGroup, compareGroup)) {
@@ -1871,7 +1907,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
             return false; // Don't filter
           };
           
-          if (matchResult.totalScore >= 30 && !shouldFilterRomanNumeralDifference(anonGroup, compareGroup)) {
+          if (matchResult.totalScore >= 40 && !shouldFilterRomanNumeralDifference(anonGroup, compareGroup)) {
             suggestions.push({
               group1: {
                 id: anonGroup.id,
@@ -2156,73 +2192,83 @@ function analyzeVoices(group1, group2, factors) {
   
   // NO POINTS for matching voice count - it's a prerequisite only
   
-  // CLEF COMBINATION IS THE MAIN FACTOR (up to 30 points)
+  // CLEF COMBINATION IS THE MAIN FACTOR (up to 30 points) - STRICT BLACK AND WHITE APPROACH
   if (group1.clef_combinations && group2.clef_combinations && 
       group1.clef_combinations.length > 0 && group2.clef_combinations.length > 0) {
     
-    const clef1Set = new Set(group1.clef_combinations.map(c => JSON.stringify(c)));
-    const clef2Set = new Set(group2.clef_combinations.map(c => JSON.stringify(c)));
+    // Parse and normalize clef combinations, handling optional clefs
+    const parseClefCombination = (clefCombo) => {
+      try {
+        const parsed = typeof clefCombo === 'string' ? JSON.parse(clefCombo) : clefCombo;
+        if (Array.isArray(parsed)) {
+          return parsed.map(clef => {
+            if (typeof clef === 'string') return clef;
+            if (clef && clef.clef) return clef.clef;
+            return String(clef);
+          });
+        }
+        return [];
+      } catch (e) {
+        return [];
+      }
+    };
     
-    const intersection = new Set([...clef1Set].filter(x => clef2Set.has(x)));
-    const union = new Set([...clef1Set, ...clef2Set]);
+    const clefs1 = group1.clef_combinations.flatMap(parseClefCombination).filter(Boolean);
+    const clefs2 = group2.clef_combinations.flatMap(parseClefCombination).filter(Boolean);
     
-    if (intersection.size > 0 && union.size > 0) {
-      const similarity = intersection.size / union.size;
+    // Separate optional clefs (if marked - this would need database schema update)
+    // For now, treat all clefs as required
+    const requiredClefs1 = new Set(clefs1);
+    const requiredClefs2 = new Set(clefs2);
+    
+    // BLACK AND WHITE APPROACH:
+    if (requiredClefs1.size === requiredClefs2.size && 
+        [...requiredClefs1].every(clef => requiredClefs2.has(clef))) {
       
-      if (similarity >= 0.99) {
-        // Identical clef combinations - very strong evidence
-        const clefScore = 30;
+      // EXACT MATCH - Full 30 points
+      score += 30;
+      factors.push({
+        description: `Identical clef combinations: [${[...requiredClefs1].sort().join(', ')}]`,
+        score: 30,
+        strength: 'strong',
+        clefData: {
+          group1Clefs: [...requiredClefs1].sort(),
+          group2Clefs: [...requiredClefs2].sort(),
+          match: 'exact'
+        }
+      });
+      
+    } else {
+      // ANY DIFFERENCE - Severely penalized (max 5 points for partial overlap)
+      const intersection = new Set([...requiredClefs1].filter(clef => requiredClefs2.has(clef)));
+      
+      if (intersection.size > 0) {
+        const overlapRatio = intersection.size / Math.max(requiredClefs1.size, requiredClefs2.size);
+        const clefScore = Math.min(Math.round(overlapRatio * 5), 5);
+        
         score += clefScore;
         factors.push({
-          description: `Identical clef combinations (${Math.round(similarity * 100)}% match)`,
+          description: `Partial clef overlap: ${intersection.size}/${Math.max(requiredClefs1.size, requiredClefs2.size)} clefs match - likely different works`,
           score: clefScore,
-          strength: 'strong',
+          strength: 'weak',
           clefData: {
-            group1Clefs: group1.clef_combinations,
-            group2Clefs: group2.clef_combinations,
-            similarity: similarity
+            group1Clefs: [...requiredClefs1].sort(),
+            group2Clefs: [...requiredClefs2].sort(),
+            overlap: [...intersection].sort(),
+            match: 'partial'
           }
         });
-      } else if (similarity >= 0.9) {
-        // Nearly identical clef combinations - very strong evidence
-        const clefScore = 27;
-        score += clefScore;
+      } else {
+        // No clef overlap - negative score
+        score -= 5;
         factors.push({
-          description: `Nearly identical clef combinations (${Math.round(similarity * 100)}% match)`,
-          score: clefScore,
+          description: `No clef overlap: [${[...requiredClefs1].sort().join(', ')}] vs [${[...requiredClefs2].sort().join(', ')}] - different works`,
+          score: -5,
           strength: 'strong',
           clefData: {
-            group1Clefs: group1.clef_combinations,
-            group2Clefs: group2.clef_combinations,
-            similarity: similarity
-          }
-        });
-      } else if (similarity >= 0.7) {
-        // Good clef similarity - strong evidence
-        const clefScore = Math.round(similarity * 20);
-        score += clefScore;
-        factors.push({
-          description: `Strong clef combination similarity (${Math.round(similarity * 100)}% match)`,
-          score: clefScore,
-          strength: 'strong',
-          clefData: {
-            group1Clefs: group1.clef_combinations,
-            group2Clefs: group2.clef_combinations,
-            similarity: similarity
-          }
-        });
-      } else if (similarity >= 0.5) {
-        // Moderate clef similarity - medium evidence
-        const clefScore = Math.round(similarity * 12);
-        score += clefScore;
-        factors.push({
-          description: `Moderate clef combination similarity (${Math.round(similarity * 100)}% match)`,
-          score: clefScore,
-          strength: 'medium',
-          clefData: {
-            group1Clefs: group1.clef_combinations,
-            group2Clefs: group2.clef_combinations,
-            similarity: similarity
+            group1Clefs: [...requiredClefs1].sort(),
+            group2Clefs: [...requiredClefs2].sort(),
+            match: 'none'
           }
         });
       }
@@ -2250,7 +2296,9 @@ function analyzeTitles(group1, group2, factors) {
   let bestSimilarity = 0;
   let bestMatch = null;
   
-  // Exact title match (very high score)
+  // SIMPLIFIED TITLE MATCHING FOR PERFORMANCE
+  
+  // 1. Exact title match (very high score)
   const exactMatches = titles1.filter(t1 => 
     titles2.some(t2 => t1.toLowerCase().trim() === t2.toLowerCase().trim())
   );
@@ -2263,16 +2311,48 @@ function analyzeTitles(group1, group2, factors) {
       strength: 'strong'
     });
   } else {
+    // 2. Check for "starts with" relationships (e.g., "Missa" -> "Missa Sine nomine")
+    let startsWithMatch = null;
+    for (const title1 of titles1) {
+      for (const title2 of titles2) {
+        const t1_clean = title1.toLowerCase().trim();
+        const t2_clean = title2.toLowerCase().trim();
+        
+        if (t1_clean.length >= 4 && t2_clean.startsWith(t1_clean)) {
+          startsWithMatch = { shorter: title1, longer: title2 };
+          break;
+        } else if (t2_clean.length >= 4 && t1_clean.startsWith(t2_clean)) {
+          startsWithMatch = { shorter: title2, longer: title1 };
+          break;
+        }
+      }
+      if (startsWithMatch) break;
+    }
+    
+    if (startsWithMatch) {
+      score += 18;
+      factors.push({
+        description: `Title extension match: "${startsWithMatch.shorter}" extends to "${startsWithMatch.longer}"`,
+        score: 18,
+        strength: 'strong'
+      });
+    } else {
     // MUCH STRICTER fuzzy title matching
     let isPotentialTranslation = false;
     
     for (const pair1 of titlePairs1) {
       for (const pair2 of titlePairs2) {
-        // Check for substantial word overlap (new strict requirement)
+        // Check for substantial word overlap (stricter requirement)
         const wordOverlap = calculateWordOverlap(pair1.text, pair2.text);
         const similarity = calculateTitleSimilarity(pair1.text, pair2.text);
         
-        if (similarity > bestSimilarity && wordOverlap.commonWords >= 2) {
+        // Require at least 2 common words for longer titles, but allow 1 for very short titles
+        const title1Words = pair1.text.split(' ').length;
+        const title2Words = pair2.text.split(' ').length;
+        const avgTitleLength = (title1Words + title2Words) / 2;
+        const minCommonWords = avgTitleLength <= 3 ? 1 : 2;
+        
+        if (similarity > bestSimilarity && wordOverlap.commonWords >= minCommonWords) {
           bestSimilarity = similarity;
           bestMatch = { 
             title1: pair1.text, 
@@ -2290,37 +2370,50 @@ function analyzeTitles(group1, group2, factors) {
       }
     }
     
-    // STRICTER thresholds: require both high similarity AND word overlap
+    // MUCH STRICTER thresholds with length-based weighting
     if (bestSimilarity >= 0.85 && bestMatch.wordOverlap.commonWords >= 3) {
       let similarityScore = Math.round(bestSimilarity * 20);
+      
+      // Length-based weighting: longer common words get bonus points
+      const avgCommonWordLength = bestMatch.wordOverlap.overlap.reduce((sum, word) => sum + word.length, 0) / bestMatch.wordOverlap.overlap.length;
+      const lengthBonus = avgCommonWordLength >= 6 ? 3 : (avgCommonWordLength >= 4 ? 1 : 0);
+      
+      // More words = higher bonus
+      const wordCountBonus = Math.min((bestMatch.wordOverlap.commonWords - 2) * 2, 5);
       
       // Bonus for potential translations/contrafacta
       if (isPotentialTranslation) {
         const translationBonus = 5;
-        score += similarityScore + translationBonus;
+        score += similarityScore + translationBonus + lengthBonus + wordCountBonus;
         
         factors.push({
-          description: `Potential translation/contrafactum: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words)`,
-          score: similarityScore + translationBonus,
+          description: `Potential translation/contrafactum: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words, avg length ${Math.round(avgCommonWordLength)})`,
+          score: similarityScore + translationBonus + lengthBonus + wordCountBonus,
           strength: 'strong'
         });
       } else {
-        score += similarityScore;
+        score += similarityScore + lengthBonus + wordCountBonus;
         factors.push({
-          description: `Very similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words, ${Math.round(bestSimilarity * 100)}% similarity)`,
-          score: similarityScore,
+          description: `Very similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words, avg length ${Math.round(avgCommonWordLength)}, ${Math.round(bestSimilarity * 100)}% similarity)`,
+          score: similarityScore + lengthBonus + wordCountBonus,
           strength: bestSimilarity >= 0.9 ? 'strong' : 'medium'
         });
       }
-    } else if (bestSimilarity >= 0.75 && bestMatch.wordOverlap.commonWords >= 2) {
-      // Lower threshold still requires word overlap
-      const similarityScore = Math.round(bestSimilarity * 12);
-      score += similarityScore;
-      factors.push({
-        description: `Similar titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words)`,
-        score: similarityScore,
-        strength: 'medium'
-      });
+    } else if (bestSimilarity >= 0.85 && bestMatch.wordOverlap.commonWords >= 2) {
+      // Still high similarity but fewer words - require longer titles to qualify
+      const title1Length = bestMatch.title1.split(' ').length;
+      const title2Length = bestMatch.title2.split(' ').length;
+      const avgTitleLength = (title1Length + title2Length) / 2;
+      
+      if (avgTitleLength <= 4) { // Short titles can match with 2 words
+        const similarityScore = Math.round(bestSimilarity * 12);
+        score += similarityScore;
+        factors.push({
+          description: `Similar short titles: "${bestMatch.title1}" ≈ "${bestMatch.title2}" (${bestMatch.wordOverlap.commonWords} common words)`,
+          score: similarityScore,
+          strength: 'medium'
+        });
+      }
     }
   }
   
@@ -2362,15 +2455,23 @@ function analyzeComposers(group1, group2, factors) {
   } else if (hasAnon1 && hasAnon2) {
     // Both anonymous - this gives no useful attribution information, so no points
     // The fact that both are anonymous is not evidence they are the same work
-    // No score added
+    // In fact, it slightly reduces confidence since we can't use attribution to help
+    score -= 2;
+    factors.push({
+      description: 'Both compositions anonymous - no attribution evidence available',
+      score: -2,
+      strength: 'weak'
+    });
   } else if (named1.length > 0 && named2.length > 0) {
     // Both have named composers
     if (named1[0].name === named2[0].name) {
-      score += 15;
+      // Same composer - this suggests we may have miscatalogued or have similar works by same composer
+      // Score lower since it's more likely to be different compositions by same composer
+      score += 3;
       factors.push({
-        description: `Same composer: ${named1[0].name}`,
-        score: 15,
-        strength: 'strong'
+        description: `Same composer (${named1[0].name}) - likely different compositions or cataloguing issue`,
+        score: 3,
+        strength: 'weak'
       });
     } else {
       // Different named composers - check chronological compatibility
@@ -2869,5 +2970,38 @@ function hasConflictingProperties(group1, group2) {
   
   return false; // No conflicts found
 }
+
+// POST /flag-suggestion - Flag a suggestion as "not the same"
+router.post('/flag-suggestion', requireAdmin, async (req, res) => {
+  try {
+    const { group1_id, group2_id, flag_type = 'not_same' } = req.body;
+    
+    if (!group1_id || !group2_id) {
+      return res.status(400).json({ error: 'Both group1_id and group2_id are required' });
+    }
+    
+    const userId = req.user.id;
+    
+    // Insert flag (ignore if already exists due to UNIQUE constraint)
+    const insertQuery = `
+      INSERT INTO suggestion_flags (group1_id, group2_id, flag_type, created_by)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (group1_id, group2_id, flag_type) DO NOTHING
+      RETURNING id;
+    `;
+    
+    const result = await client.query(insertQuery, [group1_id, group2_id, flag_type, userId]);
+    
+    res.json({ 
+      success: true, 
+      flagged: result.rows.length > 0,
+      message: result.rows.length > 0 ? 'Suggestion flagged successfully' : 'Suggestion was already flagged'
+    });
+    
+  } catch (error) {
+    console.error('Error flagging suggestion:', error);
+    res.status(500).json({ error: 'Failed to flag suggestion' });
+  }
+});
 
 export default router; 

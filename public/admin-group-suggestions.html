@@ -16,8 +16,14 @@
         }
 
         .confidence-high {
-            border-left: 4px solid #198754;
-            background: rgba(25, 135, 84, 0.05);
+            border-left: 4px solid #20c997;
+            background: rgba(32, 201, 151, 0.05);
+        }
+        
+        /* Custom success badge for better readability */
+        .badge.bg-success {
+            background-color: #20c997 !important;
+            color: #212529 !important;
         }
 
         .confidence-medium {
@@ -181,40 +187,46 @@
         </div>
 
         <!-- Analysis Stats -->
-        <div id="stats-container" class="row g-3 mb-4" style="display: none;">
-            <div class="col-md-3">
-                <div class="card stats-card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-question-circle text-warning display-6"></i>
-                        <h4 id="total-anonymous" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Anonymous Groups</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-collection text-primary display-6"></i>
-                        <h4 id="total-groups" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Total Groups Compared</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-search text-success display-6"></i>
-                        <h4 id="total-suggestions" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Attribution Candidates</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-stopwatch text-info display-6"></i>
-                        <h4 id="analysis-time" class="mt-2 mb-0">-</h4>
-                        <small class="text-muted">Analysis Time</small>
+        <div id="stats-container" class="mb-4" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-auto">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-question-circle text-warning me-2"></i>
+                                <div>
+                                    <h6 class="mb-0" id="total-anonymous">-</h6>
+                                    <small class="text-muted">Anonymous Groups</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto border-start">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-collection text-primary me-2"></i>
+                                <div>
+                                    <h6 class="mb-0" id="total-groups">-</h6>
+                                    <small class="text-muted">Total Compared</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto border-start">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-search text-success me-2"></i>
+                                <div>
+                                    <h6 class="mb-0" id="total-suggestions">-</h6>
+                                    <small class="text-muted">Suggestions Found</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto border-start">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-stopwatch text-info me-2"></i>
+                                <div>
+                                    <h6 class="mb-0" id="analysis-time">-</h6>
+                                    <small class="text-muted">Analysis Time</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -630,6 +642,7 @@
         }
 
         function showNoResults() {
+            document.getElementById('results-container').style.display = 'block';
             document.getElementById('noResults').style.display = 'block';
             
             // Add back button to no results message
@@ -637,7 +650,7 @@
             if (!noResultsDiv.querySelector('.back-button')) {
                 const backButton = document.createElement('button');
                 backButton.className = 'btn btn-primary mt-3 back-button';
-                backButton.innerHTML = '<i class="bi bi-arrow-left me-2"></i>Try Different Voice Count';
+                backButton.innerHTML = '<i class="bi bi-arrow-left me-2"></i>Try Different Analysis';
                 backButton.onclick = returnToVoiceSelection;
                 noResultsDiv.appendChild(backButton);
             }
@@ -651,6 +664,8 @@
                 showNoResults();
                 return;
             }
+            
+            console.log(`Displaying ${groupedSuggestions.length} grouped suggestions`);
             
             // Filter groups by their best match confidence
             const highConfidenceGroups = groupedSuggestions.filter(group => 
@@ -829,11 +844,11 @@
             const matchCount = matches.length;
             
             return `
-                <div class="card mb-3 border-${colorClass}">
-                    <div class="card-header bg-${colorClass} bg-opacity-10">
+                <div class="card mb-3 border-${colorClass === 'success' ? 'success' : colorClass}">
+                    <div class="card-header bg-${colorClass === 'success' ? 'success' : colorClass} bg-opacity-10">
                         <div class="row align-items-center">
                             <div class="col">
-                                <h6 class="mb-0 text-${colorClass}">
+                                <h6 class="mb-0 text-${colorClass === 'success' ? 'success' : colorClass}">
                                     <i class="bi bi-star-fill me-2"></i>
                                     ${bestMatch ? `Best Match: ${bestMatch.matchScore} (${bestMatch.confidence} Confidence)` : 'No matches'}
                                     <span class="badge bg-${isSourceAnalysis ? 'success' : (isComposerAnalysis ? 'info' : 'warning')} text-dark ms-2">
@@ -888,11 +903,20 @@
                                 </div>
                                 <div class="potential-matches" style="max-height: 400px; overflow-y: auto;">
                                     ${matches.map((match, index) => `
-                                        <div class="border rounded p-2 mb-2 ${index === 0 ? 'border-' + colorClass + ' bg-' + colorClass + ' bg-opacity-5' : 'border-light'}">
+                                        <div class="border rounded p-2 mb-2 ${index === 0 ? 'border-' + (colorClass === 'success' ? 'success' : colorClass) + ' bg-' + (colorClass === 'success' ? 'success' : colorClass) + ' bg-opacity-5' : 'border-light'}">
                                             <div class="d-flex justify-content-between align-items-start mb-1">
                                                 <div class="flex-grow-1">
                                                     <strong>${match.namedGroup.name || 'Unnamed Group'}</strong>
-                                                    <span class="badge bg-${match.confidence === 'High' ? 'success' : 'warning'} ms-2">${match.matchScore}% ${match.confidence}</span>
+                                                    <span class="badge bg-${match.confidence === 'High' ? 'success' : 'warning'} ${match.confidence === 'High' ? 'text-dark' : ''} ms-2">${match.matchScore}% ${match.confidence}</span>
+                                                </div>
+                                                <div class="flex-shrink-0 ms-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="flag_${primaryGroup.id}_${match.namedGroup.id}" 
+                                                               onchange="flagSuggestion(${primaryGroup.id}, ${match.namedGroup.id}, this)">
+                                                        <label class="form-check-label text-muted small" for="flag_${primaryGroup.id}_${match.namedGroup.id}">
+                                                            Not same
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <p class="mb-1 small"><strong>Composer(s):</strong> ${match.namedGroup.composers?.join(', ') || 'Unknown'}</p>
@@ -907,7 +931,7 @@
                                                     <div class="small text-muted mb-1"><strong>Matching Evidence:</strong></div>
                                                     ${match.factors.map(factor => `
                                                         <div class="small mb-1">
-                                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} me-1">
+                                                            <span class="badge bg-${factor.strength === 'strong' ? 'success' : factor.strength === 'medium' ? 'warning' : 'secondary'} ${factor.strength === 'strong' ? 'text-dark' : ''} me-1">
                                                                 ${factor.score > 0 ? '+' : ''}${factor.score}
                                                             </span>
                                                             ${factor.description}
@@ -1054,6 +1078,47 @@ What to look for:
 Click "Anonymous Group" and "Named Group" buttons to view detailed information about each composition in new tabs.
 
 This focuses on the most scholarly valuable discoveries: resolving anonymous attributions and finding related works!`);
+        }
+
+        async function flagSuggestion(group1Id, group2Id, checkbox) {
+            try {
+                const response = await fetch('/api/admin/flag-suggestion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        group1_id: group1Id,
+                        group2_id: group2Id,
+                        flag_type: 'not_same'
+                    })
+                });
+
+                if (response.ok) {
+                    // Hide the suggestion card
+                    const card = checkbox.closest('.border');
+                    if (card) {
+                        card.style.transition = 'opacity 0.3s ease';
+                        card.style.opacity = '0.3';
+                        card.style.pointerEvents = 'none';
+                        
+                        // Add a "flagged" indicator
+                        const indicator = document.createElement('div');
+                        indicator.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-warning bg-opacity-25';
+                        indicator.innerHTML = '<span class="badge bg-warning text-dark"><i class="bi bi-flag-fill me-1"></i>Flagged as different</span>';
+                        card.style.position = 'relative';
+                        card.appendChild(indicator);
+                    }
+                    
+                    console.log('Suggestion flagged successfully');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error flagging suggestion:', error);
+                checkbox.checked = false; // Reset checkbox on error
+                alert('Error flagging suggestion. Please try again.');
+            }
         }
 
         async function logout() {
