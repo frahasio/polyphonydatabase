@@ -1840,8 +1840,10 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           if (comparedPairs.has(pairKey)) continue;
           comparedPairs.add(pairKey);
           
+          // TODO: Re-enable flagging after creating suggestion_flags table
           // Skip if this pair has been flagged as "not the same"
-          // TODO: Optimize this by pre-loading all flags at the start
+          // Temporarily disabled to fix deployment
+          /*
           try {
             const flagQuery = `
               SELECT 1 FROM suggestion_flags 
@@ -1855,6 +1857,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
             console.error('Flag check error:', flagError);
             // Continue processing if flag check fails
           }
+          */
           
           // Check if both groups share any sources (reject same-source suggestions)
           const sourceIds1 = new Set();
@@ -2978,7 +2981,9 @@ function hasConflictingProperties(group1, group2) {
   return false; // No conflicts found
 }
 
+// TODO: Re-enable after creating suggestion_flags table
 // POST /flag-suggestion - Flag a suggestion as "not the same"
+/*
 router.post('/flag-suggestion', requireAdmin, async (req, res) => {
   try {
     const { group1_id, group2_id, flag_type = 'not_same' } = req.body;
@@ -3010,5 +3015,6 @@ router.post('/flag-suggestion', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to flag suggestion' });
   }
 });
+*/
 
 export default router; 
