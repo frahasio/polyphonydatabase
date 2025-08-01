@@ -524,17 +524,37 @@ router.put('/:id', async (req, res) => {
 
 // Delete source
 router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     const { id } = req.params;
     
     // Get data before deletion for audit trail
-    const oldDataResult = await pool.query('SELECT * FROM sources WHERE id = $1', [id]);
+    const oldDataResult = await client.query('SELECT * FROM sources WHERE id = $1', [id]);
     if (oldDataResult.rows.length === 0) {
       return res.status(404).json({ error: 'Source not found' });
     }
     const oldData = oldDataResult.rows[0];
 
-    await pool.query('DELETE FROM sources WHERE id = $1', [id]);
+    await client.query('BEGIN');
+
+    // Delete related records first (in order of dependency)
+    // 1. Delete source images
+    await client.query('DELETE FROM source_images WHERE source_id = $1', [id]);
+    
+    // 2. Delete inclusions (compositions in this source)
+    await client.query('DELETE FROM inclusions WHERE source_id = $1', [id]);
+    
+    // 3. Delete publisher relationships
+    await client.query('DELETE FROM publishers_sources WHERE source_id = $1', [id]);
+    
+    // 4. Delete scribe relationships
+    await client.query('DELETE FROM scribes_sources WHERE source_id = $1', [id]);
+    
+    // 5. Finally delete the source
+    await client.query('DELETE FROM sources WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
 
     // Log audit entry if audit system exists
     try {
@@ -556,8 +576,11 @@ router.delete('/:id', async (req, res) => {
 
     res.status(204).send();
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting source:', error);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
