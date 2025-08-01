@@ -829,10 +829,10 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
 
         const compositionsBefore = compositionsBeforeResult.rows;
 
-        // Check if any properties are being updated
-        const hasUpdates = (compositionTypeId !== undefined && compositionTypeId !== '') ||
-                          (tone !== undefined && tone !== '') ||
-                          (evenOdd !== undefined && evenOdd !== '');
+        // Check if any properties are being updated (including explicit null for removal)
+        const hasUpdates = (compositionTypeId !== undefined) ||
+                          (tone !== undefined) ||
+                          (evenOdd !== undefined);
 
         if (!hasUpdates) {
             await client.query('ROLLBACK');
@@ -850,12 +850,12 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
         for (const composition of compositionsBefore) {
             try {
                 // Calculate new properties for this composition
-                const newCompositionTypeId = compositionTypeId !== undefined && compositionTypeId !== '' ? 
+                const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
-                const newTone = tone !== undefined && tone !== '' ? 
+                const newTone = tone !== undefined ? 
                     (tone || null) : composition.tone;
-                const newEvenOdd = evenOdd !== undefined && evenOdd !== '' ? 
-                    (evenOdd !== '' ? parseInt(evenOdd) : null) : composition.even_odd;
+                const newEvenOdd = evenOdd !== undefined ? 
+                    (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 
                 const isAnonymous = composition.composer_id_list && 
                     composition.composer_id_list.length === 1 && 
@@ -1159,10 +1159,10 @@ router.post('/bulk-update-compositions', async (req, res) => {
             return res.status(400).json({ error: 'Group IDs array is required' });
         }
 
-        // Check if any properties are being updated
-        const hasUpdates = (compositionTypeId !== undefined && compositionTypeId !== '') ||
-                          (tone !== undefined && tone !== '') ||
-                          (evenOdd !== undefined && evenOdd !== '');
+        // Check if any properties are being updated (including explicit null for removal)
+        const hasUpdates = (compositionTypeId !== undefined) ||
+                          (tone !== undefined) ||
+                          (evenOdd !== undefined);
 
         if (!hasUpdates) {
             return res.status(400).json({ error: 'No properties to update were provided' });
@@ -1220,12 +1220,12 @@ router.post('/bulk-update-compositions', async (req, res) => {
         for (const composition of compositions) {
             try {
                 // Calculate new properties for this composition
-                const newCompositionTypeId = compositionTypeId !== undefined && compositionTypeId !== '' ? 
+                const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
-                const newTone = tone !== undefined && tone !== '' ? 
+                const newTone = tone !== undefined ? 
                     (tone || null) : composition.tone;
-                const newEvenOdd = evenOdd !== undefined && evenOdd !== '' ? 
-                    (evenOdd !== '' ? parseInt(evenOdd) : null) : composition.even_odd;
+                const newEvenOdd = evenOdd !== undefined ? 
+                    (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 
                 const isAnonymous = composition.composer_id_list && 
                     composition.composer_id_list.length === 1 && 

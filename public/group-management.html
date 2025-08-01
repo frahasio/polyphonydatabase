@@ -387,7 +387,7 @@
                         <h5>Bulk Edit Selected Groups</h5>
                         <div class="alert alert-info mb-3">
                             <i class="bi bi-info-circle me-2"></i>
-                            Apply changes to all selected groups. Leave fields blank to keep existing values unchanged.
+                            Apply changes to all selected groups. Leave fields blank to keep existing values unchanged, or select "Remove" to clear the properties.
                         </div>
 
                         <!-- Bulk Title Update -->
@@ -409,6 +409,7 @@
                                     <label for="bulkMultiCompositionType" class="form-label">Composition Type</label>
                                     <select class="form-select" id="bulkMultiCompositionType">
                                         <option value="">Keep existing types</option>
+                                        <option value="REMOVE">Remove all types</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -416,6 +417,7 @@
                                     <label for="bulkMultiTone" class="form-label">Tone</label>
                                     <select class="form-select" id="bulkMultiTone">
                                         <option value="">Keep existing tones</option>
+                                        <option value="REMOVE">Remove all tones</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -423,6 +425,7 @@
                                     <label for="bulkMultiEvenOdd" class="form-label">Even/Odd</label>
                                     <select class="form-select" id="bulkMultiEvenOdd">
                                         <option value="">Keep existing values</option>
+                                        <option value="REMOVE">Remove all values</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -452,7 +455,7 @@
                         <li><strong>Search:</strong> Use filters for voices, composer, type, tone, and even/odd to find specific groups</li>
                         <li><strong>Multiple Selection:</strong> Select groups to merge (if compatible) or bulk edit their properties</li>
                         <li><strong>Individual Actions:</strong> Use buttons next to each group to add editions, recordings, or edit properties</li>
-                        <li><strong>Bulk Editing:</strong> Always available when multiple groups are selected - update titles and composition properties across groups</li>
+                        <li><strong>Bulk Editing:</strong> Always available when multiple groups are selected - update/remove titles and composition properties across groups</li>
                     </ul>
                 </div>
             </div>
@@ -577,13 +580,14 @@
                             <div class="alert alert-info mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
                                 Use these fields to update composition type, tone, and even/odd properties for all compositions in this group.
-                                Leave fields blank to keep existing values unchanged.
+                                Leave fields blank to keep existing values unchanged, or select "Remove" to clear the properties.
                             </div>
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label for="bulkCompositionType" class="form-label">Composition Type</label>
                                     <select class="form-select" id="bulkCompositionType">
                                         <option value="">Keep existing types</option>
+                                        <option value="REMOVE">Remove all types</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -591,6 +595,7 @@
                                     <label for="bulkTone" class="form-label">Tone</label>
                                     <select class="form-select" id="bulkTone">
                                         <option value="">Keep existing tones</option>
+                                        <option value="REMOVE">Remove all tones</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -598,6 +603,7 @@
                                     <label for="bulkEvenOdd" class="form-label">Even/Odd</label>
                                     <select class="form-select" id="bulkEvenOdd">
                                         <option value="">Keep existing values</option>
+                                        <option value="REMOVE">Remove all values</option>
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
@@ -1316,14 +1322,22 @@
             }
 
             try {
+                // Handle REMOVE option by sending null values
+                const payload = {};
+                if (compositionTypeId) {
+                    payload.compositionTypeId = compositionTypeId === 'REMOVE' ? null : parseInt(compositionTypeId);
+                }
+                if (tone) {
+                    payload.tone = tone === 'REMOVE' ? null : tone;
+                }
+                if (evenOdd) {
+                    payload.evenOdd = evenOdd === 'REMOVE' ? null : parseInt(evenOdd);
+                }
+
                 const response = await fetch(`/api/admin/groups/${groupId}/bulk-update-compositions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        compositionTypeId: compositionTypeId || undefined,
-                        tone: tone || undefined,
-                        evenOdd: evenOdd || undefined
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
@@ -2035,15 +2049,25 @@
             }
 
             try {
+                // Handle REMOVE option by sending null values
+                const payload = {
+                    groupIds: selectedGroups.map(g => g.id)
+                };
+                
+                if (compositionTypeId) {
+                    payload.compositionTypeId = compositionTypeId === 'REMOVE' ? null : parseInt(compositionTypeId);
+                }
+                if (tone) {
+                    payload.tone = tone === 'REMOVE' ? null : tone;
+                }
+                if (evenOdd) {
+                    payload.evenOdd = evenOdd === 'REMOVE' ? null : parseInt(evenOdd);
+                }
+
                 const response = await fetch('/api/admin/groups/bulk-update-compositions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupIds: selectedGroups.map(g => g.id),
-                        compositionTypeId: compositionTypeId || undefined,
-                        tone: tone || undefined,
-                        evenOdd: evenOdd || undefined
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
