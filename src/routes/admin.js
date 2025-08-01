@@ -1817,55 +1817,149 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
     // Track compared pairs to avoid A=B and B=A duplicates
     const comparedPairs = new Set();
     
-    // COMPREHENSIVE SEARCH: Since we only show 2-3 results, we can afford to check more thoroughly
-    // Only limit if datasets are extremely large to prevent total memory exhaustion
+    // PROGRESSIVE PROCESSING: Process one primary group at a time until we find results
+    console.log(`Starting progressive analysis from offset ${startOffset}...`);
+    
+    // PROGRESSIVE ANALYSIS: Process groups one at a time until we find results
+    let processedGroups = 0;
+    let currentOffset = startOffset;
+    const maxResults = 3; // Stop after finding this many groups with results
+    
+    // Flatten all primary groups into a single array for sequential processing
+    const allPrimaryGroups = [];
     for (const [voiceCount, groups] of Object.entries(primaryGroupsByVoices)) {
-      const limit = parseInt(voiceCount) >= 5 ? 200 : 400; // More generous limits since we show fewer results
-      if (groups.length > limit) {
-        console.log(`Voice count ${voiceCount} has ${groups.length} groups - limiting to first ${limit} for comprehensive search`);
-        primaryGroupsByVoices[voiceCount] = groups.slice(0, limit);
+      for (const group of groups) {
+        allPrimaryGroups.push({ ...group, voiceCount: parseInt(voiceCount) });
       }
     }
     
-    for (const [voiceCount, groups] of Object.entries(allGroupsByVoices)) {
-      const limit = parseInt(voiceCount) >= 5 ? 800 : 1200; // Much more generous for comparison sets
-      if (groups.length > limit) {
-        console.log(`Voice count ${voiceCount} comparison set has ${groups.length} groups - limiting to first ${limit} for comprehensive search`);
-        allGroupsByVoices[voiceCount] = groups.slice(0, limit);
-      }
-    }
+    console.log(`Found ${allPrimaryGroups.length} total primary groups to analyze`);
     
-    // Compare primary groups against all groups with same voice count
-    for (const [voiceCount, anonGroups] of Object.entries(primaryGroupsByVoices)) {
+    // Start from the offset (for "Load More" functionality)
+    for (let i = currentOffset; i < allPrimaryGroups.length; i++) {
+      const primaryGroup = allPrimaryGroups[i];
+      const voiceCount = primaryGroup.voiceCount;
       const compareGroups = allGroupsByVoices[voiceCount] || [];
       
-      if (compareGroups.length === 0) continue;
+      if (compareGroups.length === 0) {
+        console.log(`Skipping group ${i+1}: no comparison groups available for ${voiceCount} voices`);
+        continue;
+      }
       
       const analysisType = sourceFilter ? 'source' : (composerFilter ? 'composer' : 'anonymous');
-      console.log(`Analyzing ${anonGroups.length} ${analysisType} groups against ${compareGroups.length} total groups with ${voiceCount} voices`);
+      console.log(`Checking ${i+1}${getOrdinalSuffix(i+1)} ${voiceCount}vv ${analysisType} group (ID: ${primaryGroup.id})...`);
       
-      for (const anonGroup of anonGroups) {
-        // DISPLAY LIMIT: Only show 2-3 primary records per page for focused review
-        if (suggestions.length >= 3) break;
+      // STEP 1: Apply pre-filtering to get potential matches
+      let potentialMatches = [];
+      
+      for (const compareGroup of compareGroups) {
+        // Skip self-comparison
+        if (primaryGroup.id === compareGroup.id) continue;
         
-        // Extended timeout since we're doing more comprehensive search but showing fewer results
-        const timeLimit = 45000; // 45 seconds for comprehensive analysis
-        if (Date.now() - startTime > timeLimit) {
-          console.log(`Analysis timeout reached after ${timeLimit}ms, stopping with ${suggestions.length} suggestions`);
-          break;
+        // Check for duplicate pair (A=B already processed)
+        const pairKey = `${Math.min(primaryGroup.id, compareGroup.id)}-${Math.max(primaryGroup.id, compareGroup.id)}`;
+        if (comparedPairs.has(pairKey)) continue;
+        comparedPairs.add(pairKey);
+        
+        // QUICK PRE-FILTERING - same for all voice counts
+        
+        // 1. Check flagged pairs
+        try {
+          const flagQuery = `
+            SELECT 1 FROM suggestion_flags 
+            WHERE ((group1_id = $1 AND group2_id = $2) OR (group1_id = $2 AND group2_id = $1))
+            AND flag_type = 'not_same'
+            LIMIT 1
+          `;
+          const flagResult = await client.query(flagQuery, [primaryGroup.id, compareGroup.id]);
+          if (flagResult.rows.length > 0) continue;
+        } catch (flagError) {
+          // Continue if flag check fails
         }
         
-        for (const compareGroup of compareGroups) {
-          // DISPLAY LIMIT: Only show 2-3 primary records per page for focused review
-        if (suggestions.length >= 3) break;
-          
-          // Don't compare group to itself
-          if (anonGroup.id === compareGroup.id) continue;
-          
-          // Consolidate A=B and B=A duplicates
-          const pairKey = `${Math.min(anonGroup.id, compareGroup.id)}-${Math.max(anonGroup.id, compareGroup.id)}`;
-          if (comparedPairs.has(pairKey)) continue;
-          comparedPairs.add(pairKey);
+        // 2. Check same sources (reject)
+        const sourceIds1 = new Set((primaryGroup.source_details || []).map(s => s.id).filter(Boolean));
+        const sourceIds2 = new Set((compareGroup.source_details || []).map(s => s.id).filter(Boolean));
+        const hasCommonSource = [...sourceIds1].some(id => sourceIds2.has(id));
+        if (hasCommonSource) continue;
+        
+        // 3. Check conflicting properties (composition type, tone, even/odd)
+        if (hasConflictingProperties(primaryGroup, compareGroup)) continue;
+        
+        // 4. Quick clef check
+        const clefs1 = new Set((primaryGroup.clef_combination || '').split(/[,\s]+/).filter(Boolean));
+        const clefs2 = new Set((compareGroup.clef_combination || '').split(/[,\s]+/).filter(Boolean));
+        if (clefs1.size > 0 && clefs2.size > 0) {
+          const hasCommonClef = [...clefs1].some(c => clefs2.has(c));
+          if (!hasCommonClef) continue;
+        }
+        
+        // 5. Quick composer check (skip same named composer)
+        const composers1 = (primaryGroup.composer_details || []).filter(c => c.name && c.name !== 'Anon');
+        const composers2 = (compareGroup.composer_details || []).filter(c => c.name && c.name !== 'Anon');
+        if (composers1.length > 0 && composers2.length > 0) {
+          const sameComposer = composers1.some(c1 => composers2.some(c2 => c1.name === c2.name));
+          if (sameComposer) continue;
+        }
+        
+        // Passed all pre-filters - add to potential matches
+        potentialMatches.push(compareGroup);
+      }
+      
+      console.log(`Filtered out obvious mismatches, ${potentialMatches.length} potential matches. Comparing...`);
+      
+      // STEP 2: If we have potential matches, do detailed analysis
+      const groupMatches = [];
+      
+      for (const compareGroup of potentialMatches) {
+        // EXPENSIVE ANALYSIS - only for pairs that passed all pre-filters
+        const analysisResult = analyzeCompositionPair(primaryGroup, compareGroup);
+        
+        if (analysisResult.matchScore >= 40) { // Confidence threshold
+          groupMatches.push({
+            primaryGroup,
+            namedGroup: compareGroup,
+            matchScore: analysisResult.matchScore,
+            confidence: analysisResult.confidence,
+            factors: analysisResult.factors
+          });
+        }
+      }
+      
+      // STEP 3: Check if this group produced results
+      if (groupMatches.length > 0) {
+        console.log(`${groupMatches.length} matches found with high enough threshold. Adding to results.`);
+        suggestions.push(...groupMatches);
+        anonymousGroupIds.add(primaryGroup.id);
+        processedGroups++;
+        
+        // Stop if we have enough results (groups with matches)
+        if (processedGroups >= maxResults) {
+          console.log(`Found ${processedGroups} groups with results. Stopping analysis.`);
+          currentOffset = i + 1; // Remember where to continue next time
+          break;
+        }
+      } else {
+        console.log(`No suggestions found above threshold.`);
+      }
+      
+      // Update offset for next iteration
+      currentOffset = i + 1;
+      
+      // Timeout protection (25 seconds)
+      if (Date.now() - startTime > 25000) {
+        console.log(`Analysis timeout reached, stopping with ${suggestions.length} suggestions`);
+        break;
+      }
+    }
+    
+    // If we've processed all groups without finding enough results
+    if (currentOffset >= allPrimaryGroups.length) {
+      console.log(`Completed analysis of all ${allPrimaryGroups.length} primary groups.`);
+      currentOffset = 0; // Reset for next full cycle
+    }
+    
+    // PROGRESSIVE ANALYSIS COMPLETE - CREATE RESULTS
           
           // ===============================
           // SMART PRE-FILTERING - ELIMINATE OBVIOUS NON-MATCHES EARLY
@@ -1902,7 +1996,8 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           }
           
           // 3. OBVIOUS TITLE MISMATCH - simple word check before expensive analysis
-          if (titles1.length > 0 && titles2.length > 0) {
+          // Be less aggressive for 5+ voice searches since they often have fewer good matches
+          if (titles1.length > 0 && titles2.length > 0 && parseInt(voiceCount) < 5) {
             let hasWordOverlap = false;
             for (const t1 of titles1) {
               for (const t2 of titles2) {
@@ -1916,7 +2011,7 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
               if (hasWordOverlap) break;
             }
             if (!hasWordOverlap && titles1.some(t => (t.text || '').length > 5) && titles2.some(t => (t.text || '').length > 5)) {
-              continue; // No word overlap in substantial titles
+              continue; // No word overlap in substantial titles (only for < 5 voices)
             }
           }
           
@@ -1962,7 +2057,9 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           }
           
           // 7. EARLY REJECTION: If quick score is too low, skip expensive analysis
-          if (quickScore < 15) { // Minimum threshold for proceeding
+          // Reduce threshold for 5+ voice searches to ensure we don't filter everything out
+          const minThreshold = parseInt(voiceCount) >= 5 ? 8 : 15;
+          if (quickScore < minThreshold) { // Lower threshold for high voice counts
             continue; // Not worth the expensive analysis
           }
           
@@ -2148,6 +2245,15 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
       console.log(`Analysis complete. Found ${totalSuggestions} potential title variations/duplicates for composer in ${stats.analysisTime}ms`);
     } else {
       console.log(`Analysis complete. Found ${totalSuggestions} potential attribution resolutions for ${groupedSuggestions.length} anonymous groups in ${stats.analysisTime}ms`);
+      
+      // DEBUG: Log why we might have 0 results for 5+ voice searches
+      if (totalSuggestions === 0 && voiceFilter >= 5) {
+        console.log(`DEBUG: 0 results for ${voiceFilter} voices. This might indicate:
+          - Pre-filtering too aggressive
+          - Confidence threshold too high
+          - No genuine matches in dataset
+          - Check if there are any anonymous ${voiceFilter}-voice groups at all`);
+      }
     }
     
     res.json({ suggestions: groupedSuggestions, stats });
@@ -3136,5 +3242,15 @@ router.post('/flag-suggestion', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to flag suggestion' });
   }
 });
+
+// Helper function to get ordinal suffix (1st, 2nd, 3rd, etc.)
+function getOrdinalSuffix(num) {
+  const j = num % 10;
+  const k = num % 100;
+  if (j == 1 && k != 11) return "st";
+  if (j == 2 && k != 12) return "nd";
+  if (j == 3 && k != 13) return "rd";
+  return "th";
+}
 
 export default router; 
