@@ -443,6 +443,9 @@ router.get('/', async (req, res) => {
             title = '',
             composer = '',
             voices = '',
+            type = '',
+            tone = '',
+            even_odd = '',
             has_editions = false,
             has_recordings = false,
             sort = 'title'
@@ -479,6 +482,24 @@ router.get('/', async (req, res) => {
             paramCount++;
             conditions.push(`c.number_of_voices = $${paramCount}`);
             params.push(parseInt(voices));
+        }
+
+        if (type) {
+            paramCount++;
+            conditions.push(`c.composition_type_id = $${paramCount}`);
+            params.push(parseInt(type));
+        }
+
+        if (tone) {
+            paramCount++;
+            conditions.push(`c.tone = $${paramCount}`);
+            params.push(tone);
+        }
+
+        if (even_odd) {
+            paramCount++;
+            conditions.push(`c.even_odd = $${paramCount}`);
+            params.push(parseInt(even_odd));
         }
 
         if (has_editions === 'true') {
@@ -1068,6 +1089,270 @@ router.get('/:id/compositions', async (req, res) => {
     } catch (error) {
         console.error('Get group compositions error:', error);
         res.status(500).json({ error: 'Failed to get group compositions' });
+    }
+});
+
+// POST /api/admin/groups/bulk-update-titles - Bulk update display titles for multiple groups
+router.post('/bulk-update-titles', async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+        const { groupIds, displayTitle } = req.body;
+
+        if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0) {
+            return res.status(400).json({ error: 'Group IDs array is required' });
+        }
+
+        if (!displayTitle || displayTitle.trim() === '') {
+            return res.status(400).json({ error: 'Display title is required' });
+        }
+
+        await client.query('BEGIN');
+
+        // Verify all groups exist
+        const placeholders = groupIds.map((_, index) => `$${index + 1}`).join(',');
+        const groupsResult = await client.query(`
+            SELECT id, display_title 
+            FROM groups 
+            WHERE id IN (${placeholders})
+        `, groupIds);
+
+        if (groupsResult.rows.length !== groupIds.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'One or more groups not found' });
+        }
+
+        const now = new Date();
+
+        // Update all group titles
+        const updateResult = await client.query(`
+            UPDATE groups 
+            SET display_title = $1, updated_at = $2
+            WHERE id IN (${placeholders})
+            RETURNING id, display_title
+        `, [displayTitle.trim(), now, ...groupIds]);
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: `Successfully updated display title for ${updateResult.rowCount} groups to "${displayTitle.trim()}".`,
+            updated_groups: updateResult.rows
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Bulk update titles error:', error);
+        res.status(500).json({ error: 'Failed to update group titles' });
+    } finally {
+        client.release();
+    }
+});
+
+// POST /api/admin/groups/bulk-update-compositions - Bulk update composition properties for multiple groups
+router.post('/bulk-update-compositions', async (req, res) => {
+    const client = await pool.connect();
+    
+    try {
+        const { groupIds, compositionTypeId, tone, evenOdd } = req.body;
+
+        if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0) {
+            return res.status(400).json({ error: 'Group IDs array is required' });
+        }
+
+        // Check if any properties are being updated
+        const hasUpdates = (compositionTypeId !== undefined && compositionTypeId !== '') ||
+                          (tone !== undefined && tone !== '') ||
+                          (evenOdd !== undefined && evenOdd !== '');
+
+        if (!hasUpdates) {
+            return res.status(400).json({ error: 'No properties to update were provided' });
+        }
+
+        await client.query('BEGIN');
+
+        // Verify all groups exist and get composition count
+        const placeholders = groupIds.map((_, index) => `$${index + 1}`).join(',');
+        const groupsResult = await client.query(`
+            SELECT g.id, g.display_title, 
+                   COUNT(DISTINCT c.id) as composition_count
+            FROM groups g
+            LEFT JOIN compositions c ON c.group_id = g.id
+            WHERE g.id IN (${placeholders})
+            GROUP BY g.id, g.display_title
+        `, groupIds);
+
+        if (groupsResult.rows.length !== groupIds.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'One or more groups not found' });
+        }
+
+        const totalCompositions = groupsResult.rows.reduce((sum, group) => sum + parseInt(group.composition_count), 0);
+
+        if (totalCompositions === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No compositions found in selected groups' });
+        }
+
+        // Get all compositions in these groups
+        const compositionsResult = await client.query(`
+            SELECT c.id, c.title_id, c.composition_type_id, c.tone, c.even_odd, 
+                   c.number_of_voices, c.composer_id_list, c.group_id,
+                   t.text as title,
+                   g.display_title as group_title
+            FROM compositions c
+            LEFT JOIN titles t ON c.title_id = t.id
+            LEFT JOIN groups g ON c.group_id = g.id
+            WHERE c.group_id IN (${placeholders})
+            ORDER BY g.display_title, t.text
+        `, groupIds);
+
+        const compositions = compositionsResult.rows;
+        const now = new Date();
+        let updatedCount = 0;
+        let mergedCount = 0;
+        const results = {
+            updated: [],
+            merged: [],
+            errors: []
+        };
+
+        // Process each composition individually
+        for (const composition of compositions) {
+            try {
+                // Calculate new properties for this composition
+                const newCompositionTypeId = compositionTypeId !== undefined && compositionTypeId !== '' ? 
+                    (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
+                const newTone = tone !== undefined && tone !== '' ? 
+                    (tone || null) : composition.tone;
+                const newEvenOdd = evenOdd !== undefined && evenOdd !== '' ? 
+                    (evenOdd !== '' ? parseInt(evenOdd) : null) : composition.even_odd;
+
+                const isAnonymous = composition.composer_id_list && 
+                    composition.composer_id_list.length === 1 && 
+                    composition.composer_id_list[0] === 23;
+
+                if (isAnonymous) {
+                    // For anonymous compositions, always update in place
+                    const updateResult = await client.query(`
+                        UPDATE compositions 
+                        SET composition_type_id = $1, tone = $2, even_odd = $3, updated_at = $4
+                        WHERE id = $5
+                        RETURNING id
+                    `, [newCompositionTypeId, newTone, newEvenOdd, now, composition.id]);
+
+                    if (updateResult.rowCount > 0) {
+                        updatedCount++;
+                        results.updated.push({
+                            compositionId: composition.id,
+                            title: composition.title,
+                            groupTitle: composition.group_title,
+                            action: 'updated_in_place'
+                        });
+                    }
+                } else {
+                    // For non-anonymous compositions, check if a composition with these properties exists
+                    const existingCompositionResult = await client.query(`
+                        SELECT id, group_id FROM compositions 
+                        WHERE title_id = $1 
+                        AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
+                        AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
+                        AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
+                        AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
+                        AND composer_id_list = $6
+                        AND id != $7
+                    `, [
+                        composition.title_id,
+                        newCompositionTypeId,
+                        newTone,
+                        newEvenOdd,
+                        composition.number_of_voices,
+                        composition.composer_id_list,
+                        composition.id
+                    ]);
+
+                    if (existingCompositionResult.rows.length > 0) {
+                        // Found existing composition - merge by reassigning inclusions
+                        const existingComposition = existingCompositionResult.rows[0];
+                        
+                        // Get all inclusions currently pointing to the old composition
+                        const inclusionsResult = await client.query(`
+                            SELECT id FROM inclusions WHERE composition_id = $1
+                        `, [composition.id]);
+
+                        // Reassign all inclusions to the existing composition
+                        await client.query(`
+                            UPDATE inclusions 
+                            SET composition_id = $1, updated_at = $2
+                            WHERE composition_id = $3
+                        `, [existingComposition.id, now, composition.id]);
+
+                        mergedCount++;
+                        results.merged.push({
+                            oldCompositionId: composition.id,
+                            newCompositionId: existingComposition.id,
+                            title: composition.title,
+                            groupTitle: composition.group_title,
+                            inclusionCount: inclusionsResult.rows.length
+                        });
+                    } else {
+                        // No existing composition found - update in place
+                        const updateResult = await client.query(`
+                            UPDATE compositions 
+                            SET composition_type_id = $1, tone = $2, even_odd = $3, updated_at = $4
+                            WHERE id = $5
+                            RETURNING id
+                        `, [newCompositionTypeId, newTone, newEvenOdd, now, composition.id]);
+
+                        if (updateResult.rowCount > 0) {
+                            updatedCount++;
+                            results.updated.push({
+                                compositionId: composition.id,
+                                title: composition.title,
+                                groupTitle: composition.group_title,
+                                action: 'updated_in_place'
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error processing composition ${composition.id}:`, error);
+                results.errors.push({
+                    compositionId: composition.id,
+                    title: composition.title,
+                    error: error.message
+                });
+            }
+        }
+
+        await client.query('COMMIT');
+
+        let message = `Bulk update completed for ${groupIds.length} groups:\n`;
+        message += `• ${updatedCount} compositions updated\n`;
+        if (mergedCount > 0) {
+            message += `• ${mergedCount} compositions merged with existing entries\n`;
+        }
+        if (results.errors.length > 0) {
+            message += `• ${results.errors.length} errors occurred`;
+        }
+
+        res.json({
+            message: message,
+            summary: {
+                groupsProcessed: groupIds.length,
+                compositionsProcessed: compositions.length,
+                updated: updatedCount,
+                merged: mergedCount,
+                errors: results.errors.length
+            },
+            details: results
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Bulk update compositions error:', error);
+        res.status(500).json({ error: 'Failed to update composition properties' });
+    } finally {
+        client.release();
     }
 });
 

@@ -238,6 +238,17 @@
         #editGroupRecordings .btn-outline-danger:hover {
             transform: scale(1.1);
         }
+
+        /* Bulk edit controls styling */
+        #bulkEditControls {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px dashed rgba(0,123,255,0.3);
+        }
+
+        #bulkEditControls h5 {
+            color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -282,18 +293,34 @@
                                 <div class="col-6">
                                     <select class="form-select form-select-sm" id="voicesFilter">
                                         <option value="">Any voices</option>
-                                        <option value="2">2vv</option>
-                                        <option value="3">3vv</option>
-                                        <option value="4">4vv</option>
-                                        <option value="5">5vv</option>
-                                        <option value="6">6vv</option>
-                                        <option value="7">7vv</option>
-                                        <option value="8">8vv</option>
+                                        <!-- Populated dynamically -->
                                     </select>
                                 </div>
                                 <div class="col-6">
                                     <select class="form-select form-select-sm" id="composerFilter">
                                         <option value="">Any composer</option>
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <select class="form-select form-select-sm" id="typeFilter">
+                                        <option value="">Any type</option>
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <select class="form-select form-select-sm" id="toneFilter">
+                                        <option value="">Any tone</option>
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <select class="form-select form-select-sm" id="evenOddFilter">
+                                        <option value="">Any even/odd</option>
                                         <!-- Populated dynamically -->
                                     </select>
                                 </div>
@@ -328,9 +355,9 @@
                     <div id="mergePrompt">
                         <i class="bi bi-collection display-4 text-primary mb-3"></i>
                         <h4>Group Management</h4>
-                        <p class="text-muted">Search and select groups to merge them together, or add editions and recordings to existing groups.</p>
+                        <p class="text-muted">Search and select groups to merge them together or bulk edit their properties. Use action buttons next to individual groups to add editions, recordings, or split compositions.</p>
                         <small class="text-muted">
-                            <strong>Note:</strong> Groups can only be merged if all compositions have the same number of voices, composition type, tone, and even/odd values.
+                            <strong>Note:</strong> Groups can only be merged if all compositions have the same number of voices, composition type, tone, and even/odd values. Otherwise, use bulk editing to update multiple groups at once.
                         </small>
                     </div>
 
@@ -354,12 +381,79 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Bulk Edit Controls -->
+                    <div id="bulkEditControls" style="display: none;">
+                        <h5>Bulk Edit Selected Groups</h5>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Apply changes to all selected groups. Leave fields blank to keep existing values unchanged.
+                        </div>
+
+                        <!-- Bulk Title Update -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Display Title</h6>
+                            <div class="mb-3">
+                                <label for="bulkDisplayTitle" class="form-label">New Display Title</label>
+                                <input type="text" class="form-control" id="bulkDisplayTitle" 
+                                       placeholder="Enter new display title for all selected groups...">
+                                <div class="form-text">This will set the same title for all selected groups</div>
+                            </div>
+                        </div>
+
+                        <!-- Bulk Composition Properties -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">Composition Properties</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="bulkMultiCompositionType" class="form-label">Composition Type</label>
+                                    <select class="form-select" id="bulkMultiCompositionType">
+                                        <option value="">Keep existing types</option>
+                                        <!-- Options will be populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="bulkMultiTone" class="form-label">Tone</label>
+                                    <select class="form-select" id="bulkMultiTone">
+                                        <option value="">Keep existing tones</option>
+                                        <!-- Options will be populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="bulkMultiEvenOdd" class="form-label">Even/Odd</label>
+                                    <select class="form-select" id="bulkMultiEvenOdd">
+                                        <option value="">Keep existing values</option>
+                                        <!-- Options will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <button class="btn btn-warning me-md-2" onclick="performBulkTitleUpdate()" id="bulkTitleBtn">
+                                <i class="bi bi-pencil me-2"></i>Update Titles
+                            </button>
+                            <button class="btn btn-info me-md-2" onclick="performBulkCompositionUpdate()" id="bulkPropertiesBtn">
+                                <i class="bi bi-arrow-repeat me-2"></i>Update Properties
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearSelection()">
+                                <i class="bi bi-x-lg me-2"></i>Clear Selection
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Instructions -->
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>
-                    <strong>Group Management:</strong> Select groups to merge them, or use the action buttons next to each group to add editions, recordings, or split compositions.
+                    <strong>Group Management:</strong> 
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Search:</strong> Use filters for voices, composer, type, tone, and even/odd to find specific groups</li>
+                        <li><strong>Multiple Selection:</strong> Select groups to merge (if compatible) or bulk edit their properties</li>
+                        <li><strong>Individual Actions:</strong> Use buttons next to each group to add editions, recordings, or edit properties</li>
+                        <li><strong>Bulk Editing:</strong> Always available when multiple groups are selected - update titles and composition properties across groups</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -571,6 +665,9 @@
             document.getElementById('searchInput').addEventListener('input', debounceSearch);
             document.getElementById('voicesFilter').addEventListener('change', () => performSearch(true));
             document.getElementById('composerFilter').addEventListener('change', () => performSearch(true));
+            document.getElementById('typeFilter').addEventListener('change', () => performSearch(true));
+            document.getElementById('toneFilter').addEventListener('change', () => performSearch(true));
+            document.getElementById('evenOddFilter').addEventListener('change', () => performSearch(true));
 
             // Infinite scroll
             const searchResults = document.getElementById('searchResults');
@@ -632,8 +729,11 @@
             const searchTerm = document.getElementById('searchInput').value.trim();
             const voices = document.getElementById('voicesFilter').value;
             const composer = document.getElementById('composerFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            const tone = document.getElementById('toneFilter').value;
+            const evenOdd = document.getElementById('evenOddFilter').value;
 
-            if (!searchTerm && !voices && !composer) {
+            if (!searchTerm && !voices && !composer && !type && !tone && !evenOdd) {
                 document.getElementById('searchResults').innerHTML = `
                     <div class="text-center text-muted py-4">
                         <i class="bi bi-search display-4"></i>
@@ -660,6 +760,9 @@
                     title: searchTerm,
                     voices: voices,
                     composer: composer,
+                    type: type,
+                    tone: tone,
+                    even_odd: evenOdd,
                     page_size: 25,
                     sort: 'title',
                     page: currentPage.toString()
@@ -1088,6 +1191,70 @@
             }
         }
 
+        async function loadBulkEditOptions() {
+            try {
+                // Load composition types for bulk multi-group editing
+                const compositionTypesResponse = await fetch('/api/search/composition-types');
+                if (compositionTypesResponse.ok) {
+                    const compositionTypes = await compositionTypesResponse.json();
+                    const typeSelect = document.getElementById('bulkMultiCompositionType');
+                    
+                    // Clear existing options except the first one
+                    while (typeSelect.children.length > 1) {
+                        typeSelect.removeChild(typeSelect.lastChild);
+                    }
+                    
+                    compositionTypes.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.id;
+                        option.textContent = type.name;
+                        typeSelect.appendChild(option);
+                    });
+                }
+
+                // Load tones
+                const tonesResponse = await fetch('/api/search/tones');
+                if (tonesResponse.ok) {
+                    const tones = await tonesResponse.json();
+                    const toneSelect = document.getElementById('bulkMultiTone');
+                    
+                    // Clear existing options except the first one
+                    while (toneSelect.children.length > 1) {
+                        toneSelect.removeChild(toneSelect.lastChild);
+                    }
+                    
+                    tones.forEach(tone => {
+                        const option = document.createElement('option');
+                        option.value = tone.value;
+                        option.textContent = tone.name;
+                        toneSelect.appendChild(option);
+                    });
+                }
+
+                // Load even/odd values
+                const evenOddResponse = await fetch('/api/search/even-odd');
+                if (evenOddResponse.ok) {
+                    const evenOddValues = await evenOddResponse.json();
+                    const evenOddSelect = document.getElementById('bulkMultiEvenOdd');
+                    
+                    // Clear existing options except the first one
+                    while (evenOddSelect.children.length > 1) {
+                        evenOddSelect.removeChild(evenOddSelect.lastChild);
+                    }
+                    
+                    evenOddValues.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value.value;
+                        option.textContent = value.name;
+                        evenOddSelect.appendChild(option);
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error loading bulk edit options:', error);
+            }
+        }
+
         function displayCompositionPreview(compositions) {
             const container = document.getElementById('compositionPreview');
             
@@ -1494,22 +1661,48 @@
         function updateMergePanel() {
             const panel = document.getElementById('mergePanel');
             const prompt = document.getElementById('mergePrompt');
-            const controls = document.getElementById('mergeControls');
+            const mergeControls = document.getElementById('mergeControls');
+            const bulkEditControls = document.getElementById('bulkEditControls');
 
             if (selectedGroups.length < 2) {
                 panel.classList.remove('active');
                 prompt.style.display = 'block';
-                controls.style.display = 'none';
+                mergeControls.style.display = 'none';
+                bulkEditControls.style.display = 'none';
                 return;
             }
 
             panel.classList.add('active');
             prompt.style.display = 'none';
-            controls.style.display = 'block';
 
-            // Suggest a display title
-            const suggestedTitle = selectedGroups[0].title;
-            document.getElementById('newDisplayTitle').value = suggestedTitle;
+            // Always show both controls
+            mergeControls.style.display = 'block';
+            bulkEditControls.style.display = 'block';
+
+            // Check if groups are compatible for merging
+            const isCompatible = checkGroupCompatibility();
+            const mergeButton = mergeControls.querySelector('button[onclick="performMerge()"]');
+            
+            if (isCompatible) {
+                // Enable merge functionality
+                mergeButton.disabled = false;
+                mergeButton.classList.remove('btn-secondary');
+                mergeButton.classList.add('btn-success');
+                mergeButton.innerHTML = '<i class="bi bi-check-lg me-2"></i>Merge Groups';
+                
+                // Suggest a display title
+                const suggestedTitle = selectedGroups[0].title;
+                document.getElementById('newDisplayTitle').value = suggestedTitle;
+            } else {
+                // Disable merge functionality
+                mergeButton.disabled = true;
+                mergeButton.classList.remove('btn-success');
+                mergeButton.classList.add('btn-secondary');
+                mergeButton.innerHTML = '<i class="bi bi-x-circle me-2"></i>Cannot Merge (Incompatible)';
+            }
+            
+            // Always load bulk edit options when multiple groups are selected
+            loadBulkEditOptions();
         }
 
         function removeFromSelection(groupId) {
@@ -1573,6 +1766,19 @@
 
         async function loadFilters() {
             try {
+                // Load voice counts
+                const voicesResponse = await fetch('/api/search/voices');
+                if (voicesResponse.ok) {
+                    const voices = await voicesResponse.json();
+                    const voicesSelect = document.getElementById('voicesFilter');
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.value;
+                        option.textContent = voice.value + 'vv';
+                        voicesSelect.appendChild(option);
+                    });
+                }
+
                 // Load composers
                 const composersResponse = await fetch('/api/search/composers');
                 if (composersResponse.ok) {
@@ -1583,6 +1789,45 @@
                         option.value = composer.id;
                         option.textContent = composer.name;
                         composerSelect.appendChild(option);
+                    });
+                }
+
+                // Load composition types
+                const typesResponse = await fetch('/api/search/composition-types');
+                if (typesResponse.ok) {
+                    const types = await typesResponse.json();
+                    const typeSelect = document.getElementById('typeFilter');
+                    types.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.id;
+                        option.textContent = type.name;
+                        typeSelect.appendChild(option);
+                    });
+                }
+
+                // Load tones
+                const tonesResponse = await fetch('/api/search/tones');
+                if (tonesResponse.ok) {
+                    const tones = await tonesResponse.json();
+                    const toneSelect = document.getElementById('toneFilter');
+                    tones.forEach(tone => {
+                        const option = document.createElement('option');
+                        option.value = tone.value;
+                        option.textContent = tone.name;
+                        toneSelect.appendChild(option);
+                    });
+                }
+
+                // Load even/odd values
+                const evenOddResponse = await fetch('/api/search/even-odd');
+                if (evenOddResponse.ok) {
+                    const evenOddValues = await evenOddResponse.json();
+                    const evenOddSelect = document.getElementById('evenOddFilter');
+                    evenOddValues.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value.value;
+                        option.textContent = value.name;
+                        evenOddSelect.appendChild(option);
                     });
                 }
 
@@ -1699,6 +1944,127 @@
             } catch (error) {
                 console.error('Error removing composition:', error);
                 alert('Network error occurred while removing composition.');
+            }
+        }
+
+        async function performBulkTitleUpdate() {
+            if (selectedGroups.length === 0) {
+                alert('Please select groups to update.');
+                return;
+            }
+
+            const newTitle = document.getElementById('bulkDisplayTitle').value.trim();
+            if (!newTitle) {
+                alert('Please enter a new display title.');
+                return;
+            }
+
+            const confirmMessage = `Update display title to "${newTitle}" for ${selectedGroups.length} selected groups?\n\nThis action cannot be undone.`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/bulk-update-titles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupIds: selectedGroups.map(g => g.id),
+                        displayTitle: newTitle
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Success!\n\n${result.message}`);
+                    
+                    // Clear form
+                    document.getElementById('bulkDisplayTitle').value = '';
+                    
+                    // Clear selection and refresh search
+                    clearSelection();
+                    performSearch(true);
+                } else {
+                    const error = await response.json();
+                    alert(`Error updating titles: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error updating titles:', error);
+                alert('Network error occurred while updating titles.');
+            }
+        }
+
+        async function performBulkCompositionUpdate() {
+            if (selectedGroups.length === 0) {
+                alert('Please select groups to update.');
+                return;
+            }
+
+            const compositionTypeId = document.getElementById('bulkMultiCompositionType').value;
+            const tone = document.getElementById('bulkMultiTone').value;
+            const evenOdd = document.getElementById('bulkMultiEvenOdd').value;
+
+            // Check if at least one field is selected
+            if (!compositionTypeId && !tone && !evenOdd) {
+                alert('Please select at least one property to update.');
+                return;
+            }
+
+            // Build confirmation message
+            let updateMessages = [];
+            if (compositionTypeId) {
+                const typeSelect = document.getElementById('bulkMultiCompositionType');
+                const typeName = typeSelect.selectedOptions[0].textContent;
+                updateMessages.push(`Composition Type: ${typeName}`);
+            }
+            if (tone) {
+                const toneSelect = document.getElementById('bulkMultiTone');
+                const toneName = toneSelect.selectedOptions[0].textContent;
+                updateMessages.push(`Tone: ${toneName}`);
+            }
+            if (evenOdd) {
+                const evenOddSelect = document.getElementById('bulkMultiEvenOdd');
+                const evenOddName = evenOddSelect.selectedOptions[0].textContent;
+                updateMessages.push(`Even/Odd: ${evenOddName}`);
+            }
+
+            const confirmMessage = `Update the following properties for ALL compositions in ${selectedGroups.length} selected groups?\n\n${updateMessages.join('\n')}\n\nThis action cannot be undone.`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/groups/bulk-update-compositions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupIds: selectedGroups.map(g => g.id),
+                        compositionTypeId: compositionTypeId || undefined,
+                        tone: tone || undefined,
+                        evenOdd: evenOdd || undefined
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Success!\n\n${result.message}`);
+                    
+                    // Clear form
+                    document.getElementById('bulkMultiCompositionType').value = '';
+                    document.getElementById('bulkMultiTone').value = '';
+                    document.getElementById('bulkMultiEvenOdd').value = '';
+                    
+                    // Clear selection and refresh search
+                    clearSelection();
+                    performSearch(true);
+                } else {
+                    const error = await response.json();
+                    alert(`Error updating composition properties: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error updating composition properties:', error);
+                alert('Network error occurred while updating composition properties.');
             }
         }
 

@@ -849,7 +849,7 @@
             
             let blankRowsNeeded = 0;
             if (isNewSource) {
-                blankRowsNeeded = 10; // New sources get 10 blank rows
+                blankRowsNeeded = 20; // New sources get 20 blank rows
             } else if (isLastPage) {
                 blankRowsNeeded = 1; // Last page gets 1 blank row
             }
@@ -1584,6 +1584,16 @@
         }
 
         function addClefRow(inclusionIndex) {
+            // Check if this is a blank row that shouldn't become a real inclusion yet
+            const isBlankRow = !inclusionsData[inclusionIndex] || (
+                !inclusionsData[inclusionIndex].id &&
+                !inclusionsData[inclusionIndex].position &&
+                !inclusionsData[inclusionIndex].notes &&
+                (!inclusionsData[inclusionIndex].attribution_texts || inclusionsData[inclusionIndex].attribution_texts.every(text => !text.trim())) &&
+                (!inclusionsData[inclusionIndex].composition?.title_text || !inclusionsData[inclusionIndex].composition.title_text.trim()) &&
+                (!inclusionsData[inclusionIndex].composition?.composition_type_id)
+            );
+            
             // Add 8 empty clefs
             if (!inclusionsData[inclusionIndex]) {
                 inclusionsData[inclusionIndex] = createBlankInclusion();
@@ -1597,7 +1607,44 @@
                     clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] 
                 });
             }
-            displayInclusions();
+            
+            // If this was a truly blank row, just rebuild the clef inputs for this row
+            // rather than regenerating the entire display (which would add new blank rows)
+            if (isBlankRow) {
+                rebuildClefInputsForInclusion(inclusionIndex);
+            } else {
+                displayInclusions();
+            }
+        }
+
+        function rebuildClefInputsForInclusion(inclusionIndex) {
+            // Find the clef container for this specific inclusion
+            const inclusionRow = document.querySelector(`[data-index="${inclusionIndex}"]`);
+            if (!inclusionRow) return;
+            
+            const clefContainer = inclusionRow.querySelector('.col-5 .mb-1');
+            if (!clefContainer) return;
+            
+            // Get the current inclusion data
+            const inclusion = inclusionsData[inclusionIndex];
+            if (!inclusion) return;
+            
+            // Rebuild just the clef inputs part
+            const clefInputsHTML = buildClefInputs(inclusion.clefs || [], inclusionIndex);
+            const addButtonHTML = `<button type="button" class="btn btn-xs btn-outline-secondary mt-1" 
+                                          onclick="addClefRow(${inclusionIndex})">+ Add Row</button>`;
+            
+            // Update just the clef inputs content (everything except the label)
+            const labelElement = clefContainer.querySelector('.form-label');
+            clefContainer.innerHTML = '';
+            if (labelElement) {
+                clefContainer.appendChild(labelElement);
+            } else {
+                clefContainer.innerHTML = '<label class="form-label small">Clefs</label>';
+            }
+            clefContainer.innerHTML += clefInputsHTML + addButtonHTML;
+            
+            markAsUnsaved();
         }
 
         async function removeInclusion(index) {
