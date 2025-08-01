@@ -1141,8 +1141,8 @@
                     const compositionTypes = await compositionTypesResponse.json();
                     const typeSelect = document.getElementById('bulkCompositionType');
                     
-                    // Clear existing options except the first one
-                    while (typeSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (typeSelect.children.length > 2) {
                         typeSelect.removeChild(typeSelect.lastChild);
                     }
                     
@@ -1160,8 +1160,8 @@
                     const tones = await tonesResponse.json();
                     const toneSelect = document.getElementById('bulkTone');
                     
-                    // Clear existing options except the first one
-                    while (toneSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (toneSelect.children.length > 2) {
                         toneSelect.removeChild(toneSelect.lastChild);
                     }
                     
@@ -1179,8 +1179,8 @@
                     const evenOddValues = await evenOddResponse.json();
                     const evenOddSelect = document.getElementById('bulkEvenOdd');
                     
-                    // Clear existing options except the first one
-                    while (evenOddSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (evenOddSelect.children.length > 2) {
                         evenOddSelect.removeChild(evenOddSelect.lastChild);
                     }
                     
@@ -1205,8 +1205,8 @@
                     const compositionTypes = await compositionTypesResponse.json();
                     const typeSelect = document.getElementById('bulkMultiCompositionType');
                     
-                    // Clear existing options except the first one
-                    while (typeSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (typeSelect.children.length > 2) {
                         typeSelect.removeChild(typeSelect.lastChild);
                     }
                     
@@ -1224,8 +1224,8 @@
                     const tones = await tonesResponse.json();
                     const toneSelect = document.getElementById('bulkMultiTone');
                     
-                    // Clear existing options except the first one
-                    while (toneSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (toneSelect.children.length > 2) {
                         toneSelect.removeChild(toneSelect.lastChild);
                     }
                     
@@ -1243,8 +1243,8 @@
                     const evenOddValues = await evenOddResponse.json();
                     const evenOddSelect = document.getElementById('bulkMultiEvenOdd');
                     
-                    // Clear existing options except the first one
-                    while (evenOddSelect.children.length > 1) {
+                    // Clear existing options except the first two (Keep existing + Remove all)
+                    while (evenOddSelect.children.length > 2) {
                         evenOddSelect.removeChild(evenOddSelect.lastChild);
                     }
                     
