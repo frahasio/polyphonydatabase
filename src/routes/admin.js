@@ -1841,13 +1841,20 @@ router.get('/group-suggestions', requireAdmin, async (req, res) => {
           comparedPairs.add(pairKey);
           
           // Skip if this pair has been flagged as "not the same"
-          const flagQuery = `
-            SELECT 1 FROM suggestion_flags 
-            WHERE ((group1_id = $1 AND group2_id = $2) OR (group1_id = $2 AND group2_id = $1))
-            AND flag_type = 'not_same'
-          `;
-          const flagResult = await client.query(flagQuery, [anonGroup.id, compareGroup.id]);
-          if (flagResult.rows.length > 0) continue;
+          // TODO: Optimize this by pre-loading all flags at the start
+          try {
+            const flagQuery = `
+              SELECT 1 FROM suggestion_flags 
+              WHERE ((group1_id = $1 AND group2_id = $2) OR (group1_id = $2 AND group2_id = $1))
+              AND flag_type = 'not_same'
+              LIMIT 1
+            `;
+            const flagResult = await client.query(flagQuery, [anonGroup.id, compareGroup.id]);
+            if (flagResult.rows.length > 0) continue;
+          } catch (flagError) {
+            console.error('Flag check error:', flagError);
+            // Continue processing if flag check fails
+          }
           
           // Check if both groups share any sources (reject same-source suggestions)
           const sourceIds1 = new Set();
