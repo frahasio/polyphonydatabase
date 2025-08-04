@@ -568,10 +568,36 @@ router.get('/groups', async (req, res) => {
         g.display_title,
         g.created_at,
         g.updated_at,
-        -- Get composer information with conflict detection
-        -- Only consider named composers (exclude anonymous ID 23) for conflict detection
+        -- Get composer information with new logic for multiple attributions
+        -- Treat multiple composers on the same composition as a single attribution unit
         (
-          WITH group_composers AS (
+          WITH composition_attributions AS (
+            -- Get each composition's composer list as a sorted array (to treat as single unit)
+            SELECT DISTINCT array_to_string(
+              ARRAY(
+                SELECT comp.name 
+                FROM composers comp 
+                WHERE comp.id = ANY(c.composer_id_list)
+                ORDER BY comp.name
+              ), 
+              ', '
+            ) as attribution_text
+            FROM compositions c
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
+          ),
+          all_composers AS (
+            -- Get all individual composers for comparison
+            SELECT DISTINCT composer_id
+            FROM compositions c
+            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
+          ),
+          named_composers AS (
+            -- Get named composers (excluding anonymous ID 23) for conflict detection
             SELECT DISTINCT composer_id
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
@@ -579,30 +605,37 @@ router.get('/groups', async (req, res) => {
               AND c.composer_id_list IS NOT NULL 
               AND array_length(c.composer_id_list, 1) > 0
               AND composer_id != 23 -- Exclude anonymous composer from conflict detection
-          ),
-          all_composers AS (
-            SELECT DISTINCT composer_id
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            WHERE c.group_id = g.id 
-              AND c.composer_id_list IS NOT NULL 
-              AND array_length(c.composer_id_list, 1) > 0
           )
           SELECT 
             CASE 
-              WHEN (SELECT COUNT(*) FROM group_composers) > 1 THEN 'conflicting attributions'
-              WHEN (SELECT COUNT(*) FROM group_composers) = 1 THEN (
-                SELECT comp.name 
-                FROM composers comp 
-                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
+              WHEN (SELECT COUNT(*) FROM named_composers) = 0 THEN 'Anon'
+              WHEN (SELECT COUNT(DISTINCT attribution_text) FROM composition_attributions) = 1 THEN (
+                SELECT attribution_text FROM composition_attributions LIMIT 1
               )
-              ELSE 'Anon'
+              ELSE 'conflicting attributions'
             END
           FROM all_composers
           LIMIT 1
         ) as composer_display,
         (
-          WITH group_composers AS (
+          WITH composition_attributions AS (
+            -- Get each composition's composer list as a sorted array (to treat as single unit)
+            SELECT DISTINCT array_to_string(
+              ARRAY(
+                SELECT comp.name 
+                FROM composers comp 
+                WHERE comp.id = ANY(c.composer_id_list)
+                ORDER BY comp.name
+              ), 
+              ', '
+            ) as attribution_text
+            FROM compositions c
+            WHERE c.group_id = g.id 
+              AND c.composer_id_list IS NOT NULL 
+              AND array_length(c.composer_id_list, 1) > 0
+          ),
+          named_composers AS (
+            -- Get named composers (excluding anonymous ID 23) for date display
             SELECT DISTINCT composer_id
             FROM compositions c
             CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
@@ -613,8 +646,9 @@ router.get('/groups', async (req, res) => {
           )
           SELECT 
             CASE 
-              WHEN COUNT(*) > 1 THEN NULL
-              WHEN COUNT(*) = 1 THEN (
+              WHEN (SELECT COUNT(*) FROM named_composers) = 0 THEN NULL
+              WHEN (SELECT COUNT(DISTINCT attribution_text) FROM composition_attributions) = 1 THEN (
+                -- Show dates only if there's exactly one named composer
                 SELECT CASE 
                   WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
                   THEN '(' || 
@@ -627,11 +661,11 @@ router.get('/groups', async (req, res) => {
                   ELSE NULL
                 END
                 FROM composers comp 
-                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
+                WHERE comp.id = (SELECT composer_id FROM named_composers LIMIT 1)
               )
               ELSE NULL
             END
-          FROM group_composers
+          FROM named_composers
         ) as composer_dates,
         (
           SELECT array_agg(voice_count ORDER BY voice_count)
