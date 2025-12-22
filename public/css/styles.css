@@ -112,7 +112,21 @@ body {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-/* Don't override Select2 defaults - let it use its natural styling */
+/* Ensure Select2 matches text input height to prevent placeholder cut-off */
+.search-filters .select2-container .select2-selection--single,
+.search-filters .select2-container .select2-selection--multiple {
+    min-height: 38px;
+    line-height: 36px;
+}
+
+.search-filters .select2-container .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+}
+
+.search-filters .select2-container .select2-selection--multiple .select2-selection__rendered {
+    min-height: 36px;
+    line-height: 36px;
+}
 
 /* Checkbox switch styling */
 .filter-switch {
@@ -190,7 +204,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Highlight active filters (applied to visible dataset) */
+/* Highlight active filters (in URL) */
 .search-filters .form-control.filter-active,
 .search-filters .form-select.filter-active,
 .search-filters .select2-container.filter-active .select2-selection--multiple,
@@ -206,24 +220,6 @@ body {
 .search-filters .select2-container.filter-active .select2-selection--multiple {
     background-color: #fff9e6 !important;
     border-color: #ffc107 !important;
-}
-
-/* Highlight pending filters (changed but not yet applied) */
-.search-filters .form-control.filter-pending,
-.search-filters .form-select.filter-pending,
-.search-filters .select2-container.filter-pending .select2-selection--multiple,
-.search-filters .form-check.filter-pending {
-    background-color: #e3f2fd !important;
-    border-color: #2196f3 !important;
-}
-
-.search-filters .form-check.filter-pending .form-check-input {
-    border-color: #2196f3 !important;
-}
-
-.search-filters .select2-container.filter-pending .select2-selection--multiple {
-    background-color: #e3f2fd !important;
-    border-color: #2196f3 !important;
 }
 
 /* Ensure accordion properly hides content when collapsed */

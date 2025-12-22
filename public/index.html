@@ -713,11 +713,11 @@
             </div>
         </div>
 
-        <!-- Mobile Sort Dropdown (between filters and table) -->
-        <div class="d-block d-custom-lg-none mt-3 mb-2">
-            <div class="d-flex align-items-center justify-content-end">
-                <label for="sortByMobile" class="form-label filter-label mb-0 me-2">Sort by</label>
-                <select class="form-select form-select-sm filter-input" id="sortByMobile" style="max-width: 200px;">
+        <!-- Sort Dropdown (between filters and table, aligned right) -->
+        <div class="d-flex justify-content-end mt-3 mb-2">
+            <div class="d-flex align-items-center">
+                <label for="sortBy" class="form-label filter-label mb-0 me-2">Sort by</label>
+                <select class="form-select form-select-sm filter-input" id="sortBy" style="max-width: 200px;">
                     <option value="">Default order</option>
                     <option value="title">Title (A-Z)</option>
                     <option value="title_desc">Title (Z-A)</option>
@@ -729,14 +729,14 @@
                     <option value="voices_desc">Voices (descending)</option>
                     <option value="sources_earliest">Sources (earliest first)</option>
                     <option value="sources_latest">Sources (latest first)</option>
-                    <option value="order_in_source" id="orderInSourceOptionMobile">Order in source</option>
-                    <option value="order_in_source_desc" id="orderInSourceDescOptionMobile">Order in source (descending)</option>
+                    <option value="order_in_source" id="orderInSourceOption">Order in source</option>
+                    <option value="order_in_source_desc" id="orderInSourceDescOption">Order in source (descending)</option>
                 </select>
             </div>
         </div>
 
         <!-- Results Table -->
-        <div class="results-table mt-3">
+        <div class="results-table">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
@@ -746,26 +746,6 @@
                             <th>Composer</th>
                             <th>#</th>
                             <th>Sources</th>
-                            <th class="text-end">
-                                <div class="d-none d-custom-lg-flex align-items-center justify-content-end">
-                                    <label for="sortByDesktop" class="form-label filter-label mb-0 me-2">Sort by</label>
-                                    <select class="form-select form-select-sm filter-input" id="sortByDesktop" style="max-width: 200px;">
-                                        <option value="">Default order</option>
-                                        <option value="title">Title (A-Z)</option>
-                                        <option value="title_desc">Title (Z-A)</option>
-                                        <option value="function">Function (A-Z)</option>
-                                        <option value="function_desc">Function (Z-A)</option>
-                                        <option value="composer">Composer (A-Z)</option>
-                                        <option value="composer_desc">Composer (Z-A)</option>
-                                        <option value="voices">Voices (ascending)</option>
-                                        <option value="voices_desc">Voices (descending)</option>
-                                        <option value="sources_earliest">Sources (earliest first)</option>
-                                        <option value="sources_latest">Sources (latest first)</option>
-                                        <option value="order_in_source" id="orderInSourceOptionDesktop">Order in source</option>
-                                        <option value="order_in_source_desc" id="orderInSourceDescOptionDesktop">Order in source (descending)</option>
-                                    </select>
-                                </div>
-                            </th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -913,27 +893,14 @@
                 syncSearchFields('searchTitle', 'searchTitleDesktop');
                 updateFilterHighlights();
             });
-            // Sort by dropdowns (mobile and desktop)
-            const sortByMobile = document.getElementById('sortByMobile');
-            const sortByDesktop = document.getElementById('sortByDesktop');
-            
-            function handleSortChange(value) {
-                currentSort = value;
-                if (sortByMobile) sortByMobile.value = value;
-                if (sortByDesktop) sortByDesktop.value = value;
-                updateFilterHighlights();
-                updateURL();
-                performSearch();
-            }
-            
-            if (sortByMobile) {
-                sortByMobile.addEventListener('change', function() {
-                    handleSortChange(this.value);
-                });
-            }
-            if (sortByDesktop) {
-                sortByDesktop.addEventListener('change', function() {
-                    handleSortChange(this.value);
+            // Sort by dropdown
+            const sortBy = document.getElementById('sortBy');
+            if (sortBy) {
+                sortBy.addEventListener('change', function() {
+                    currentSort = this.value;
+                    updateFilterHighlights();
+                    updateURL();
+                    performSearch();
                 });
             }
             document.getElementById('hasEditions').addEventListener('change', function() {
@@ -1132,23 +1099,40 @@
         }
 
         function updateFilterHighlights() {
-            // Get current filter params for comparison
-            const currentParams = getCurrentFilterParams();
+            // Get URL params to check if filters are applied
+            const urlParams = new URLSearchParams(window.location.search);
             
-            // Helper to check if a filter value has changed
-            const hasFilterChanged = (filterId, currentValue, isCheckbox = false, isMultiSelect = false) => {
-                const lastValue = getLastSearchFilterValue(filterId, isCheckbox, isMultiSelect);
-                if (isCheckbox) {
-                    return currentValue !== lastValue;
-                }
-                if (isMultiSelect || Array.isArray(currentValue)) {
-                    const lastValueArr = Array.isArray(lastValue) ? lastValue : (lastValue ? lastValue.split(',') : []);
-                    const currentValueArr = Array.isArray(currentValue) ? currentValue : [];
-                    return JSON.stringify(lastValueArr.sort()) !== JSON.stringify(currentValueArr.sort());
-                }
-                const currentStr = (currentValue || '').trim();
-                const lastStr = (lastValue || '').trim();
-                return currentStr !== lastStr;
+            // Map filter IDs to URL param names
+            const filterParamMap = {
+                'searchTitle': 'title',
+                'searchClef': 'clef',
+                'yearFrom': 'year_from',
+                'yearTo': 'year_to',
+                'anniversaryYear': 'anniversary_year',
+                'searchComposers': 'composers',
+                'searchVoices': 'voices',
+                'searchFunctions': 'functions',
+                'searchCompositionTypes': 'composition_types',
+                'searchTones': 'tones',
+                'searchEvenOdd': 'even_odd',
+                'searchLanguages': 'languages',
+                'searchCountries': 'countries',
+                'searchSources': 'sources',
+                'searchPublisherScribeEditor': 'publisher_scribe_editor',
+                'searchCities': 'cities',
+                'searchVoicing': 'voicing',
+                'searchSourceTypes': 'source_type',
+                'searchSourceFormats': 'source_format',
+                'hasEditions': 'has_editions',
+                'hasRecordings': 'has_recordings',
+                'sortBy': 'sort'
+            };
+            
+            // Helper to check if filter is in URL
+            const isInURL = (filterId) => {
+                const paramName = filterParamMap[filterId];
+                if (!paramName) return false;
+                return urlParams.has(paramName) && urlParams.get(paramName) !== '';
             };
             
             // Highlight text inputs
@@ -1163,31 +1147,26 @@
                 [id, desktopId].forEach(inputId => {
                     const el = document.getElementById(inputId);
                     if (el) {
-                        const currentValue = el.value && el.value.trim();
-                        const hasValue = !!currentValue;
-                        const changed = hasValue && hasFilterChanged(id, currentValue);
-                        
+                        const hasValue = el.value && el.value.trim();
                         el.classList.remove('filter-active', 'filter-pending');
-                        if (hasValue) {
-                            el.classList.add(changed ? 'filter-pending' : 'filter-active');
+                        if (hasValue && isInURL(id)) {
+                            el.classList.add('filter-active');
                         }
                     }
                 });
             });
             
-            // Highlight single-select dropdowns
-            const sortEl = document.getElementById('sortByDesktop');
-            if (sortEl) {
-                const currentValue = sortEl.value;
-                const lastValue = lastSearchParams.get('sort') || '';
-                const hasValue = currentValue && currentValue !== '';
-                const changed = hasValue && currentValue !== lastValue;
-                
-                sortEl.classList.remove('filter-active', 'filter-pending');
-                if (hasValue) {
-                    sortEl.classList.add(changed ? 'filter-pending' : 'filter-active');
+            // Highlight sort dropdowns
+            ['sortByMobile', 'sortByDesktop'].forEach(sortId => {
+                const sortEl = document.getElementById(sortId);
+                if (sortEl) {
+                    const hasValue = sortEl.value && sortEl.value !== '';
+                    sortEl.classList.remove('filter-active', 'filter-pending');
+                    if (hasValue && isInURL(sortId)) {
+                        sortEl.classList.add('filter-active');
+                    }
                 }
-            }
+            });
             
             // Highlight multi-select dropdowns (Select2)
             const multiSelectIds = [
@@ -1210,8 +1189,9 @@
                 
                 if (hasValues) {
                     const baseId = id.replace('Desktop', '');
-                    const changed = hasFilterChanged(baseId, values, false, true);
-                    container.addClass(changed ? 'filter-pending' : 'filter-active');
+                    if (isInURL(baseId)) {
+                        container.addClass('filter-active');
+                    }
                 }
             });
             
@@ -1225,12 +1205,10 @@
                     const el = document.getElementById(checkboxId);
                     if (el) {
                         const wrapper = el.closest('.filter-switch') || el.closest('.form-check') || el.parentElement;
-                        const currentValue = el.checked;
-                        const changed = hasFilterChanged(id, currentValue, true);
-                        
+                        const isChecked = el.checked;
                         wrapper.classList.remove('filter-active', 'filter-pending');
-                        if (currentValue) {
-                            wrapper.classList.add(changed ? 'filter-pending' : 'filter-active');
+                        if (isChecked && isInURL(id)) {
+                            wrapper.classList.add('filter-active');
                         }
                     }
                 });
@@ -1308,22 +1286,20 @@
             const hasSingleSource = selectedSources.length === 1;
             
             // Get the order in source options
-            const mobileOption = document.getElementById('orderInSourceOption');
-            const mobileDescOption = document.getElementById('orderInSourceDescOption');
-            const desktopOption = document.getElementById('orderInSourceOptionDesktop');
-            const desktopDescOption = document.getElementById('orderInSourceDescOptionDesktop');
+            const option = document.getElementById('orderInSourceOption');
+            const descOption = document.getElementById('orderInSourceDescOption');
             
             // Enable/disable and style the options
-            [mobileOption, mobileDescOption, desktopOption, desktopDescOption].forEach(option => {
-                if (option) {
+            [option, descOption].forEach(opt => {
+                if (opt) {
                     if (hasSingleSource) {
-                        option.disabled = false;
-                        option.style.color = '';
-                        option.style.fontStyle = '';
+                        opt.disabled = false;
+                        opt.style.color = '';
+                        opt.style.fontStyle = '';
                     } else {
-                        option.disabled = true;
-                        option.style.color = '#6c757d';
-                        option.style.fontStyle = 'italic';
+                        opt.disabled = true;
+                        opt.style.color = '#6c757d';
+                        opt.style.fontStyle = 'italic';
                     }
                 }
             });
@@ -1525,10 +1501,8 @@
             }
             if (params.get('sort')) {
                 currentSort = params.get('sort');
-                const sortByMobile = document.getElementById('sortByMobile');
-                const sortByDesktop = document.getElementById('sortByDesktop');
-                if (sortByMobile) sortByMobile.value = currentSort;
-                if (sortByDesktop) sortByDesktop.value = currentSort;
+                const sortBy = document.getElementById('sortBy');
+                if (sortBy) sortBy.value = currentSort;
             }
             if (params.get('page')) {
                 currentPage = parseInt(params.get('page')) || 1;
