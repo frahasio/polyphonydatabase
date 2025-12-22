@@ -683,16 +683,16 @@
                             <label for="searchSourceFormatsDesktop" class="form-label filter-label mb-0">Source Format</label>
                             <select class="form-select form-select-sm filter-input" id="searchSourceFormatsDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1 d-flex flex-column justify-content-start">
-                            <div class="form-check form-switch mb-1">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <div class="form-check">
                                 <input class="form-check-input filter-input" type="checkbox" id="hasEditionsDesktop">
-                                <label class="form-check-label filter-label small" for="hasEditionsDesktop">Has editions</label>
+                                <label class="form-check-label filter-label small mb-0" for="hasEditionsDesktop">Has editions</label>
                             </div>
                         </div>
-                        <div class="col-md-1 d-flex flex-column justify-content-start">
-                            <div class="form-check form-switch mb-1">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <div class="form-check">
                                 <input class="form-check-input filter-input" type="checkbox" id="hasRecordingsDesktop">
-                                <label class="form-check-label filter-label small" for="hasRecordingsDesktop">Has recordings</label>
+                                <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
                             </div>
                         </div>
                         <div class="col-md-1">
@@ -834,12 +834,15 @@
                 updateFilterHighlights();
             });
             // Sort by is now only in desktop table header, no mobile version needed
-            document.getElementById('sortByDesktop').addEventListener('change', function() {
-                currentSort = this.value;
-                updateFilterHighlights();
-                updateURL();
-                performSearch();
-            });
+            const sortByDesktop = document.getElementById('sortByDesktop');
+            if (sortByDesktop) {
+                sortByDesktop.addEventListener('change', function() {
+                    currentSort = this.value;
+                    updateFilterHighlights();
+                    updateURL();
+                    performSearch();
+                });
+            }
             document.getElementById('hasEditions').addEventListener('change', function() {
                 syncCheckboxFields('hasEditions', 'hasEditionsDesktop');
                 updateFilterHighlights();
@@ -855,12 +858,15 @@
                 updateFilterHighlights();
                 updateSearchButtonText();
             });
-            document.getElementById('sortByDesktop').addEventListener('change', function() {
-                currentSort = this.value;
-                updateFilterHighlights();
-                updateURL();
-                performSearch();
-            });
+            const sortByDesktop2 = document.getElementById('sortByDesktop');
+            if (sortByDesktop2) {
+                sortByDesktop2.addEventListener('change', function() {
+                    currentSort = this.value;
+                    updateFilterHighlights();
+                    updateURL();
+                    performSearch();
+                });
+            }
             document.getElementById('hasEditionsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasEditionsDesktop', 'hasEditions');
                 updateFilterHighlights();
