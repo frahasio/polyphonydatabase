@@ -62,6 +62,34 @@ body {
     margin-bottom: 1.5rem;
 }
 
+/* Ensure desktop form content is properly contained */
+.search-filters form {
+    width: 100%;
+}
+
+/* Ensure desktop layout wrapper inherits background */
+.search-filters > div {
+    background-color: inherit;
+}
+
+/* Highlight active filters */
+.search-filters .form-control.filter-active,
+.search-filters .form-select.filter-active,
+.search-filters .select2-container.filter-active .select2-selection--multiple,
+.search-filters .form-check.filter-active {
+    background-color: #fff9e6 !important;
+    border-color: #ffc107 !important;
+}
+
+.search-filters .form-check.filter-active .form-check-input {
+    border-color: #ffc107 !important;
+}
+
+.search-filters .select2-container.filter-active .select2-selection--multiple {
+    background-color: #fff9e6 !important;
+    border-color: #ffc107 !important;
+}
+
 /* Ensure accordion properly hides content when collapsed */
 .search-filters .accordion-collapse:not(.show) {
     display: none !important;

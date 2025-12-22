@@ -496,94 +496,102 @@ router.get('/groups', async (req, res) => {
     }
 
     // Clef filter - search by clef combination pattern with wildcards
+    // Supports multiple comma-separated patterns (OR logic)
     if (clefPattern) {
-      // Define clef display order for sorting (same as in admin.js)
-      const clefDisplayOrder = [
-        'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
-      ];
+      // Parse comma-separated patterns
+      const clefPatterns = clefPattern.split(',').map(p => p.trim()).filter(p => p);
       
-      // Convert pattern to SQL LIKE pattern (replace % with SQL %)
-      const sqlPattern = clefPattern.replace(/%/g, '%');
-      
-      // Check if pattern contains wildcards
-      const hasWildcards = clefPattern.includes('%');
-      
-      if (hasWildcards) {
-        // Use LIKE for wildcard matching
-        // Match against sorted clef combination (required clefs only, then all clefs)
-        whereConditions.push(`EXISTS (
-          SELECT 1 FROM compositions c2
-          JOIN inclusions i ON c2.id = i.composition_id
-          WHERE c2.group_id = g.id
-          AND i.clefs IS NOT NULL
-          AND (
-            (
-              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-                CASE clef_obj->>'clef'
-                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
-                  ELSE 999
-                END
-              )
-              FROM jsonb_array_elements(i.clefs) AS clef_obj
-              WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
-              AND clef_obj->>'clef' IS NOT NULL
-              AND clef_obj->>'clef' != ''
-            ) LIKE $${paramIndex}
-            OR
-            (
-              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-                CASE clef_obj->>'clef'
-                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
-                  ELSE 999
-                END
-              )
-              FROM jsonb_array_elements(i.clefs) AS clef_obj
-              WHERE clef_obj->>'clef' IS NOT NULL
-              AND clef_obj->>'clef' != ''
-            ) LIKE $${paramIndex}
-          )
-        )`);
-        queryParams.push(sqlPattern);
-        paramIndex++;
-      } else {
-        // Exact match - check if the pattern matches the sorted clef combination
-        // Pattern should match either required clefs only or all clefs (with optional)
-        whereConditions.push(`EXISTS (
-          SELECT 1 FROM compositions c2
-          JOIN inclusions i ON c2.id = i.composition_id
-          WHERE c2.group_id = g.id
-          AND i.clefs IS NOT NULL
-          AND (
-            (
-              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-                CASE clef_obj->>'clef'
-                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
-                  ELSE 999
-                END
-              )
-              FROM jsonb_array_elements(i.clefs) AS clef_obj
-              WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
-              AND clef_obj->>'clef' IS NOT NULL
-              AND clef_obj->>'clef' != ''
-            ) = $${paramIndex}
-            OR
-            (
-              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
-                CASE clef_obj->>'clef'
-                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
-                  ELSE 999
-                END
-              )
-              FROM jsonb_array_elements(i.clefs) AS clef_obj
-              WHERE clef_obj->>'clef' IS NOT NULL
-              AND clef_obj->>'clef' != ''
-            ) = $${paramIndex}
-          )
-        )`);
-        queryParams.push(clefPattern);
-        paramIndex++;
+      if (clefPatterns.length > 0) {
+        // Define clef display order for sorting (same as in admin.js)
+        const clefDisplayOrder = [
+          'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+        ];
+        
+        // Build conditions for each pattern
+        const patternConditions = [];
+        
+        clefPatterns.forEach((pattern) => {
+            // Convert pattern to SQL LIKE pattern (replace % with SQL %)
+            const sqlPattern = pattern.replace(/%/g, '%');
+            
+            // Check if pattern contains wildcards
+            const hasWildcards = pattern.includes('%');
+            
+            if (hasWildcards) {
+              // Use LIKE for wildcard matching
+              patternConditions.push(`(
+                (
+                  SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                    CASE clef_obj->>'clef'
+                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ELSE 999
+                    END
+                  )
+                  FROM jsonb_array_elements(i.clefs) AS clef_obj
+                  WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+                  AND clef_obj->>'clef' IS NOT NULL
+                  AND clef_obj->>'clef' != ''
+                ) LIKE $${paramIndex}
+                OR
+                (
+                  SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                    CASE clef_obj->>'clef'
+                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ELSE 999
+                    END
+                  )
+                  FROM jsonb_array_elements(i.clefs) AS clef_obj
+                  WHERE clef_obj->>'clef' IS NOT NULL
+                  AND clef_obj->>'clef' != ''
+                ) LIKE $${paramIndex}
+              )`);
+              queryParams.push(sqlPattern);
+              paramIndex++;
+            } else {
+              // Exact match
+              patternConditions.push(`(
+                (
+                  SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                    CASE clef_obj->>'clef'
+                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ELSE 999
+                    END
+                  )
+                  FROM jsonb_array_elements(i.clefs) AS clef_obj
+                  WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+                  AND clef_obj->>'clef' IS NOT NULL
+                  AND clef_obj->>'clef' != ''
+                ) = $${paramIndex}
+                OR
+                (
+                  SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                    CASE clef_obj->>'clef'
+                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ELSE 999
+                    END
+                  )
+                  FROM jsonb_array_elements(i.clefs) AS clef_obj
+                  WHERE clef_obj->>'clef' IS NOT NULL
+                  AND clef_obj->>'clef' != ''
+                ) = $${paramIndex}
+              )`);
+              queryParams.push(pattern);
+              paramIndex++;
+            }
+          });
+          
+          // Combine all patterns with OR logic
+          if (patternConditions.length > 0) {
+            whereConditions.push(`EXISTS (
+              SELECT 1 FROM compositions c2
+              JOIN inclusions i ON c2.id = i.composition_id
+              WHERE c2.group_id = g.id
+              AND i.clefs IS NOT NULL
+              AND (${patternConditions.join(' OR ')})
+            )`);
+          }
+        }
       }
-    }
 
     // Scribe filter - filter by scribe (at least one source has this scribe)
     if (scribeIds.length > 0) {

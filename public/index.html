@@ -543,7 +543,7 @@
                                         <div class="col-md-4">
                                             <label for="searchClef" class="form-label small">Clef Combination</label>
                                             <input type="text" class="form-control form-control-sm" id="searchClef" 
-                                                   placeholder="e.g. g2%f4 or c1c2c3c4">
+                                                   placeholder="e.g. g2%f4, c1c2c3c4 (comma-separated)">
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label small">Date Range</label>
@@ -664,7 +664,6 @@
                                 <label for="searchLanguagesDesktop" class="form-label small">Language</label>
                                 <select class="form-select form-select-sm" id="searchLanguagesDesktop" multiple></select>
                             </div>
-                        </div>
                     </div>
                     
                     <!-- Source Filters -->
@@ -686,9 +685,9 @@
                                 <select class="form-select form-select-sm" id="searchSourceFormatsDesktop" multiple></select>
                             </div>
                             <div class="col-md-2">
-                                <label for="searchClefDesktop" class="form-label small">Clef Combination</label>
-                                <input type="text" class="form-control form-control-sm" id="searchClefDesktop" 
-                                       placeholder="e.g. g2%f4 or c1c2c3c4">
+                            <label for="searchClefDesktop" class="form-label small">Clef Combination</label>
+                            <input type="text" class="form-control form-control-sm" id="searchClefDesktop" 
+                                   placeholder="e.g. g2%f4, c1c2c3c4 (comma-separated)">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label small">Date Range</label>
@@ -699,7 +698,6 @@
                                            placeholder="To" min="1000" max="2000" style="flex: 1;">
                                 </div>
                             </div>
-                        </div>
                     </div>
                     
                     <!-- Publication/Provenance Filters -->
@@ -716,7 +714,6 @@
                                 <label for="searchCountriesDesktop" class="form-label small">Country (composer birth)</label>
                                 <select class="form-select form-select-sm" id="searchCountriesDesktop" multiple></select>
                             </div>
-                        </div>
                     </div>
                     <div class="row g-1">
                         <div class="col-md-3">
@@ -860,37 +857,46 @@
             // Set up sync listeners for mobile form (no auto-search)
             document.getElementById('searchTitle').addEventListener('input', function() {
                 syncSearchFields('searchTitle', 'searchTitleDesktop');
+                updateFilterHighlights();
             });
             document.getElementById('sortBy').addEventListener('change', function() {
                 syncSearchFields('sortBy', 'sortByDesktop');
                 currentSort = this.value;
+                updateFilterHighlights();
             });
             document.getElementById('hasEditions').addEventListener('change', function() {
                 syncCheckboxFields('hasEditions', 'hasEditionsDesktop');
+                updateFilterHighlights();
             });
             document.getElementById('hasRecordings').addEventListener('change', function() {
                 syncCheckboxFields('hasRecordings', 'hasRecordingsDesktop');
+                updateFilterHighlights();
             });
             
             // Set up sync listeners for desktop form (no auto-search)
             document.getElementById('searchTitleDesktop').addEventListener('input', function() {
                 syncSearchFields('searchTitleDesktop', 'searchTitle');
+                updateFilterHighlights();
             });
             document.getElementById('sortByDesktop').addEventListener('change', function() {
                 syncSearchFields('sortByDesktop', 'sortBy');
                 currentSort = this.value;
+                updateFilterHighlights();
             });
             document.getElementById('hasEditionsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasEditionsDesktop', 'hasEditions');
+                updateFilterHighlights();
             });
             document.getElementById('hasRecordingsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasRecordingsDesktop', 'hasRecordings');
+                updateFilterHighlights();
             });
             
             // Set up Select2 change listeners for mobile (sync only, no auto-search)
             $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing, #searchScribes, #searchSourceTypes, #searchSourceFormats').on('change', function() {
                 syncMultiSelectFields(this.id, this.id + 'Desktop');
                 updateOrderInSourceOptions();
+                updateFilterHighlights();
             });
             
             // Set up Select2 change listeners for desktop (sync only, no auto-search)
@@ -898,6 +904,7 @@
                 let mobileId = this.id.replace('Desktop', '');
                 syncMultiSelectFields(this.id, mobileId);
                 updateOrderInSourceOptions();
+                updateFilterHighlights();
             });
             
             document.getElementById('pageSize').addEventListener('change', function() {
@@ -915,16 +922,19 @@
             if (searchClef) {
                 searchClef.addEventListener('input', function() {
                     syncSearchFields('searchClef', 'searchClefDesktop');
+                    updateFilterHighlights();
                 });
             }
             if (yearFrom) {
                 yearFrom.addEventListener('input', function() {
                     syncSearchFields('yearFrom', 'yearFromDesktop');
+                    updateFilterHighlights();
                 });
             }
             if (yearTo) {
                 yearTo.addEventListener('input', function() {
                     syncSearchFields('yearTo', 'yearToDesktop');
+                    updateFilterHighlights();
                 });
             }
 
@@ -936,16 +946,19 @@
             if (searchClefDesktop) {
                 searchClefDesktop.addEventListener('input', function() {
                     syncSearchFields('searchClefDesktop', 'searchClef');
+                    updateFilterHighlights();
                 });
             }
             if (yearFromDesktop) {
                 yearFromDesktop.addEventListener('input', function() {
                     syncSearchFields('yearFromDesktop', 'yearFrom');
+                    updateFilterHighlights();
                 });
             }
             if (yearToDesktop) {
                 yearToDesktop.addEventListener('input', function() {
                     syncSearchFields('yearToDesktop', 'yearTo');
+                    updateFilterHighlights();
                 });
             }
 
@@ -966,6 +979,7 @@
             await loadFilters();
             loadFiltersFromURL();
             updateOrderInSourceOptions();
+            updateFilterHighlights(); // Initial highlight update
             performSearch();
         }
 
@@ -988,6 +1002,70 @@
         function syncMultiSelectFields(sourceId, targetId) {
             const sourceValues = $(`#${sourceId}`).val();
             $(`#${targetId}`).val(sourceValues).trigger('change.select2');
+        }
+
+        function updateFilterHighlights() {
+            // Highlight text inputs with values
+            const textInputs = ['searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop', 'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop'];
+            textInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (el.value && el.value.trim()) {
+                        el.classList.add('filter-active');
+                    } else {
+                        el.classList.remove('filter-active');
+                    }
+                }
+            });
+            
+            // Highlight single-select dropdowns with values
+            const singleSelects = ['sortBy', 'sortByDesktop'];
+            singleSelects.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value && el.value !== '') {
+                    el.classList.add('filter-active');
+                } else if (el) {
+                    el.classList.remove('filter-active');
+                }
+            });
+            
+            // Highlight multi-select dropdowns (Select2) with selections
+            const multiSelectIds = [
+                'searchComposers', 'searchVoices', 'searchFunctions', 'searchCompositionTypes',
+                'searchTones', 'searchEvenOdd', 'searchLanguages', 'searchCountries',
+                'searchSources', 'searchPublishers', 'searchCities', 'searchVoicing',
+                'searchScribes', 'searchSourceTypes', 'searchSourceFormats',
+                'searchComposersDesktop', 'searchVoicesDesktop', 'searchFunctionsDesktop',
+                'searchCompositionTypesDesktop', 'searchTonesDesktop', 'searchEvenOddDesktop',
+                'searchLanguagesDesktop', 'searchCountriesDesktop', 'searchSourcesDesktop',
+                'searchPublishersDesktop', 'searchCitiesDesktop', 'searchVoicingDesktop',
+                'searchScribesDesktop', 'searchSourceTypesDesktop', 'searchSourceFormatsDesktop'
+            ];
+            
+            multiSelectIds.forEach(id => {
+                const values = $(`#${id}`).val();
+                const hasValues = values && (Array.isArray(values) ? values.length > 0 : values !== '');
+                const container = $(`#${id}`).next('.select2-container');
+                if (hasValues) {
+                    container.addClass('filter-active');
+                } else {
+                    container.removeClass('filter-active');
+                }
+            });
+            
+            // Highlight checkboxes
+            const checkboxes = ['hasEditions', 'hasEditionsDesktop', 'hasRecordings', 'hasRecordingsDesktop'];
+            checkboxes.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const wrapper = el.closest('.form-check') || el.parentElement;
+                    if (el.checked) {
+                        wrapper.classList.add('filter-active');
+                    } else {
+                        wrapper.classList.remove('filter-active');
+                    }
+                }
+            });
         }
 
         function updateOrderInSourceOptions() {
@@ -1090,7 +1168,8 @@
             // Reset page
             currentPage = 1;
             
-            // Update URL and perform search
+            // Update highlights and URL, then perform search
+            updateFilterHighlights();
             updateURL();
             performSearch();
         }
