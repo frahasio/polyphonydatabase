@@ -1097,36 +1097,34 @@
             
             // Highlight text inputs
             const textInputs = [
-                { id: 'searchTitle', desktopId: 'searchTitleDesktop' },
-                { id: 'searchClef', desktopId: 'searchClefDesktop' },
-                { id: 'yearFrom', desktopId: 'yearFromDesktop' },
-                { id: 'yearTo', desktopId: 'yearToDesktop' },
-                { id: 'anniversaryYear', desktopId: 'anniversaryYearDesktop' }
+                { id: 'searchTitle', desktopId: 'searchTitleDesktop', paramName: 'title' },
+                { id: 'searchClef', desktopId: 'searchClefDesktop', paramName: 'clef' },
+                { id: 'yearFrom', desktopId: 'yearFromDesktop', paramName: 'year_from' },
+                { id: 'yearTo', desktopId: 'yearToDesktop', paramName: 'year_to' },
+                { id: 'anniversaryYear', desktopId: 'anniversaryYearDesktop', paramName: 'anniversary_year' }
             ];
-            textInputs.forEach(({ id, desktopId }) => {
+            textInputs.forEach(({ id, desktopId, paramName }) => {
                 [id, desktopId].forEach(inputId => {
                     const el = document.getElementById(inputId);
                     if (el) {
                         const hasValue = el.value && el.value.trim();
                         el.classList.remove('filter-active', 'filter-pending');
-                        if (hasValue && isInURL(id)) {
+                        if (hasValue && urlParams.has(paramName) && urlParams.get(paramName) !== '') {
                             el.classList.add('filter-active');
                         }
                     }
                 });
             });
             
-            // Highlight sort dropdowns
-            ['sortByMobile', 'sortByDesktop'].forEach(sortId => {
-                const sortEl = document.getElementById(sortId);
-                if (sortEl) {
-                    const hasValue = sortEl.value && sortEl.value !== '';
-                    sortEl.classList.remove('filter-active', 'filter-pending');
-                    if (hasValue && isInURL(sortId)) {
-                        sortEl.classList.add('filter-active');
-                    }
+            // Highlight sort dropdown
+            const sortEl = document.getElementById('sortBy');
+            if (sortEl) {
+                const hasValue = sortEl.value && sortEl.value !== '';
+                sortEl.classList.remove('filter-active', 'filter-pending');
+                if (hasValue && urlParams.has('sort') && urlParams.get('sort') !== '') {
+                    sortEl.classList.add('filter-active');
                 }
-            });
+            }
             
             // Highlight multi-select dropdowns (Select2)
             const multiSelectIds = [
@@ -1369,8 +1367,6 @@
                 const el = document.getElementById(id);
                 if (el) {
                     el.disabled = true;
-                    el.style.opacity = '0.6';
-                    el.style.cursor = 'not-allowed';
                 }
             });
             
@@ -1388,8 +1384,6 @@
             const sortEl = document.getElementById('sortBy');
             if (sortEl) {
                 sortEl.disabled = true;
-                sortEl.style.opacity = '0.6';
-                sortEl.style.cursor = 'not-allowed';
             }
             
             // Disable buttons
@@ -1431,8 +1425,6 @@
                 const el = document.getElementById(id);
                 if (el) {
                     el.disabled = false;
-                    el.style.opacity = '';
-                    el.style.cursor = '';
                 }
             });
             
@@ -1450,8 +1442,6 @@
             const sortEl = document.getElementById('sortBy');
             if (sortEl) {
                 sortEl.disabled = false;
-                sortEl.style.opacity = '';
-                sortEl.style.cursor = '';
             }
             
             // Enable buttons
@@ -1676,6 +1666,9 @@
             // Update URL without reloading page
             const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
             window.history.replaceState({}, document.title, newURL);
+            
+            // Update highlights based on new URL
+            updateFilterHighlights();
         }
 
         async function loadFilters() {
@@ -1900,6 +1893,7 @@
                     const data = await response.json();
                     displayResults(data);
                     updateURL();
+                    updateFilterHighlights(); // Update highlights based on URL params
                 } else {
                     throw new Error('Search failed');
                 }

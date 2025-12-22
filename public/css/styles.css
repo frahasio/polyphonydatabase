@@ -110,8 +110,20 @@ body {
     height: 38px;
     padding: 0.5rem 0.75rem;
     border: 1px solid #aaa;
-    background-color: #fff;
     font-size: 1rem;
+}
+
+/* Disabled inputs should be greyed out */
+.search-filters .form-control.filter-input:disabled {
+    background-color: #e9ecef;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.search-filters .form-select.filter-input:disabled {
+    background-color: #e9ecef;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .search-filters .form-control.filter-input:focus {
@@ -122,7 +134,7 @@ body {
 /* Ensure Select2 matches text input height exactly to prevent placeholder cut-off */
 .search-filters .select2-container .select2-selection--single,
 .search-filters .select2-container .select2-selection--multiple {
-    height: 38px;
+    min-height: 38px;
     line-height: 25px;
 }
 .select2-container .select2-search--inline .select2-search__field {
