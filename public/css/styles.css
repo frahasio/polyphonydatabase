@@ -72,6 +72,15 @@ body {
     background-color: inherit;
 }
 
+/* Reduce spacing between labels and inputs */
+.search-filters .form-label {
+    margin-bottom: 0.25rem;
+}
+
+.search-filters .form-label.mb-0 {
+    margin-bottom: 0;
+}
+
 /* Highlight active filters */
 .search-filters .form-control.filter-active,
 .search-filters .form-select.filter-active,
