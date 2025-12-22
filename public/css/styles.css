@@ -81,7 +81,117 @@ body {
     margin-bottom: 0;
 }
 
-/* Highlight active filters */
+/* Standardize filter labels and inputs */
+.search-filters .filter-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-bottom: 0.2rem;
+    color: #495057;
+}
+
+.search-filters .filter-input {
+    height: 28px;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    line-height: 1.5;
+}
+
+/* Select2 height matching */
+.search-filters .select2-container .select2-selection--single,
+.search-filters .select2-container .select2-selection--multiple {
+    min-height: 28px;
+    font-size: 0.875rem;
+}
+
+.search-filters .select2-container .select2-selection--single .select2-selection__rendered,
+.search-filters .select2-container .select2-selection--multiple .select2-selection__rendered {
+    line-height: 26px;
+    font-size: 0.875rem;
+}
+
+.search-filters .select2-container .select2-selection--multiple .select2-selection__choice {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    margin: 0.1rem;
+}
+
+/* Checkbox switch styling */
+.filter-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
+
+.filter-switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.filter-switch-slider {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    background-color: #ccc;
+    border-radius: 24px;
+    transition: background-color 0.3s;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+.filter-switch-slider:before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.filter-switch input:checked + .filter-switch-slider {
+    background-color: #198754;
+}
+
+.filter-switch input:checked + .filter-switch-slider:before {
+    transform: translateX(20px);
+}
+
+.filter-switch-label {
+    font-size: 0.75rem;
+    color: #495057;
+    user-select: none;
+}
+
+.filter-checkbox-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-checkbox-wrapper .filter-switch {
+    margin-bottom: 0;
+}
+
+/* Table header sort dropdown styling */
+.table thead th .filter-label {
+    color: white;
+    font-weight: normal;
+}
+
+.table thead th .filter-input {
+    background-color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Highlight active filters (applied to visible dataset) */
 .search-filters .form-control.filter-active,
 .search-filters .form-select.filter-active,
 .search-filters .select2-container.filter-active .select2-selection--multiple,
@@ -97,6 +207,24 @@ body {
 .search-filters .select2-container.filter-active .select2-selection--multiple {
     background-color: #fff9e6 !important;
     border-color: #ffc107 !important;
+}
+
+/* Highlight pending filters (changed but not yet applied) */
+.search-filters .form-control.filter-pending,
+.search-filters .form-select.filter-pending,
+.search-filters .select2-container.filter-pending .select2-selection--multiple,
+.search-filters .form-check.filter-pending {
+    background-color: #e3f2fd !important;
+    border-color: #2196f3 !important;
+}
+
+.search-filters .form-check.filter-pending .form-check-input {
+    border-color: #2196f3 !important;
+}
+
+.search-filters .select2-container.filter-pending .select2-selection--multiple {
+    background-color: #e3f2fd !important;
+    border-color: #2196f3 !important;
 }
 
 /* Ensure accordion properly hides content when collapsed */

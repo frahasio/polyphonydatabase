@@ -14,7 +14,7 @@ router.get('/groups', async (req, res) => {
       languages = '',
       countries = '',
       sources = '',
-      publishers = '',
+      publisher_scribe_editor = '',
       cities = '',
       composition_types = '',
       tones = '',
@@ -25,9 +25,9 @@ router.get('/groups', async (req, res) => {
       year_from = '',
       year_to = '',
       clef = '',
-      scribes = '',
       source_type = '',
       source_format = '',
+      anniversary_year = '',
       sort = '',
       page = 1,
       page_size = 25
@@ -60,7 +60,10 @@ router.get('/groups', async (req, res) => {
         }
       }
     });
-    const publisherIds = publishers && publishers.trim() ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    // Parse publisher/scribe/editor - can contain both publisher IDs and scribe IDs
+    const publisherScribeEditorIds = publisher_scribe_editor && publisher_scribe_editor.trim() 
+      ? publisher_scribe_editor.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) 
+      : [];
     const cityNames = cities && cities.trim() ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
     const compositionTypeIds = composition_types && composition_types.trim() ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const toneValues = tones && tones.trim() ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
@@ -73,9 +76,9 @@ router.get('/groups', async (req, res) => {
     const yearFrom = year_from && year_from.trim() ? parseInt(year_from.trim()) : null;
     const yearTo = year_to && year_to.trim() ? parseInt(year_to.trim()) : null;
     const clefPattern = clef && clef.trim() ? clef.trim() : '';
-    const scribeIds = scribes && scribes.trim() ? scribes.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const sourceTypes = source_type && source_type.trim() ? source_type.split(',').map(t => t.trim()).filter(t => t) : [];
     const sourceFormats = source_format && source_format.trim() ? source_format.split(',').map(f => f.trim()).filter(f => f) : [];
+    const anniversaryYear = anniversary_year && anniversary_year.trim() ? parseInt(anniversary_year.trim()) : null;
 
     let whereConditions = [];
     let queryParams = [];
@@ -271,17 +274,32 @@ router.get('/groups', async (req, res) => {
       )`);
     }
 
-    // Publishers filter
-    if (publisherIds.length > 0) {
-      whereConditions.push(`EXISTS (
+    // Publisher/Scribe/Editor filter - check both publishers and scribes
+    if (publisherScribeEditorIds.length > 0) {
+      // Check publishers
+      const publisherCondition = `EXISTS (
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
         JOIN sources s ON i.source_id = s.id
         JOIN publishers_sources ps ON s.id = ps.source_id
         WHERE c2.group_id = g.id AND ps.publisher_id = ANY($${paramIndex}::integer[])
-      )`);
-      queryParams.push(publisherIds);
+      )`;
+      queryParams.push(publisherScribeEditorIds);
       paramIndex++;
+      
+      // Check scribes
+      const scribeCondition = `EXISTS (
+        SELECT 1 FROM compositions c2
+        JOIN inclusions i ON c2.id = i.composition_id
+        JOIN sources s ON i.source_id = s.id
+        JOIN scribes_sources ss ON s.id = ss.source_id
+        WHERE c2.group_id = g.id AND ss.scribe_id = ANY($${paramIndex}::integer[])
+      )`;
+      queryParams.push(publisherScribeEditorIds);
+      paramIndex++;
+      
+      // Combine with OR - a composition matches if it has any of the selected publishers OR scribes
+      whereConditions.push(`(${publisherCondition} OR ${scribeCondition})`);
     }
 
     // Cities filter (publication places)
@@ -627,6 +645,24 @@ router.get('/groups', async (req, res) => {
         WHERE c2.group_id = g.id AND s.format = ANY($${paramIndex}::text[])
       )`);
       queryParams.push(sourceFormats);
+      paramIndex++;
+    }
+
+    // Anniversary filter - find composers with birth or death anniversaries (multiples of 50 years)
+    if (anniversaryYear !== null && !isNaN(anniversaryYear)) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS composer_id
+        JOIN composers comp ON comp.id = composer_id
+        WHERE c2.group_id = g.id
+          AND comp.id != 23 -- Exclude anonymous composer
+          AND (
+            (comp.from_year IS NOT NULL AND ($${paramIndex} - comp.from_year) % 50 = 0)
+            OR
+            (comp.to_year IS NOT NULL AND ($${paramIndex} - comp.to_year) % 50 = 0)
+          )
+      )`);
+      queryParams.push(anniversaryYear);
       paramIndex++;
     }
 
