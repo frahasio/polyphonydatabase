@@ -94,6 +94,24 @@ body {
     border: none;
 }
 
+/* Filter group styling */
+.filter-group {
+    border-top: 1px solid #e9ecef;
+    padding-top: 0.5rem;
+}
+
+.filter-group:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.filter-group-title {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem !important;
+}
+
 /* Form styles */
 .form-label {
     font-weight: 500;

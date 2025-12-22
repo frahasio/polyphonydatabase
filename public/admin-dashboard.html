@@ -423,26 +423,6 @@
             </div>
         </div>
 
-        <!-- Missing Clef Images Section - Admin Only -->
-        <div class="mt-4 admin-only-section" style="display: none;">
-            <div class="row g-3">
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div id="missingClefImages">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-center py-4">
-                                    <div class="spinner-border text-warning" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 mb-0">Checking clef images...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Data Quality Alerts Section - Admin Only -->
         <div class="mt-5 admin-only-section" style="display: none;">
             <div class="card border-warning">
@@ -459,6 +439,9 @@
                             </div>
                             <p class="mt-2 mb-0">Checking data quality...</p>
                         </div>
+                    </div>
+                    <div id="missingClefImages" class="row g-3 mt-2">
+                        <!-- Missing clef images will be displayed here -->
                     </div>
                 </div>
             </div>
@@ -718,13 +701,15 @@
                 const container = document.getElementById('missingClefImages');
                 if (container) {
                     container.innerHTML = `
-                        <div class="card border-danger h-100">
-                            <div class="card-body">
-                                <h6 class="card-title text-danger">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                    Error Loading Clef Images
-                                </h6>
-                                <p class="card-text">Could not check for missing clef images.</p>
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card border-danger h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        Error Loading Clef Images
+                                    </h6>
+                                    <p class="card-text">Could not check for missing clef images.</p>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -738,13 +723,15 @@
 
             if (data.missing_count === 0) {
                 container.innerHTML = `
-                    <div class="card border-success h-100">
-                        <div class="card-body">
-                            <h6 class="card-title text-success">
-                                <i class="bi bi-check-circle-fill me-2"></i>
-                                All Clef Images Present
-                            </h6>
-                            <p class="card-text">All ${data.total_required} required clef images are available.</p>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card border-success h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-success">
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                    All Clef Images Present
+                                </h6>
+                                <p class="card-text">All ${data.total_required} required clef images are available.</p>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -756,30 +743,32 @@
             const hasMore = data.missing_images.length > 10;
 
             container.innerHTML = `
-                <div class="card border-warning h-100">
-                    <div class="card-body">
-                        <h6 class="card-title text-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Missing Clef Images
-                        </h6>
-                        <p class="card-text">
-                            <strong>${data.missing_count}</strong> of <strong>${data.total_required}</strong> required clef images are missing.
-                        </p>
-                        <div class="mb-2">
-                            <small class="text-muted">Missing images:</small>
-                            <div class="mt-2">
-                                ${displayImages.map(img => {
-                                    const clefName = img.replace('.png', '');
-                                    return `<span class="badge bg-warning text-dark me-1 mb-1" title="${img}">${clefName}</span>`;
-                                }).join('')}
-                                ${hasMore ? `<span class="badge bg-secondary">+${data.missing_images.length - 10} more</span>` : ''}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-warning h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Missing Clef Images
+                            </h6>
+                            <p class="card-text">
+                                <strong>${data.missing_count}</strong> of <strong>${data.total_required}</strong> required clef images are missing.
+                            </p>
+                            <div class="mb-2">
+                                <small class="text-muted">Missing images:</small>
+                                <div class="mt-2">
+                                    ${displayImages.map(img => {
+                                        const clefName = img.replace('.png', '');
+                                        return `<span class="badge bg-warning text-dark me-1 mb-1" title="${img}">${clefName}</span>`;
+                                    }).join('')}
+                                    ${hasMore ? `<span class="badge bg-secondary">+${data.missing_images.length - 10} more</span>` : ''}
+                                </div>
                             </div>
+                            ${hasMore ? `
+                                <button class="btn btn-sm btn-outline-primary" onclick="showAllMissingClefImages()" data-missing-images='${JSON.stringify(data.missing_images)}'>
+                                    <i class="bi bi-list-ul me-1"></i>View All Missing Images
+                                </button>
+                            ` : ''}
                         </div>
-                        ${hasMore ? `
-                            <button class="btn btn-sm btn-outline-primary" onclick="showAllMissingClefImages()" data-missing-images='${JSON.stringify(data.missing_images)}'>
-                                <i class="bi bi-list-ul me-1"></i>View All Missing Images
-                            </button>
-                        ` : ''}
                     </div>
                 </div>
             `;

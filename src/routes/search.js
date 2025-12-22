@@ -431,15 +431,22 @@ router.get('/groups', async (req, res) => {
     // Date filter - filter by earliest source date
     // Find groups where at least one source's date range overlaps with the specified range
     if (yearFrom !== null || yearTo !== null) {
+      // Date filter logic:
+      // - Only yearFrom: sources that end on or after yearFrom (s.to_year >= yearFrom)
+      // - Only yearTo: sources that start on or before yearTo (s.from_year <= yearTo)
+      // - Both: sources that overlap with the range (s.from_year <= yearTo AND s.to_year >= yearFrom)
       let dateCondition = `EXISTS (
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
         JOIN sources s ON i.source_id = s.id
         WHERE c2.group_id = g.id
         AND (
-          ${yearFrom !== null ? `(s.to_year IS NULL OR s.to_year >= $${paramIndex})` : 'TRUE'}
-          ${yearFrom !== null && yearTo !== null ? ' AND ' : ''}
-          ${yearTo !== null ? `(s.from_year IS NULL OR s.from_year <= $${paramIndex + (yearFrom !== null ? 1 : 0)})` : 'TRUE'}
+          ${yearFrom !== null && yearTo !== null 
+            ? `(s.from_year IS NULL OR s.from_year <= $${paramIndex + 1}) AND (s.to_year IS NULL OR s.to_year >= $${paramIndex})`
+            : yearFrom !== null 
+              ? `(s.to_year IS NULL OR s.to_year >= $${paramIndex})`
+              : `(s.from_year IS NULL OR s.from_year <= $${paramIndex})`
+          }
         )
       )`;
       

@@ -56,7 +56,12 @@ git push origin $currentBranch
 
 # Push to Heroku (force push to main branch)
 Write-Host "Pushing to Heroku..."
-git push heroku HEAD:main --force
+$pushResult = git push heroku HEAD:main --force 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Error: Failed to push to Heroku. Please check your authentication and try again." -ForegroundColor Red
+    Write-Host "You may need to run: heroku login" -ForegroundColor Yellow
+    exit 1
+}
 
 # Check deployment status
 Write-Host "Checking deployment status..."
