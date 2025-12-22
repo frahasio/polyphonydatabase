@@ -1350,6 +1350,11 @@
                 if (el) el.disabled = true;
             });
             
+            textInputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = true;
+            });
+            
             // Disable checkboxes
             const checkboxIds = [
                 'hasEditions', 'hasEditionsDesktop', 'hasRecordings', 'hasRecordingsDesktop'
@@ -1395,7 +1400,8 @@
             // Enable text inputs
             const textInputIds = [
                 'searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop',
-                'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop'
+                'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop',
+                'anniversaryYear', 'anniversaryYearDesktop'
             ];
             
             textInputIds.forEach(id => {
@@ -1825,6 +1831,7 @@
                 const yearFrom = document.getElementById('yearFrom')?.value || document.getElementById('yearFromDesktop')?.value || '';
                 const yearTo = document.getElementById('yearTo')?.value || document.getElementById('yearToDesktop')?.value || '';
                 const clef = document.getElementById('searchClef')?.value || document.getElementById('searchClefDesktop')?.value || '';
+                const anniversaryYear = document.getElementById('anniversaryYear')?.value || document.getElementById('anniversaryYearDesktop')?.value || '';
                 
                 const searchParams = new URLSearchParams({
                     page: currentPage,
