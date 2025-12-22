@@ -481,9 +481,7 @@
                                         </div>
                                     </div>
                                     <!-- Composition Filters -->
-                                    <div class="filter-group mt-2">
-                                        <h6 class="filter-group-title small text-muted mb-2">Composition</h6>
-                                        <div class="row g-2">
+                                    <div class="row g-1">
                                             <div class="col-md-6">
                                                 <label for="searchComposers" class="form-label small">Composer</label>
                                                 <select class="form-select form-select-sm" id="searchComposers" multiple></select>
@@ -493,40 +491,36 @@
                                                 <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
                                             </div>
                                         </div>
-                                        <div class="row g-2 mt-1">
-                                            <div class="col-md-4">
-                                                <label for="searchCompositionTypes" class="form-label small">Type</label>
-                                                <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchVoices" class="form-label small"># of voices</label>
-                                                <select class="form-select form-select-sm" id="searchVoices" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchVoicing" class="form-label small">Voicing</label>
-                                                <select class="form-select form-select-sm" id="searchVoicing" multiple></select>
-                                            </div>
+                                        <div class="col-md-4">
+                                            <label for="searchCompositionTypes" class="form-label small">Type</label>
+                                            <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
                                         </div>
-                                        <div class="row g-2 mt-1">
-                                            <div class="col-md-4">
-                                                <label for="searchTones" class="form-label small">Tone</label>
-                                                <select class="form-select form-select-sm" id="searchTones" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchEvenOdd" class="form-label small">Verses</label>
-                                                <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchLanguages" class="form-label small">Language</label>
-                                                <select class="form-select form-select-sm" id="searchLanguages" multiple></select>
-                                            </div>
+                                        <div class="col-md-4">
+                                            <label for="searchVoices" class="form-label small"># of voices</label>
+                                            <select class="form-select form-select-sm" id="searchVoices" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchVoicing" class="form-label small">Voicing</label>
+                                            <select class="form-select form-select-sm" id="searchVoicing" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-1">
+                                        <div class="col-md-4">
+                                            <label for="searchTones" class="form-label small">Tone</label>
+                                            <select class="form-select form-select-sm" id="searchTones" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchEvenOdd" class="form-label small">Verses</label>
+                                            <select class="form-select form-select-sm" id="searchEvenOdd" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchLanguages" class="form-label small">Language</label>
+                                            <select class="form-select form-select-sm" id="searchLanguages" multiple></select>
                                         </div>
                                     </div>
                                     
                                     <!-- Source Filters -->
-                                    <div class="filter-group mt-2">
-                                        <h6 class="filter-group-title small text-muted mb-2">Source</h6>
-                                        <div class="row g-2">
+                                    <div class="row g-1">
                                             <div class="col-md-4">
                                                 <label for="searchSources" class="form-label small">Source</label>
                                                 <select class="form-select form-select-sm" id="searchSources" multiple></select>
@@ -540,35 +534,28 @@
                                                 <select class="form-select form-select-sm" id="searchSourceTypes" multiple></select>
                                             </div>
                                         </div>
-                                        <div class="row g-2 mt-1">
-                                            <div class="col-md-4">
-                                                <label for="searchSourceFormats" class="form-label small">Source Format</label>
-                                                <select class="form-select form-select-sm" id="searchSourceFormats" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchClef" class="form-label small">Clef Combination</label>
-                                                <input type="text" class="form-control form-control-sm" id="searchClef" 
-                                                       placeholder="e.g. g2%f4 or c1c2c3c4">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label small">Date Range</label>
-                                                <div class="d-flex gap-1">
-                                                    <input type="number" class="form-control form-control-sm" id="yearFrom" 
-                                                           placeholder="From" min="1000" max="2000" style="flex: 1;">
-                                                    <input type="number" class="form-control form-control-sm" id="yearTo" 
-                                                           placeholder="To" min="1000" max="2000" style="flex: 1;">
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearDateRange" title="Clear">
-                                                        <i class="bi bi-x"></i>
-                                                    </button>
-                                                </div>
+                                        <div class="col-md-4">
+                                            <label for="searchSourceFormats" class="form-label small">Source Format</label>
+                                            <select class="form-select form-select-sm" id="searchSourceFormats" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchClef" class="form-label small">Clef Combination</label>
+                                            <input type="text" class="form-control form-control-sm" id="searchClef" 
+                                                   placeholder="e.g. g2%f4 or c1c2c3c4">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Date Range</label>
+                                            <div class="d-flex gap-1">
+                                                <input type="number" class="form-control form-control-sm" id="yearFrom" 
+                                                       placeholder="From" min="1000" max="2000" style="flex: 1;">
+                                                <input type="number" class="form-control form-control-sm" id="yearTo" 
+                                                       placeholder="To" min="1000" max="2000" style="flex: 1;">
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <!-- Publication/Provenance Filters -->
-                                    <div class="filter-group mt-2">
-                                        <h6 class="filter-group-title small text-muted mb-2">Publication & Provenance</h6>
-                                        <div class="row g-2">
+                                    <div class="row g-1">
                                             <div class="col-md-4">
                                                 <label for="searchPublishers" class="form-label small">Publisher</label>
                                                 <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
@@ -583,48 +570,27 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row g-2 mt-1">
-                                        <div class="col-12">
-                                            <label class="form-label small">Date Range (Earliest Source)</label>
-                                            <div class="row g-2">
-                                                <div class="col-5">
-                                                    <input type="number" class="form-control form-control-sm" id="yearFrom" 
-                                                           placeholder="From year" min="1000" max="2000">
-                                                </div>
-                                                <div class="col-5">
-                                                    <input type="number" class="form-control form-control-sm" id="yearTo" 
-                                                           placeholder="To year" min="1000" max="2000">
-                                                </div>
-                                                <div class="col-2">
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearDateRange" title="Clear date range">
-                                                        <i class="bi bi-x"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <input type="range" class="form-range mt-2" id="yearRange" min="1000" max="2000" step="10" 
-                                                   style="display: none;">
-                                        </div>
-                                    </div>
-                                    <div class="row g-2 mt-1">
-                                        <div class="col-12">
-                                            <label class="form-label small">Additional Filters</label>
+                                    <div class="row g-1">
+                                        <div class="col-md-6">
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="hasEditions">
                                                 <label class="form-check-label small" for="hasEditions">Has performing edition</label>
                                             </div>
+                                        </div>
+                                        <div class="col-md-6">
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="hasRecordings">
                                                 <label class="form-check-label small" for="hasRecordings">Has recording</label>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row g-2 mt-3">
-                                        <div class="col-12 d-flex gap-2">
-                                            <button type="button" class="btn btn-primary btn-sm flex-fill" id="searchButton">
-                                                <i class="bi bi-search me-1"></i>Search
+                                    <div class="row mt-3">
+                                        <div class="col-12 d-flex gap-3 justify-content-center">
+                                            <button type="button" class="btn btn-primary btn-lg px-5" id="searchButton">
+                                                <i class="bi bi-search me-2"></i>Search
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFiltersButton">
-                                                <i class="bi bi-x-circle me-1"></i>Clear Filters
+                                            <button type="button" class="btn btn-outline-secondary btn-lg px-5" id="clearFiltersButton">
+                                                <i class="bi bi-x-circle me-2"></i>Clear Filters
                                             </button>
                                         </div>
                                     </div>
@@ -664,9 +630,7 @@
                         </div>
                     </div>
                     <!-- Composition Filters -->
-                    <div class="filter-group mt-2">
-                        <h6 class="filter-group-title small text-muted mb-2">Composition</h6>
-                        <div class="row g-2">
+                    <div class="row g-1">
                             <div class="col-md-2">
                                 <label for="searchComposersDesktop" class="form-label small">Composer</label>
                                 <select class="form-select form-select-sm" id="searchComposersDesktop" multiple></select>
@@ -703,9 +667,7 @@
                     </div>
                     
                     <!-- Source Filters -->
-                    <div class="filter-group mt-2">
-                        <h6 class="filter-group-title small text-muted mb-2">Source</h6>
-                        <div class="row g-2">
+                    <div class="row g-1">
                             <div class="col-md-2">
                                 <label for="searchSourcesDesktop" class="form-label small">Source</label>
                                 <select class="form-select form-select-sm" id="searchSourcesDesktop" multiple></select>
@@ -734,18 +696,13 @@
                                            placeholder="From" min="1000" max="2000" style="flex: 1;">
                                     <input type="number" class="form-control form-control-sm" id="yearToDesktop" 
                                            placeholder="To" min="1000" max="2000" style="flex: 1;">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="clearDateRangeDesktop" title="Clear">
-                                        <i class="bi bi-x"></i>
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Publication/Provenance Filters -->
-                    <div class="filter-group mt-2">
-                        <h6 class="filter-group-title small text-muted mb-2">Publication & Provenance</h6>
-                        <div class="row g-2">
+                    <div class="row g-1">
                             <div class="col-md-3">
                                 <label for="searchPublishersDesktop" class="form-label small">Publisher</label>
                                 <select class="form-select form-select-sm" id="searchPublishersDesktop" multiple></select>
@@ -760,24 +717,27 @@
                             </div>
                         </div>
                     </div>
-                    <div class="row g-2 mt-1">
-                        <div class="col-md-2">
-                            <label class="form-label small">Additional Filters</label>
+                    <div class="row g-1">
+                        <div class="col-md-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="hasEditionsDesktop">
                                 <label class="form-check-label small" for="hasEditionsDesktop">Has editions</label>
                             </div>
+                        </div>
+                        <div class="col-md-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="hasRecordingsDesktop">
                                 <label class="form-check-label small" for="hasRecordingsDesktop">Has recordings</label>
                             </div>
                         </div>
-                        <div class="col-md-10 d-flex align-items-end gap-2">
-                            <button type="button" class="btn btn-primary btn-sm" id="searchButtonDesktop">
-                                <i class="bi bi-search me-1"></i>Search
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12 d-flex gap-3 justify-content-center">
+                            <button type="button" class="btn btn-primary btn-lg px-5" id="searchButtonDesktop">
+                                <i class="bi bi-search me-2"></i>Search
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFiltersButtonDesktop">
-                                <i class="bi bi-x-circle me-1"></i>Clear Filters
+                            <button type="button" class="btn btn-outline-secondary btn-lg px-5" id="clearFiltersButtonDesktop">
+                                <i class="bi bi-x-circle me-2"></i>Clear Filters
                             </button>
                         </div>
                     </div>
@@ -863,10 +823,29 @@
 
         async function initializeInterface() {
             // Initialize Select2 for all multi-select elements (both mobile and desktop)
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchSources, #searchPublishers, #searchCities, #searchVoicing, #searchScribes, #searchSourceTypes, #searchSourceFormats, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchSourcesDesktop, #searchPublishersDesktop, #searchCitiesDesktop, #searchVoicingDesktop, #searchScribesDesktop, #searchSourceTypesDesktop, #searchSourceFormatsDesktop').select2({
+            // Initialize Select2 for most dropdowns
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchPublishers, #searchCities, #searchVoicing, #searchScribes, #searchSourceTypes, #searchSourceFormats, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchPublishersDesktop, #searchCitiesDesktop, #searchVoicingDesktop, #searchScribesDesktop, #searchSourceTypesDesktop, #searchSourceFormatsDesktop').select2({
                 placeholder: 'Select options...',
                 allowClear: true,
                 width: '100%'
+            });
+            
+            // Initialize Select2 for source dropdowns with tags enabled (for wildcard support)
+            $('#searchSources, #searchSourcesDesktop').select2({
+                placeholder: 'Select sources or type pattern (e.g. P-%)...',
+                allowClear: true,
+                width: '100%',
+                tags: true,
+                createTag: function (params) {
+                    // Allow any input that contains % as a wildcard pattern
+                    if (params.term.indexOf('%') !== -1) {
+                        return {
+                            id: params.term,
+                            text: params.term
+                        };
+                    }
+                    return null;
+                }
             });
             
             // Prevent form submission on Enter key for both forms
@@ -931,7 +910,6 @@
             const searchClef = document.getElementById('searchClef');
             const yearFrom = document.getElementById('yearFrom');
             const yearTo = document.getElementById('yearTo');
-            const clearDateRange = document.getElementById('clearDateRange');
             
             if (searchClef) {
                 searchClef.addEventListener('input', function() {
@@ -948,20 +926,11 @@
                     syncSearchFields('yearTo', 'yearToDesktop');
                 });
             }
-            if (clearDateRange) {
-                clearDateRange.addEventListener('click', function() {
-                    document.getElementById('yearFrom').value = '';
-                    document.getElementById('yearFromDesktop').value = '';
-                    document.getElementById('yearTo').value = '';
-                    document.getElementById('yearToDesktop').value = '';
-                });
-            }
 
             // Set up sync listeners for clef and date inputs (desktop) - no auto-search
             const searchClefDesktop = document.getElementById('searchClefDesktop');
             const yearFromDesktop = document.getElementById('yearFromDesktop');
             const yearToDesktop = document.getElementById('yearToDesktop');
-            const clearDateRangeDesktop = document.getElementById('clearDateRangeDesktop');
             
             if (searchClefDesktop) {
                 searchClefDesktop.addEventListener('input', function() {
@@ -976,14 +945,6 @@
             if (yearToDesktop) {
                 yearToDesktop.addEventListener('input', function() {
                     syncSearchFields('yearToDesktop', 'yearTo');
-                });
-            }
-            if (clearDateRangeDesktop) {
-                clearDateRangeDesktop.addEventListener('click', function() {
-                    document.getElementById('yearFrom').value = '';
-                    document.getElementById('yearFromDesktop').value = '';
-                    document.getElementById('yearTo').value = '';
-                    document.getElementById('yearToDesktop').value = '';
                 });
             }
 

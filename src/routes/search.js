@@ -43,7 +43,23 @@ router.get('/groups', async (req, res) => {
     const functionIds = functions && functions.trim() ? functions.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const languageIds = languages && languages.trim() ? languages.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const countryNames = countries && countries.trim() ? countries.split(',').map(country => country.trim()).filter(country => country) : [];
-    const sourceIds = sources && sources.trim() ? sources.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    // Parse sources - can be IDs or wildcard patterns (e.g., "P-%")
+    const sourceInputs = sources && sources.trim() ? sources.split(',').map(s => s.trim()).filter(s => s) : [];
+    const sourceIds = [];
+    const sourcePatterns = [];
+    
+    sourceInputs.forEach(input => {
+      if (input.includes('%')) {
+        // This is a wildcard pattern
+        sourcePatterns.push(input);
+      } else {
+        // Try to parse as integer ID
+        const id = parseInt(input);
+        if (!isNaN(id)) {
+          sourceIds.push(id);
+        }
+      }
+    });
     const publisherIds = publishers && publishers.trim() ? publishers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const cityNames = cities && cities.trim() ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
     const compositionTypeIds = composition_types && composition_types.trim() ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
@@ -229,15 +245,30 @@ router.get('/groups', async (req, res) => {
       paramIndex++;
     }
 
-    // Sources filter (from inclusions)
-    if (sourceIds.length > 0) {
+    // Sources filter (from inclusions) - supports both IDs and wildcard patterns
+    if (sourceIds.length > 0 || sourcePatterns.length > 0) {
+      const sourceConditions = [];
+      
+      // Add condition for source IDs
+      if (sourceIds.length > 0) {
+        sourceConditions.push(`i.source_id = ANY($${paramIndex}::integer[])`);
+        queryParams.push(sourceIds);
+        paramIndex++;
+      }
+      
+      // Add conditions for wildcard patterns
+      sourcePatterns.forEach(pattern => {
+        sourceConditions.push(`s.code ILIKE $${paramIndex}`);
+        queryParams.push(pattern);
+        paramIndex++;
+      });
+      
       whereConditions.push(`EXISTS (
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
-        WHERE c2.group_id = g.id AND i.source_id = ANY($${paramIndex}::integer[])
+        JOIN sources s ON i.source_id = s.id
+        WHERE c2.group_id = g.id AND (${sourceConditions.join(' OR ')})
       )`);
-      queryParams.push(sourceIds);
-      paramIndex++;
     }
 
     // Publishers filter
@@ -432,20 +463,22 @@ router.get('/groups', async (req, res) => {
     // Find groups where at least one source's date range overlaps with the specified range
     if (yearFrom !== null || yearTo !== null) {
       // Date filter logic:
-      // - Only yearFrom: sources that end on or after yearFrom (s.to_year >= yearFrom)
-      // - Only yearTo: sources that start on or before yearTo (s.from_year <= yearTo)
-      // - Both: sources that overlap with the range (s.from_year <= yearTo AND s.to_year >= yearFrom)
+      // - Only yearFrom: sources that end on or after yearFrom (s.to_year >= yearFrom) - EXCLUDE sources without dates
+      // - Only yearTo: sources that start on or before yearTo (s.from_year <= yearTo) - EXCLUDE sources without dates
+      // - Both: sources that overlap with the range (s.from_year <= yearTo AND s.to_year >= yearFrom) - EXCLUDE sources without dates
       let dateCondition = `EXISTS (
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
         JOIN sources s ON i.source_id = s.id
         WHERE c2.group_id = g.id
+        AND s.from_year IS NOT NULL
+        AND s.to_year IS NOT NULL
         AND (
           ${yearFrom !== null && yearTo !== null 
-            ? `(s.from_year IS NULL OR s.from_year <= $${paramIndex + 1}) AND (s.to_year IS NULL OR s.to_year >= $${paramIndex})`
+            ? `s.from_year <= $${paramIndex + 1} AND s.to_year >= $${paramIndex}`
             : yearFrom !== null 
-              ? `(s.to_year IS NULL OR s.to_year >= $${paramIndex})`
-              : `(s.from_year IS NULL OR s.from_year <= $${paramIndex})`
+              ? `s.to_year >= $${paramIndex}`
+              : `s.from_year <= $${paramIndex}`
           }
         )
       )`;
@@ -687,8 +720,8 @@ router.get('/groups', async (req, res) => {
         ) DESC`;
         break;
       case 'order_in_source':
-        if (sourceIds.length === 1) {
-          // Sort by order in the selected source
+        if (sourceIds.length === 1 && sourcePatterns.length === 0) {
+          // Sort by order in the selected source (only if exactly one ID, no patterns)
           orderByClause = `ORDER BY (
             SELECT MIN(i.order)
             FROM compositions comp
@@ -706,8 +739,8 @@ router.get('/groups', async (req, res) => {
         }
         break;
       case 'order_in_source_desc':
-        if (sourceIds.length === 1) {
-          // Sort by order in the selected source (descending)
+        if (sourceIds.length === 1 && sourcePatterns.length === 0) {
+          // Sort by order in the selected source (descending) - only if exactly one ID, no patterns
           orderByClause = `ORDER BY (
             SELECT MIN(i.order)
             FROM compositions comp
