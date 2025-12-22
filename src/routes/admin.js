@@ -2,6 +2,12 @@ import express from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { runDatabaseCleanup } from '../cleanup.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -705,6 +711,85 @@ router.post('/groups/bulk-title-correction', async (req, res) => {
 });
 
 // Get data quality alerts (filtered by ignored alerts)
+// Check for missing clef images
+router.get('/missing-clef-images', async (req, res) => {
+  try {
+    // Get all clef data from inclusions - extract individual clef objects
+    const clefQuery = `
+      SELECT jsonb_array_elements(i.clefs) as clef_obj
+      FROM inclusions i
+      WHERE i.clefs IS NOT NULL 
+      AND i.clefs != '[]'::jsonb
+      AND jsonb_array_length(i.clefs) > 0
+    `;
+    
+    const clefResult = await pool.query(clefQuery);
+    
+    // Collect all unique clef image filenames that should exist
+    const requiredImages = new Set();
+    
+    clefResult.rows.forEach(row => {
+      const clef = row.clef_obj;
+      if (clef && clef.clef && typeof clef.clef === 'string' && clef.clef.trim()) {
+        const clefName = clef.clef.trim();
+        // Add single clef image
+        requiredImages.add(`${clefName}.png`);
+        
+        // Add clef with transitions if present
+        if (clef.transitions_to && Array.isArray(clef.transitions_to) && clef.transitions_to.length > 0) {
+          const transitions = clef.transitions_to
+            .filter(t => t && typeof t === 'string' && t.trim())
+            .map(t => t.trim());
+          if (transitions.length > 0) {
+            const transitionImage = `${clefName}${transitions.join('')}.png`;
+            requiredImages.add(transitionImage);
+          }
+        }
+      }
+    });
+    
+    // Read the clef_images directory
+    const clefImagesDir = path.join(__dirname, '..', '..', 'public', 'clef_images');
+    let existingImages = [];
+    
+    try {
+      if (fs.existsSync(clefImagesDir)) {
+        existingImages = fs.readdirSync(clefImagesDir)
+          .filter(file => file.endsWith('.png'))
+          .map(file => file);
+      } else {
+        console.error('Clef images directory does not exist:', clefImagesDir);
+        return res.status(500).json({ 
+          error: 'Clef images directory not found',
+          path: clefImagesDir
+        });
+      }
+    } catch (error) {
+      console.error('Error reading clef_images directory:', error);
+      return res.status(500).json({ 
+        error: 'Could not read clef_images directory',
+        details: error.message 
+      });
+    }
+    
+    const existingImagesSet = new Set(existingImages);
+    const missingImages = Array.from(requiredImages)
+      .filter(img => !existingImagesSet.has(img))
+      .sort();
+    
+    res.json({
+      total_required: requiredImages.size,
+      total_existing: existingImages.length,
+      missing_count: missingImages.length,
+      missing_images: missingImages
+    });
+    
+  } catch (error) {
+    console.error('Error checking missing clef images:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 router.get('/data-quality-alerts', async (req, res) => {
   try {
     const alerts = [];

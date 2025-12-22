@@ -234,6 +234,11 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    // Store token in localStorage as backup
+                    if (data.token) {
+                        localStorage.setItem('authToken', data.token);
+                        localStorage.setItem('userInfo', JSON.stringify(data.user));
+                    }
                     showMessage('Login successful! Redirecting...', 'success');
                     setTimeout(() => {
                         window.location.href = '/admin';

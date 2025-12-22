@@ -423,6 +423,26 @@
             </div>
         </div>
 
+        <!-- Missing Clef Images Section - Admin Only -->
+        <div class="mt-4 admin-only-section" style="display: none;">
+            <div class="row g-3">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div id="missingClefImages">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-warning" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2 mb-0">Checking clef images...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Data Quality Alerts Section - Admin Only -->
         <div class="mt-5 admin-only-section" style="display: none;">
             <div class="card border-warning">
@@ -639,6 +659,7 @@
         </div>
     </div>
 
+    <script src="/js/auth-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -647,7 +668,7 @@
 
         async function loadUserInfo() {
             try {
-                const response = await fetch('/api/auth/me');
+                const response = await window.authUtils.authenticatedFetch('/api/auth/me');
                 if (response.ok) {
                     const data = await response.json();
                     const user = data.user;
@@ -673,6 +694,7 @@
                         loadDataQualityAlerts();
                         loadCleanupPreview();
                         loadRecentActivity();
+                        loadMissingClefImages();
                     }
                 } else {
                     // Not authenticated, redirect to login
@@ -684,9 +706,142 @@
             }
         }
 
+        async function loadMissingClefImages() {
+            try {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/missing-clef-images');
+                if (response.ok) {
+                    const data = await response.json();
+                    displayMissingClefImages(data);
+                }
+            } catch (error) {
+                console.error('Error loading missing clef images:', error);
+                const container = document.getElementById('missingClefImages');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="card border-danger h-100">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Error Loading Clef Images
+                                </h6>
+                                <p class="card-text">Could not check for missing clef images.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function displayMissingClefImages(data) {
+            const container = document.getElementById('missingClefImages');
+            if (!container) return;
+
+            if (data.missing_count === 0) {
+                container.innerHTML = `
+                    <div class="card border-success h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                All Clef Images Present
+                            </h6>
+                            <p class="card-text">All ${data.total_required} required clef images are available.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show first 10 missing images, with option to see more
+            const displayImages = data.missing_images.slice(0, 10);
+            const hasMore = data.missing_images.length > 10;
+
+            container.innerHTML = `
+                <div class="card border-warning h-100">
+                    <div class="card-body">
+                        <h6 class="card-title text-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Missing Clef Images
+                        </h6>
+                        <p class="card-text">
+                            <strong>${data.missing_count}</strong> of <strong>${data.total_required}</strong> required clef images are missing.
+                        </p>
+                        <div class="mb-2">
+                            <small class="text-muted">Missing images:</small>
+                            <div class="mt-2">
+                                ${displayImages.map(img => {
+                                    const clefName = img.replace('.png', '');
+                                    return `<span class="badge bg-warning text-dark me-1 mb-1" title="${img}">${clefName}</span>`;
+                                }).join('')}
+                                ${hasMore ? `<span class="badge bg-secondary">+${data.missing_images.length - 10} more</span>` : ''}
+                            </div>
+                        </div>
+                        ${hasMore ? `
+                            <button class="btn btn-sm btn-outline-primary" onclick="showAllMissingClefImages()" data-missing-images='${JSON.stringify(data.missing_images)}'>
+                                <i class="bi bi-list-ul me-1"></i>View All Missing Images
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function showAllMissingClefImages() {
+            // Get missing images from the button's data attribute
+            const button = event.target.closest('button');
+            const missingImages = JSON.parse(button.getAttribute('data-missing-images'));
+            
+            const modal = document.getElementById('missingClefImagesModal') || createMissingClefImagesModal();
+            const content = document.getElementById('missingClefImagesContent');
+            
+            content.innerHTML = `
+                <div class="mb-3">
+                    <strong>${missingImages.length} missing clef images:</strong>
+                </div>
+                <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    ${missingImages.map(img => {
+                        const clefName = img.replace('.png', '');
+                        return `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <code>${clefName}</code>
+                                <span class="badge bg-warning text-dark">${img}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            new bootstrap.Modal(modal).show();
+        }
+
+        function createMissingClefImagesModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'missingClefImagesModal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-image me-2"></i>All Missing Clef Images
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="missingClefImagesContent"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            return modal;
+        }
+
         async function loadDataQualityAlerts() {
             try {
-                const response = await fetch('/api/admin/data-quality-alerts');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/data-quality-alerts');
                 if (response.ok) {
                     const alerts = await response.json();
                     displayDataQualityAlerts(alerts);
@@ -757,7 +912,7 @@
 
         async function showAlertDetails(alertType) {
             try {
-                const response = await fetch(`/api/admin/data-quality-records/${alertType}`);
+                const response = await window.authUtils.authenticatedFetch(`/api/admin/data-quality-records/${alertType}`);
                 if (response.ok) {
                     const data = await response.json();
                     displayAlertDetailsModal(alertType, data.records);
@@ -859,7 +1014,7 @@
             loadBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Loading...';
             
             try {
-                const response = await fetch('/api/admin/data-quality-groups-for-correction');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/data-quality-groups-for-correction');
                 if (!response.ok) {
                     throw new Error('Failed to load groups');
                 }
@@ -1031,7 +1186,7 @@
             }
 
             try {
-                const response = await fetch('/api/admin/groups/bulk-title-correction', {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/groups/bulk-title-correction', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ groupIds: selectedIds })
@@ -1130,7 +1285,7 @@
             }
             
             try {
-                const response = await fetch('/api/admin/ignore-alert', {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/ignore-alert', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1179,7 +1334,7 @@
 
         async function logout() {
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await window.authUtils.logout();
                 window.location.href = '/admin/login';
             } catch (error) {
                 console.error('Logout error:', error);
@@ -1208,7 +1363,7 @@
 
         async function changePasswordAPI(currentPassword, newPassword) {
             try {
-                const response = await fetch('/api/auth/change-password', {
+                const response = await window.authUtils.authenticatedFetch('/api/auth/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ currentPassword, newPassword })
@@ -1230,7 +1385,7 @@
         // Recent Activity Functions
         async function loadRecentActivitySummary() {
             try {
-                const response = await fetch('/api/admin/recent-activity?limit=5');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/recent-activity?limit=5');
                 const summaryDiv = document.getElementById('recentActivitySummary');
                 
                 if (response.ok) {
@@ -1272,7 +1427,7 @@
             `;
 
             try {
-                const response = await fetch('/api/admin/recent-activity?limit=20');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/recent-activity?limit=20');
                 if (response.ok) {
                     const data = await response.json();
                     displayAuditTrail(data);
@@ -1383,7 +1538,7 @@
 
         async function loadCleanupPreview() {
             try {
-                const response = await fetch('/api/admin/cleanup-preview');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/cleanup-preview');
                 if (response.ok) {
                     const data = await response.json();
                     const container = document.getElementById('cleanupPreview');
@@ -1474,7 +1629,7 @@
 
         async function loadRecentActivity() {
             try {
-                const response = await fetch('/api/admin/recent-activity?limit=50');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/recent-activity?limit=50');
                 if (response.ok) {
                     const data = await response.json();
                     currentActivityData = data.activity || []; // Store globally
@@ -1680,7 +1835,7 @@
             `;
 
             try {
-                const response = await fetch('/api/admin/cleanup-preview');
+                const response = await window.authUtils.authenticatedFetch('/api/admin/cleanup-preview');
                 if (response.ok) {
                     const data = await response.json();
                     displayCleanupPreview(data);
@@ -1824,7 +1979,7 @@
             }
 
             try {
-                const response = await fetch('/api/admin/cleanup', {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/cleanup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cleanup_type: type })

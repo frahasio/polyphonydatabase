@@ -29,7 +29,7 @@ app.use(session({
   cookie: {
     secure: false, // Set to true only if you have HTTPS properly configured
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   }
 }));
 

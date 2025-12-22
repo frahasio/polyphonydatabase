@@ -22,6 +22,12 @@ router.get('/groups', async (req, res) => {
       voicing = '',
       has_editions = 'false',
       has_recordings = 'false',
+      year_from = '',
+      year_to = '',
+      clef = '',
+      scribes = '',
+      source_type = '',
+      source_format = '',
       sort = '',
       page = 1,
       page_size = 25
@@ -46,6 +52,14 @@ router.get('/groups', async (req, res) => {
     const voicingIds = voicing && voicing.trim() ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const hasEditions = has_editions === 'true';
     const hasRecordings = has_recordings === 'true';
+    
+    // Parse new filter parameters
+    const yearFrom = year_from && year_from.trim() ? parseInt(year_from.trim()) : null;
+    const yearTo = year_to && year_to.trim() ? parseInt(year_to.trim()) : null;
+    const clefPattern = clef && clef.trim() ? clef.trim() : '';
+    const scribeIds = scribes && scribes.trim() ? scribes.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const sourceTypes = source_type && source_type.trim() ? source_type.split(',').map(t => t.trim()).filter(t => t) : [];
+    const sourceFormats = source_format && source_format.trim() ? source_format.split(',').map(f => f.trim()).filter(f => f) : [];
 
     let whereConditions = [];
     let queryParams = [];
@@ -412,6 +426,160 @@ router.get('/groups', async (req, res) => {
           console.error('Voicing filter completely failed:', fallbackError.message);
         }
       }
+    }
+
+    // Date filter - filter by earliest source date
+    // Find groups where at least one source's date range overlaps with the specified range
+    if (yearFrom !== null || yearTo !== null) {
+      let dateCondition = `EXISTS (
+        SELECT 1 FROM compositions c2
+        JOIN inclusions i ON c2.id = i.composition_id
+        JOIN sources s ON i.source_id = s.id
+        WHERE c2.group_id = g.id
+        AND (
+          ${yearFrom !== null ? `(s.to_year IS NULL OR s.to_year >= $${paramIndex})` : 'TRUE'}
+          ${yearFrom !== null && yearTo !== null ? ' AND ' : ''}
+          ${yearTo !== null ? `(s.from_year IS NULL OR s.from_year <= $${paramIndex + (yearFrom !== null ? 1 : 0)})` : 'TRUE'}
+        )
+      )`;
+      
+      if (yearFrom !== null) {
+        queryParams.push(yearFrom);
+        paramIndex++;
+      }
+      if (yearTo !== null) {
+        queryParams.push(yearTo);
+        paramIndex++;
+      }
+      
+      whereConditions.push(dateCondition);
+    }
+
+    // Clef filter - search by clef combination pattern with wildcards
+    if (clefPattern) {
+      // Define clef display order for sorting (same as in admin.js)
+      const clefDisplayOrder = [
+        'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
+      ];
+      
+      // Convert pattern to SQL LIKE pattern (replace % with SQL %)
+      const sqlPattern = clefPattern.replace(/%/g, '%');
+      
+      // Check if pattern contains wildcards
+      const hasWildcards = clefPattern.includes('%');
+      
+      if (hasWildcards) {
+        // Use LIKE for wildcard matching
+        // Match against sorted clef combination (required clefs only, then all clefs)
+        whereConditions.push(`EXISTS (
+          SELECT 1 FROM compositions c2
+          JOIN inclusions i ON c2.id = i.composition_id
+          WHERE c2.group_id = g.id
+          AND i.clefs IS NOT NULL
+          AND (
+            (
+              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                CASE clef_obj->>'clef'
+                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                  ELSE 999
+                END
+              )
+              FROM jsonb_array_elements(i.clefs) AS clef_obj
+              WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+              AND clef_obj->>'clef' IS NOT NULL
+              AND clef_obj->>'clef' != ''
+            ) LIKE $${paramIndex}
+            OR
+            (
+              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                CASE clef_obj->>'clef'
+                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                  ELSE 999
+                END
+              )
+              FROM jsonb_array_elements(i.clefs) AS clef_obj
+              WHERE clef_obj->>'clef' IS NOT NULL
+              AND clef_obj->>'clef' != ''
+            ) LIKE $${paramIndex}
+          )
+        )`);
+        queryParams.push(sqlPattern);
+        paramIndex++;
+      } else {
+        // Exact match - check if the pattern matches the sorted clef combination
+        // Pattern should match either required clefs only or all clefs (with optional)
+        whereConditions.push(`EXISTS (
+          SELECT 1 FROM compositions c2
+          JOIN inclusions i ON c2.id = i.composition_id
+          WHERE c2.group_id = g.id
+          AND i.clefs IS NOT NULL
+          AND (
+            (
+              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                CASE clef_obj->>'clef'
+                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                  ELSE 999
+                END
+              )
+              FROM jsonb_array_elements(i.clefs) AS clef_obj
+              WHERE (clef_obj->>'optional')::boolean IS NOT TRUE
+              AND clef_obj->>'clef' IS NOT NULL
+              AND clef_obj->>'clef' != ''
+            ) = $${paramIndex}
+            OR
+            (
+              SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
+                CASE clef_obj->>'clef'
+                  ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                  ELSE 999
+                END
+              )
+              FROM jsonb_array_elements(i.clefs) AS clef_obj
+              WHERE clef_obj->>'clef' IS NOT NULL
+              AND clef_obj->>'clef' != ''
+            ) = $${paramIndex}
+          )
+        )`);
+        queryParams.push(clefPattern);
+        paramIndex++;
+      }
+    }
+
+    // Scribe filter - filter by scribe (at least one source has this scribe)
+    if (scribeIds.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        JOIN inclusions i ON c2.id = i.composition_id
+        JOIN sources s ON i.source_id = s.id
+        JOIN scribes_sources ss ON s.id = ss.source_id
+        WHERE c2.group_id = g.id AND ss.scribe_id = ANY($${paramIndex}::integer[])
+      )`);
+      queryParams.push(scribeIds);
+      paramIndex++;
+    }
+
+    // Source type filter - filter by source type (at least one source has this type)
+    if (sourceTypes.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        JOIN inclusions i ON c2.id = i.composition_id
+        JOIN sources s ON i.source_id = s.id
+        WHERE c2.group_id = g.id AND s.type = ANY($${paramIndex}::text[])
+      )`);
+      queryParams.push(sourceTypes);
+      paramIndex++;
+    }
+
+    // Source format filter - filter by source format (at least one source has this format)
+    if (sourceFormats.length > 0) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c2
+        JOIN inclusions i ON c2.id = i.composition_id
+        JOIN sources s ON i.source_id = s.id
+        WHERE c2.group_id = g.id AND s.format = ANY($${paramIndex}::text[])
+      )`);
+      queryParams.push(sourceFormats);
+      paramIndex++;
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -1046,6 +1214,65 @@ router.get('/even-odd', async (req, res) => {
     })));
   } catch (error) {
     console.error('Error fetching even/odd values:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/scribes', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT s.id, s.name
+      FROM scribes s
+      INNER JOIN scribes_sources ss ON s.id = ss.scribe_id
+      INNER JOIN sources src ON ss.source_id = src.id
+      INNER JOIN inclusions i ON src.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
+      WHERE s.name IS NOT NULL
+      ORDER BY s.name
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching scribes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/source-types', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT s.type as name
+      FROM sources s
+      INNER JOIN inclusions i ON s.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
+      WHERE s.type IS NOT NULL AND s.type != ''
+      ORDER BY s.type
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(row => ({ name: row.name })));
+  } catch (error) {
+    console.error('Error fetching source types:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/source-formats', async (req, res) => {
+  try {
+    const query = `
+      SELECT DISTINCT s.format as name
+      FROM sources s
+      INNER JOIN inclusions i ON s.id = i.source_id
+      INNER JOIN compositions c ON i.composition_id = c.id
+      INNER JOIN groups g ON c.group_id = g.id
+      WHERE s.format IS NOT NULL AND s.format != ''
+      ORDER BY s.format
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(row => ({ name: row.name })));
+  } catch (error) {
+    console.error('Error fetching source formats:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

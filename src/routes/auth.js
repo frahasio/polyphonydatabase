@@ -219,6 +219,35 @@ router.get('/status', (req, res) => {
   res.json({ authenticated });
 });
 
+// Refresh token endpoint - extends session without requiring re-login
+router.post('/refresh', requireAuth, async (req, res) => {
+  try {
+    // Generate new token
+    const newToken = generateToken(req.user.id);
+    
+    // Update session with new token
+    req.session.token = newToken;
+    req.session.userId = req.user.id;
+    
+    // Touch the session to extend its expiration
+    req.session.touch();
+    
+    res.json({
+      message: 'Token refreshed successfully',
+      token: newToken,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role
+      }
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ error: 'Internal server error during token refresh' });
+  }
+});
+
 // Get current user info
 router.get('/me', requireAuth, async (req, res) => {
   res.json({

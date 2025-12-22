@@ -39,6 +39,14 @@
             border: 2px dashed #adb5bd;
             opacity: 0.5;
             position: relative;
+            transition: opacity 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .blank-row.has-data {
+            opacity: 1;
+            background-color: #f8fffe;
+            border: 1px solid #e1f5f0;
+            border-style: solid;
         }
         
         .blank-row:hover {
@@ -47,11 +55,22 @@
             border-color: #6c757d;
         }
         
+        .blank-row.has-data:hover {
+            background-color: #f0fdfc;
+            opacity: 1;
+        }
+        
         .blank-row input, .blank-row select, .blank-row textarea {
             background-color: rgba(255, 255, 255, 0.6);
             border-color: #adb5bd;
             position: relative;
             z-index: 1;
+        }
+        
+        .blank-row.has-data input, 
+        .blank-row.has-data select, 
+        .blank-row.has-data textarea {
+            background-color: #ffffff;
         }
         
         .blank-row input:focus, .blank-row select:focus, .blank-row textarea:focus {
@@ -895,6 +914,18 @@
             html += '</div>';
             container.innerHTML = html;
 
+            // Update row styling for all rows after rendering
+            inclusionsData.forEach((inclusion, index) => {
+                updateRowStyling(index);
+            });
+            // Also check blank rows
+            for (let i = 0; i < blankRowsNeeded; i++) {
+                const blankIndex = existingRows + i;
+                if (inclusionsData[blankIndex]) {
+                    updateRowStyling(blankIndex);
+                }
+            }
+
             // Initialize autocomplete and styling
             initializeInclusionInteractions();
             
@@ -1432,6 +1463,33 @@
             }
             inclusionsData[index][field] = value;
             markAsUnsaved();
+            updateRowStyling(index);
+        }
+
+        function updateRowStyling(index) {
+            const row = document.querySelector(`[data-index="${index}"]`);
+            if (!row) return;
+            
+            const inclusion = inclusionsData[index];
+            if (!inclusion) return;
+            
+            // Check if row has any data
+            const hasData = 
+                (inclusion.position && inclusion.position.trim()) ||
+                (inclusion.notes && inclusion.notes.trim()) ||
+                (inclusion.attribution_texts && inclusion.attribution_texts.some(text => text && text.trim())) ||
+                (inclusion.composition?.title_text && inclusion.composition.title_text.trim()) ||
+                (inclusion.composition?.composition_type_id) ||
+                (inclusion.composition?.tone) ||
+                (inclusion.composition?.even_odd !== null && inclusion.composition?.even_odd !== undefined) ||
+                (inclusion.clefs && inclusion.clefs.some(clef => clef.clef && clef.clef.trim()));
+            
+            // Add or remove has-data class
+            if (hasData) {
+                row.classList.add('has-data');
+            } else {
+                row.classList.remove('has-data');
+            }
         }
 
         function updateCompositionField(index, field, value) {
@@ -1474,6 +1532,7 @@
             }
             inclusionsData[inclusionIndex].attribution_texts[attrIndex] = value;
             markAsUnsaved();
+            updateRowStyling(inclusionIndex);
         }
 
         function updateClef(inclusionIndex, clefIndex, value) {
@@ -1487,6 +1546,9 @@
             // Parse the clef input to extract special formatting and validate
             const clefData = parseClefInput(value);
             inclusionsData[inclusionIndex].clefs[clefIndex] = clefData;
+            
+            markAsUnsaved();
+            updateRowStyling(inclusionIndex);
             
             // Update styling for current input only (no dynamic sorting)
             const input = document.querySelector(`input[data-inclusion="${inclusionIndex}"][data-clef="${clefIndex}"]`);
@@ -1504,6 +1566,7 @@
             }
             
             markAsUnsaved();
+            updateRowStyling(inclusionIndex);
         }
 
         function parseClefInput(value) {
