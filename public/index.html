@@ -713,29 +713,30 @@
             </div>
         </div>
 
+        <!-- Mobile Sort Dropdown (between filters and table) -->
+        <div class="d-block d-custom-lg-none mt-3 mb-2">
+            <div class="d-flex align-items-center justify-content-end">
+                <label for="sortByMobile" class="form-label filter-label mb-0 me-2">Sort by</label>
+                <select class="form-select form-select-sm filter-input" id="sortByMobile" style="max-width: 200px;">
+                    <option value="">Default order</option>
+                    <option value="title">Title (A-Z)</option>
+                    <option value="title_desc">Title (Z-A)</option>
+                    <option value="function">Function (A-Z)</option>
+                    <option value="function_desc">Function (Z-A)</option>
+                    <option value="composer">Composer (A-Z)</option>
+                    <option value="composer_desc">Composer (Z-A)</option>
+                    <option value="voices">Voices (ascending)</option>
+                    <option value="voices_desc">Voices (descending)</option>
+                    <option value="sources_earliest">Sources (earliest first)</option>
+                    <option value="sources_latest">Sources (latest first)</option>
+                    <option value="order_in_source" id="orderInSourceOptionMobile">Order in source</option>
+                    <option value="order_in_source_desc" id="orderInSourceDescOptionMobile">Order in source (descending)</option>
+                </select>
+            </div>
+        </div>
+
         <!-- Results Table -->
         <div class="results-table mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Search Results</h5>
-                <div class="d-flex align-items-center">
-                    <label for="sortByDesktop" class="form-label filter-label mb-0 me-2">Sort by</label>
-                    <select class="form-select form-select-sm filter-input" id="sortByDesktop">
-                        <option value="">Default order</option>
-                        <option value="title">Title (A-Z)</option>
-                        <option value="title_desc">Title (Z-A)</option>
-                        <option value="function">Function (A-Z)</option>
-                        <option value="function_desc">Function (Z-A)</option>
-                        <option value="composer">Composer (A-Z)</option>
-                        <option value="composer_desc">Composer (Z-A)</option>
-                        <option value="voices">Voices (ascending)</option>
-                        <option value="voices_desc">Voices (descending)</option>
-                        <option value="sources_earliest">Sources (earliest first)</option>
-                        <option value="sources_latest">Sources (latest first)</option>
-                        <option value="order_in_source" id="orderInSourceOptionDesktop">Order in source</option>
-                        <option value="order_in_source_desc" id="orderInSourceDescOptionDesktop">Order in source (descending)</option>
-                    </select>
-                </div>
-            </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
@@ -745,6 +746,26 @@
                             <th>Composer</th>
                             <th>#</th>
                             <th>Sources</th>
+                            <th class="text-end">
+                                <div class="d-none d-custom-lg-flex align-items-center justify-content-end">
+                                    <label for="sortByDesktop" class="form-label filter-label mb-0 me-2">Sort by</label>
+                                    <select class="form-select form-select-sm filter-input" id="sortByDesktop" style="max-width: 200px;">
+                                        <option value="">Default order</option>
+                                        <option value="title">Title (A-Z)</option>
+                                        <option value="title_desc">Title (Z-A)</option>
+                                        <option value="function">Function (A-Z)</option>
+                                        <option value="function_desc">Function (Z-A)</option>
+                                        <option value="composer">Composer (A-Z)</option>
+                                        <option value="composer_desc">Composer (Z-A)</option>
+                                        <option value="voices">Voices (ascending)</option>
+                                        <option value="voices_desc">Voices (descending)</option>
+                                        <option value="sources_earliest">Sources (earliest first)</option>
+                                        <option value="sources_latest">Sources (latest first)</option>
+                                        <option value="order_in_source" id="orderInSourceOptionDesktop">Order in source</option>
+                                        <option value="order_in_source_desc" id="orderInSourceDescOptionDesktop">Order in source (descending)</option>
+                                    </select>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -826,12 +847,42 @@
                 console.error('Error loading sources:', error);
             }
             
-            // Initialize Select2 for all multi-select elements (both mobile and desktop)
-            // Initialize Select2 for most dropdowns
-            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchPublisherScribeEditor, #searchCities, #searchVoicing, #searchSourceTypes, #searchSourceFormats, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchPublisherScribeEditorDesktop, #searchCitiesDesktop, #searchVoicingDesktop, #searchSourceTypesDesktop, #searchSourceFormatsDesktop').select2({
-                placeholder: 'Select options...',
-                allowClear: true,
-                width: '100%'
+            // Initialize Select2 for all multi-select elements with specific placeholders
+            const select2Configs = {
+                'searchComposers': 'Select composer...',
+                'searchComposersDesktop': 'Select composer...',
+                'searchVoices': 'Select # of voices...',
+                'searchVoicesDesktop': 'Select # of voices...',
+                'searchFunctions': 'Select liturgical function...',
+                'searchFunctionsDesktop': 'Select liturgical function...',
+                'searchCompositionTypes': 'Select composition type...',
+                'searchCompositionTypesDesktop': 'Select composition type...',
+                'searchTones': 'Select tone...',
+                'searchTonesDesktop': 'Select tone...',
+                'searchEvenOdd': 'Select verses...',
+                'searchEvenOddDesktop': 'Select verses...',
+                'searchLanguages': 'Select language...',
+                'searchLanguagesDesktop': 'Select language...',
+                'searchCountries': 'Select country...',
+                'searchCountriesDesktop': 'Select country...',
+                'searchPublisherScribeEditor': 'Select publisher/scribe/editor...',
+                'searchPublisherScribeEditorDesktop': 'Select publisher/scribe/editor...',
+                'searchCities': 'Select city...',
+                'searchCitiesDesktop': 'Select city...',
+                'searchVoicing': 'Select voicing...',
+                'searchVoicingDesktop': 'Select voicing...',
+                'searchSourceTypes': 'Select source type...',
+                'searchSourceTypesDesktop': 'Select source type...',
+                'searchSourceFormats': 'Select source format...',
+                'searchSourceFormatsDesktop': 'Select source format...'
+            };
+            
+            Object.keys(select2Configs).forEach(id => {
+                $(`#${id}`).select2({
+                    placeholder: select2Configs[id],
+                    allowClear: true,
+                    width: '100%'
+                });
             });
             
             // Initialize Select2 for source dropdowns with tags enabled (for wildcard support)
@@ -892,14 +943,27 @@
                 syncSearchFields('searchTitle', 'searchTitleDesktop');
                 updateFilterHighlights();
             });
-            // Sort by is now only in desktop table header, no mobile version needed
+            // Sort by dropdowns (mobile and desktop)
+            const sortByMobile = document.getElementById('sortByMobile');
             const sortByDesktop = document.getElementById('sortByDesktop');
+            
+            function handleSortChange(value) {
+                currentSort = value;
+                if (sortByMobile) sortByMobile.value = value;
+                if (sortByDesktop) sortByDesktop.value = value;
+                updateFilterHighlights();
+                updateURL();
+                performSearch();
+            }
+            
+            if (sortByMobile) {
+                sortByMobile.addEventListener('change', function() {
+                    handleSortChange(this.value);
+                });
+            }
             if (sortByDesktop) {
                 sortByDesktop.addEventListener('change', function() {
-                    currentSort = this.value;
-                    updateFilterHighlights();
-                    updateURL();
-                    performSearch();
+                    handleSortChange(this.value);
                 });
             }
             document.getElementById('hasEditions').addEventListener('change', function() {
@@ -917,15 +981,6 @@
                 updateFilterHighlights();
                 updateSearchButtonText();
             });
-            const sortByDesktop2 = document.getElementById('sortByDesktop');
-            if (sortByDesktop2) {
-                sortByDesktop2.addEventListener('change', function() {
-                    currentSort = this.value;
-                    updateFilterHighlights();
-                    updateURL();
-                    performSearch();
-                });
-            }
             document.getElementById('hasEditionsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasEditionsDesktop', 'hasEditions');
                 updateFilterHighlights();
@@ -1150,9 +1205,13 @@
                 });
             });
             
-            // Highlight single-select dropdowns
-            const sortEl = document.getElementById('sortByDesktop');
-            if (sortEl) {
+            // Highlight single-select dropdowns (sort)
+            const sortEls = [
+                document.getElementById('sortByMobile'),
+                document.getElementById('sortByDesktop')
+            ].filter(el => el !== null);
+            
+            sortEls.forEach(sortEl => {
                 const currentValue = sortEl.value;
                 const lastValue = lastSearchParams.get('sort') || '';
                 const hasValue = currentValue && currentValue !== '';
@@ -1162,7 +1221,7 @@
                 if (hasValue) {
                     sortEl.classList.add(changed ? 'filter-pending' : 'filter-active');
                 }
-            }
+            });
             
             // Highlight multi-select dropdowns (Select2)
             const multiSelectIds = [
@@ -1500,7 +1559,10 @@
             }
             if (params.get('sort')) {
                 currentSort = params.get('sort');
-                document.getElementById('sortByDesktop').value = currentSort;
+                const sortByMobile = document.getElementById('sortByMobile');
+                const sortByDesktop = document.getElementById('sortByDesktop');
+                if (sortByMobile) sortByMobile.value = currentSort;
+                if (sortByDesktop) sortByDesktop.value = currentSort;
             }
             if (params.get('page')) {
                 currentPage = parseInt(params.get('page')) || 1;
@@ -1604,7 +1666,8 @@
             }
             if (params.get('anniversary_year')) {
                 const anniversaryYear = params.get('anniversary_year');
-                document.getElementById('anniversaryYear').value = anniversaryYear;
+                const anniversaryYearEl = document.getElementById('anniversaryYear');
+                if (anniversaryYearEl) anniversaryYearEl.value = anniversaryYear;
                 document.getElementById('anniversaryYearDesktop').value = anniversaryYear;
             }
         }
