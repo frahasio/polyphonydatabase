@@ -445,12 +445,12 @@
                 <div class="accordion" id="filtersAccordion">
                     <div class="accordion-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse" 
-                                    data-bs-target="#filtersCollapse" aria-expanded="true" aria-controls="filtersCollapse">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#filtersCollapse" aria-expanded="false" aria-controls="filtersCollapse">
                                 Search Filters
                             </button>
                         </h2>
-                        <div id="filtersCollapse" class="accordion-collapse collapse show" data-bs-parent="#filtersAccordion">
+                        <div id="filtersCollapse" class="accordion-collapse collapse" data-bs-parent="#filtersAccordion">
                             <div class="accordion-body">
                                 <form id="searchForm">
                                     <div class="row g-2">
@@ -482,15 +482,16 @@
                                     </div>
                                     <!-- Composition Filters -->
                                     <div class="row g-1">
-                                            <div class="col-md-6">
-                                                <label for="searchComposers" class="form-label small">Composer</label>
-                                                <select class="form-select form-select-sm" id="searchComposers" multiple></select>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="searchFunctions" class="form-label small">Function</label>
-                                                <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
-                                            </div>
+                                        <div class="col-md-6">
+                                            <label for="searchComposers" class="form-label small">Composer</label>
+                                            <select class="form-select form-select-sm" id="searchComposers" multiple></select>
                                         </div>
+                                        <div class="col-md-6">
+                                            <label for="searchFunctions" class="form-label small">Function</label>
+                                            <select class="form-select form-select-sm" id="searchFunctions" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-1">
                                         <div class="col-md-4">
                                             <label for="searchCompositionTypes" class="form-label small">Type</label>
                                             <select class="form-select form-select-sm" id="searchCompositionTypes" multiple></select>
@@ -521,19 +522,20 @@
                                     
                                     <!-- Source Filters -->
                                     <div class="row g-1">
-                                            <div class="col-md-4">
-                                                <label for="searchSources" class="form-label small">Source</label>
-                                                <select class="form-select form-select-sm" id="searchSources" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchScribes" class="form-label small">Scribe</label>
-                                                <select class="form-select form-select-sm" id="searchScribes" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchSourceTypes" class="form-label small">Source Type</label>
-                                                <select class="form-select form-select-sm" id="searchSourceTypes" multiple></select>
-                                            </div>
+                                        <div class="col-md-4">
+                                            <label for="searchSources" class="form-label small">Source</label>
+                                            <select class="form-select form-select-sm" id="searchSources" multiple></select>
                                         </div>
+                                        <div class="col-md-4">
+                                            <label for="searchScribes" class="form-label small">Scribe</label>
+                                            <select class="form-select form-select-sm" id="searchScribes" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchSourceTypes" class="form-label small">Source Type</label>
+                                            <select class="form-select form-select-sm" id="searchSourceTypes" multiple></select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-1">
                                         <div class="col-md-4">
                                             <label for="searchSourceFormats" class="form-label small">Source Format</label>
                                             <select class="form-select form-select-sm" id="searchSourceFormats" multiple></select>
@@ -556,18 +558,17 @@
                                     
                                     <!-- Publication/Provenance Filters -->
                                     <div class="row g-1">
-                                            <div class="col-md-4">
-                                                <label for="searchPublishers" class="form-label small">Publisher</label>
-                                                <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchCities" class="form-label small">City</label>
-                                                <select class="form-select form-select-sm" id="searchCities" multiple></select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label for="searchCountries" class="form-label small">Country (composer birth)</label>
-                                                <select class="form-select form-select-sm" id="searchCountries" multiple></select>
-                                            </div>
+                                        <div class="col-md-4">
+                                            <label for="searchPublishers" class="form-label small">Publisher</label>
+                                            <select class="form-select form-select-sm" id="searchPublishers" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchCities" class="form-label small">City</label>
+                                            <select class="form-select form-select-sm" id="searchCities" multiple></select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="searchCountries" class="form-label small">Country (composer birth)</label>
+                                            <select class="form-select form-select-sm" id="searchCountries" multiple></select>
                                         </div>
                                     </div>
                                     <div class="row g-1">
@@ -584,12 +585,12 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row mt-3">
+                                    <div class="row mt-3 mb-2">
                                         <div class="col-12 d-flex gap-3 justify-content-center">
-                                            <button type="button" class="btn btn-primary btn-lg px-5" id="searchButton">
+                                            <button type="button" class="btn btn-primary px-4" id="searchButton">
                                                 <i class="bi bi-search me-2"></i>Search
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-lg px-5" id="clearFiltersButton">
+                                            <button type="button" class="btn btn-outline-secondary px-4" id="clearFiltersButton">
                                                 <i class="bi bi-x-circle me-2"></i>Clear Filters
                                             </button>
                                         </div>
@@ -731,12 +732,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="row mt-3">
+                    <div class="row mt-3 mb-2">
                         <div class="col-12 d-flex gap-3 justify-content-center">
-                            <button type="button" class="btn btn-primary btn-lg px-5" id="searchButtonDesktop">
+                            <button type="button" class="btn btn-primary px-4" id="searchButtonDesktop">
                                 <i class="bi bi-search me-2"></i>Search
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-lg px-5" id="clearFiltersButtonDesktop">
+                            <button type="button" class="btn btn-outline-secondary px-4" id="clearFiltersButtonDesktop">
                                 <i class="bi bi-x-circle me-2"></i>Clear Filters
                             </button>
                         </div>
@@ -746,7 +747,7 @@
         </div>
 
         <!-- Results Table -->
-        <div class="results-table">
+        <div class="results-table mt-3">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
