@@ -596,9 +596,9 @@
             <!-- Desktop layout (800px and above) - same form, different layout -->
             <div class="d-none d-custom-lg-block">
                 <form id="searchFormDesktop">
-                    <!-- Row 1: Title (3), Language (2), Composition Type (2), Function (2), #voices (2), Tone (1) = 12 -->
+                    <!-- Row 1: All filters 2 slots wide = 12 -->
                     <div class="row g-1">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="searchTitleDesktop" class="form-label filter-label mb-0">Title Search</label>
                             <input type="text" class="form-control form-control-sm filter-input" id="searchTitleDesktop" 
                                    placeholder="Search in group titles and composition titles...">
@@ -619,15 +619,15 @@
                             <label for="searchVoicesDesktop" class="form-label filter-label mb-0"># voices</label>
                             <select class="form-select form-select-sm filter-input" id="searchVoicesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchTonesDesktop" class="form-label filter-label mb-0">Tone</label>
                             <select class="form-select form-select-sm filter-input" id="searchTonesDesktop" multiple></select>
                         </div>
                     </div>
                     
-                    <!-- Row 2: Composer (3), Verses (2), Voicing (2), Clef (2), Country (2), City (1) = 12 -->
+                    <!-- Row 2: All filters 2 slots wide = 12 -->
                     <div class="row g-1">
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="searchComposersDesktop" class="form-label filter-label mb-0">Composer</label>
                             <select class="form-select form-select-sm filter-input" id="searchComposersDesktop" multiple></select>
                         </div>
@@ -648,7 +648,7 @@
                             <label for="searchCountriesDesktop" class="form-label filter-label mb-0">Country (composer birth)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCountriesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchCitiesDesktop" class="form-label filter-label mb-0">City (source provenance)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCitiesDesktop" multiple></select>
                         </div>
@@ -881,10 +881,12 @@
             document.getElementById('hasEditionsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasEditionsDesktop', 'hasEditions');
                 updateFilterHighlights();
+                updateSearchButtonText();
             });
             document.getElementById('hasRecordingsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasRecordingsDesktop', 'hasRecordings');
                 updateFilterHighlights();
+                updateSearchButtonText();
             });
             
             // Set up Select2 change listeners for mobile (sync only, no auto-search)
@@ -892,6 +894,7 @@
                 syncMultiSelectFields(this.id, this.id + 'Desktop');
                 updateOrderInSourceOptions();
                 updateFilterHighlights();
+                updateSearchButtonText();
             });
             
             // Set up Select2 change listeners for desktop (sync only, no auto-search)
@@ -900,6 +903,7 @@
                 syncMultiSelectFields(this.id, mobileId);
                 updateOrderInSourceOptions();
                 updateFilterHighlights();
+                updateSearchButtonText();
             });
             
             document.getElementById('pageSize').addEventListener('change', function() {
