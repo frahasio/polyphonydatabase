@@ -112,31 +112,7 @@ body {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-/* Make Select2 match text input height (38px) */
-.search-filters .select2-container .select2-selection--single,
-.search-filters .select2-container .select2-selection--multiple {
-    height: 38px !important;
-    min-height: 38px !important;
-}
-
-.search-filters .select2-container .select2-selection--single .select2-selection__rendered {
-    line-height: 36px !important;
-}
-
-.search-filters .select2-container .select2-selection--single .select2-selection__arrow {
-    height: 36px !important;
-}
-
-.search-filters .select2-container .select2-selection--multiple .select2-selection__rendered {
-    min-height: 36px !important;
-    padding: 0 0.5rem !important;
-}
-
-.search-filters .select2-container .select2-search--inline .select2-search__field {
-    min-height: 36px !important;
-    margin-top: 0 !important;
-    padding: 0 !important;
-}
+/* Don't override Select2 defaults - let it use its natural styling */
 
 /* Checkbox switch styling */
 .filter-switch {
@@ -214,20 +190,11 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Default: unselected filters should be white */
-.search-filters .form-control:not(.filter-active):not(.filter-pending),
-.search-filters .form-select:not(.filter-active):not(.filter-pending),
-.search-filters .select2-container:not(.filter-active):not(.filter-pending) .select2-selection--multiple,
-.form-select.filter-input:not(.filter-active):not(.filter-pending) {
-    background-color: #fff !important;
-}
-
 /* Highlight active filters (applied to visible dataset) */
 .search-filters .form-control.filter-active,
 .search-filters .form-select.filter-active,
 .search-filters .select2-container.filter-active .select2-selection--multiple,
-.search-filters .form-check.filter-active,
-.form-select.filter-input.filter-active {
+.search-filters .form-check.filter-active {
     background-color: #fff9e6 !important;
     border-color: #ffc107 !important;
 }
@@ -245,8 +212,7 @@ body {
 .search-filters .form-control.filter-pending,
 .search-filters .form-select.filter-pending,
 .search-filters .select2-container.filter-pending .select2-selection--multiple,
-.search-filters .form-check.filter-pending,
-.form-select.filter-input.filter-pending {
+.search-filters .form-check.filter-pending {
     background-color: #e3f2fd !important;
     border-color: #2196f3 !important;
 }

@@ -847,42 +847,12 @@
                 console.error('Error loading sources:', error);
             }
             
-            // Initialize Select2 for all multi-select elements with specific placeholders
-            const select2Configs = {
-                'searchComposers': 'Select composer...',
-                'searchComposersDesktop': 'Select composer...',
-                'searchVoices': 'Select # of voices...',
-                'searchVoicesDesktop': 'Select # of voices...',
-                'searchFunctions': 'Select liturgical function...',
-                'searchFunctionsDesktop': 'Select liturgical function...',
-                'searchCompositionTypes': 'Select composition type...',
-                'searchCompositionTypesDesktop': 'Select composition type...',
-                'searchTones': 'Select tone...',
-                'searchTonesDesktop': 'Select tone...',
-                'searchEvenOdd': 'Select verses...',
-                'searchEvenOddDesktop': 'Select verses...',
-                'searchLanguages': 'Select language...',
-                'searchLanguagesDesktop': 'Select language...',
-                'searchCountries': 'Select country...',
-                'searchCountriesDesktop': 'Select country...',
-                'searchPublisherScribeEditor': 'Select publisher/scribe/editor...',
-                'searchPublisherScribeEditorDesktop': 'Select publisher/scribe/editor...',
-                'searchCities': 'Select city...',
-                'searchCitiesDesktop': 'Select city...',
-                'searchVoicing': 'Select voicing...',
-                'searchVoicingDesktop': 'Select voicing...',
-                'searchSourceTypes': 'Select source type...',
-                'searchSourceTypesDesktop': 'Select source type...',
-                'searchSourceFormats': 'Select source format...',
-                'searchSourceFormatsDesktop': 'Select source format...'
-            };
-            
-            Object.keys(select2Configs).forEach(id => {
-                $(`#${id}`).select2({
-                    placeholder: select2Configs[id],
-                    allowClear: true,
-                    width: '100%'
-                });
+            // Initialize Select2 for all multi-select elements (both mobile and desktop)
+            // Initialize Select2 for most dropdowns
+            $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchPublisherScribeEditor, #searchCities, #searchVoicing, #searchSourceTypes, #searchSourceFormats, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchPublisherScribeEditorDesktop, #searchCitiesDesktop, #searchVoicingDesktop, #searchSourceTypesDesktop, #searchSourceFormatsDesktop').select2({
+                placeholder: 'Select options...',
+                allowClear: true,
+                width: '100%'
             });
             
             // Initialize Select2 for source dropdowns with tags enabled (for wildcard support)
@@ -1205,13 +1175,9 @@
                 });
             });
             
-            // Highlight single-select dropdowns (sort)
-            const sortEls = [
-                document.getElementById('sortByMobile'),
-                document.getElementById('sortByDesktop')
-            ].filter(el => el !== null);
-            
-            sortEls.forEach(sortEl => {
+            // Highlight single-select dropdowns
+            const sortEl = document.getElementById('sortByDesktop');
+            if (sortEl) {
                 const currentValue = sortEl.value;
                 const lastValue = lastSearchParams.get('sort') || '';
                 const hasValue = currentValue && currentValue !== '';
@@ -1221,7 +1187,7 @@
                 if (hasValue) {
                     sortEl.classList.add(changed ? 'filter-pending' : 'filter-active');
                 }
-            });
+            }
             
             // Highlight multi-select dropdowns (Select2)
             const multiSelectIds = [
