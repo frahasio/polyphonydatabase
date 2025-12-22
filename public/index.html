@@ -521,7 +521,7 @@
                                     </div>
                                     <div class="row g-1">
                                         <div class="col-12">
-                                            <label for="searchSources" class="form-label filter-label mb-0" title="Type 'P-%' to find all sources starting with P-">Source (or wildcard like P-%)</label>
+                                            <label for="searchSources" class="form-label filter-label mb-0">Source</label>
                                             <select class="form-select form-select-sm filter-input" id="searchSources" multiple></select>
                                         </div>
                                     </div>
@@ -615,13 +615,13 @@
                             <label for="searchFunctionsDesktop" class="form-label filter-label mb-0">Liturgical Function</label>
                             <select class="form-select form-select-sm filter-input" id="searchFunctionsDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchVoicesDesktop" class="form-label filter-label mb-0"># voices</label>
                             <select class="form-select form-select-sm filter-input" id="searchVoicesDesktop" multiple></select>
                         </div>
                     </div>
                     
-                    <!-- Row 2: composer (3), tone (1), verses (1), voicing (2), clef combinations (2), country (1), city (1), gap (1) -->
+                    <!-- Row 2: composer (3), tone (1), verses (1), voicing (2), clef combinations (2), country (1), city (1), gap (1) = 12 -->
                     <div class="row g-1">
                         <div class="col-md-3">
                             <label for="searchComposersDesktop" class="form-label filter-label mb-0">Composer</label>
@@ -648,16 +648,16 @@
                             <label for="searchCountriesDesktop" class="form-label filter-label mb-0">Country (composer birth)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCountriesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchCitiesDesktop" class="form-label filter-label mb-0">City (source provenance)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCitiesDesktop" multiple></select>
                         </div>
                     </div>
                     
-                    <!-- Row 3: Source (2), date from/to (2), publisher/scribe/editor (2), source type (1), source format (1), has editions (1), has recordings (1), gap (1) -->
+                    <!-- Row 3: Source (2), date from/to (2), publisher/scribe/editor (2), source type (1), source format (1), has editions (1), has recordings (1), anniversary (1) = 12 -->
                     <div class="row g-1">
                         <div class="col-md-2">
-                            <label for="searchSourcesDesktop" class="form-label filter-label mb-0" title="Type 'P-%' to find all sources starting with P-">Source (or wildcard like P-%)</label>
+                            <label for="searchSourcesDesktop" class="form-label filter-label mb-0">Source</label>
                             <select class="form-select form-select-sm filter-input" id="searchSourcesDesktop" multiple></select>
                         </div>
                         <div class="col-md-2">
@@ -693,7 +693,7 @@
                                 <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
                             </div>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="anniversaryYearDesktop" class="form-label filter-label mb-0">Anniversary Year</label>
                             <input type="number" class="form-control form-control-sm filter-input" id="anniversaryYearDesktop" 
                                    placeholder="e.g. 2025" min="1000" max="3000">
@@ -835,49 +835,11 @@
                 width: '100%'
             });
             
-            // Initialize Select2 for source dropdowns with tags enabled (for wildcard support)
+            // Initialize Select2 for source dropdowns (regular list, no wildcards)
             $('#searchSources, #searchSourcesDesktop').select2({
-                placeholder: 'Select sources or type wildcard (e.g. P-%)...',
+                placeholder: 'Select sources...',
                 allowClear: true,
-                width: '100%',
-                tags: true,
-                createTag: function (params) {
-                    const term = params.term.trim();
-                    const selectElement = $(this);
-                    
-                    // If it contains %, expand it to select all matching sources
-                    if (term.indexOf('%') !== -1) {
-                        // Convert SQL wildcard pattern to JavaScript regex
-                        // % matches any sequence, _ matches single character
-                        const regexPattern = term
-                            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-                            .replace(/%/g, '.*') // % becomes .*
-                            .replace(/_/g, '.');  // _ becomes .
-                        
-                        const regex = new RegExp('^' + regexPattern + '$', 'i');
-                        
-                        // Find all matching sources
-                        const matchingSources = allSources.filter(s => regex.test(s.code));
-                        
-                        // If we found matches, select them and return null to prevent adding the tag
-                        if (matchingSources.length > 0) {
-                            const currentValues = selectElement.val() || [];
-                            const matchingIds = matchingSources.map(s => s.id.toString());
-                            const newValues = [...new Set([...currentValues, ...matchingIds])];
-                            selectElement.val(newValues).trigger('change');
-                            return null; // Don't add the wildcard pattern as a tag
-                        }
-                    }
-                    
-                    // Allow any input as a tag (for backward compatibility with server-side wildcard handling)
-                    if (term.length > 0) {
-                        return {
-                            id: term,
-                            text: term
-                        };
-                    }
-                    return null;
-                }
+                width: '100%'
             });
             
             // Prevent form submission on Enter key for both forms
