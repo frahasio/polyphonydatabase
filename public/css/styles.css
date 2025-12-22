@@ -62,6 +62,27 @@ body {
     margin-bottom: 1.5rem;
 }
 
+/* Override Bootstrap 12-column grid to use 11 columns for desktop filter layout */
+/* This makes each column unit slightly wider (100%/11 instead of 100%/12) while keeping the same proportions */
+@media (min-width: 992px) {
+    .search-filters .row > .col-md-1 {
+        flex: 0 0 9.090909%;
+        max-width: 9.090909%;
+    }
+    .search-filters .row > .col-md-2 {
+        flex: 0 0 18.181818%;
+        max-width: 18.181818%;
+    }
+    .search-filters .row > .col-md-3 {
+        flex: 0 0 27.272727%;
+        max-width: 27.272727%;
+    }
+    .search-filters .row > .col-md-4 {
+        flex: 0 0 36.363636%;
+        max-width: 36.363636%;
+    }
+}
+
 /* Ensure desktop form content is properly contained */
 .search-filters form {
     width: 100%;
@@ -116,9 +137,11 @@ body {
 .search-filters .select2-container .select2-selection--single,
 .search-filters .select2-container .select2-selection--multiple {
     height: 38px;
-    line-height: 38px;
+    line-height: 25px;
 }
-
+.select2-container .select2-search--inline .select2-search__field {
+    height: 25px;
+}
 .search-filters .select2-container .select2-selection--single .select2-selection__rendered {
     line-height: 38px;
     padding-top: 0;
@@ -127,7 +150,7 @@ body {
 
 .search-filters .select2-container .select2-selection--multiple .select2-selection__rendered {
     min-height: 36px;
-    line-height: 36px;
+    line-height: 25px;
     padding-top: 1px;
     padding-bottom: 1px;
 }
