@@ -79,6 +79,10 @@ router.get('/groups', async (req, res) => {
     const sourceTypes = source_type && source_type.trim() ? source_type.split(',').map(t => t.trim()).filter(t => t) : [];
     const sourceFormats = source_format && source_format.trim() ? source_format.split(',').map(f => f.trim()).filter(f => f) : [];
     const anniversaryYear = anniversary_year && anniversary_year.trim() ? parseInt(anniversary_year.trim()) : null;
+    // Ensure anniversaryYear is a valid number if provided
+    if (anniversaryYear !== null && isNaN(anniversaryYear)) {
+      console.error('Invalid anniversary_year parameter:', anniversary_year);
+    }
 
     let whereConditions = [];
     let queryParams = [];
@@ -610,19 +614,6 @@ router.get('/groups', async (req, res) => {
           }
         }
       }
-
-    // Scribe filter - filter by scribe (at least one source has this scribe)
-    if (scribeIds.length > 0) {
-      whereConditions.push(`EXISTS (
-        SELECT 1 FROM compositions c2
-        JOIN inclusions i ON c2.id = i.composition_id
-        JOIN sources s ON i.source_id = s.id
-        JOIN scribes_sources ss ON s.id = ss.source_id
-        WHERE c2.group_id = g.id AND ss.scribe_id = ANY($${paramIndex}::integer[])
-      )`);
-      queryParams.push(scribeIds);
-      paramIndex++;
-    }
 
     // Source type filter - filter by source type (at least one source has this type)
     if (sourceTypes.length > 0) {
