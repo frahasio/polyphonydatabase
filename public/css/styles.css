@@ -85,7 +85,7 @@ body {
 .search-filters .filter-label {
     font-size: 0.75rem;
     font-weight: 500;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.05rem;
     color: #495057;
     white-space: nowrap;
     overflow: hidden;
@@ -102,8 +102,9 @@ body {
 .search-filters .form-control.filter-input {
     height: 38px;
     padding: 0.5rem 0.75rem;
-    border: 1px solid #ced4da;
+    border: 1px solid #aaa;
     background-color: #fff;
+    font-size: 1rem;
 }
 
 .search-filters .form-control.filter-input:focus {
@@ -112,12 +113,6 @@ body {
 }
 
 /* Don't override Select2 defaults - let it use its natural styling */
-
-.search-filters .select2-container .select2-selection--multiple .select2-selection__choice {
-    font-size: 0.75rem;
-    padding: 0.1rem 0.4rem;
-    margin: 0.1rem;
-}
 
 /* Checkbox switch styling */
 .filter-switch {
@@ -565,9 +560,6 @@ footer a:hover {
     }
 } 
 
-.select2-container--default .select2-search--inline .select2-search__field {
-    min-height:26px !important;
-}
 
 /* Common Admin Dashboard Styles */
 .auth-info {

@@ -619,7 +619,6 @@
                             <label for="searchVoicesDesktop" class="form-label filter-label mb-0"># voices</label>
                             <select class="form-select form-select-sm filter-input" id="searchVoicesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1"></div>
                     </div>
                     
                     <!-- Row 2: composer (3), tone (1), verses (1), voicing (2), clef combinations (2), country (1), city (1), gap (1) -->
@@ -653,7 +652,6 @@
                             <label for="searchCitiesDesktop" class="form-label filter-label mb-0">City (source provenance)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCitiesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1"></div>
                     </div>
                     
                     <!-- Row 3: Source (2), date from/to (2), publisher/scribe/editor (2), source type (1), source format (1), has editions (1), has recordings (1), gap (1) -->
@@ -717,6 +715,27 @@
 
         <!-- Results Table -->
         <div class="results-table mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Search Results</h5>
+                <div class="d-flex align-items-center">
+                    <label for="sortByDesktop" class="form-label filter-label mb-0 me-2">Sort by</label>
+                    <select class="form-select form-select-sm filter-input" id="sortByDesktop">
+                        <option value="">Default order</option>
+                        <option value="title">Title (A-Z)</option>
+                        <option value="title_desc">Title (Z-A)</option>
+                        <option value="function">Function (A-Z)</option>
+                        <option value="function_desc">Function (Z-A)</option>
+                        <option value="composer">Composer (A-Z)</option>
+                        <option value="composer_desc">Composer (Z-A)</option>
+                        <option value="voices">Voices (ascending)</option>
+                        <option value="voices_desc">Voices (descending)</option>
+                        <option value="sources_earliest">Sources (earliest first)</option>
+                        <option value="sources_latest">Sources (latest first)</option>
+                        <option value="order_in_source" id="orderInSourceOptionDesktop">Order in source</option>
+                        <option value="order_in_source_desc" id="orderInSourceDescOptionDesktop">Order in source (descending)</option>
+                    </select>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
@@ -794,6 +813,19 @@
         });
 
         async function initializeInterface() {
+            // Load sources first for wildcard expansion
+            let allSources = [];
+            try {
+                const sourcesResponse = await fetch('/api/search/sources');
+                if (sourcesResponse.ok) {
+                    allSources = await sourcesResponse.json();
+                    populateSelectOptions('searchSources', allSources, 'id', 'code');
+                    populateSelectOptions('searchSourcesDesktop', allSources, 'id', 'code');
+                }
+            } catch (error) {
+                console.error('Error loading sources:', error);
+            }
+            
             // Initialize Select2 for all multi-select elements (both mobile and desktop)
             // Initialize Select2 for most dropdowns
             $('#searchComposers, #searchVoices, #searchFunctions, #searchCompositionTypes, #searchTones, #searchEvenOdd, #searchLanguages, #searchCountries, #searchPublisherScribeEditor, #searchCities, #searchVoicing, #searchSourceTypes, #searchSourceFormats, #searchComposersDesktop, #searchVoicesDesktop, #searchFunctionsDesktop, #searchCompositionTypesDesktop, #searchTonesDesktop, #searchEvenOddDesktop, #searchLanguagesDesktop, #searchCountriesDesktop, #searchPublisherScribeEditorDesktop, #searchCitiesDesktop, #searchVoicingDesktop, #searchSourceTypesDesktop, #searchSourceFormatsDesktop').select2({
@@ -804,16 +836,43 @@
             
             // Initialize Select2 for source dropdowns with tags enabled (for wildcard support)
             $('#searchSources, #searchSourcesDesktop').select2({
-                placeholder: 'Select sources or type pattern (e.g. P-%)...',
+                placeholder: 'Select sources or type wildcard (e.g. P-%)...',
                 allowClear: true,
                 width: '100%',
                 tags: true,
                 createTag: function (params) {
-                    // Allow any input that contains % as a wildcard pattern
-                    if (params.term.indexOf('%') !== -1) {
+                    const term = params.term.trim();
+                    const selectElement = $(this);
+                    
+                    // If it contains %, expand it to select all matching sources
+                    if (term.indexOf('%') !== -1) {
+                        // Convert SQL wildcard pattern to JavaScript regex
+                        // % matches any sequence, _ matches single character
+                        const regexPattern = term
+                            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+                            .replace(/%/g, '.*') // % becomes .*
+                            .replace(/_/g, '.');  // _ becomes .
+                        
+                        const regex = new RegExp('^' + regexPattern + '$', 'i');
+                        
+                        // Find all matching sources
+                        const matchingSources = allSources.filter(s => regex.test(s.code));
+                        
+                        // If we found matches, select them and return null to prevent adding the tag
+                        if (matchingSources.length > 0) {
+                            const currentValues = selectElement.val() || [];
+                            const matchingIds = matchingSources.map(s => s.id.toString());
+                            const newValues = [...new Set([...currentValues, ...matchingIds])];
+                            selectElement.val(newValues).trigger('change');
+                            return null; // Don't add the wildcard pattern as a tag
+                        }
+                    }
+                    
+                    // Allow any input as a tag (for backward compatibility with server-side wildcard handling)
+                    if (term.length > 0) {
                         return {
-                            id: params.term,
-                            text: params.term
+                            id: term,
+                            text: term
                         };
                     }
                     return null;
@@ -1716,13 +1775,7 @@
                     populateSelectOptions('searchVoicesDesktop', voices, 'value', 'name');
                 }
 
-                // Load sources
-                const sourcesResponse = await fetch('/api/search/sources');
-                if (sourcesResponse.ok) {
-                    const sources = await sourcesResponse.json();
-                    populateSelectOptions('searchSources', sources, 'id', 'code');
-                    populateSelectOptions('searchSourcesDesktop', sources, 'id', 'code');
-                }
+                // Sources are loaded earlier in initializeInterface() for wildcard expansion
 
                 // Load publishers and scribes, then combine them for the publisher/scribe/editor filter
                 const [publishersResponse, scribesResponse] = await Promise.all([
