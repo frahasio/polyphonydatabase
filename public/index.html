@@ -596,9 +596,9 @@
             <!-- Desktop layout (800px and above) - same form, different layout -->
             <div class="d-none d-custom-lg-block">
                 <form id="searchFormDesktop">
-                    <!-- Row 1: Title search (4), language (2), composition type (2), function (2), #voices (1), gap (1) -->
+                    <!-- Row 1: Title (3), Language (2), Composition Type (2), Function (2), #voices (2), Tone (1) = 12 -->
                     <div class="row g-1">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="searchTitleDesktop" class="form-label filter-label mb-0">Title Search</label>
                             <input type="text" class="form-control form-control-sm filter-input" id="searchTitleDesktop" 
                                    placeholder="Search in group titles and composition titles...">
@@ -615,23 +615,23 @@
                             <label for="searchFunctionsDesktop" class="form-label filter-label mb-0">Liturgical Function</label>
                             <select class="form-select form-select-sm filter-input" id="searchFunctionsDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchVoicesDesktop" class="form-label filter-label mb-0"># voices</label>
                             <select class="form-select form-select-sm filter-input" id="searchVoicesDesktop" multiple></select>
-                        </div>
-                    </div>
-                    
-                    <!-- Row 2: composer (3), tone (1), verses (1), voicing (2), clef combinations (2), country (1), city (1) = 11 -->
-                    <div class="row g-1">
-                        <div class="col-md-3">
-                            <label for="searchComposersDesktop" class="form-label filter-label mb-0">Composer</label>
-                            <select class="form-select form-select-sm filter-input" id="searchComposersDesktop" multiple></select>
                         </div>
                         <div class="col-md-1">
                             <label for="searchTonesDesktop" class="form-label filter-label mb-0">Tone</label>
                             <select class="form-select form-select-sm filter-input" id="searchTonesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                    </div>
+                    
+                    <!-- Row 2: Composer (3), Verses (2), Voicing (2), Clef (2), Country (2), City (1) = 12 -->
+                    <div class="row g-1">
+                        <div class="col-md-3">
+                            <label for="searchComposersDesktop" class="form-label filter-label mb-0">Composer</label>
+                            <select class="form-select form-select-sm filter-input" id="searchComposersDesktop" multiple></select>
+                        </div>
+                        <div class="col-md-2">
                             <label for="searchEvenOddDesktop" class="form-label filter-label mb-0">Verses</label>
                             <select class="form-select form-select-sm filter-input" id="searchEvenOddDesktop" multiple></select>
                         </div>
@@ -644,7 +644,7 @@
                             <input type="text" class="form-control form-control-sm filter-input" id="searchClefDesktop" 
                                    placeholder="e.g. g2%f4, c1c2c3c4">
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchCountriesDesktop" class="form-label filter-label mb-0">Country (composer birth)</label>
                             <select class="form-select form-select-sm filter-input" id="searchCountriesDesktop" multiple></select>
                         </div>
@@ -654,7 +654,7 @@
                         </div>
                     </div>
                     
-                    <!-- Row 3: Source (2), date from/to (2), publisher/scribe/editor (2), source type (1), source format (1), has editions (1), has recordings (1), anniversary (1) = 12 -->
+                    <!-- Row 3: Source (2), Date Range (2), Publisher/Scribe/Editor (2), Source Type (2), Source Format (2), Anniversary (1), Checkboxes (1) = 12 -->
                     <div class="row g-1">
                         <div class="col-md-2">
                             <label for="searchSourcesDesktop" class="form-label filter-label mb-0">Source</label>
@@ -673,30 +673,28 @@
                             <label for="searchPublisherScribeEditorDesktop" class="form-label filter-label mb-0">Publisher/Scribe/Editor</label>
                             <select class="form-select form-select-sm filter-input" id="searchPublisherScribeEditorDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchSourceTypesDesktop" class="form-label filter-label mb-0">Source Type</label>
                             <select class="form-select form-select-sm filter-input" id="searchSourceTypesDesktop" multiple></select>
                         </div>
-                        <div class="col-md-1">
+                        <div class="col-md-2">
                             <label for="searchSourceFormatsDesktop" class="form-label filter-label mb-0">Source Format</label>
                             <select class="form-select form-select-sm filter-input" id="searchSourceFormatsDesktop" multiple></select>
-                        </div>
-                        <div class="col-md-1 d-flex align-items-center">
-                            <div class="form-check mb-0">
-                                <input class="form-check-input filter-input" type="checkbox" id="hasEditionsDesktop">
-                                <label class="form-check-label filter-label small mb-0" for="hasEditionsDesktop">Has editions</label>
-                            </div>
-                        </div>
-                        <div class="col-md-1 d-flex align-items-center">
-                            <div class="form-check mb-0">
-                                <input class="form-check-input filter-input" type="checkbox" id="hasRecordingsDesktop">
-                                <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
-                            </div>
                         </div>
                         <div class="col-md-1">
                             <label for="anniversaryYearDesktop" class="form-label filter-label mb-0">Anniversary Year</label>
                             <input type="number" class="form-control form-control-sm filter-input" id="anniversaryYearDesktop" 
                                    placeholder="e.g. 2025" min="1000" max="3000">
+                        </div>
+                        <div class="col-md-1">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input filter-input" type="checkbox" id="hasEditionsDesktop">
+                                <label class="form-check-label filter-label small mb-0" for="hasEditionsDesktop">Has editions</label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input filter-input" type="checkbox" id="hasRecordingsDesktop">
+                                <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
+                            </div>
                         </div>
                     </div>
                     <div class="row mt-3 mb-2">
@@ -1369,12 +1367,11 @@
             
             textInputIds.forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.disabled = true;
-            });
-            
-            textInputIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.disabled = true;
+                if (el) {
+                    el.disabled = true;
+                    el.style.opacity = '0.6';
+                    el.style.cursor = 'not-allowed';
+                }
             });
             
             // Disable checkboxes
@@ -1388,8 +1385,12 @@
             });
             
             // Disable sort dropdown
-            const sortEl = document.getElementById('sortByDesktop');
-            if (sortEl) sortEl.disabled = true;
+            const sortEl = document.getElementById('sortBy');
+            if (sortEl) {
+                sortEl.disabled = true;
+                sortEl.style.opacity = '0.6';
+                sortEl.style.cursor = 'not-allowed';
+            }
             
             // Disable buttons
             const btnIds = ['searchButton', 'searchButtonDesktop', 'clearFiltersButton', 'clearFiltersButtonDesktop'];
@@ -1428,7 +1429,11 @@
             
             textInputIds.forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.disabled = false;
+                if (el) {
+                    el.disabled = false;
+                    el.style.opacity = '';
+                    el.style.cursor = '';
+                }
             });
             
             // Enable checkboxes
@@ -1442,8 +1447,12 @@
             });
             
             // Enable sort dropdown
-            const sortEl = document.getElementById('sortByDesktop');
-            if (sortEl) sortEl.disabled = false;
+            const sortEl = document.getElementById('sortBy');
+            if (sortEl) {
+                sortEl.disabled = false;
+                sortEl.style.opacity = '';
+                sortEl.style.cursor = '';
+            }
             
             // Enable buttons
             const btnIds = ['searchButton', 'searchButtonDesktop', 'clearFiltersButton', 'clearFiltersButtonDesktop'];
