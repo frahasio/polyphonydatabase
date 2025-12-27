@@ -60,10 +60,78 @@ router.get('/groups', async (req, res) => {
         }
       }
     });
-    // Parse publisher/scribe/editor - can contain both publisher IDs and scribe IDs
-    const publisherScribeEditorIds = publisher_scribe_editor && publisher_scribe_editor.trim() 
-      ? publisher_scribe_editor.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) 
-      : [];
+    // Parse publisher/scribe/editor - can contain composite values like "p:123,s:456" for people who are both
+    // Format: "p:123" for publisher only, "s:456" for scribe only, "p:123,s:456" for both
+    let publisherIds = [];
+    let scribeIds = [];
+    
+    if (publisher_scribe_editor && publisher_scribe_editor.trim()) {
+      const values = publisher_scribe_editor.split(',').map(v => v.trim()).filter(v => v);
+      
+      values.forEach(value => {
+        // Check if it's a composite format (p:123 or s:456 or p:123,s:456)
+        if (value.includes(':')) {
+          // Parse prefixed IDs
+          const parts = value.split(',');
+          parts.forEach(part => {
+            const trimmed = part.trim();
+            if (trimmed.startsWith('p:')) {
+              const id = parseInt(trimmed.substring(2));
+              if (!isNaN(id)) publisherIds.push(id);
+            } else if (trimmed.startsWith('s:')) {
+              const id = parseInt(trimmed.substring(2));
+              if (!isNaN(id)) scribeIds.push(id);
+            }
+          });
+        } else {
+          // Legacy format: just a number (for backward compatibility)
+          // Query database to determine if it's a publisher or scribe
+          const id = parseInt(value);
+          if (!isNaN(id)) {
+            // We'll determine this later by querying both tables
+            publisherIds.push(id);
+            scribeIds.push(id);
+          }
+        }
+      });
+      
+      // Remove duplicates
+      publisherIds = [...new Set(publisherIds)];
+      scribeIds = [...new Set(scribeIds)];
+      
+      // For legacy format (numeric IDs without prefix), query database to separate them
+      // This handles backward compatibility with old URLs/bookmarks
+      const legacyIds = values.filter(v => !v.includes(':')).map(v => parseInt(v)).filter(id => !isNaN(id));
+      if (legacyIds.length > 0) {
+        try {
+          // Query to find which IDs are publishers
+          const publisherQuery = `
+            SELECT id FROM publishers WHERE id = ANY($1::integer[])
+          `;
+          const publisherResult = await pool.query(publisherQuery, [legacyIds]);
+          const foundPublisherIds = publisherResult.rows.map(row => row.id);
+          
+          // Query to find which IDs are scribes
+          const scribeQuery = `
+            SELECT id FROM scribes WHERE id = ANY($1::integer[])
+          `;
+          const scribeResult = await pool.query(scribeQuery, [legacyIds]);
+          const foundScribeIds = scribeResult.rows.map(row => row.id);
+          
+          // Add found IDs (remove from the temporary arrays first to avoid duplicates)
+          publisherIds = publisherIds.filter(id => !legacyIds.includes(id));
+          scribeIds = scribeIds.filter(id => !legacyIds.includes(id));
+          publisherIds.push(...foundPublisherIds);
+          scribeIds.push(...foundScribeIds);
+          
+          // Remove duplicates again
+          publisherIds = [...new Set(publisherIds)];
+          scribeIds = [...new Set(scribeIds)];
+        } catch (error) {
+          console.error('Error separating legacy publisher/scribe IDs:', error);
+        }
+      }
+    }
     const cityNames = cities && cities.trim() ? cities.split(',').map(city => city.trim()).filter(city => city) : [];
     const compositionTypeIds = composition_types && composition_types.trim() ? composition_types.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const toneValues = tones && tones.trim() ? tones.split(',').map(tone => tone.trim()).filter(tone => tone) : [];
@@ -278,32 +346,48 @@ router.get('/groups', async (req, res) => {
       )`);
     }
 
-    // Publisher/Scribe/Editor filter - check both publishers and scribes
+    // Publisher/Scribe/Editor filter - check both publishers and scribes separately
     if (publisherScribeEditorIds.length > 0) {
-      // Check publishers
-      const publisherCondition = `EXISTS (
-        SELECT 1 FROM compositions c2
-        JOIN inclusions i ON c2.id = i.composition_id
-        JOIN sources s ON i.source_id = s.id
-        JOIN publishers_sources ps ON s.id = ps.source_id
-        WHERE c2.group_id = g.id AND ps.publisher_id = ANY($${paramIndex}::integer[])
-      )`;
-      queryParams.push(publisherScribeEditorIds);
-      paramIndex++;
+      const conditions = [];
       
-      // Check scribes
-      const scribeCondition = `EXISTS (
-        SELECT 1 FROM compositions c2
-        JOIN inclusions i ON c2.id = i.composition_id
-        JOIN sources s ON i.source_id = s.id
-        JOIN scribes_sources ss ON s.id = ss.source_id
-        WHERE c2.group_id = g.id AND ss.scribe_id = ANY($${paramIndex}::integer[])
-      )`;
-      queryParams.push(publisherScribeEditorIds);
-      paramIndex++;
+      // Check publishers - only if we have publisher IDs
+      if (publisherIds.length > 0) {
+        const publisherCondition = `EXISTS (
+          SELECT 1 FROM compositions c2
+          JOIN inclusions i ON c2.id = i.composition_id
+          JOIN sources s ON i.source_id = s.id
+          JOIN publishers_sources ps ON s.id = ps.source_id
+          WHERE c2.group_id = g.id 
+            AND s.catalogued = true
+            AND ps.publisher_id IS NOT NULL
+            AND ps.publisher_id = ANY($${paramIndex}::integer[])
+        )`;
+        queryParams.push(publisherIds);
+        paramIndex++;
+        conditions.push(publisherCondition);
+      }
+      
+      // Check scribes - only if we have scribe IDs
+      if (scribeIds.length > 0) {
+        const scribeCondition = `EXISTS (
+          SELECT 1 FROM compositions c2
+          JOIN inclusions i ON c2.id = i.composition_id
+          JOIN sources s ON i.source_id = s.id
+          JOIN scribes_sources ss ON s.id = ss.source_id
+          WHERE c2.group_id = g.id 
+            AND s.catalogued = true
+            AND ss.scribe_id IS NOT NULL
+            AND ss.scribe_id = ANY($${paramIndex}::integer[])
+        )`;
+        queryParams.push(scribeIds);
+        paramIndex++;
+        conditions.push(scribeCondition);
+      }
       
       // Combine with OR - a composition matches if it has any of the selected publishers OR scribes
-      whereConditions.push(`(${publisherCondition} OR ${scribeCondition})`);
+      if (conditions.length > 0) {
+        whereConditions.push(`(${conditions.join(' OR ')})`);
+      }
     }
 
     // Cities filter (publication places)
@@ -621,7 +705,11 @@ router.get('/groups', async (req, res) => {
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
         JOIN sources s ON i.source_id = s.id
-        WHERE c2.group_id = g.id AND s.type = ANY($${paramIndex}::text[])
+        WHERE c2.group_id = g.id 
+          AND s.catalogued = true
+          AND s.type IS NOT NULL
+          AND s.type != ''
+          AND s.type = ANY($${paramIndex}::text[])
       )`);
       queryParams.push(sourceTypes);
       paramIndex++;
@@ -633,7 +721,11 @@ router.get('/groups', async (req, res) => {
         SELECT 1 FROM compositions c2
         JOIN inclusions i ON c2.id = i.composition_id
         JOIN sources s ON i.source_id = s.id
-        WHERE c2.group_id = g.id AND s.format = ANY($${paramIndex}::text[])
+        WHERE c2.group_id = g.id 
+          AND s.catalogued = true
+          AND s.format IS NOT NULL
+          AND s.format != ''
+          AND s.format = ANY($${paramIndex}::text[])
       )`);
       queryParams.push(sourceFormats);
       paramIndex++;

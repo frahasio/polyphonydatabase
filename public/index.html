@@ -712,7 +712,7 @@
         </div>
 
         <!-- Sort Dropdown (between filters and table, aligned right) -->
-        <div class="d-flex justify-content-end mt-3 mb-2">
+        <div class="d-flex justify-content-end mt-3 mb-2 w-100">
             <div class="d-flex align-items-center">
                 <label for="sortBy" class="form-label filter-label mb-0 me-2">Sort by</label>
                 <select class="form-select form-select-sm filter-input" id="sortBy" style="max-width: 200px;">
@@ -735,7 +735,14 @@
 
         <!-- Results Table -->
         <div class="results-table">
-            <div class="table-responsive">
+            <!-- Loading indicator -->
+            <div id="loadingIndicator" class="loading-spinner" style="display: none;">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 mb-0" style="font-size: 1.1rem; color: #6c757d;">Loading results...</p>
+            </div>
+            <div class="table-responsive" id="tableContainer">
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
@@ -751,14 +758,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <!-- Loading indicator -->
-        <div id="loadingIndicator" class="loading-spinner" style="display: none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2">Searching database...</p>
         </div>
 
         <!-- Pagination -->
@@ -779,6 +778,7 @@
                 </div>
                 <div class="col-md-4">
                     <select class="form-select form-select-sm d-inline-block w-auto" id="pageSize">
+                        <option value="10" selected>10 per page</option>
                         <option value="25">25 per page</option>
                         <option value="50">50 per page</option>
                         <option value="100">100 per page</option>
@@ -797,12 +797,13 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         let currentPage = 1;
-        let currentPageSize = 25;
+        let currentPageSize = 10; // Reduced from 25 to speed up initial load
         let currentSort = '';
         let isSearching = false;
         let currentSearchAbortController = null;
         let lastSearchParams = new URLSearchParams();
         let filtersChanged = false;
+        let isInitialLoad = true;
 
         let isUserLoggedIn = false;
 
@@ -812,6 +813,27 @@
         });
 
         async function initializeInterface() {
+            // Disable all filters and show loading indicator immediately on initial load
+            if (isInitialLoad) {
+                disableFilters();
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                const resultsBody = document.getElementById('resultsBody');
+                const paginationInfo = document.getElementById('paginationInfo');
+                const tableContainer = document.getElementById('tableContainer');
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'block';
+                }
+                if (tableContainer) {
+                    tableContainer.style.display = 'none';
+                }
+                if (resultsBody) {
+                    resultsBody.innerHTML = '';
+                }
+                if (paginationInfo) {
+                    paginationInfo.style.display = 'none';
+                }
+            }
+            
             // Load sources first for wildcard expansion
             let allSources = [];
             try {
@@ -997,6 +1019,9 @@
             lastSearchParams = getCurrentFilterParams();
             updateSearchButtonText();
             performSearch();
+            
+            // Mark initial load as complete
+            isInitialLoad = false;
         }
 
         function syncSearchFields(sourceId, targetId) {
@@ -1754,17 +1779,54 @@
                     fetch('/api/search/scribes')
                 ]);
                 
+                const publishersMap = new Map(); // name -> { publisherId, scribeId }
                 const allPublisherScribeEditor = [];
                 
+                // Add publishers
                 if (publishersResponse.ok) {
                     const publishers = await publishersResponse.json();
-                    allPublisherScribeEditor.push(...publishers.map(p => ({ ...p, type: 'publisher' })));
+                    publishers.forEach(p => {
+                        const nameKey = (p.name || '').toLowerCase().trim();
+                        if (!publishersMap.has(nameKey)) {
+                            publishersMap.set(nameKey, { name: p.name, publisherId: p.id, scribeId: null });
+                        } else {
+                            publishersMap.get(nameKey).publisherId = p.id;
+                        }
+                    });
                 }
                 
+                // Add scribes (merge with existing entries if same name)
                 if (scribesResponse.ok) {
                     const scribes = await scribesResponse.json();
-                    allPublisherScribeEditor.push(...scribes.map(s => ({ ...s, type: 'scribe' })));
+                    scribes.forEach(s => {
+                        const nameKey = (s.name || '').toLowerCase().trim();
+                        if (!publishersMap.has(nameKey)) {
+                            publishersMap.set(nameKey, { name: s.name, publisherId: null, scribeId: s.id });
+                        } else {
+                            publishersMap.get(nameKey).scribeId = s.id;
+                        }
+                    });
                 }
+                
+                // Convert map to array with composite values
+                publishersMap.forEach((entry, nameKey) => {
+                    // Create composite value: "p:123" for publisher only, "s:456" for scribe only, "p:123,s:456" for both
+                    let value = '';
+                    if (entry.publisherId && entry.scribeId) {
+                        value = `p:${entry.publisherId},s:${entry.scribeId}`;
+                    } else if (entry.publisherId) {
+                        value = `p:${entry.publisherId}`;
+                    } else if (entry.scribeId) {
+                        value = `s:${entry.scribeId}`;
+                    }
+                    
+                    if (value) {
+                        allPublisherScribeEditor.push({
+                            id: value, // Use composite value as ID
+                            name: entry.name
+                        });
+                    }
+                });
                 
                 // Sort by name and populate the combined filter
                 allPublisherScribeEditor.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1846,10 +1908,20 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const resultsBody = document.getElementById('resultsBody');
             const paginationInfo = document.getElementById('paginationInfo');
+            const tableContainer = document.getElementById('tableContainer');
             
-            loadingIndicator.style.display = 'block';
-            resultsBody.innerHTML = '';
-            paginationInfo.style.display = 'none';
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'block';
+            }
+            if (tableContainer) {
+                tableContainer.style.display = 'none';
+            }
+            if (resultsBody) {
+                resultsBody.innerHTML = '';
+            }
+            if (paginationInfo) {
+                paginationInfo.style.display = 'none';
+            }
 
             try {
                 const yearFrom = document.getElementById('yearFrom')?.value || document.getElementById('yearFromDesktop')?.value || '';
@@ -1909,7 +1981,13 @@
                 console.error('Search error:', error);
                 resultsBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading results. Please try again.</td></tr>';
             } finally {
-                loadingIndicator.style.display = 'none';
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                const tableContainer = document.getElementById('tableContainer');
+                if (tableContainer) {
+                    tableContainer.style.display = 'block';
+                }
                 enableFilters();
                 currentSearchAbortController = null;
             }
