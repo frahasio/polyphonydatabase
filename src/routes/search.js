@@ -347,7 +347,7 @@ router.get('/groups', async (req, res) => {
     }
 
     // Publisher/Scribe/Editor filter - check both publishers and scribes separately
-    if (publisherScribeEditorIds.length > 0) {
+    if (publisherIds.length > 0 || scribeIds.length > 0) {
       const conditions = [];
       
       // Check publishers - only if we have publisher IDs
