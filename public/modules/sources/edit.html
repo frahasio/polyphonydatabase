@@ -2615,7 +2615,13 @@
                 document.getElementById('saveStatusText').textContent = 'Processing inclusions and compositions...';
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: await response.text() }));
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        const errorText = await response.text();
+                        errorData = { error: errorText };
+                    }
                     console.log('Save error response:', errorData);
                     const errorMessage = errorData.details 
                         ? `Failed to save changes: ${errorData.error}\n\nDetails: ${errorData.details}`
