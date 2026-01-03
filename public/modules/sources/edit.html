@@ -2264,7 +2264,7 @@
             
             for (let i = 0; i < inclusionsData.length; i++) {
                 const inclusion = inclusionsData[i];
-                if (!inclusion.clefs) continue;
+                if (!inclusion || !inclusion.clefs) continue;
                 
                 for (let j = 0; j < inclusion.clefs.length; j++) {
                     const clef = inclusion.clefs[j];
@@ -2615,9 +2615,12 @@
                 document.getElementById('saveStatusText').textContent = 'Processing inclusions and compositions...';
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.log('Save error response:', errorText);
-                    throw new Error('Failed to save changes: ' + errorText);
+                    const errorData = await response.json().catch(() => ({ error: await response.text() }));
+                    console.log('Save error response:', errorData);
+                    const errorMessage = errorData.details 
+                        ? `Failed to save changes: ${errorData.error}\n\nDetails: ${errorData.details}`
+                        : `Failed to save changes: ${errorData.error || JSON.stringify(errorData)}`;
+                    throw new Error(errorMessage);
                 }
 
                 const saveResult = await response.json();

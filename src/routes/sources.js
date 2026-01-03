@@ -850,8 +850,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     console.log('\n=== PROCESSING FORM INCLUSIONS ===');
     
     // Only process inclusions that have titles (non-empty rows)
+    // Filter out null/undefined inclusions and those without titles
     const processedInclusions = inclusions.filter(inclusion => 
-      inclusion.composition?.title_text?.trim()
+      inclusion && inclusion.composition && inclusion.composition.title_text?.trim()
     );
 
     console.log(`Processing ${processedInclusions.length} inclusions with titles from form`);
@@ -1191,7 +1192,12 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error saving source with inclusions:', error);
-    res.status(500).json({ error: 'Failed to save source and inclusions' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to save source and inclusions',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   } finally {
     client.release();
   }
