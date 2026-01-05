@@ -2157,6 +2157,8 @@
                                             ` : ''}
                                             ${source.position ? `
                                                 <div><small><strong>Position:</strong> ${source.position}</small></div>
+                                            ` : source.order ? `
+                                                <div><small><strong>Position:</strong> <em>(#${source.order})</em></small></div>
                                             ` : ''}
                                             ${source.inclusion_notes ? `
                                                 <div><small><strong>Notes:</strong> ${source.inclusion_notes}</small></div>

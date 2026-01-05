@@ -1047,6 +1047,7 @@ router.get('/groups', async (req, res) => {
             'rism_link', s.rism_link,
             'source_notes', s.notes,
             'position', i.position,
+            'order', i.order,
             'attribution_texts', i.attribution_texts,
             'inclusion_notes', i.notes,
             'clefs', i.clefs,
