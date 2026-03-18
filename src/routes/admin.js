@@ -3013,6 +3013,8 @@ function analyzeCompositionProperties(group1, group2, factors) {
     "7": "septimi toni",
     "8": "octavi toni",
     "9": "noni toni",
+    "10": "decimi toni",
+    "11": "undecimi toni",
     "12": "duodecimi toni",
     "mix": "mixti toni",
     "per": "peregrini toni",
