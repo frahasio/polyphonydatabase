@@ -62,18 +62,10 @@ body.admin-layout {
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   min-height: var(--header-height);
-}
-
-.sidebar-brand {
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.95rem;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 .sidebar-toggle {

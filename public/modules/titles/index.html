@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titles - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .title-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .title-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .title-card.selected {
+            border-color: #0d6efd;
+            background-color: #e7f3ff;
+        }
+        .search-container {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: white;
+            padding: 1rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .bulk-actions {
+            position: sticky;
+            bottom: 0;
+            z-index: 1000;
+            background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+            padding: 1rem 0;
+            border-top: 1px solid #dee2e6;
+            backdrop-filter: blur(5px);
+        }
+        .composition-count {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        .function-badge {
+            font-size: 0.75rem;
+        }
+        .language-badge {
+            font-size: 0.75rem;
+        }
+        .selected-count {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">Titles Management</h4>
+                <p class="text-muted mb-0">Search, edit, merge duplicates, and manage title assignments</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="search-container">
+                    <div id="filterAlert" class="alert alert-info mb-3" style="display: none;">
+                        <i class="bi bi-info-circle"></i>
+                        <span id="filterMessage"></span>
+                        <button type="button" class="btn-close ms-2" onclick="clearSpecialFilter()"></button>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="titleSearch" class="form-label">Search Titles</label>
+                            <input type="text" class="form-control" id="titleSearch" placeholder="Search by title text...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="languageFilter" class="form-label">Language</label>
+                            <select class="form-select" id="languageFilter">
+                                <option value="">All Languages</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="functionFilter" class="form-label">Function</label>
+                            <select class="form-select" id="functionFilter">
+                                <option value="">All Functions</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button class="btn btn-primary w-100" onclick="searchTitles()">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="findSimilar">
+                                <label class="form-check-label" for="findSimilar">
+                                    Find similar titles (for potential duplicates)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="groupTitles">
+                                <label class="form-check-label" for="groupTitles">
+                                    <strong>Group titles by base text</strong> (removes [I], [II], etc.)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-outline-primary btn-sm me-2" onclick="selectAll()">
+                                <i class="bi bi-check-all"></i> Select All
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                                <i class="bi bi-x-circle"></i> Clear Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="titlesResults" class="mt-4">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-search display-4 text-muted"></i>
+                        <p>Enter a search term to find titles</p>
+                    </div>
+                </div>
+
+                <nav id="titlesPagination" class="mt-4" style="display: none;">
+                    <ul class="pagination justify-content-center"></ul>
+                </nav>
+            </div>
+        </div>
+
+        <div id="bulkActionsBar" class="bulk-actions" style="display: none;">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="selected-count" id="selectedCount">0 titles selected</span>
+                        <div class="btn-group">
+                            <button class="btn btn-success btn-sm" onclick="showAssignFunctionModal()">
+                                <i class="bi bi-tags"></i> Assign Function
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="showAssignLanguageModal()">
+                                <i class="bi bi-globe"></i> Assign Language
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="showMergeModal()">
+                                <i class="bi bi-union"></i> Merge Selected
+                            </button>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                        <i class="bi bi-x"></i> Clear Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Function Modal -->
+    <div class="modal fade" id="assignFunctionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Function to Selected Titles</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="bulkFunctionSelect" class="form-label">Select Function</label>
+                        <select class="form-select" id="bulkFunctionSelect">
+                            <option value="">Choose a function...</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        This will assign the selected function to <span id="functionAssignCount">0</span> titles.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="performBulkFunctionAssign()">Assign Function</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Language Modal -->
+    <div class="modal fade" id="assignLanguageModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Language to Selected Titles</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="bulkLanguageSelect" class="form-label">Select Language</label>
+                        <select class="form-select" id="bulkLanguageSelect">
+                            <option value="">Choose a language...</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        This will assign the selected language to <span id="languageAssignCount">0</span> titles.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="performBulkLanguageAssign()">Assign Language</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Title Modal -->
+    <div class="modal fade" id="editTitleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Title</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editTitleText" class="form-label">Title Text</label>
+                        <input type="text" class="form-control" id="editTitleText">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTitleLanguage" class="form-label">Language</label>
+                        <select class="form-select" id="editTitleLanguage">
+                            <option value="">Select language...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign Functions</label>
+                        <div id="editFunctionCheckboxes" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditedTitle()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Titles Modal -->
+    <div class="modal fade" id="mergeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Merge Selected Titles</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="finalTitleText" class="form-label">Final Title Text</label>
+                        <input type="text" class="form-control" id="finalTitleText" placeholder="Enter the final title text">
+                    </div>
+                    <div class="mb-3">
+                        <label for="finalLanguage" class="form-label">Final Language</label>
+                        <select class="form-select" id="finalLanguage">
+                            <option value="">Select language...</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        This will merge <span id="mergeCount">0</span> titles into one. This action cannot be undone.
+                        All compositions will be updated to reference the merged title.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="performMerge()">Merge Titles</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Title Group Modal -->
+    <div class="modal fade" id="editGroupModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Title Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="groupCurrentBaseText" class="form-label">Current Base Text</label>
+                        <input type="text" class="form-control" id="groupCurrentBaseText" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="groupNewBaseText" class="form-label">New Base Text</label>
+                        <input type="text" class="form-control" id="groupNewBaseText" placeholder="Enter new base text">
+                    </div>
+                    <div class="mb-3">
+                        <label for="groupLanguage" class="form-label">Language (optional)</label>
+                        <select class="form-select" id="groupLanguage">
+                            <option value="">Keep current languages</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Titles that will be updated:</label>
+                        <div id="groupTitlesList" class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        This will update all titles in this group to use the new base text while preserving their bracketed portions (like [I], [II], etc.).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveGroupEdit()">Update Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/modules/functions/functions.js"></script>
+    <script src="/js/admin-layout.js"></script>
+</body>
+</html>

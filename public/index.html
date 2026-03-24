@@ -14,7 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Polyphony Database</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/css/styles.css">
     <style>
@@ -2045,43 +2045,7 @@
                         </small>
                     </td>
                 </tr>
-                <tr class="opacity-50">
-                    <td title="Title of the composition group, with tone information">
-                        <strong>Missa O quam gloriosum</strong>
-                        <span class="text-muted">primi toni</span>
-                    </td>
-                    <td title="Liturgical function(s) of the piece">Mass</td>
-                    <td title="Attributed composer(s) with dates">
-                        Victoria, Tom&aacute;s Luis de
-                        <br><small class="text-muted fst-italic">c.1548&ndash;1611</small>
-                    </td>
-                    <td title="Number of voices">4</td>
-                    <td title="Sources containing this piece, with clef voicings for each">
-                        <div class="mb-1">
-                            <small><strong>V-CVbav CS 35</strong></small>
-                            <small class="text-muted ms-1">c.1590&ndash;1600</small>
-                        </div>
-                        <div class="clef-images mb-1">
-                            <span class="clef-render-target" data-clef="g2" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="g2 clef &mdash; Cantus voice"></span>
-                            <span class="clef-render-target" data-clef="c2" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="c2 clef &mdash; Altus voice"></span>
-                            <span class="clef-render-target" data-clef="c3" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="c3 clef &mdash; Tenor voice"></span>
-                            <span class="clef-render-target" data-clef="f4" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="f4 clef &mdash; Bassus voice"></span>
-                        </div>
-                        <small class="text-muted fst-italic">Example entry &mdash; hover over elements for explanations</small>
-                    </td>
-                </tr>
             `;
-            // Render dynamic clef SVGs for example row
-            resultsBody.querySelectorAll('.clef-render-target').forEach(el => {
-                if (window.clefRenderer) {
-                    window.clefRenderer.renderClef(el, {
-                        clef: el.dataset.clef,
-                        missing: el.dataset.missing === 'true',
-                        incomplete: el.dataset.incomplete === 'true',
-                        optional: el.dataset.optional === 'true'
-                    });
-                }
-            });
         }
 
         function displayResults(data) {
