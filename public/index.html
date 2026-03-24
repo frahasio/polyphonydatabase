@@ -170,7 +170,26 @@
         .clef-strip-cell.clef-optional {
             opacity: 0.5;
         }
-        
+
+        .demo-row {
+            border-left: 4px solid #f0ad4e;
+            background: #fffdf5;
+        }
+        .demo-row td {
+            position: relative;
+        }
+        .demo-row .edition-link,
+        .demo-row .recording-link {
+            pointer-events: none;
+            color: #6c757d !important;
+            text-decoration: none;
+        }
+        .demo-row a {
+            pointer-events: none;
+            color: inherit !important;
+            text-decoration: none !important;
+        }
+
         /* Minimal Select2 adjustments */
         .select2-container {
             width: 100% !important;
@@ -2023,17 +2042,138 @@
             if (paginationInfo) paginationInfo.style.display = 'none';
             resultsBody.innerHTML = `
                 <tr class="table-light">
-                    <td colspan="5" class="text-center py-4">
-                        <div class="text-muted mb-2" style="font-size: 1.05rem;">
+                    <td colspan="5" class="text-center py-3">
+                        <div class="text-muted mb-1" style="font-size: 1.05rem;">
                             <i class="bi bi-search me-2"></i>Use the filters above to search the database
                         </div>
                         <small class="text-muted">
                             Search by title, composer, liturgical function, number of voices, source, and more.
-                            <br>Press <kbd>Enter</kbd> or click <strong>Update Filters</strong> to see results.
+                            Press <kbd>Enter</kbd> or click <strong>Update Filters</strong> to see results.
                         </small>
                     </td>
                 </tr>
+                <tr class="demo-row" title="This is an example result to illustrate the layout. Use the filters above to search for real data.">
+                    <td>
+                        <span title="The title of the composition as it appears in the database" style="cursor:help;">
+                            <strong>Missa Papae Marcelli</strong>
+                        </span>
+                        <div class="mt-1" title="A modern edition of this piece available as a PDF download" style="cursor:help;">
+                            <span class="edition-link text-muted">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>
+                                Francis Bevan (S(S)A(A)TTBB)
+                            </span>
+                        </div>
+                        <div class="mt-1" title="A modern edition of this piece available as a PDF download" style="cursor:help;">
+                            <span class="edition-link text-muted">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>
+                                Pothárn Imre (chiavette)
+                            </span>
+                        </div>
+                        <div class="mt-1" title="A recording of this piece available on a streaming platform" style="cursor:help;">
+                            <span class="recording-link text-muted">
+                                <i class="bi bi-play-circle me-1"></i>
+                                Oxford Camerata
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        <span title="The liturgical function or genre of the composition" style="cursor:help;">(Mass)</span>
+                    </td>
+                    <td>
+                        <span title="The composer(s) attributed to this composition across all sources. 'Conflicting attributions' means different sources name different composers." style="cursor:help;">conflicting attributions</span>
+                    </td>
+                    <td>
+                        <span title="The number of independent voice parts in this composition" style="cursor:help;">6</span>
+                    </td>
+                    <td>
+                        <div class="source-item" title="A historical source (manuscript or print) that contains this composition" style="cursor:help;">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center">
+                                                <span title="The RISM siglum — a standardised library code and shelfmark identifying this source" style="cursor:help;">
+                                                    <strong>V-CVbav Capp.Sist. 22</strong>
+                                                </span>
+                                            </div>
+                                            <br><small title="The city and approximate date range of this source" style="cursor:help;">Rome, c.1563–c.1568</small>
+                                            <br><small title="The person who physically copied the music into this source" style="cursor:help;"><strong>Scribes:</strong> Parvus, Johannes</small>
+                                            <br><small title="Whether the source is a manuscript (MS) or print, and its physical format" style="cursor:help;"><strong>Type:</strong> MS, Choirbook</small>
+                                            <br><small title="Links to digitised images of this source held by libraries" style="cursor:help;"><strong>Images:</strong>
+                                                <span class="text-muted"><i class="bi bi-image"></i> DVL</span>
+                                            </small>
+                                            <br><small title="A link to this source's record in the RISM catalogue (Répertoire International des Sources Musicales)" style="cursor:help;">
+                                                <span class="text-muted"><i class="bi bi-link-45deg"></i> RISM</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="clef-strip-container mb-2 demo-clef-strip" title="The original clef combination used for each voice in this source, rendered on a staff. Each clef on its own mini-staff represents one voice part.">
+                                        <span class="clef-render-target" data-clef="g2"></span>
+                                        <span class="clef-render-target" data-clef="c1"></span>
+                                        <span class="clef-render-target" data-clef="c3" data-optional="true"></span>
+                                        <span class="clef-render-target" data-clef="c3"></span>
+                                        <span class="clef-render-target" data-clef="c3"></span>
+                                        <span class="clef-render-target" data-clef="c4"></span>
+                                        <span class="clef-render-target" data-clef="c4"></span>
+                                    </div>
+                                    <div><small title="The name of the composer as written in this particular source — often a Latinised or abbreviated form" style="cursor:help;"><strong>Attribution:</strong> <em>as written in source</em></small></div>
+                                    <div><small title="The position of this piece within the source (e.g. the 4th piece in the book)" style="cursor:help;"><strong>Position:</strong> 4</small></div>
+                                    <div><small title="Any editorial notes about this particular inclusion" style="cursor:help;"><strong>Notes:</strong> Contains Agnus Dei II</small></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="source-item" title="A historical source (manuscript or print) that contains this composition" style="cursor:help;">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center">
+                                                <span title="The RISM siglum — a standardised library code and shelfmark identifying this source" style="cursor:help;">
+                                                    <strong>RISM P660</strong>
+                                                </span>
+                                            </div>
+                                            <span title="The title of the printed edition" style="cursor:help;">
+                                                <br>Missarum liber secundus
+                                            </span>
+                                            <br><small title="The city and date of publication" style="cursor:help;">Rome, 1567</small>
+                                            <br><small title="The publisher or printer of this edition" style="cursor:help;"><strong>Publishers:</strong> Dorico, Valerio</small>
+                                            <br><small title="Whether the source is a manuscript (MS) or print, and its physical format" style="cursor:help;"><strong>Type:</strong> Print, Choirbook</small>
+                                            <br><small title="Links to digitised images of this source held by libraries" style="cursor:help;"><strong>Images:</strong>
+                                                <span class="text-muted"><i class="bi bi-image"></i> I-Bc</span>
+                                            </small>
+                                            <br><small title="A link to this source's record in the RISM catalogue (Répertoire International des Sources Musicales)" style="cursor:help;">
+                                                <span class="text-muted"><i class="bi bi-link-45deg"></i> RISM</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="clef-strip-container mb-2 demo-clef-strip" title="The original clef combination used for each voice in this source, rendered on a staff. Each clef on its own mini-staff represents one voice part.">
+                                        <span class="clef-render-target" data-clef="g2"></span>
+                                        <span class="clef-render-target" data-clef="c1"></span>
+                                        <span class="clef-render-target" data-clef="c3"></span>
+                                        <span class="clef-render-target" data-clef="c3"></span>
+                                        <span class="clef-render-target" data-clef="c4"></span>
+                                        <span class="clef-render-target" data-clef="c4"></span>
+                                    </div>
+                                    <div><small title="The name of the composer as written in this particular source — often a Latinised or abbreviated form" style="cursor:help;"><strong>Attribution:</strong> Ioannis Petri Aloysi Praenestini</small></div>
+                                    <div><small title="The position of this piece within the source (e.g. the 7th piece in the book)" style="cursor:help;"><strong>Position:</strong> 7</small></div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
             `;
+            // Render demo clef strips once SVGs are loaded
+            if (window.clefRenderer) {
+                window.clefRenderer.preloadClefs().then(() => {
+                    document.querySelectorAll('.demo-clef-strip').forEach(container => {
+                        window.clefRenderer.renderClefStrip(container);
+                    });
+                });
+            }
         }
 
         function displayResults(data) {

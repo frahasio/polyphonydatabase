@@ -937,14 +937,13 @@ function loadFunctionsDisplay() {
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <h6 class="card-title mb-0 ${hasNoTitles ? 'text-warning-emphasis' : ''}">${func.name}</h6>
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="bi bi-three-dots"></i>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="editFunction(${func.id})" title="Edit">
+                                    <i class="bi bi-pencil"></i>
                                 </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="editFunction(${func.id})"><i class="bi bi-pencil"></i> Edit</a></li>
-                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteFunction(${func.id})"><i class="bi bi-trash"></i> Delete</a></li>
-                                </ul>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteFunction(${func.id})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </div>
                         <div class="mb-2">
