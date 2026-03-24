@@ -176,15 +176,9 @@
             background: #fffdf5;
         }
         .demo-row .edition-link,
-        .demo-row .recording-link {
-            pointer-events: none;
-            color: #6c757d !important;
-            text-decoration: none;
-        }
+        .demo-row .recording-link,
         .demo-row a {
             pointer-events: none;
-            color: inherit !important;
-            text-decoration: none !important;
         }
         .tip {
             position: relative;
@@ -2093,13 +2087,13 @@
                             <strong>Missa Papae Marcelli</strong>
                         </span>
                         <div class="mt-1">
-                            <span class="tip tip-right edition-link text-muted" data-tip="A modern edition available as a PDF download. Click to open in a new tab.">
+                            <span class="tip tip-right edition-link" data-tip="A modern edition available as a PDF download. Click to open in a new tab.">
                                 <i class="bi bi-file-earmark-pdf me-1"></i>
                                 Francis Bevan (S(S)A(A)TTBB)
                             </span>
                         </div>
                         <div class="mt-1">
-                            <span class="tip tip-right recording-link text-muted" data-tip="A recording available on a streaming platform. Click to listen.">
+                            <span class="tip tip-right recording-link" data-tip="A recording available on a streaming platform. Click to listen.">
                                 <i class="bi bi-play-circle me-1"></i>
                                 Oxford Camerata
                             </span>
@@ -2129,26 +2123,26 @@
                                             <br><small class="tip tip-right" data-tip="The person who physically copied the music into this source"><strong>Scribes:</strong> Parvus, Johannes</small>
                                             <br><small class="tip tip-right" data-tip="Whether the source is a manuscript (MS) or print, and its physical format (choirbook, partbook, score, etc.)"><strong>Type:</strong> MS, Choirbook</small>
                                             <br><small class="tip tip-right" data-tip="Links to digitised images of this source held by libraries. Click to view the manuscript online."><strong>Images:</strong>
-                                                <span class="text-muted"><i class="bi bi-image"></i> DVL</span>
+                                                <span class="text-primary"><i class="bi bi-image"></i> DVL</span>
                                             </small>
                                             <br><small class="tip tip-right" data-tip="A link to this source's record in the RISM catalogue (Répertoire International des Sources Musicales)">
-                                                <span class="text-muted"><i class="bi bi-link-45deg"></i> RISM</span>
+                                                <span class="text-primary"><i class="bi bi-link-45deg"></i> RISM</span>
                                             </small>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-5">
-                                    <div class="clef-strip-container mb-2 demo-clef-strip tip tip-left" data-tip="The original clef combination for each voice in this source, rendered on a staff. Each clef represents one voice part. Faded clefs are optional.">
+                                    <div class="clef-strip-container mb-2 demo-clef-strip tip tip-left" data-tip="The original clef combination for each voice in this source. Each clef represents one voice part. Red = the part is missing or lost from this source. Faded = the voice is optional.">
                                         <span class="clef-render-target" data-clef="g2"></span>
                                         <span class="clef-render-target" data-clef="c1"></span>
                                         <span class="clef-render-target" data-clef="c3" data-optional="true"></span>
                                         <span class="clef-render-target" data-clef="c3"></span>
-                                        <span class="clef-render-target" data-clef="c3"></span>
+                                        <span class="clef-render-target" data-clef="c3" data-missing="true"></span>
                                         <span class="clef-render-target" data-clef="c4"></span>
                                         <span class="clef-render-target" data-clef="c4"></span>
                                     </div>
                                     <div><small class="tip tip-left" data-tip="The name of the composer as written in this particular source — often a Latinised or abbreviated form that differs between sources"><strong>Attribution:</strong> Io. Praenestino</small></div>
-                                    <div><small class="tip tip-left" data-tip="The folio range within the manuscript where this piece is found"><strong>Folios:</strong> 70v–90r</small></div>
+                                    <div><small class="tip tip-left" data-tip="The folio range within the manuscript where this piece is found"><strong>Position:</strong> 70v–90r</small></div>
                                     <div><small class="tip tip-left" data-tip="Any editorial notes about this particular inclusion of the piece"><strong>Notes:</strong> Contains Agnus Dei II</small></div>
                                 </div>
                             </div>
@@ -2170,17 +2164,17 @@
                                             <br><small class="tip tip-right" data-tip="The publisher or printer of this edition"><strong>Publishers:</strong> Dorico, Valerio</small>
                                             <br><small class="tip tip-right" data-tip="Whether the source is a manuscript (MS) or print, and its physical format"><strong>Type:</strong> Print, Choirbook</small>
                                             <br><small class="tip tip-right" data-tip="Links to digitised images of this source held by libraries"><strong>Images:</strong>
-                                                <span class="text-muted"><i class="bi bi-image"></i> I-Bc</span>
+                                                <span class="text-primary"><i class="bi bi-image"></i> I-Bc</span>
                                             </small>
                                             <br><small class="tip tip-right" data-tip="A link to this source's record in the RISM catalogue (Répertoire International des Sources Musicales)">
-                                                <span class="text-muted"><i class="bi bi-link-45deg"></i> RISM</span>
+                                                <span class="text-primary"><i class="bi bi-link-45deg"></i> RISM</span>
                                             </small>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-5">
                                     <div class="clef-strip-container mb-2 demo-clef-strip tip tip-left" data-tip="The original clef combination for each voice in this source, rendered on a staff. Each clef represents one voice part.">
-                                        <span class="clef-render-target" data-clef="g2"></span>
+                                        <span class="clef-render-target clef-missing" data-clef="g2"></span>
                                         <span class="clef-render-target" data-clef="c1"></span>
                                         <span class="clef-render-target" data-clef="c3"></span>
                                         <span class="clef-render-target" data-clef="c3"></span>
