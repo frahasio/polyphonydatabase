@@ -331,3 +331,136 @@ body.sidebar-collapsed .admin-main {
 .admin-layout .modal-content {
   border-radius: var(--radius-md);
 }
+
+/* === Mobile responsive === */
+@media (max-width: 768px) {
+  /* Sidebar becomes a slide-out overlay triggered by burger menu */
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1060;
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Overlay backdrop when sidebar is open */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1050;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+  }
+
+  /* Header shifts to left edge on mobile */
+  .admin-header {
+    left: 0 !important;
+    padding: 0 12px;
+  }
+
+  body.sidebar-collapsed .admin-header {
+    left: 0 !important;
+  }
+
+  /* Main content fills full width */
+  .admin-main {
+    margin-left: 0 !important;
+    padding: 16px 12px;
+  }
+
+  body.sidebar-collapsed .admin-main {
+    margin-left: 0 !important;
+  }
+
+  /* Burger button shown on mobile */
+  .mobile-burger {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    font-size: 1.25rem;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+
+  .mobile-burger:hover {
+    background: var(--color-border);
+  }
+
+  /* Hide the sidebar toggle on mobile (we use burger instead) */
+  .sidebar-toggle {
+    display: none;
+  }
+
+  /* Admin forms: prevent horizontal overflow */
+  .admin-main .row {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .admin-main .row > [class*="col-"] {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .admin-main .card-body {
+    padding: 0.75rem;
+  }
+
+  .admin-main .table {
+    font-size: 0.8rem;
+  }
+
+  .admin-main .table th,
+  .admin-main .table td {
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* Make forms stack vertically on mobile */
+  .admin-main .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-main .filter-bar .form-control,
+  .admin-main .filter-bar .form-select {
+    width: 100%;
+  }
+
+  /* Source edit: inclusion rows stack better */
+  .inclusion-row .row > [class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Prevent wide content from overflowing */
+  .admin-main {
+    overflow-x: hidden;
+  }
+
+  .admin-main .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Burger hidden on desktop */
+.mobile-burger {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-burger {
+    display: inline-flex !important;
+  }
+}

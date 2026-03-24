@@ -381,6 +381,16 @@
             .clef-strip-cell {
                 padding: 2px 0;
             }
+
+            /* Hide the demo/example row on mobile - rollover tips don't work on touch */
+            .demo-row {
+                display: none !important;
+            }
+
+            /* When col-md-7/col-md-5 stack, add spacing above the clef strip column */
+            .source-item .col-md-5 {
+                margin-top: 0.75rem;
+            }
         }
     </style>
 </head>

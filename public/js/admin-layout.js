@@ -84,6 +84,9 @@
 
     header.innerHTML = `
       <div class="header-left">
+        <button class="mobile-burger" id="mobileBurger" title="Open menu">
+          <i class="bi bi-list"></i>
+        </button>
         <span class="header-title">Polyphony Database</span>
       </div>
       <div class="header-right">
@@ -127,6 +130,33 @@
       document.getElementById('adminSidebar').classList.toggle('collapsed', nowCollapsed);
       setCollapsed(nowCollapsed);
       this.querySelector('i').className = 'bi ' + (nowCollapsed ? 'bi-chevron-right' : 'bi-chevron-left');
+    });
+
+    // Mobile burger menu
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    backdrop.id = 'sidebarBackdrop';
+    document.body.appendChild(backdrop);
+
+    function closeMobileSidebar() {
+      sidebar.classList.remove('mobile-open');
+      backdrop.classList.remove('active');
+    }
+
+    document.getElementById('mobileBurger').addEventListener('click', function() {
+      const isOpen = sidebar.classList.contains('mobile-open');
+      if (isOpen) {
+        closeMobileSidebar();
+      } else {
+        sidebar.classList.add('mobile-open');
+        backdrop.classList.add('active');
+      }
+    });
+
+    backdrop.addEventListener('click', closeMobileSidebar);
+
+    sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
+      link.addEventListener('click', closeMobileSidebar);
     });
 
     document.getElementById('headerLogout').addEventListener('click', function() {

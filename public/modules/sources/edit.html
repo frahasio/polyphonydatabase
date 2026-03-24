@@ -651,11 +651,11 @@
         let inclusionsData = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
-        const inclusionsPageSize = 9999;
+        const inclusionsPageSize = 100;
         let initialLoadDone = false;
 
-        // Fetch source details and all inclusions
-        async function fetchSource() {
+        // Fetch source details with paginated inclusions
+        async function fetchSource(page) {
             const urlParams = new URLSearchParams(window.location.search);
             const sourceId = urlParams.get('id');
 
@@ -664,8 +664,13 @@
                 return;
             }
 
+            if (!page) {
+                page = parseInt(urlParams.get('page')) || 1;
+            }
+            currentInclusionsPage = page;
+
             try {
-                const response = await fetch(`/api/admin/sources/${sourceId}`);
+                const response = await fetch(`/api/admin/sources/${sourceId}?inclusions_page=${page}&inclusions_limit=${inclusionsPageSize}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch source details');
                 }
@@ -673,7 +678,8 @@
                 
                 sourceData = data.source;
                 inclusionsData = data.inclusions || [];
-                inclusionsPagination = null;
+                inclusionsPagination = data.inclusions_pagination || null;
+                markAsSaved();
                 
                 if (!initialLoadDone) {
                     await loadPublishersAndScribes();
@@ -682,6 +688,7 @@
                 populateSourceForm();
                 
                 displayInclusions();
+                displayInclusionsPagination();
                 
                 // Show main content
                 document.getElementById('loadingIndicator').style.display = 'none';
@@ -881,12 +888,57 @@
                 }
             }
 
-            initializeInclusionInteractions();
+            initializeAllRowInteractions();
+            updateAddInclusionButtonVisibility();
+        }
+
+        // Initialize interactions on all rows (used after full rebuild)
+        function initializeAllRowInteractions() {
             initializeComposerSelects();
             updateAllDropdownStyling();
             initializeToneSelect2();
-            
-            updateAddInclusionButtonVisibility();
+            initializeTitleAutocomplete();
+        }
+
+        // Initialize interactions on a single newly-inserted row element
+        function initializeRowInteractions(rowEl) {
+            initializeComposerSelects();
+
+            rowEl.querySelectorAll('.composition-dropdown').forEach(dropdown => {
+                updateDropdownStyling(dropdown);
+            });
+
+            $(rowEl).find('.tone-select2').each(function() {
+                if ($(this).data('select2')) return;
+                const idx = parseInt($(this).data('index'));
+                $(this).select2({
+                    placeholder: 'Tone...',
+                    allowClear: true,
+                    width: '100%',
+                    templateSelection: function(data) {
+                        if (!data.id) return data.text;
+                        return $('<span>').text(toneShortLabels[data.id] || data.id);
+                    }
+                }).on('change', function() {
+                    const vals = $(this).val() || [];
+                    updateCompositionField(idx, 'tone', vals);
+                });
+            });
+
+            rowEl.querySelectorAll('.title-autocomplete').forEach(input => {
+                if (input._autocompleteInit) return;
+                input._autocompleteInit = true;
+                let timeout;
+                input.addEventListener('input', function() {
+                    clearTimeout(timeout);
+                    const query = this.value;
+                    if (query.length >= 3) {
+                        timeout = setTimeout(() => {
+                            searchTitles(query, this);
+                        }, 300);
+                    }
+                });
+            });
         }
 
         function updateAddInclusionButtonVisibility() {
@@ -952,42 +1004,67 @@
             const numberOfInclusionsInput = document.getElementById('numberOfInclusions');
             const numberOfInclusions = parseInt(numberOfInclusionsInput.value) || 1;
             
-            // Validate the number of inclusions
             if (numberOfInclusions < 1 || numberOfInclusions > 50) {
                 alert('Please enter a number between 1 and 50.');
                 numberOfInclusionsInput.focus();
                 return;
             }
             
-            // Create multiple blank inclusions
             const newInclusions = [];
             for (let i = 0; i < numberOfInclusions; i++) {
                 newInclusions.push(createBlankInclusion());
             }
-            
+
+            let insertIndex;
             switch (position) {
                 case 'end':
-                    // Add at the end - array position determines order
+                    insertIndex = inclusionsData.length;
                     inclusionsData.push(...newInclusions);
                     break;
-                    
                 case 'beginning':
-                    // Add at the beginning - array position determines order
+                    insertIndex = 0;
                     inclusionsData.unshift(...newInclusions);
                     break;
-                    
                 case 'between':
-                    const afterIndex = parseInt(document.getElementById('insertAfter').value);
-                    // Insert after the specified index - array position determines order
-                    inclusionsData.splice(afterIndex + 1, 0, ...newInclusions);
+                    insertIndex = parseInt(document.getElementById('insertAfter').value) + 1;
+                    inclusionsData.splice(insertIndex, 0, ...newInclusions);
                     break;
             }
             
-            // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('addInclusionModal'));
             modal.hide();
-            
-            displayInclusions();
+
+            // For "end" inserts, surgically append new rows without rebuilding
+            if (position === 'end') {
+                const container = document.querySelector('.inclusions-container');
+                if (container) {
+                    // Remove blank placeholder rows before appending
+                    container.querySelectorAll('.blank-row').forEach(r => r.remove());
+
+                    for (let i = 0; i < newInclusions.length; i++) {
+                        const idx = insertIndex + i;
+                        const html = buildInclusionRow(newInclusions[i], idx, false);
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
+                        const rowEl = temp.firstElementChild;
+                        container.appendChild(rowEl);
+                        initializeRowInteractions(rowEl);
+                        updateRowStyling(idx);
+                    }
+
+                    // Re-add a single blank row at the end
+                    const blankHtml = buildInclusionRow(createBlankInclusion(), inclusionsData.length, true);
+                    const blankTemp = document.createElement('div');
+                    blankTemp.innerHTML = blankHtml;
+                    container.appendChild(blankTemp.firstElementChild);
+                }
+            } else {
+                // For beginning/between inserts, we need to re-index all rows,
+                // so a full rebuild is the safest approach
+                displayInclusions();
+            }
+
+            displayInclusionsPagination();
             markAsUnsaved();
         }
 
@@ -1089,7 +1166,7 @@
                                 <label class="form-label small">Order</label>
                                 <div class="drag-handle" title="Drag to reorder inclusion">
                                     <i class="bi bi-grip-vertical"></i>
-                                    <span class="inclusion-number">${index + 1}</span>
+                                    <span class="inclusion-number">${(currentInclusionsPage - 1) * inclusionsPageSize + index + 1}</span>
                                 </div>
                             </div>
                             <div class="mb-2">
@@ -1757,10 +1834,8 @@
                     throw new Error(`Failed to delete inclusion: ${response.status} ${response.statusText}`);
                 }
                 
-                // Successfully deleted from database - now remove from frontend
-                inclusionsData.splice(index, 1);
-                displayInclusions();
-                
+                // Successfully deleted from database - refresh current page
+                fetchSource(currentInclusionsPage);
                 
             } catch (error) {
                 console.error('Error deleting inclusion:', error);
@@ -1779,14 +1854,6 @@
         function displayInclusionsPagination() {
             const headerContainer = document.getElementById('headerPagination');
             const bottomContainer = document.getElementById('bottomPagination');
-            
-            // ADD LOGGING: Debug pagination data
-            console.log('=== PAGINATION DEBUG ===');
-            console.log('inclusionsPagination:', inclusionsPagination);
-            console.log('inclusionsData.length:', inclusionsData.length);
-            console.log('currentInclusionsPage:', currentInclusionsPage);
-            console.log('Header container exists:', !!headerContainer);
-            console.log('Bottom container exists:', !!bottomContainer);
             
             if (!headerContainer) {
                 return;
@@ -1938,12 +2005,9 @@
                 return;
             }
             
-            // Show loading spinner during page transition
             showInclusionsLoading();
-            
-            // Update URL with new page parameter
             updateUrlPage(page);
-            
+            hasUnsavedChanges = false;
             fetchSource(page);
         }
         
@@ -2073,21 +2137,6 @@
             markAsUnsaved();
         }
 
-        // Load composition types and initialize autocomplete
-        async function initializeInclusionInteractions() {
-            // Load composition types
-            try {
-                const response = await fetch('/api/admin/sources/composition-types');
-                compositionTypes = await response.json();
-            } catch (error) {
-                console.error('Error loading composition types:', error);
-                compositionTypes = []; // Fallback to empty array
-            }
-
-            // Initialize title autocomplete
-            initializeTitleAutocomplete();
-        }
-
         // Load publishers and scribes data
         async function loadPublishersAndScribes() {
             try {
@@ -2116,12 +2165,12 @@
 
         function initializeTitleAutocomplete() {
             document.querySelectorAll('.title-autocomplete').forEach(input => {
+                if (input._autocompleteInit) return;
+                input._autocompleteInit = true;
                 let timeout;
-                
                 input.addEventListener('input', function() {
                     clearTimeout(timeout);
                     const query = this.value;
-                    
                     if (query.length >= 3) {
                         timeout = setTimeout(() => {
                             searchTitles(query, this);
@@ -2472,8 +2521,9 @@
                 // Collect source images
                 sourceUpdateData.source_images = sourceData.source_images || [];
 
+                const pageOffset = (currentInclusionsPage - 1) * inclusionsPageSize;
                 inclusionsData.forEach((inclusion, index) => {
-                    inclusion.order = index + 1;
+                    inclusion.order = pageOffset + index + 1;
                     
                     if (inclusion.clefs) {
                         const sorted = sortClefsByDisplayOrder(inclusion.clefs);
@@ -2488,7 +2538,8 @@
 
                 const saveData = {
                     source: sourceUpdateData,
-                    inclusions: inclusionsData
+                    inclusions: inclusionsData,
+                    pageOffset: pageOffset
                 };
 
                 document.getElementById('saveStatusText').textContent = 'Saving source data...';
@@ -2552,7 +2603,7 @@
                         saveBtn.classList.add('btn-primary');
                     }, 2000);
                     
-                    fetchSource();
+                    fetchSource(currentInclusionsPage);
                 }, 800);
 
             } catch (error) {
@@ -2815,10 +2866,6 @@
                     input.style.borderColor = '';
                 });
             }
-        }
-
-        function initializeInclusionInteractions() {
-            initializeTitleAutocomplete();
         }
 
         // Event listeners

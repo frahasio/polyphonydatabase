@@ -42,7 +42,7 @@ app.use(session({
 }));
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Simple favicon handler to prevent 404s
 app.get('/favicon.ico', (req, res) => res.status(204).send());
