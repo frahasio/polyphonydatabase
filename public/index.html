@@ -73,14 +73,38 @@
             background-color: #fefefe;
         }
         
-        .clef-images {
-            display: flex;
-            gap: 2px;
+        /* Clef strip: continuous staff, shared borders, no wrapping */
+        .clef-strip {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            line-height: 0;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
         }
-        
-        .clef-images img {
-            width: 20px;
-            height: 20px;
+
+        .clef-strip-cell {
+            flex-shrink: 0;
+            line-height: 0;
+            padding: 12px 0;
+            border-right: 1px solid #ccc;
+        }
+
+        .clef-strip-cell:last-child {
+            border-right: none;
+        }
+
+        .clef-strip-cell svg {
+            display: block;
+            overflow: visible;
+        }
+
+        .clef-strip-text {
+            font-style: italic;
+            font-size: 0.75em;
+            padding: 0 4px;
+            line-height: 40px;
         }
         
         .edition-link, .recording-link {
@@ -143,48 +167,25 @@
             border: 1px solid #dee2e6;
         }
         
-        .clef-images {
-            display: flex;
-            align-items: center;
-            gap: 0;
-            margin-top: 0.5rem;
-            flex-wrap: wrap;
-            max-width: 600px;
-        }
-        
-        .clef-images img {
-            height: 56px;
-            width: auto;
-            margin: 0;
-            padding: 0;
-            display: inline-block;
-        }
-        
-        /* Clef styling for missing, incomplete, optional */
-        .clef-missing {
+        .clef-strip-cell.clef-missing {
             border: 1px solid #dc3545;
             opacity: 0.9;
         }
-        
-        .clef-incomplete {
+
+        .clef-strip-cell.clef-incomplete {
             border: 1px solid #28a745;
             opacity: 0.9;
         }
-        
-        .clef-optional {
+
+        .clef-strip-cell.clef-optional {
             opacity: 0.5;
         }
-        
-        .clef-multiple {
-            /* No additional styling needed - blue is built into the image */
-        }
-        
-        /* Remove left border from adjacent clefs with same status */
-        .clef-missing + .clef-missing {
+
+        .clef-strip-cell.clef-missing + .clef-strip-cell.clef-missing {
             border-left: none;
         }
-        
-        .clef-incomplete + .clef-incomplete {
+
+        .clef-strip-cell.clef-incomplete + .clef-strip-cell.clef-incomplete {
             border-left: none;
         }
         
@@ -253,6 +254,11 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+        }
+
+        .clef-explainer-icon {
+            flex-shrink: 0;
+            overflow: visible;
         }
         
         /* Custom breakpoint for mobile filters */
@@ -342,8 +348,8 @@
                 font-size: 0.8rem;
             }
             
-            .clef-images img {
-                height: 40px !important;
+            .clef-strip-cell {
+                padding: 8px 0;
             }
         }
     </style>
@@ -2181,14 +2187,13 @@
                                         </div>
                                         <div class="col-md-5">
                                             ${source.clefs && source.clefs.length > 0 ? `
-                                                <div class="clef-images mb-2">
-                                                    ${sortClefsInDisplayOrder(source.clefs).map((clef, ci) => {
+                                                <div class="clef-strip-container mb-2">
+                                                    ${sortClefsInDisplayOrder(source.clefs).map(clef => {
                                                         if (clef.clef && clef.clef.trim()) {
                                                             const clefName = clef.clef.trim();
-                                                            const clefCode = clef.transitions_to && clef.transitions_to.length > 0 ? 
+                                                            const clefCode = clef.transitions_to && clef.transitions_to.length > 0 ?
                                                                 [clefName, ...clef.transitions_to].join('/') : clefName;
-                                                            const dataAttrs = `data-clef="${clefCode}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"`;
-                                                            return `<span class="clef-render-target" ${dataAttrs} style="display:inline-block;margin-right:2px"></span>`;
+                                                            return `<span class="clef-render-target" data-clef="${clefCode}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"></span>`;
                                                         }
                                                         return '';
                                                     }).join('')}
@@ -2217,14 +2222,9 @@
                 </tr>
             `).join('');
 
-            // Render dynamic clef SVGs
-            document.querySelectorAll('.clef-render-target').forEach(el => {
-                window.clefRenderer.renderClef(el, {
-                    clef: el.dataset.clef,
-                    missing: el.dataset.missing === 'true',
-                    incomplete: el.dataset.incomplete === 'true',
-                    optional: el.dataset.optional === 'true'
-                });
+            // Render continuous clef strips
+            document.querySelectorAll('.clef-strip-container').forEach(container => {
+                window.clefRenderer.renderClefStrip(container);
             });
             
             // Update pagination

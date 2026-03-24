@@ -596,14 +596,7 @@ a:hover {
     justify-content: center;
 }
 
-/* Clef image styling */
-.clef-images img {
-    height: 40px;
-    width: auto;
-    margin-right: 8px;
-    border-radius: 0;
-}
-
+/* Clef rendering */
 .clef-missing {
     color: #ad1313;
 }
@@ -621,10 +614,7 @@ a:hover {
     vertical-align: middle;
     margin-right: 8px;
     min-width: 60px;
-}
-
-.clef-render-target {
-    vertical-align: middle;
+    overflow: visible;
 }
 
 /* Source item styling */
