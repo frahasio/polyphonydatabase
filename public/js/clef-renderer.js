@@ -2,49 +2,42 @@
  * Dynamic SVG clef renderer.
  * Loads clef shapes from SVG files in /svg/clefs/, renders them on a CSS staff.
  *
- * Usage:
- *   renderClef(container, { clef: 'g2', missing: false, incomplete: false, optional: false })
- *   renderClef(container, { clef: 'g2/c3', ... })  // primary g2, secondary c3
- *   renderClefStrip(container)  // continuous strip from child .clef-render-target elements
- *
- * Call replaceAllClefImages() to auto-replace all <img src="/clef_images/..."> on the page.
+ * All clefs are rendered at a consistent width (PRIMARY_WIDTH / SECONDARY_WIDTH).
+ * Adjust each SVG file's viewBox padding to control relative glyph size.
  */
 (function() {
   'use strict';
 
   const STAFF_HEIGHT = 40;
   const LINE_SPACING = STAFF_HEIGHT / 4;
-  const CLEF_HEIGHT = 28;
-  const SECONDARY_CLEF_HEIGHT = 18;
+  const PRIMARY_WIDTH = 16;
+  const SECONDARY_WIDTH = 11;
   const SECONDARY_COLOR = '#0d6efd';
 
   function lineY(n) {
     return STAFF_HEIGHT - (n - 1) * LINE_SPACING;
   }
 
-  // Per-clef definitions: SVG file, anchor ratio (fraction from TOP where reference line sits),
-  // and fallback inline path/viewBox for use before SVGs are loaded.
-  // "y" = gamma (Γ) clef. c1–c5 are positional C-clef variants.
   const CLEF_DEFS = {
-    g:  { svgFile: '/svg/clefs/g-clef.svg',    anchorRatio: 0.81,
+    g:  { svgFile: '/svg/clefs/g-clef.svg',    anchorRatio: 0.85,
           viewBox: '0 0 20 44', path: 'M10 44c-1-3-3-6-3-9 0-5 3-8 5-10L8 6C6 2 8 0 10 0s4 2 2 6l-4 19c3-2 7-1 7 4 0 4-2 6-4 7 1 3 0 6-1 8z' },
     f:  { svgFile: '/svg/clefs/f-clef.svg',     anchorRatio: 0.50,
           viewBox: '0 0 20 28', path: 'M0 8c8-12 18-4 14 4-3 6-9 6-12 4M16 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M16 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3' },
-    c1: { svgFile: '/svg/clefs/c1-clef.svg',    anchorRatio: 0.70,
+    c1: { svgFile: '/svg/clefs/c1-clef.svg',    anchorRatio: 0.695,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
     c2: { svgFile: '/svg/clefs/c2-clef.svg',    anchorRatio: 0.57,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
     c3: { svgFile: '/svg/clefs/c3-clef.svg',    anchorRatio: 0.50,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
-    c4: { svgFile: '/svg/clefs/c4-clef.svg',    anchorRatio: 0.57,
+    c4: { svgFile: '/svg/clefs/c4-clef.svg',    anchorRatio: 0.42,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
-    c5: { svgFile: '/svg/clefs/c5-clef.svg',    anchorRatio: 0.70,
+    c5: { svgFile: '/svg/clefs/c5-clef.svg',    anchorRatio: 0.295,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
-    d:  { svgFile: '/svg/clefs/d-clef.svg',     anchorRatio: 0.60, fillRule: 'evenodd',
+    d:  { svgFile: '/svg/clefs/d-clef.svg',     anchorRatio: 0.57, fillRule: 'evenodd',
           viewBox: '0 0 10 15', path: 'M2.5 0C7 0 9.5 2.5 9.5 6.5C9.5 10.5 7.5 14 5 14C2 14 0.5 11.5 0.5 8.5C0.5 5 3 3.5 5.5 3.5C6.5 3.5 7 4 7 5L7 3C7 1.5 5.5 1 3.5 1Z M5 5.5C3 5.5 2.5 7 2.5 8.5C2.5 10.5 3.5 12 5 12C7 12 7.5 10.5 7.5 8.5C7.5 7 7 5.5 5 5.5Z' },
-    x:  { svgFile: '/svg/clefs/x-clef.svg',     anchorRatio: 0.50, sizeFactor: 0.55,
+    x:  { svgFile: '/svg/clefs/x-clef.svg',     anchorRatio: 0.50,
           viewBox: '0 0 10 10', path: 'M1 0L5 4L9 0L10 1L6 5L10 9L9 10L5 6L1 10L0 9L4 5L0 1Z' },
-    y:  { svgFile: '/svg/clefs/gamma-clef.svg',  anchorRatio: 0.25,
+    y:  { svgFile: '/svg/clefs/gamma-clef.svg',  anchorRatio: 0.30,
           viewBox: '0 0 10 14', path: 'M0 0L10 0L10 2C10 2.5 9.5 2.8 9 2.8L2.2 2.8L2.2 12.5C2.2 13.4 1.7 14 1.1 14C0.5 14 0 13.4 0 12.5Z' }
   };
 
@@ -100,7 +93,6 @@
       fillRule:    cached ? cached.fillRule : (def.fillRule || null),
       anchorRatio: def.anchorRatio,
       strokeOnly:  def.strokeOnly || false,
-      sizeFactor:  def.sizeFactor || 1.0,
       fromFile:    !!cached
     };
   }
@@ -116,12 +108,9 @@
     }).filter(Boolean);
   }
 
-  function clefWidth(key, isPrimary) {
-    const data = getClefData(key);
-    if (!data) return isPrimary ? 20 : 14;
-    const h = (isPrimary ? CLEF_HEIGHT : SECONDARY_CLEF_HEIGHT) * data.sizeFactor;
-    const vb = data.viewBox.split(' ').map(Number);
-    return h * (vb[2] / vb[3]);
+  /** All primary clefs rendered at PRIMARY_WIDTH; secondary at SECONDARY_WIDTH. */
+  function clefWidth(isPrimary) {
+    return isPrimary ? PRIMARY_WIDTH : SECONDARY_WIDTH;
   }
 
   // --- SVG construction ---
@@ -153,14 +142,17 @@
     const data = getClefData(key);
     if (!data || !data.path) return;
 
-    const h = (isPrimary ? CLEF_HEIGHT : SECONDARY_CLEF_HEIGHT) * data.sizeFactor;
-    const anchorY = data.anchorRatio * h;
+    const targetW = clefWidth(isPrimary);
+    const vb = data.viewBox.split(' ').map(Number);
+    const aspect = vb[2] / vb[3];
+    const renderH = targetW / aspect;
+
+    const anchorY = data.anchorRatio * renderH;
     const targetY = lineY(clefInfo.line);
     const y = targetY - anchorY;
 
-    const vb = data.viewBox.split(' ').map(Number);
-    const scaleX = (h * (vb[2] / vb[3])) / vb[2];
-    const scaleY = h / vb[3];
+    const scaleX = targetW / vb[2];
+    const scaleY = renderH / vb[3];
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('transform', `translate(${xOffset},${y}) scale(${scaleX},${scaleY})`);
@@ -207,9 +199,6 @@
 
   // --- Public API ---
 
-  /**
-   * Render a single clef entry into a container (for editors, explainer icons, etc.)
-   */
   function renderClef(container, clefData) {
     if (!clefData || !clefData.clef) { container.innerHTML = ''; return; }
     const parts = parseClefCode(clefData.clef);
@@ -219,7 +208,7 @@
     wrapper.style.display = 'inline-block';
     wrapper.style.position = 'relative';
     wrapper.style.verticalAlign = 'middle';
-    wrapper.style.padding = '12px 0';
+    wrapper.style.padding = '20px 0';
 
     if (clefData.missing) wrapper.classList.add('clef-missing');
     if (clefData.incomplete) wrapper.classList.add('clef-incomplete');
@@ -240,23 +229,19 @@
     let totalWidth = 3;
     parts.forEach((part, idx) => {
       if (part.type === 'text') totalWidth += 24;
-      else {
-        const key = getClefKey(part.family, part.line);
-        totalWidth += clefWidth(key, idx === 0) + 2;
-      }
+      else totalWidth += clefWidth(idx === 0) + 2;
     });
     totalWidth += 3;
 
-    const svg = createStaffSVG(Math.max(totalWidth, 28));
+    const svg = createStaffSVG(Math.max(totalWidth, 24));
     let xOff = 3;
     parts.forEach((part, idx) => {
       if (part.type === 'text') {
         placeTextOnStaff(svg, part.label, xOff);
         xOff += 24;
       } else {
-        const key = getClefKey(part.family, part.line);
         placeClefOnStaff(svg, part, idx === 0, xOff, idx === 0 ? null : SECONDARY_COLOR);
-        xOff += clefWidth(key, idx === 0) + 2;
+        xOff += clefWidth(idx === 0) + 2;
       }
     });
 
@@ -265,11 +250,6 @@
     container.appendChild(wrapper);
   }
 
-  /**
-   * Render a continuous clef strip with seamless staff lines.
-   * Reads child .clef-render-target elements for data, then replaces container contents.
-   * Used on the public search page.
-   */
   function renderClefStrip(container) {
     const targets = container.querySelectorAll('.clef-render-target');
     if (!targets.length) { container.innerHTML = ''; return; }
@@ -306,15 +286,12 @@
         return;
       }
 
-      let cellWidth = 2;
+      let cellWidth = 1;
       parts.forEach((part, idx) => {
         if (part.type === 'text') cellWidth += 22;
-        else {
-          const key = getClefKey(part.family, part.line);
-          cellWidth += clefWidth(key, idx === 0) + 1;
-        }
+        else cellWidth += clefWidth(idx === 0) + 1;
       });
-      cellWidth += 2;
+      cellWidth += 1;
 
       const svg = createStaffSVG(Math.max(cellWidth, 18));
       let xOff = 1;
@@ -323,9 +300,8 @@
           placeTextOnStaff(svg, part.label, xOff);
           xOff += 22;
         } else {
-          const key = getClefKey(part.family, part.line);
           placeClefOnStaff(svg, part, idx === 0, xOff, idx === 0 ? null : SECONDARY_COLOR);
-          xOff += clefWidth(key, idx === 0) + 1;
+          xOff += clefWidth(idx === 0) + 1;
         }
       });
 
@@ -336,9 +312,6 @@
     container.appendChild(strip);
   }
 
-  /**
-   * Replace legacy <img src="/clef_images/..."> elements with dynamic SVG.
-   */
   function replaceAllClefImages() {
     document.querySelectorAll('img[src*="/clef_images/"]').forEach(img => {
       const filename = img.getAttribute('src').split('/').pop().replace('.png', '');
@@ -355,7 +328,6 @@
     });
   }
 
-  // Auto-preload SVG files as soon as possible
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', preloadClefs);
   } else {
