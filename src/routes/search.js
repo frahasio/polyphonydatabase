@@ -1324,7 +1324,7 @@ router.get('/composition-types', async (req, res) => {
 router.get('/tones', async (req, res) => {
   try {
     const isArray = await toneIsArray();
-    const toneOrderCase = `CASE val
+    const toneOrder = `CASE tone
         WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3
         WHEN '4' THEN 4 WHEN '5' THEN 5 WHEN '6' THEN 6
         WHEN '7' THEN 7 WHEN '8' THEN 8 WHEN '9' THEN 9
@@ -1332,10 +1332,12 @@ router.get('/tones', async (req, res) => {
         WHEN 'per' THEN 13 WHEN 'mix' THEN 14 WHEN 'pro' THEN 15
         ELSE 99 END`;
     const query = isArray
-      ? `SELECT DISTINCT t AS tone FROM compositions, unnest(tone) AS t
-         WHERE tone IS NOT NULL ORDER BY ${toneOrderCase.replace(/val/g, 't')}`
-      : `SELECT DISTINCT tone FROM compositions
-         WHERE tone IS NOT NULL ORDER BY ${toneOrderCase.replace(/val/g, 'tone')}`;
+      ? `SELECT tone FROM (
+           SELECT DISTINCT unnest(tone) AS tone FROM compositions WHERE tone IS NOT NULL
+         ) sub WHERE tone != '' ORDER BY ${toneOrder}`
+      : `SELECT tone FROM (
+           SELECT DISTINCT tone FROM compositions WHERE tone IS NOT NULL AND tone != ''
+         ) sub ORDER BY ${toneOrder}`;
     const result = await pool.query(query);
     
     const toneMapping = {

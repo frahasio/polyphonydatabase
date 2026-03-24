@@ -15,6 +15,7 @@
   const SECONDARY_COLOR = '#0d6efd';
   const CELL_PAD = 4;
   const CLEF_GAP = 1;
+  const STAFF_CAP = 10;
 
   function lineY(n) {
     return STAFF_HEIGHT - (n - 1) * LINE_SPACING;
@@ -281,6 +282,12 @@
     const strip = document.createElement('div');
     strip.className = 'clef-strip';
 
+    // Leading staff-line cap
+    const leadCap = document.createElement('div');
+    leadCap.className = 'clef-strip-cell';
+    leadCap.appendChild(createStaffSVG(STAFF_CAP));
+    strip.appendChild(leadCap);
+
     entries.forEach(entry => {
       const parts = parseClefCode(entry.clef);
       if (!parts.length) return;
@@ -316,6 +323,12 @@
       cell.appendChild(svg);
       strip.appendChild(cell);
     });
+
+    // Trailing staff-line cap
+    const trailCap = document.createElement('div');
+    trailCap.className = 'clef-strip-cell';
+    trailCap.appendChild(createStaffSVG(STAFF_CAP));
+    strip.appendChild(trailCap);
 
     container.appendChild(strip);
   }
