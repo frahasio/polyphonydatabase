@@ -599,10 +599,14 @@ a:hover {
 /* Clef rendering */
 .clef-missing {
     color: #ad1313;
+    background: rgba(173, 19, 19, 0.1);
+    border-radius: 2px;
 }
 
 .clef-incomplete {
     color: #198754;
+    background: rgba(25, 135, 84, 0.1);
+    border-radius: 2px;
 }
 
 .clef-optional {
