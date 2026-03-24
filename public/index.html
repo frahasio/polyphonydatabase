@@ -172,13 +172,28 @@
         }
 
         .demo-row {
-            border-left: 4px solid #f0ad4e;
-            background: #fffdf5;
+            background: #fff8e1;
+            position: relative;
+        }
+        .demo-row > td {
+            border-top: 2px solid #f0ad4e !important;
         }
         .demo-row .edition-link,
         .demo-row .recording-link,
         .demo-row a {
             pointer-events: none;
+        }
+        .demo-banner {
+            background: #f0ad4e;
+            color: #5d4200;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 3px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 0.4rem;
         }
         .tip {
             position: relative;
@@ -857,10 +872,11 @@
 
         let isUserLoggedIn = false;
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             checkAuthStatus();
             initializeInterface();
-            // Render static explainer clef icons
+            // Ensure SVG clef files are loaded before rendering explainer icons
+            await window.clefRenderer.preloadClefs();
             document.querySelectorAll('.clef-explainer-icon').forEach(el => {
                 window.clefRenderer.renderClef(el, {
                     clef: el.dataset.clef,
@@ -2095,19 +2111,21 @@
                 </tr>
                 <tr class="demo-row">
                     <td>
+                        <span class="demo-banner"><i class="bi bi-info-circle me-1"></i>Example — hover over fields to learn what they mean</span>
+                        <br>
                         <span class="tip tip-right" data-tip="The title of the composition as it appears in the database">
-                            <strong>Missa Papae Marcelli</strong>
+                            <strong>Missa Laneous</strong>
                         </span>
                         <div class="mt-1">
                             <span class="tip tip-right edition-link" data-tip="A modern edition available as a PDF download. Click to open in a new tab.">
                                 <i class="bi bi-file-earmark-pdf me-1"></i>
-                                Francis Bevan (S(S)A(A)TTBB)
+                                Proofreader, A. N. (SSATTB)
                             </span>
                         </div>
                         <div class="mt-1">
                             <span class="tip tip-right recording-link" data-tip="A recording available on a streaming platform. Click to listen.">
                                 <i class="bi bi-play-circle me-1"></i>
-                                Oxford Camerata
+                                The Hypothetical Consort
                             </span>
                         </div>
                     </td>
@@ -2115,7 +2133,7 @@
                         <span class="tip" data-tip="The liturgical function or genre of the composition">(Mass)</span>
                     </td>
                     <td>
-                        <span class="tip" data-tip="The composer(s) of this composition, determined from the majority of source attributions. Where sources disagree, this may read 'conflicting attributions'.">Palestrina, Giovanni Pierluigi da <span class="text-muted fst-italic">(c.1525–1594)</span></span>
+                        <span class="tip" data-tip="The composer(s) of this composition, determined from the majority of source attributions. Where sources disagree, this may read 'conflicting attributions'.">Carbonara, Spaghetti de <span class="text-muted fst-italic">(c.1549–after 1588)</span></span>
                     </td>
                     <td>
                         <span class="tip" data-tip="The number of independent voice parts in this composition">6</span>
@@ -2128,14 +2146,14 @@
                                         <div class="flex-grow-1">
                                             <div class="d-flex align-items-center">
                                                 <span class="tip tip-right" data-tip="The RISM siglum — a standardised library code and shelfmark identifying this source">
-                                                    <strong>V-CVbav Capp.Sist. 22</strong>
+                                                    <strong>GB-Ob Mus.Sch. e.404</strong>
                                                 </span>
                                             </div>
-                                            <br><small class="tip tip-right" data-tip="The city and approximate date range of this source">Rome, c.1563–c.1568</small>
-                                            <br><small class="tip tip-right" data-tip="The person who physically copied the music into this source"><strong>Scribes:</strong> Parvus, Johannes</small>
+                                            <br><small class="tip tip-right" data-tip="The city and approximate date range of this source">Oxford, c.1570–c.1580</small>
+                                            <br><small class="tip tip-right" data-tip="The person who physically copied the music into this source"><strong>Scribes:</strong> Painstaking, Monk A.</small>
                                             <br><small class="tip tip-right" data-tip="Whether the source is a manuscript (MS) or print, and its physical format (choirbook, partbook, score, etc.)"><strong>Type:</strong> MS, Choirbook</small>
                                             <br><small class="tip tip-right" data-tip="Links to digitised images of this source held by libraries. Click to view the manuscript online."><strong>Images:</strong>
-                                                <span class="text-primary"><i class="bi bi-image"></i> DVL</span>
+                                                <span class="text-primary"><i class="bi bi-image"></i> DIAMM</span>
                                             </small>
                                             <br><small class="tip tip-right" data-tip="A link to this source's record in the RISM catalogue (Répertoire International des Sources Musicales)">
                                                 <span class="text-primary"><i class="bi bi-link-45deg"></i> RISM</span>
@@ -2151,11 +2169,10 @@
                                         <span class="clef-render-target" data-clef="c3"></span>
                                         <span class="clef-render-target" data-clef="c3" data-missing="true"></span>
                                         <span class="clef-render-target" data-clef="c4"></span>
-                                        <span class="clef-render-target" data-clef="c4"></span>
                                     </div>
-                                    <div><small class="tip tip-left" data-tip="The name of the composer as written in this particular source — often a Latinised or abbreviated form that differs between sources"><strong>Attribution:</strong> Io. Praenestino</small></div>
-                                    <div><small class="tip tip-left" data-tip="The folio range within the manuscript where this piece is found"><strong>Position:</strong> 70v–90r</small></div>
-                                    <div><small class="tip tip-left" data-tip="Any editorial notes about this particular inclusion of the piece"><strong>Notes:</strong> Contains Agnus Dei II</small></div>
+                                    <div><small class="tip tip-left" data-tip="The name of the composer as written in this particular source — often a Latinised or abbreviated form that differs between sources"><strong>Attribution:</strong> Spaghettius de Carbonara</small></div>
+                                    <div><small class="tip tip-left" data-tip="The folio range within the manuscript where this piece is found"><strong>Position:</strong> 42v–58r</small></div>
+                                    <div><small class="tip tip-left" data-tip="Any editorial notes about this particular inclusion of the piece"><strong>Notes:</strong> Tenor voice badly water-damaged; Gloria missing entirely</small></div>
                                 </div>
                             </div>
                         </div>
@@ -2166,15 +2183,15 @@
                                         <div class="flex-grow-1">
                                             <div class="d-flex align-items-center">
                                                 <span class="tip tip-right" data-tip="The RISM identifier for this printed edition">
-                                                    <strong>RISM P660</strong>
+                                                    <strong>RISM H4321</strong>
                                                 </span>
                                             </div>
                                             <span class="tip tip-right" data-tip="The title of the printed edition">
-                                                <br>Missarum liber secundus
+                                                <br>Missarum miscellaneorum liber primus
                                             </span>
-                                            <br><small class="tip tip-right" data-tip="The city and date of publication">Rome, 1567</small>
-                                            <br><small class="tip tip-right" data-tip="The publisher or printer of this edition"><strong>Publishers:</strong> Dorico, Valerio</small>
-                                            <br><small class="tip tip-right" data-tip="Whether the source is a manuscript (MS) or print, and its physical format"><strong>Type:</strong> Print, Choirbook</small>
+                                            <br><small class="tip tip-right" data-tip="The city and date of publication">Venice, 1575</small>
+                                            <br><small class="tip tip-right" data-tip="The publisher or printer of this edition"><strong>Publishers:</strong> Gardano, Angelo</small>
+                                            <br><small class="tip tip-right" data-tip="Whether the source is a manuscript (MS) or print, and its physical format"><strong>Type:</strong> Print, Partbooks</small>
                                             <br><small class="tip tip-right" data-tip="Links to digitised images of this source held by libraries"><strong>Images:</strong>
                                                 <span class="text-primary"><i class="bi bi-image"></i> I-Bc</span>
                                             </small>
@@ -2186,15 +2203,15 @@
                                 </div>
                                 <div class="col-md-5">
                                     <div class="clef-strip-container mb-2 demo-clef-strip tip tip-left" data-tip="The original clef combination for each voice in this source, rendered on a staff. Each clef represents one voice part.">
-                                        <span class="clef-render-target clef-missing" data-clef="g2"></span>
+                                        <span class="clef-render-target" data-clef="g2"></span>
                                         <span class="clef-render-target" data-clef="c1"></span>
                                         <span class="clef-render-target" data-clef="c3"></span>
                                         <span class="clef-render-target" data-clef="c3"></span>
                                         <span class="clef-render-target" data-clef="c4"></span>
                                         <span class="clef-render-target" data-clef="c4"></span>
                                     </div>
-                                    <div><small class="tip tip-left" data-tip="The name of the composer as written in this particular source — often a Latinised or abbreviated form"><strong>Attribution:</strong> Ioannis Petri Aloysi Praenestini</small></div>
-                                    <div><small class="tip tip-left" data-tip="The position of this piece within the printed edition (e.g. the 7th piece in the book)"><strong>Position:</strong> 7</small></div>
+                                    <div><small class="tip tip-left" data-tip="The name of the composer as written in this particular source — often a Latinised or abbreviated form"><strong>Attribution:</strong> Sp. de Carbonara</small></div>
+                                    <div><small class="tip tip-left" data-tip="The position of this piece within the printed edition (e.g. the 7th piece in the book)"><strong>Position:</strong> 3</small></div>
                                 </div>
                             </div>
                         </div>
