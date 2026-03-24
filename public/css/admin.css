@@ -62,7 +62,7 @@ body.admin-layout {
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   min-height: var(--header-height);
@@ -118,6 +118,15 @@ body.admin-layout {
   width: 20px;
   text-align: center;
   flex-shrink: 0;
+}
+
+.sidebar-treble-clef {
+  font-size: 1.3rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+  display: inline-block;
 }
 
 .admin-sidebar.collapsed .sidebar-label {

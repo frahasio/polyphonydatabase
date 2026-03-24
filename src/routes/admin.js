@@ -501,6 +501,21 @@ router.get('/data-quality-records/:alertType', async (req, res) => {
         `;
         break;
         
+      case 'voicings_no_clef_combos':
+        query = `
+          SELECT v.id, v.voicing as title, 'voicings' as table_name
+          FROM voicings v
+          LEFT JOIN clef_combinations_voicings ccv ON v.id = ccv.voicing_id
+          WHERE ccv.voicing_id IS NULL
+          AND v.id NOT IN (
+            SELECT CAST(entity_id AS INTEGER) FROM ignored_alerts
+            WHERE alert_type = 'voicings_no_clef_combos' AND entity_type = 'voicings'
+          )
+          ORDER BY v.voicing
+          LIMIT $1
+        `;
+        break;
+
       case 'composers_missing_data':
         query = `
           SELECT c.id, c.name as title, 'composers' as table_name

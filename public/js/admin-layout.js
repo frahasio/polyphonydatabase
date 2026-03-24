@@ -11,8 +11,8 @@
     { label: 'Performers',      icon: 'bi-mic',            href: '/modules/performers/index.html',      adminOnly: false },
     { label: 'Titles',          icon: 'bi-card-text',      href: '/modules/titles/index.html',          adminOnly: false },
     { label: 'Functions',       icon: 'bi-tag',            href: '/modules/functions/index.html',       adminOnly: false },
-    { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html',       adminOnly: true },
-    { label: 'Clef / Voicings', icon: 'bi-music-note-beamed', href: '/modules/clef-voicings/index.html', adminOnly: true },
+    { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html', adminOnly: true, smallLabel: true },
+    { label: 'Clef / Voicings', icon: 'custom-treble-clef', href: '/modules/clef-voicings/index.html', adminOnly: true },
     { label: 'Users',           icon: 'bi-people',         href: '/user-management.html',               adminOnly: true }
   ];
 
@@ -60,10 +60,14 @@
     for (const item of NAV_ITEMS) {
       const active = isActive(item.href) ? ' active' : '';
       const adminClass = item.adminOnly ? ' admin-only' : '';
+      const labelStyle = item.smallLabel ? ' style="font-size:0.75rem;line-height:1.15"' : '';
+      const iconHtml = item.icon === 'custom-treble-clef'
+        ? '<span class="sidebar-treble-clef">\uD834\uDD1E</span>'
+        : `<i class="bi ${item.icon}"></i>`;
       html += `<li class="sidebar-item${active}${adminClass}">
         <a href="${item.href}" class="sidebar-link" title="${item.label}">
-          <i class="bi ${item.icon}"></i>
-          <span class="sidebar-label">${item.label}</span>
+          ${iconHtml}
+          <span class="sidebar-label"${labelStyle}>${item.label}</span>
         </a>
       </li>`;
     }

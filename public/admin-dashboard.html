@@ -168,97 +168,13 @@
             </div>
         </div>
 
-        <!-- Recent Activity Feed -->
-        <div class="row g-3 mb-4">
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Recent Activity</h6>
-                        <div id="activityFeed" class="small">
-                            <div class="text-center py-3 text-muted">Loading activity...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-3"><i class="bi bi-people me-2"></i>Recent Users</h6>
-                        <div id="recentUsers" class="small">
-                            <div class="text-center py-3 text-muted">Loading...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Data Quality Alerts Section - Admin Only -->
-        <div class="mt-5 admin-only-section" style="display: none;">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>Data Quality Alerts
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div id="dataQualityAlerts" class="row g-3">
-                        <div class="col-12 text-center py-4">
-                            <div class="spinner-border text-warning" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-2 mb-0">Checking data quality...</p>
-                        </div>
-                    </div>
-                    <div id="missingClefImages" class="row g-3 mt-2">
-                        <!-- Missing clef images will be displayed here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Cleanup Preview Section - Admin Only -->
-        <div class="mt-4 admin-only-section" style="display: none;">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0">
-                        <i class="bi bi-trash me-2"></i>Database Cleanup Preview
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-8">
-                            <div id="cleanupPreview" class="row g-3">
-                                <div class="col-12 text-center py-4">
-                                    <div class="spinner-border text-danger" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 mb-0">Analyzing cleanup options...</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4">
-                            <div class="text-center">
-                                <button class="btn btn-outline-danger mb-2" onclick="refreshCleanupPreview()">
-                                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Preview
-                                </button>
-                                <br>
-                                <button class="btn btn-danger" onclick="showCleanupModal()" disabled id="runCleanupBtn">
-                                    <i class="bi bi-trash me-2"></i>Run Cleanup
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Recent Activity Section - Admin Only -->
-        <div class="mt-4 mb-5 admin-only-section" style="display: none;">
+        <div class="mb-4 admin-only-section" style="display: none;">
             <div class="card border-info">
                 <div class="card-header bg-info text-white">
-                    <h4 class="mb-0">
+                    <h5 class="mb-0">
                         <i class="bi bi-clock-history me-2"></i>Recent Activity (Last 30 Days)
-                    </h4>
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div id="recentActivity" style="max-height: 400px; overflow-y: auto;">
@@ -267,6 +183,27 @@
                                 <span class="visually-hidden">Loading...</span>
                             </div>
                             <p class="mt-2 mb-0">Loading recent activity...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Quality Alerts Section - Admin Only -->
+        <div class="mb-4 admin-only-section" style="display: none;">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Data Quality Alerts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="dataQualityAlerts" class="row g-3">
+                        <div class="col-12 text-center py-4">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 mb-0">Checking data quality...</p>
                         </div>
                     </div>
                 </div>
@@ -439,12 +376,8 @@
                         });
                         
                         loadDashboardStats();
-                        loadActivityFeed();
-                        loadRecentUsersPanel();
-                        loadDataQualityAlerts();
-                        loadCleanupPreview();
                         loadRecentActivity();
-                        loadMissingClefImages();
+                        loadDataQualityAlerts();
                     }
                 } else {
                     // Not authenticated, redirect to login
@@ -778,11 +711,12 @@
             
             const correctionUrls = {
                 'functions_no_titles': '/modules/functions/index.html',
-                'titles_no_functions': '/modules/functions/index.html',
+                'titles_no_functions': '/modules/titles/index.html',
                 'groups_title_mismatch': '/group-management.html',
                 'clef_combos_no_voicings': '/modules/clef-voicings/index.html',
+                'voicings_no_clef_combos': '/modules/clef-voicings/index.html',
                 'invalid_clef_combinations': '/modules/clef-voicings/index.html',
-                'titles_no_language': '/modules/functions/index.html?filter=no_language',
+                'titles_no_language': '/modules/titles/index.html?filter=no_language',
                 'composers_missing_data': '/modules/composers/index.html'
             };
             
