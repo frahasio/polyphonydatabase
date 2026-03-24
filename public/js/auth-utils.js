@@ -3,8 +3,8 @@
  * Handles token storage, restoration, and automatic refresh
  */
 
-// Token refresh interval (refresh every 7 days)
-const TOKEN_REFRESH_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+// Token refresh interval (refresh every 24 hours)
+const TOKEN_REFRESH_INTERVAL = 24 * 60 * 60 * 1000;
 let refreshTimer = null;
 
 /**

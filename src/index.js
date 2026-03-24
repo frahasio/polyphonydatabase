@@ -1,5 +1,6 @@
 import express from 'express';
 import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
 import { pool } from './db.js';
 import { requireAuthWeb } from './middleware/auth.js';
 import sourcesRouter from './routes/sources.js';
@@ -15,21 +16,28 @@ import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
 import path from 'path';
 
+const PgStore = connectPgSimple(session);
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Trust proxy for Heroku deployment
 app.set('trust proxy', 1);
 
-// Session configuration
+// Session configuration with PostgreSQL-backed store
 app.use(session({
+  store: new PgStore({
+    pool,
+    tableName: 'user_sessions',
+    createTableIfMissing: true
+  }),
   secret: process.env.SESSION_SECRET || 'your-super-secret-session-key-change-this-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true only if you have HTTPS properly configured
+    secure: false,
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
   }
 }));
 
@@ -44,11 +52,6 @@ app.use('/api/auth', authRouter);
 
 // Serve static files
 app.use(express.static('public'));
-
-// Admin group suggestions page
-app.get('/admin/group-suggestions', (req, res) => {
-  res.sendFile(path.join(process.cwd(), 'public', 'admin-group-suggestions.html'));
-});
 
 // PUBLIC ROUTES (no authentication required)
 // Root URL serves the public search interface

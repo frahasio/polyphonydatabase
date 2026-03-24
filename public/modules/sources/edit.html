@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
     <style>
         .selected-source {
             background-color: #e3f2fd !important;
@@ -638,20 +639,13 @@
         let inclusionsData = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
-        const inclusionsPageSize = 25;
+        const inclusionsPageSize = 9999;
+        let initialLoadDone = false;
 
-        // Fetch source details and inclusions
-        async function fetchSource(page = 1) {
+        // Fetch source details and all inclusions
+        async function fetchSource() {
             const urlParams = new URLSearchParams(window.location.search);
             const sourceId = urlParams.get('id');
-            
-            // If no page specified, get from URL parameters
-            if (page === 1) {
-                const urlPage = urlParams.get('page');
-                if (urlPage && !isNaN(urlPage)) {
-                    page = parseInt(urlPage);
-                }
-            }
 
             if (!sourceId) {
                 alert('No source ID provided');
@@ -659,7 +653,7 @@
             }
 
             try {
-                const response = await fetch(`/api/admin/sources/${sourceId}?inclusions_page=${page}&inclusions_limit=${inclusionsPageSize}`);
+                const response = await fetch(`/api/admin/sources/${sourceId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch source details');
                 }
@@ -667,37 +661,15 @@
                 
                 sourceData = data.source;
                 inclusionsData = data.inclusions || [];
-                inclusionsPagination = data.inclusions_pagination;
-                currentInclusionsPage = page;
+                inclusionsPagination = null;
                 
-                // ADD LOGGING: Log the raw data received from server
-                console.log('=== FETCH SOURCE DATA ===');
-                console.log('Source data:', sourceData);
-                console.log('Inclusions data:', inclusionsData);
-                console.log('Sample inclusion compositions:');
-                inclusionsData.slice(0, 3).forEach((inclusion, index) => {
-                    console.log(`Inclusion ${index}:`, {
-                        id: inclusion.id,
-                        composition: inclusion.composition,
-                        even_odd: inclusion.composition?.even_odd,
-                        even_odd_type: typeof inclusion.composition?.even_odd,
-                        number_of_voices: inclusion.composition?.number_of_voices,
-                        number_of_voices_type: typeof inclusion.composition?.number_of_voices
-                    });
-                });
-                console.log('=========================');
-                
-                // Load heavy data only on first load, but populate form on every page
-                if (page === 1) {
-                    await loadPublishersAndScribes(); // This also loads composers
+                if (!initialLoadDone) {
+                    await loadPublishersAndScribes();
+                    initialLoadDone = true;
                 }
-                populateSourceForm(); // Always populate source form fields
+                populateSourceForm();
                 
-                // Display inclusions with pagination
                 displayInclusions();
-                console.log('About to call displayInclusionsPagination...');
-                displayInclusionsPagination();
-                console.log('displayInclusionsPagination called');
                 
                 // Show main content
                 document.getElementById('loadingIndicator').style.display = 'none';
@@ -868,44 +840,15 @@
         function displayInclusions() {
             const container = document.getElementById('inclusionsContainer');
             
-            // Only show blank rows on the last page or for new sources
             const existingRows = inclusionsData.length;
-            const isNewSource = existingRows === 0;
-            const isLastPage = !inclusionsPagination || currentInclusionsPage === inclusionsPagination.totalPages;
-            
-            let blankRowsNeeded = 0;
-            if (isNewSource) {
-                blankRowsNeeded = 20; // New sources get 20 blank rows
-            } else if (isLastPage) {
-                blankRowsNeeded = 1; // Last page gets 1 blank row
-            }
-            // Other pages get 0 blank rows
+            const blankRowsNeeded = existingRows === 0 ? 20 : 1;
 
-            // ADD LOGGING: Log processing of inclusions data
-            console.log('=== DISPLAY INCLUSIONS ===');
-            console.log('Processing inclusions for display:', existingRows, 'existing,', blankRowsNeeded, 'blank');
-            inclusionsData.slice(0, 3).forEach((inclusion, index) => {
-                console.log(`Display inclusion ${index}:`, {
-                    id: inclusion.id,
-                    even_odd: inclusion.composition?.even_odd,
-                    even_odd_type: typeof inclusion.composition?.even_odd,
-                    tone: inclusion.composition?.tone,
-                    number_of_voices: inclusion.composition?.number_of_voices,
-                    number_of_voices_type: typeof inclusion.composition?.number_of_voices,
-                    clefs_count: inclusion.clefs?.length || 0
-                });
-            });
-            console.log('==========================');
-
-            // Build the inclusions editing interface
             let html = '<div class="inclusions-container">';
 
-            // Add existing inclusions
             inclusionsData.forEach((inclusion, index) => {
                 html += buildInclusionRow(inclusion, index, false);
             });
 
-            // Add blank rows to reach inclusionsPageSize total
             for (let i = 0; i < blankRowsNeeded; i++) {
                 const blankInclusion = createBlankInclusion();
                 html += buildInclusionRow(blankInclusion, existingRows + i, true);
@@ -926,20 +869,9 @@
                 }
             }
 
-            // Initialize autocomplete and styling
             initializeInclusionInteractions();
-            
-            // Ensure composers are loaded before initializing selects
-            if (allComposers.length > 0) {
-                initializeComposerSelects();
-                updateAllDropdownStyling();
-            } else {
-                // Wait for composers to load, then initialize
-                setTimeout(() => {
-                    initializeComposerSelects();
-                    updateAllDropdownStyling();
-                }, 500);
-            }
+            initializeComposerSelects();
+            updateAllDropdownStyling();
             
             // Update add inclusion button visibility
             updateAddInclusionButtonVisibility();
@@ -1145,7 +1077,7 @@
                                 <label class="form-label small">Order</label>
                                 <div class="drag-handle" title="Drag to reorder inclusion">
                                     <i class="bi bi-grip-vertical"></i>
-                                    <span class="inclusion-number">${((currentInclusionsPage - 1) * inclusionsPageSize) + index + 1}</span>
+                                    <span class="inclusion-number">${index + 1}</span>
                                 </div>
                             </div>
                             <div class="mb-2">
@@ -1188,9 +1120,8 @@
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label small">Tone</label>
-                                    <select class="form-control form-control-sm composition-dropdown" 
-                                            onchange="updateCompositionField(${index}, 'tone', this.value); updateDropdownStyling(this)">
-                                        <option value="">Tone...</option>
+                                    <select class="form-control form-control-sm composition-dropdown" multiple size="3"
+                                            onchange="updateCompositionField(${index}, 'tone', Array.from(this.selectedOptions, o => o.value)); updateDropdownStyling(this)">
                                         ${buildToneOptions(inclusion.composition?.tone)}
                                     </select>
                                 </div>
@@ -1274,8 +1205,26 @@
             'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
         ];
 
+        // Composer lookup maps (built once when composers load)
+        let composerNameToId = new Map();
+        let composerIdToName = new Map();
+
+        function buildComposerMaps() {
+            composerNameToId.clear();
+            composerIdToName.clear();
+            allComposers.forEach(c => {
+                composerNameToId.set(c.name, c.id);
+                composerIdToName.set(c.id, c.name);
+            });
+        }
+
         function buildAttributionInputs(attributions, inclusionIndex) {
-            return attributions.map((attribution, attrIndex) => `
+            const inclusion = inclusionsData[inclusionIndex] || {};
+            const composerIds = inclusion.composer_ids || [];
+            return attributions.map((attribution, attrIndex) => {
+                const composerId = composerIds[attrIndex];
+                const composerName = composerId ? (composerIdToName.get(composerId) || '') : '';
+                return `
                 <div class="mb-1">
                     <div class="input-group input-group-sm">
                         <input type="text" class="form-control" 
@@ -1287,13 +1236,15 @@
                                     onclick="removeAttribution(${inclusionIndex}, ${attrIndex})">×</button>
                         ` : ''}
                     </div>
-                    <select class="form-control form-control-sm mt-1 composer-select" 
-                            data-inclusion="${inclusionIndex}" 
-                            data-attribution="${attrIndex}">
-                        <option value="">Select composer...</option>
-                    </select>
+                    <input type="text" class="form-control form-control-sm mt-1 composer-input" 
+                           list="composerDatalist"
+                           data-inclusion="${inclusionIndex}" 
+                           data-attribution="${attrIndex}"
+                           value="${composerName}"
+                           placeholder="Select composer..."
+                           onchange="handleComposerInputChange(this)">
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function buildCompositionTypeOptions(selectedType, selectedTypeId) {
@@ -1308,9 +1259,10 @@
             }).join('');
         }
 
-        function buildToneOptions(selectedTone) {
+        function buildToneOptions(selectedTones) {
+            const selected = Array.isArray(selectedTones) ? selectedTones : (selectedTones ? [selectedTones] : []);
             return Object.entries(toneOptions).map(([value, label]) => 
-                `<option value="${value}" ${value == selectedTone ? 'selected' : ''}>${label}</option>`
+                `<option value="${value}" ${selected.includes(value) ? 'selected' : ''}>${label}</option>`
             ).join('');
         }
 
@@ -1322,12 +1274,8 @@
                 2: 'both'
             };
             
-            // ADD LOGGING: Log the even_odd processing
-            console.log('Building even_odd options with selectedValue:', selectedValue, 'type:', typeof selectedValue);
-            
             return Object.entries(evenOddMapping).map(([intValue, displayText]) => {
                 const isSelected = parseInt(intValue) === selectedValue;
-                console.log(`Even/Odd option ${intValue} (${displayText}): selected=${isSelected}, comparison: ${parseInt(intValue)} === ${selectedValue}`);
                 return `<option value="${intValue}" ${isSelected ? 'selected' : ''}>${displayText}</option>`;
             }).join('');
         }
@@ -1502,24 +1450,18 @@
                 inclusionsData[index].composition = {};
             }
             
-            // ADD LOGGING: Track composition field updates
-            console.log(`updateCompositionField: inclusion ${index}, field ${field}, value:`, value, 'type:', typeof value);
-            
-            // Handle different field types correctly
             if (field === 'composition_type_id') {
                 inclusionsData[index].composition.composition_type_id = value ? parseInt(value) : null;
-                // Also store the name for display
                 const type = compositionTypes.find(t => t.id === parseInt(value));
                 inclusionsData[index].composition.composition_type_name = type ? type.name : '';
-                console.log(`Updated composition_type_id to: ${inclusionsData[index].composition.composition_type_id}, name: ${inclusionsData[index].composition.composition_type_name}`);
             } else if (field === 'even_odd') {
-                // Store as integer, not string
                 const newValue = value !== '' ? parseInt(value) : null;
                 inclusionsData[index].composition[field] = newValue;
-                console.log(`Updated even_odd from ${value} (${typeof value}) to ${newValue} (${typeof newValue})`);
+            } else if (field === 'tone') {
+                const arr = Array.isArray(value) ? value.filter(v => v) : (value ? [value] : []);
+                inclusionsData[index].composition[field] = arr.length > 0 ? arr : null;
             } else {
                 inclusionsData[index].composition[field] = value || null;
-                console.log(`Updated ${field} to:`, inclusionsData[index].composition[field]);
             }
             
             markAsUnsaved();
@@ -1781,8 +1723,6 @@
                 inclusionsData.splice(index, 1);
                 displayInclusions();
                 
-                // Show success message
-                console.log(`Successfully deleted inclusion ${inclusion.id}: ${displayText}`);
                 
             } catch (error) {
                 console.error('Error deleting inclusion:', error);
@@ -1811,20 +1751,16 @@
             console.log('Bottom container exists:', !!bottomContainer);
             
             if (!headerContainer) {
-                console.log('ERROR: Header pagination container not found!');
                 return;
             }
             
             if (!inclusionsPagination || inclusionsPagination.totalPages <= 1) {
-                console.log('No pagination needed - total pages:', inclusionsPagination?.totalPages);
                 headerContainer.innerHTML = '';
                 if (bottomContainer) bottomContainer.innerHTML = '';
                 updateAddInclusionButton(); // Update button even when no pagination
                 return;
             }
 
-            console.log('Building pagination controls...');
-            
             // Add a prominent indicator for multiple pages
             const totalInclusions = inclusionsPagination.total || inclusionsPagination.totalItems || inclusionsPagination.totalCount || 0;
             const hasInclusions = totalInclusions > 0 || inclusionsData.length > 0;
@@ -1848,7 +1784,6 @@
             // Previous button
             const prevDisabled = !inclusionsPagination.hasPrevPage || currentInclusionsPage <= 1;
             const prevPage = currentInclusionsPage - 1;
-            console.log('Previous button - disabled:', prevDisabled, 'prevPage:', prevPage, 'hasPrevPage:', inclusionsPagination.hasPrevPage);
             html += `<li class="page-item ${prevDisabled ? 'disabled' : ''}">`;
             if (!prevDisabled) {
                 html += `<button type="button" class="page-link" data-page="${prevPage}" title="Previous page">‹</button>`;
@@ -1896,7 +1831,6 @@
             // Next button
             const nextDisabled = !inclusionsPagination.hasNextPage || currentInclusionsPage >= inclusionsPagination.totalPages;
             const nextPage = currentInclusionsPage + 1;
-            console.log('Next button - disabled:', nextDisabled, 'nextPage:', nextPage, 'hasNextPage:', inclusionsPagination.hasNextPage);
             html += `<li class="page-item ${nextDisabled ? 'disabled' : ''}">`;
             if (!nextDisabled) {
                 html += `<button type="button" class="page-link" data-page="${nextPage}" title="Next page">›</button>`;
@@ -1907,9 +1841,6 @@
 
             html += '</ul></nav></div>'; // Close the pagination nav and the info container
 
-            console.log('Pagination HTML:', html);
-            console.log('Previous disabled:', prevDisabled, 'Next disabled:', nextDisabled);
-            
             // Populate both header and bottom pagination containers
             headerContainer.innerHTML = html;
             if (bottomContainer) {
@@ -1922,21 +1853,15 @@
             [headerContainer, bottomContainer].forEach((container, containerIndex) => {
                 if (container) {
                     const buttons = container.querySelectorAll('button.page-link[data-page]');
-                    console.log(`Container ${containerIndex}: Found ${buttons.length} pagination buttons`);
-                    buttons.forEach((button, buttonIndex) => {
-                        console.log(`  Button ${buttonIndex}: data-page="${button.dataset.page}", text="${button.textContent}"`);
+                    buttons.forEach((button) => {
                         button.addEventListener('click', function(e) {
                             e.preventDefault();
                             const targetPage = parseInt(this.dataset.page);
-                            console.log('Pagination button clicked, target page:', targetPage);
                             loadInclusionsPageSafe(targetPage);
                         });
                     });
                 }
             });
-            
-            console.log('Pagination rendered to both containers with event listeners');
-            console.log('========================');
             
             // Update the add inclusion button text to reflect pagination context
             updateAddInclusionButton();
@@ -1957,31 +1882,21 @@
 
         // Safer pagination function that handles unsaved changes
         function loadInclusionsPageSafe(page) {
-            console.log('loadInclusionsPageSafe called with page:', page);
-            
             if (!inclusionsPagination || page < 1 || page > inclusionsPagination.totalPages) {
-                console.log('Invalid page requested:', page);
                 return;
             }
             
-            // Check for unsaved changes before navigating
             if (hasUnsavedChanges) {
                 if (confirm('You have unsaved changes. Are you sure you want to navigate to another page? Your changes will be lost.')) {
-                    console.log('User confirmed navigation despite unsaved changes');
                     loadInclusionsPage(page);
-                } else {
-                    console.log('User cancelled navigation due to unsaved changes');
                 }
             } else {
-                console.log('No unsaved changes, navigating to page:', page);
                 loadInclusionsPage(page);
             }
         }
 
         function loadInclusionsPage(page) {
-            console.log('loadInclusionsPage called with page:', page);
             if (!inclusionsPagination || page < 1 || page > inclusionsPagination.totalPages) {
-                console.log('Invalid page range');
                 return;
             }
             
@@ -2472,28 +2387,15 @@
 
         // Calculate number of voices from clefs
         function calculateNumberOfVoices(clefs) {
-            if (!clefs || clefs.length === 0) {
-                console.log('calculateNumberOfVoices: No clefs provided, returning null');
-                return null;
-            }
+            if (!clefs || clefs.length === 0) return null;
             
-            console.log('calculateNumberOfVoices: Processing clefs:', clefs);
-            
-            // Count non-empty clefs (excluding optional ones for voice count)
             let voiceCount = 0;
             for (const clef of clefs) {
-                const hasClef = clef.clef && clef.clef.trim();
-                const isOptional = clef.optional;
-                console.log(`Clef check: "${clef.clef}", hasClef: ${hasClef}, optional: ${isOptional}`);
-                
-                if (hasClef && !isOptional) {
+                if (clef.clef && clef.clef.trim() && !clef.optional) {
                     voiceCount++;
                 }
             }
-            
-            const result = voiceCount > 0 ? voiceCount : null;
-            console.log(`calculateNumberOfVoices: Final count: ${result} (from ${clefs.length} total clefs)`);
-            return result;
+            return voiceCount > 0 ? voiceCount : null;
         }
 
         // Save all changes
@@ -2532,78 +2434,31 @@
                 // Collect source images
                 sourceUpdateData.source_images = sourceData.source_images || [];
 
-                // Calculate number_of_voices and order for each inclusion before saving
-                console.log('=== SAVE ALL CHANGES - BEFORE PROCESSING ===');
-                console.log('Original inclusionsData sample (first 3):');
-                
                 inclusionsData.forEach((inclusion, index) => {
-                    if (index < 3) {
-                        console.log(`Before processing inclusion ${index}:`, {
-                            id: inclusion.id,
-                            composition: inclusion.composition,
-                            clefs: inclusion.clefs,
-                            clefs_count: inclusion.clefs?.length || 0
-                        });
-                    }
-                    
-                    // Calculate order from array position and current page
-                    inclusion.order = ((currentInclusionsPage - 1) * inclusionsPageSize) + index + 1;
+                    inclusion.order = index + 1;
                     
                     if (inclusion.composition && inclusion.clefs) {
-                        const calculatedVoices = calculateNumberOfVoices(inclusion.clefs);
-                        console.log(`Inclusion ${index} calculated voices: ${calculatedVoices} (from ${inclusion.clefs?.length || 0} clefs)`);
-                        inclusion.composition.number_of_voices = calculatedVoices;
+                        inclusion.composition.number_of_voices = calculateNumberOfVoices(inclusion.clefs);
                     }
                 });
 
-                // ADD LOGGING: Log the final data being sent
-                console.log('=== FINAL SAVE DATA ===');
-                console.log('Source data:', sourceUpdateData);
-                console.log('Inclusions data sample (first 3):');
-                inclusionsData.slice(0, 3).forEach((inclusion, index) => {
-                    console.log(`Saving inclusion ${index}:`, {
-                        id: inclusion.id,
-                        order: inclusion.order,
-                        composition: inclusion.composition,
-                        even_odd: inclusion.composition?.even_odd,
-                        even_odd_type: typeof inclusion.composition?.even_odd,
-                        number_of_voices: inclusion.composition?.number_of_voices,
-                        number_of_voices_type: typeof inclusion.composition?.number_of_voices,
-                        tone: inclusion.composition?.tone,
-                        title_text: inclusion.composition?.title_text,
-                        composition_type_id: inclusion.composition?.composition_type_id
-                    });
-                });
-
-                // Prepare data for saving
                 const saveData = {
                     source: sourceUpdateData,
                     inclusions: inclusionsData
                 };
 
-                console.log('Complete save payload:', saveData);
-                console.log('=======================');
-
                 document.getElementById('saveStatusText').textContent = 'Saving source data...';
                 document.getElementById('saveProgressBar').style.width = '25%';
 
                 const sourceId = document.getElementById('source_id').value;
-                console.log('=== SOURCE ID DEBUG ===');
-                console.log('sourceId from form:', sourceId);
-                
-                // Fallback to URL if sourceId is empty
                 let finalSourceId = sourceId;
                 if (!sourceId) {
                     const urlParams = new URLSearchParams(window.location.search);
                     finalSourceId = urlParams.get('id');
-                    console.log('sourceId from URL fallback:', finalSourceId);
                 }
-                
                 if (!finalSourceId) {
                     throw new Error('No source ID found. Cannot save.');
                 }
-                console.log('Final sourceId to use:', finalSourceId);
-                console.log('========================');
 
                 const response = await fetch(`/api/admin/sources/${finalSourceId}/save-with-inclusions`, {
                     method: 'POST',
@@ -2624,7 +2479,6 @@
                         const errorText = await response.text();
                         errorData = { error: errorText };
                     }
-                    console.log('Save error response:', errorData);
                     const errorMessage = errorData.details 
                         ? `Failed to save changes: ${errorData.error}\n\nDetails: ${errorData.details}`
                         : `Failed to save changes: ${errorData.error || JSON.stringify(errorData)}`;
@@ -2632,9 +2486,6 @@
                 }
 
                 const saveResult = await response.json();
-                console.log('=== SAVE RESPONSE ===');
-                console.log('Save successful, response:', saveResult);
-                console.log('=====================');
 
                 document.getElementById('saveProgressBar').style.width = '100%';
                 document.getElementById('saveStatusText').textContent = 'Save completed successfully!';
@@ -2657,9 +2508,7 @@
                         saveBtn.classList.add('btn-primary');
                     }, 2000);
                     
-                    // Stay on edit page, just refresh the data
-                    console.log('=== REFRESHING DATA AFTER SAVE ===');
-                    fetchSource(currentInclusionsPage);
+                    fetchSource();
                 }, 800);
 
             } catch (error) {
@@ -2701,69 +2550,62 @@
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 allComposers = await response.json();
+                buildComposerDatalist();
             } catch (error) {
                 console.error('Error loading composers:', error);
                 allComposers = [];
             }
         }
 
-        // Initialize composer select dropdowns
-        function initializeComposerSelects() {
-            // Create a single HTML string with all composers for reuse
-            let composerOptionsHTML = '';
+        // Build the shared composer datalist (called once after composers load)
+        function buildComposerDatalist() {
+            let existing = document.getElementById('composerDatalist');
+            if (existing) existing.remove();
+            
+            const datalist = document.createElement('datalist');
+            datalist.id = 'composerDatalist';
             allComposers.forEach(composer => {
-                composerOptionsHTML += `<option value="${composer.id}">${composer.name}</option>`;
+                const opt = document.createElement('option');
+                opt.value = composer.name;
+                datalist.appendChild(opt);
             });
+            document.body.appendChild(datalist);
+            buildComposerMaps();
+        }
 
-            document.querySelectorAll('.composer-select').forEach(select => {
-                // Clear existing options except the first one and add all at once
-                select.innerHTML = '<option value="">Select composer...</option>' + composerOptionsHTML;
+        function handleComposerInputChange(input) {
+            const name = input.value.trim();
+            const composerId = name ? (composerNameToId.get(name) || null) : null;
+            const inclusionIndex = parseInt(input.dataset.inclusion);
+            const attrIndex = parseInt(input.dataset.attribution);
+            
+            if (!inclusionsData[inclusionIndex].composer_ids) {
+                inclusionsData[inclusionIndex].composer_ids = [];
+            }
+            inclusionsData[inclusionIndex].composer_ids[attrIndex] = composerId;
+            
+            if (!inclusionsData[inclusionIndex].composition) {
+                inclusionsData[inclusionIndex].composition = {};
+            }
+            if (!inclusionsData[inclusionIndex].composition.composer_names) {
+                inclusionsData[inclusionIndex].composition.composer_names = [];
+            }
+            inclusionsData[inclusionIndex].composition.composer_names[attrIndex] = composerId ? name : '';
+            
+            // Visual feedback: highlight if the typed name doesn't match a known composer
+            if (name && !composerId) {
+                input.style.borderColor = '#ffc107';
+            } else {
+                input.style.borderColor = '';
+            }
+            markAsUnsaved();
+        }
 
-                // Set existing values - fix for single composer per attribution
-                const inclusionIndex = parseInt(select.dataset.inclusion);
-                const attrIndex = parseInt(select.dataset.attribution);
-                const inclusion = inclusionsData[inclusionIndex];
-                
-                if (inclusion && inclusion.composer_ids) {
-                    // Ensure we have proper single composer per attribution
-                    // Truncate composer_ids to match attribution_texts length
-                    const maxAttributions = inclusion.attribution_texts ? inclusion.attribution_texts.length : 1;
-                    if (inclusion.composer_ids.length > maxAttributions) {
-                        inclusion.composer_ids = inclusion.composer_ids.slice(0, maxAttributions);
-                    }
-                    
-                    if (inclusion.composer_ids[attrIndex]) {
-                        select.value = inclusion.composer_ids[attrIndex];
-                        updateDropdownStyling(select);
-                    }
-                }
-
-                // Handle changes
-                select.addEventListener('change', function() {
-                    const composerId = this.value ? parseInt(this.value) : null;
-                    const inclusionIndex = parseInt(this.dataset.inclusion);
-                    const attrIndex = parseInt(this.dataset.attribution);
-                    
-                    if (!inclusionsData[inclusionIndex].composer_ids) {
-                        inclusionsData[inclusionIndex].composer_ids = [];
-                    }
-                    inclusionsData[inclusionIndex].composer_ids[attrIndex] = composerId;
-                    
-                    // Update composer names for display
-                    if (!inclusionsData[inclusionIndex].composition) {
-                        inclusionsData[inclusionIndex].composition = {};
-                    }
-                    if (!inclusionsData[inclusionIndex].composition.composer_names) {
-                        inclusionsData[inclusionIndex].composition.composer_names = [];
-                    }
-                    
-                    const composerName = composerId ? allComposers.find(c => c.id === composerId)?.name || '' : '';
-                    inclusionsData[inclusionIndex].composition.composer_names[attrIndex] = composerName;
-                    
-                    updateDropdownStyling(this);
-                    markAsUnsaved();
-                });
-            });
+        // Backward-compatible stub (no longer does per-select population)
+        function initializeComposerSelects() {
+            if (allComposers.length > 0 && !document.getElementById('composerDatalist')) {
+                buildComposerDatalist();
+            }
         }
 
         // Spreadsheet-style navigation for clef inputs
@@ -2921,11 +2763,12 @@
                 input.value = currentAttribution;
             });
             
-            // Update all composer selects at once (except the first one)
+            // Update all composer inputs at once (except the first one)
             if (currentComposerId) {
-                document.querySelectorAll('select[data-attribution="0"]:not([data-inclusion="0"])').forEach(select => {
-                    select.value = currentComposerId;
-                    updateDropdownStyling(select);
+                const composerName = composerIdToName.get(currentComposerId) || '';
+                document.querySelectorAll('.composer-input[data-attribution="0"]:not([data-inclusion="0"])').forEach(input => {
+                    input.value = composerName;
+                    input.style.borderColor = '';
                 });
             }
         }
@@ -2953,22 +2796,13 @@
             }
         });
 
-        // Initialize - get page from URL if present
         function initializePage() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const page = urlParams.get('page');
-            const startPage = page && !isNaN(page) ? parseInt(page) : 1;
-            fetchSource(startPage);
+            fetchSource();
         }
         
         // Initialize
         initializePage();
-
-        // Initialize the page when loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchSource();
-            initializeInclusionInteractions();
-        });
     </script>
+    <script src="/js/admin-layout.js"></script>
 </body>
 </html> 

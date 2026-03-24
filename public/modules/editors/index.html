@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
     <style>
         .table-responsive {
             margin-top: 1rem;
@@ -30,9 +31,9 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEditorModal">
+                    <a href="new.html" target="_blank" class="btn btn-primary" title="Add a new editor (opens in new tab)">
                         <i class="bi bi-plus-lg"></i> Add Editor
-                    </button>
+                    </a>
                 </div>
 
                 <div class="table-responsive">
@@ -53,42 +54,8 @@
         </div>
     </div>
 
-    <!-- Add Editor Modal -->
-    <div class="modal fade" id="addEditorModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Editor</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addEditorForm">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="dateOfBirth" class="form-label">Date of Birth</label>
-                            <input type="date" class="form-control" id="dateOfBirth" name="dateOfBirth">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveEditorButton">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD for input[type="date"]
-        }
-
         async function fetchEditors() {
             try {
                 const response = await fetch('/api/admin/editors');
@@ -114,98 +81,16 @@
                     <td>${editor.name || ''}</td>
                     <td>${editor.date_of_birth ? new Date(editor.date_of_birth).toLocaleDateString() : ''}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editEditor(${editor.id})">
+                        <a href="edit.html?id=${editor.id}" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Edit this editor (opens in new tab)">
                             <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEditor(${editor.id})">
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEditor(${editor.id})" title="Delete this editor">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
         }
-
-        const form = document.getElementById('addEditorForm');
-        const submitBtn = document.getElementById('saveEditorButton');
-        const modal = document.getElementById('addEditorModal');
-        let editingId = null;
-
-        submitBtn.addEventListener('click', async () => {
-            const name = document.getElementById('name').value;
-            const dateOfBirth = document.getElementById('dateOfBirth').value;
-
-            if (!name) {
-                alert('Please enter a name');
-                return;
-            }
-
-            try {
-                const url = editingId ? `/api/admin/editors/${editingId}` : '/api/admin/editors';
-                const method = editingId ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        name,
-                        date_of_birth: dateOfBirth || null
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} editor`);
-                }
-
-                // Close modal and refresh list
-                const modalInstance = bootstrap.Modal.getInstance(modal);
-                modalInstance.hide();
-                form.reset();
-                resetFormState();
-                fetchEditors();
-            } catch (error) {
-                console.error(`Error ${editingId ? 'updating' : 'creating'} editor:`, error);
-                alert(`Failed to ${editingId ? 'update' : 'create'} editor. Please try again.`);
-            }
-        });
-
-        function resetFormState() {
-            editingId = null;
-            modal.querySelector('.modal-title').textContent = 'Add New Editor';
-            submitBtn.textContent = 'Save';
-        }
-
-        // Handle edit
-        async function editEditor(id) {
-            try {
-                const response = await fetch(`/api/admin/editors/${id}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch editor details');
-                }
-                const data = await response.json();
-                const editor = data.editor;
-
-                // Set editing state
-                editingId = id;
-                modal.querySelector('.modal-title').textContent = 'Edit Editor';
-                submitBtn.textContent = 'Save Changes';
-
-                // Populate the form with editor data
-                document.getElementById('name').value = editor.name || '';
-                document.getElementById('dateOfBirth').value = editor.date_of_birth ? formatDate(editor.date_of_birth) : '';
-
-                // Show the modal
-                const modalInstance = new bootstrap.Modal(modal);
-                modalInstance.show();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to load editor details. Please try again.');
-            }
-        }
-
-        // Reset form state when modal is hidden
-        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete editor
         async function deleteEditor(id) {
@@ -232,5 +117,6 @@
         // Initialize
         fetchEditors();
     </script>
+    <script src="/js/admin-layout.js"></script>
 </body>
 </html> 

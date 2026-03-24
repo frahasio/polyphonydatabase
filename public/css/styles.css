@@ -1,11 +1,10 @@
 /* Global styles for Polyphony Database */
 
-/* Dark textured body background */
 body {
-    background: repeating-linear-gradient(45deg, #3a3a3a, #3a3a3a 1px, #3c3c3c 3px, #3a3a3a 5px);
+    background: #f5f6f8;
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #333333; /* Default to dark text */
+    color: #333333;
 }
 
 /* Container and layout */
@@ -15,12 +14,11 @@ body {
     padding: 0 1rem;
 }
 
-/* Card styles with off-white background */
 .card {
-    border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    background-color: #fefefe;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    border-radius: 2px;
+    background-color: #ffffff;
 }
 
 .card-body {
@@ -36,11 +34,13 @@ body {
 
 .table th {
     font-weight: 600;
-    color: #ffffff;
-    border-bottom-width: 1px;
-    background: linear-gradient(135deg, #8b1538 0%, #6d1029 100%);
-    border: none;
-    padding: 12px 16px;
+    color: #64748b;
+    border-bottom: 2px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 10px 14px;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
 }
 
 .table td {
@@ -54,11 +54,11 @@ body {
 
 /* Search filters and results containers */
 .search-filters {
-    background-color: #fefefe;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     padding: 1rem;
-    border-radius: 8px;
+    border-radius: 2px;
     margin-bottom: 1.5rem;
 }
 
@@ -223,15 +223,14 @@ body {
     margin-bottom: 0;
 }
 
-/* Table header sort dropdown styling */
 .table thead th .filter-label {
-    color: white;
+    color: #64748b;
     font-weight: normal;
 }
 
 .table thead th .filter-input {
-    background-color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
 }
 
 /* Highlight active filters (in URL) */
@@ -270,7 +269,7 @@ body {
 .btn {
     font-weight: 500;
     padding: 0.5rem 1rem;
-    border-radius: 6px;
+    border-radius: 2px;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
@@ -285,15 +284,13 @@ body {
     font-size: 1.1em;
 }
 
-/* Button color variations to match theme */
 .btn-primary {
-    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
-    border: none;
+    background: #3b82f6;
+    border-color: #3b82f6;
 }
-
-.btn-danger {
-    background: linear-gradient(135deg, #c62d42 0%, #b71c1c 100%);
-    border: none;
+.btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
 }
 
 /* Filter group styling - removed, no longer using groups */
@@ -306,10 +303,10 @@ body {
 }
 
 .form-control {
-    border-radius: 6px;
-    border-color: #ced4da;
+    border-radius: 2px;
+    border-color: #e2e8f0;
     padding: 0.5rem 0.75rem;
-    background-color: #fefefe;
+    background-color: #ffffff;
 }
 
 .form-control:focus {
@@ -318,20 +315,19 @@ body {
     background-color: #fefefe;
 }
 
-/* Modal styles with off-white background */
 .modal-content {
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    background-color: #fefefe;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: #ffffff;
 }
 
 .modal-header {
-    border-bottom: 1px solid #dee2e6;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, #c62d42 0%, #b71c1c 100%);
-    color: white;
-    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem 1.25rem;
+    background: #f8fafc;
+    color: #1e293b;
+    border-radius: 3px 3px 0 0;
 }
 
 .modal-body {
@@ -348,9 +344,9 @@ body {
 /* Alert styles */
 .alert {
     border: none;
-    border-radius: 6px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1rem;
+    border-radius: 2px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .alert-success {
@@ -398,8 +394,8 @@ body {
 }
 
 .accordion-button:not(.collapsed) {
-    background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
-    color: white;
+    background: #eff6ff;
+    color: #1e40af;
     box-shadow: none;
 }
 
@@ -448,27 +444,27 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #c62d42;
+    background: #94a3b8;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #b71c1c;
+    background: #64748b;
 }
 
 /* Page header styles */
 .page-header {
-    margin-bottom: 2rem;
-    background-color: #fefefe;
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    margin-bottom: 1rem;
+    background-color: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: 2px;
+    border: 1px solid #e2e8f0;
 }
 
 .page-header h1 {
     margin-bottom: 0;
     font-weight: 600;
-    color: #c62d42;
+    color: #1e293b;
 }
 
 /* Action buttons container */
@@ -479,95 +475,11 @@ body {
 
 /* Select2 styling reverted to defaults for now */
 
-/* Text colors - dark by default, white only on specific dark backgrounds */
-
-/* Dark header text (navbar, table headers, etc.) */
-.navbar, .navbar-text, .navbar-text a,
-.table th,
-.modal-header {
-    color: #ffffff !important;
-}
-
-/* Text directly on body background (no container) should be light */
-body > .container > h1,
-body > .container > h2,
-body > .container > h3,
-body > .container > h4,
-body > .container > h5,
-body > .container > h6,
-body > .container > p,
-body > .container > .text-muted,
-body > .container-fluid > h1,
-body > .container-fluid > h2,
-body > .container-fluid > h3,
-body > .container-fluid > h4,
-body > .container-fluid > h5,
-body > .container-fluid > h6,
-body > .container-fluid > p,
-body > .container-fluid > .text-muted,
-.text-muted {
-    color: #ffffff;
-}
-
-/* Admin page headers - ensure all header elements and buttons are visible */
-.container-fluid > .d-flex h1,
-.container-fluid > .d-flex h2,
-.container-fluid > .d-flex h3,
-.container-fluid > .d-flex h4,
-.container-fluid > .d-flex h5,
-.container-fluid > .d-flex h6,
-.container-fluid > .d-flex p,
-.container-fluid > .d-flex .text-muted,
-.container-fluid h1:not(.card h1):not(.modal h1):not(.alert h1):not(.welcome-message h1):not(.admin-section h1),
-.container-fluid h2:not(.card h2):not(.modal h2):not(.alert h2):not(.welcome-message h2):not(.admin-section h2),
-.container-fluid h3:not(.card h3):not(.modal h3):not(.alert h3):not(.welcome-message h3):not(.admin-section h3),
-.container-fluid h4:not(.card h4):not(.modal h4):not(.alert h4):not(.welcome-message h4):not(.admin-section h4),
-.container-fluid h5:not(.card h5):not(.modal h5):not(.alert h5):not(.welcome-message h5):not(.admin-section h5) {
-    color: #ffffff !important;
-}
-
-/* Admin page buttons and navigation elements on dark background */
-.container-fluid > .d-flex .btn-outline-secondary,
-.container-fluid > .d-flex .btn-outline-light {
-    border-color: #ffffff;
-    color: #ffffff;
-}
-
-.container-fluid > .d-flex .btn-outline-secondary:hover,
-.container-fluid > .d-flex .btn-outline-light:hover {
-    background-color: #ffffff;
-    color: #495057;
-}
-
-/* Footer text */
-footer {
-    color: #cccccc;
-}
-
-footer .text-muted {
-    color: #aaaaaa !important;
-}
-
-/* Links - default blue, lighter on dark backgrounds */
 a {
-    color: #0d6efd;
+    color: #3b82f6;
 }
-
 a:hover {
-    color: #0a58ca;
-}
-
-/* Light links for elements directly on dark background */
-body > .container > a,
-body > .container-fluid > a,
-footer a {
-    color: #66b3ff;
-}
-
-body > .container > a:hover,
-body > .container-fluid > a:hover,
-footer a:hover {
-    color: #99ccff;
+    color: #2563eb;
 }
 
 /* Responsive adjustments */
@@ -588,59 +500,26 @@ footer a:hover {
 } 
 
 
-/* Common Admin Dashboard Styles */
-.auth-info {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 10px 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    font-size: 14px;
-    z-index: 1000;
-    border: 1px solid #dee2e6;
-}
-
-.auth-info .user-name {
-    font-weight: bold;
-    color: #333;
-}
-
-.auth-info .logout-btn {
-    color: #007bff;
-    text-decoration: none;
-    margin-left: 10px;
-    cursor: pointer;
-}
-
-.auth-info .logout-btn:hover {
-    text-decoration: underline;
-}
-
 .admin-section {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    border-left: 4px solid #007bff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    border-left: 3px solid #3b82f6;
+    border: 1px solid #e2e8f0;
 }
 
 .welcome-message {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: #155724;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    border: 1px solid #c3e6cb;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: #f0fdf4;
+    color: #166534;
+    padding: 16px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    border: 1px solid #bbf7d0;
 }
 
-/* Enhanced card hover effects */
 .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Loading and spinner styles */
@@ -661,18 +540,18 @@ footer a:hover {
 
 /* Group management styles */
 .group-card {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    padding: 0.75rem;
     margin-bottom: 0.5rem;
-    background-color: #fefefe;
+    background-color: #ffffff;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.15s, border-color 0.15s;
 }
 
 .group-card:hover {
-    background-color: #f8f9fa;
-    border-color: #007bff;
+    background-color: #f8fafc;
+    border-color: #3b82f6;
 }
 
 .group-card.selected {
@@ -682,18 +561,18 @@ footer a:hover {
 }
 
 .selected-groups-display {
-    background-color: #e8f5e8;
-    border: 1px solid #c3e6cb;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 2px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
 .merge-panel {
-    background-color: #fefefe;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 2rem;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    padding: 1.5rem;
     text-align: center;
 }
 
@@ -724,24 +603,35 @@ footer a:hover {
 }
 
 .clef-missing {
-    border:1px solid rgb(173, 19, 19);
+    color: #ad1313;
 }
 
 .clef-incomplete {
-    border:1px solid green;
+    color: #198754;
 }
 
 .clef-optional {
-    opacity: 0.6;
+    opacity: 0.5;
+}
+
+.clef-explainer-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+    min-width: 60px;
+}
+
+.clef-render-target {
+    vertical-align: middle;
 }
 
 /* Source item styling */
 .source-item {
-    background-color: #f9f9f9;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
 /* Edition and recording links */
@@ -764,11 +654,11 @@ footer a:hover {
 
 /* Pagination styling */
 .pagination-info {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-top: 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
 }
 
 /* Common display and visibility utilities */

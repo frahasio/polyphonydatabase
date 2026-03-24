@@ -8,36 +8,32 @@ const router = express.Router();
 // Apply authentication to all routes in this router
 router.use(requireAuth);
 
-// Convert tone values to standardized string format for database storage
-function convertToneToString(toneValue) {
-  if (!toneValue) return null;
-  
-  const toneStr = String(toneValue).toLowerCase().trim();
-  
-  // Valid tone values
-  const validTones = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '12'];
-  
-  // Handle special tone strings
-  const specialTones = {
-    'mix': 'mix',
-    'mixti': 'mix',
-    'per': 'per', 
-    'peregrini': 'per',
-    'pro': 'pro',
-    'proprii': 'pro'
-  };
-  
-  // Check if it's a special tone
-  if (specialTones[toneStr]) {
-    return specialTones[toneStr];
-  }
-  
-  // Check if it's a valid numeric tone
-  if (validTones.includes(toneStr)) {
-    return toneStr;
-  }
-  
+const VALID_TONES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const SPECIAL_TONES = {
+  'mix': 'mix', 'mixti': 'mix',
+  'per': 'per', 'peregrini': 'per',
+  'pro': 'pro', 'proprii': 'pro'
+};
+
+function normalizeSingleTone(val) {
+  if (!val) return null;
+  const s = String(val).toLowerCase().trim();
+  if (SPECIAL_TONES[s]) return SPECIAL_TONES[s];
+  if (VALID_TONES.includes(s)) return s;
   return null;
+}
+
+// Convert tone input (string, array, or null) to a PostgreSQL text[] value
+function convertToneToArray(toneValue) {
+  if (!toneValue) return null;
+  const arr = Array.isArray(toneValue) ? toneValue : [toneValue];
+  const normalized = arr.map(normalizeSingleTone).filter(Boolean);
+  return normalized.length > 0 ? normalized : null;
+}
+
+// Backward-compatible alias
+function convertToneToString(toneValue) {
+  return convertToneToArray(toneValue);
 }
 
 // Get list of sources
@@ -231,9 +227,10 @@ router.get('/composers/autocomplete', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const sourceId = parseInt(req.params.id);
+    const noPagination = !req.query.inclusions_page && !req.query.inclusions_limit;
     const inclusionsPage = parseInt(req.query.inclusions_page) || 1;
-    const inclusionsLimit = parseInt(req.query.inclusions_limit) || 40;
-    const inclusionsOffset = (inclusionsPage - 1) * inclusionsLimit;
+    const inclusionsLimit = noPagination ? null : (parseInt(req.query.inclusions_limit) || 40);
+    const inclusionsOffset = noPagination ? 0 : ((inclusionsPage - 1) * inclusionsLimit);
 
     // Fetch source details with publishers, scribes, and images
     const sourceQuery = `
@@ -308,7 +305,6 @@ router.get('/:id', async (req, res) => {
     const countResult = await pool.query(countQuery, [sourceId]);
     const totalInclusions = parseInt(countResult.rows[0].count);
 
-    // Fetch paginated inclusions with related data
     const inclusionsQuery = `
       SELECT 
         i.id,
@@ -322,38 +318,36 @@ router.get('/:id', async (req, res) => {
         i.clefs,
         i.created_at,
         i.updated_at,
-        -- Resolved composition data for display
         t.text as title_text,
         ct.name as composition_type_name,
         c.composition_type_id,
         c.tone,
         c.even_odd,
         c.number_of_voices,
-        -- Get composer names from the composer_ids array
-        COALESCE(
-          (
-            SELECT json_agg(comp.name ORDER BY comp.id)
-            FROM composers comp
-            WHERE comp.id = ANY(
-              CASE 
-                WHEN jsonb_typeof(i.composer_ids) = 'array' 
-                THEN ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer)
-                ELSE '{}'::integer[]
-              END
-            )
-          ),
-          '[]'::json
-        ) as composer_names
+        COALESCE(cn.names, '[]'::json) as composer_names
       FROM inclusions i
       LEFT JOIN compositions c ON i.composition_id = c.id
       LEFT JOIN titles t ON c.title_id = t.id
       LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+      LEFT JOIN LATERAL (
+        SELECT json_agg(comp.name ORDER BY comp.id) as names
+        FROM composers comp
+        WHERE comp.id = ANY(
+          CASE 
+            WHEN jsonb_typeof(i.composer_ids) = 'array' 
+            THEN ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::integer)
+            ELSE '{}'::integer[]
+          END
+        )
+      ) cn ON true
       WHERE i.source_id = $1
       ORDER BY i.order, i.id
-      LIMIT $2 OFFSET $3
+      ${inclusionsLimit ? 'LIMIT $2 OFFSET $3' : ''}
     `;
 
-    const inclusionsResult = await pool.query(inclusionsQuery, [sourceId, inclusionsLimit, inclusionsOffset]);
+    const inclusionsResult = inclusionsLimit
+      ? await pool.query(inclusionsQuery, [sourceId, inclusionsLimit, inclusionsOffset])
+      : await pool.query(inclusionsQuery, [sourceId]);
     
     // Format inclusions to match schema
     const inclusions = inclusionsResult.rows.map(row => ({
@@ -380,27 +374,28 @@ router.get('/:id', async (req, res) => {
       }
     }));
 
-    // Calculate pagination metadata for inclusions
-    const totalInclusionsPages = Math.ceil(totalInclusions / inclusionsLimit);
-    const hasNextPage = inclusionsPage < totalInclusionsPages;
-    const hasPrevPage = inclusionsPage > 1;
-
-    res.json({
+    const response = {
       source: {
         ...source,
         publishers: source.publishers || [],
         scribes: source.scribes || []
       },
-      inclusions,
-      inclusions_pagination: {
+      inclusions
+    };
+
+    if (inclusionsLimit) {
+      const totalInclusionsPages = Math.ceil(totalInclusions / inclusionsLimit);
+      response.inclusions_pagination = {
         total: totalInclusions,
         page: inclusionsPage,
         limit: inclusionsLimit,
         totalPages: totalInclusionsPages,
-        hasNextPage,
-        hasPrevPage
-      }
-    });
+        hasNextPage: inclusionsPage < totalInclusionsPages,
+        hasPrevPage: inclusionsPage > 1
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching source:', error);
     res.status(500).json({ error: 'Internal server error' });

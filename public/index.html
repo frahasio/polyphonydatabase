@@ -404,23 +404,23 @@
                         <h6>Understanding the clef images</h6>
 
                         <p class="clef-explainer">
-                            <img src="/clef_images/g2.png" alt="g2" class="clef-missing" style="height: 56px; width: auto; margin-right: 8px;">
+                            <span class="clef-explainer-icon" data-clef="g2" data-missing="true"></span>
                             <span>A red clef means the voice is <strong>missing</strong> from this source. Where there are no concordances to fill in the gaps, this means the piece will require reconstruction.</span>
                         </p>
                         <p class="clef-explainer">
-                            <img src="/clef_images/c3.png" alt="c3" class="clef-incomplete" style="height: 56px; width: auto; margin-right: 8px;">
+                            <span class="clef-explainer-icon" data-clef="c3" data-incomplete="true"></span>
                             <span>A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.</span>
                         </p>
                         <p class="clef-explainer">
-                            <img src="/clef_images/f3.png" alt="f3" class="clef-optional" style="height: 56px; width: auto; margin-right: 8px;">
+                            <span class="clef-explainer-icon" data-clef="f3" data-optional="true"></span>
                             <span>A faded clef means much of the piece can be performed without this voice. For example, an extra 6th voice in the Agnus Dei of an otherwise 5vv Mass setting, or a short gimel in a big votive antiphon. Filtering by number of voices will exclude these clefs, while filtering by a specific voice combination will include them.</span>
                         </p>
                         <p class="clef-explainer">
-                            <img src="/clef_images/c1c2.png" alt="c1c2" class="clef-multiple" style="height: 56px; width: auto; margin-right: 8px;">
+                            <span class="clef-explainer-icon" data-clef="c1/c2"></span>
                             <span>A blue clef denotes a voice that uses more than one clef in this source - this is particularly prevalent in earlier printed sources. We've estimated the larger clef on the left to be the most used to give an idea of voice distribution at a glance.</span>
                         </p>
                         <p class="clef-explainer">
-                            <img src="/clef_images/x1.png" alt="x1" style="height: 56px; width: auto; margin-right: 8px;">
+                            <span class="clef-explainer-icon" data-clef="x1"></span>
                             <span><strong>x</strong> clefs are used as placeholders for voices we know are necessary, but haven't yet worked out which, normally because we don't have access to a full facsimile of the source.</span>
                         </p>
                     </div>
@@ -717,7 +717,7 @@
             <div class="d-flex align-items-center" style="flex-wrap: nowrap;">
                 <label for="sortBy" class="form-label filter-label mb-0 me-2" style="white-space: nowrap; flex-shrink: 0;">Sort by</label>
                 <select class="form-select form-select-sm filter-input" id="sortBy" style="max-width: 200px; flex-shrink: 1;">
-                    <option value="">Default order</option>
+                    <option value="recent">Recently updated</option>
                     <option value="title">Title (A-Z)</option>
                     <option value="title_desc">Title (Z-A)</option>
                     <option value="function">Function (A-Z)</option>
@@ -796,10 +796,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="/js/clef-renderer.js"></script>
     <script>
         let currentPage = 1;
         let currentPageSize = 10; // Reduced from 25 to speed up initial load
-        let currentSort = '';
+        let currentSort = 'recent';
         let isSearching = false;
         let currentSearchAbortController = null;
         let lastSearchParams = new URLSearchParams();
@@ -811,6 +812,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkAuthStatus();
             initializeInterface();
+            // Render static explainer clef icons
+            document.querySelectorAll('.clef-explainer-icon').forEach(el => {
+                window.clefRenderer.renderClef(el, {
+                    clef: el.dataset.clef,
+                    missing: el.dataset.missing === 'true',
+                    incomplete: el.dataset.incomplete === 'true',
+                    optional: el.dataset.optional === 'true'
+                });
+            });
         });
 
         async function initializeInterface() {
@@ -998,6 +1008,13 @@
                 });
             }
 
+            // Submit filters on Enter key in any text/number filter input
+            document.querySelectorAll('.filter-input[type="text"], .filter-input[type="number"]').forEach(input => {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') { e.preventDefault(); currentPage = 1; performSearch(); }
+                });
+            });
+
             // Set up Search and Clear buttons
             document.getElementById('searchButton').addEventListener('click', function() {
                 currentPage = 1;
@@ -1014,13 +1031,27 @@
             // Load filters, then URL parameters, then perform search
             await loadFilters();
             loadFiltersFromURL();
+            // Ensure sort dropdown reflects currentSort (default or from URL)
+            const sortByEl = document.getElementById('sortBy');
+            if (sortByEl && currentSort) sortByEl.value = currentSort;
             updateOrderInSourceOptions();
             updateFilterHighlights(); // Initial highlight update
             // Initialize last search params after loading from URL
             lastSearchParams = getCurrentFilterParams();
             updateSearchButtonText();
-            performSearch();
-            
+
+            // Only search if URL has filter/page params; otherwise show welcome placeholder
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlFilters = Array.from(urlParams.keys()).some(k => k !== 'page_size');
+            if (hasUrlFilters) {
+                performSearch();
+            } else {
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                enableFilters();
+                showWelcomePlaceholder();
+            }
+
             // Mark initial load as complete
             isInitialLoad = false;
         }
@@ -1347,25 +1378,37 @@
             ];
             
             selectIds.forEach(id => {
-                $(`#${id}`).val(null).trigger('change');
+                const $el = $(`#${id}`);
+                if ($el.length) {
+                    $el.val(null).trigger('change');
+                    // Force Select2 to re-render the cleared state
+                    if ($el.hasClass('select2-hidden-accessible')) {
+                        $el.trigger('change.select2');
+                    }
+                }
             });
-            
+
             // Clear checkboxes
-            document.getElementById('hasEditions').checked = false;
-            document.getElementById('hasEditionsDesktop').checked = false;
-            document.getElementById('hasRecordings').checked = false;
-            document.getElementById('hasRecordingsDesktop').checked = false;
-            
-            // DO NOT reset sort - keep the current sort order
+            const checkboxIds = ['hasEditions', 'hasEditionsDesktop', 'hasRecordings', 'hasRecordingsDesktop'];
+            checkboxIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.checked = false;
+            });
+
+            // Reset sort to default
+            currentSort = 'recent';
+            const sortEl = document.getElementById('sortBy');
+            if (sortEl) sortEl.value = 'recent';
             
             // Reset page
             currentPage = 1;
             
-            // Update highlights, button text, URL, then perform search
+            // Update highlights, button text, URL, then show placeholder
             updateFilterHighlights();
             updateSearchButtonText();
-            updateURL();
-            performSearch();
+            // Clear URL params
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showWelcomePlaceholder();
         }
 
         function disableFilters() {
@@ -1994,6 +2037,40 @@
             }
         }
 
+        function showWelcomePlaceholder() {
+            const resultsBody = document.getElementById('resultsBody');
+            const tableContainer = document.getElementById('tableContainer');
+            const paginationInfo = document.getElementById('paginationInfo');
+            if (tableContainer) tableContainer.style.display = '';
+            if (paginationInfo) paginationInfo.style.display = 'none';
+            resultsBody.innerHTML = `
+                <tr class="table-light">
+                    <td colspan="5" class="text-center py-4">
+                        <div class="text-muted mb-2" style="font-size: 1.05rem;">
+                            <i class="bi bi-search me-2"></i>Use the filters above to search the database
+                        </div>
+                        <small class="text-muted">
+                            For example, search by title, composer, liturgical function, number of voices, or source.
+                            <br>Press <kbd>Enter</kbd> or click <strong>Update Filters</strong> to see results.
+                        </small>
+                    </td>
+                </tr>
+                <tr class="opacity-50" style="pointer-events: none;">
+                    <td>
+                        <strong>Missa O quam gloriosum</strong>
+                        <span class="text-muted">primi toni</span>
+                    </td>
+                    <td>Mass</td>
+                    <td>
+                        Victoria, Tom&aacute;s Luis de
+                        <br><small class="text-muted fst-italic">c.1548&ndash;1611</small>
+                    </td>
+                    <td>4</td>
+                    <td><small class="text-muted fst-italic">Example entry</small></td>
+                </tr>
+            `;
+        }
+
         function displayResults(data) {
             const resultsBody = document.getElementById('resultsBody');
             const paginationInfo = document.getElementById('paginationInfo');
@@ -2011,24 +2088,20 @@
                 return;
             }
             
-            // Tone mapping for display
-                    const toneMapping = {
-            "1": "primi toni",
-            "2": "secundi toni",
-            "3": "tertii toni",
-            "4": "quarti toni",
-            "5": "quinti toni",
-            "6": "sexti toni",
-            "7": "septimi toni",
-            "8": "octavi toni",
-            "9": "noni toni",
-            "10": "decimi toni",
-            "11": "undecimi toni",
-            "12": "duodecimi toni",
-            "mix": "mixti toni",
-            "per": "peregrini toni",
-            "pro": "proprii toni"
+            const toneMapping = {
+            "1": "primi", "2": "secundi", "3": "tertii", "4": "quarti",
+            "5": "quinti", "6": "sexti", "7": "septimi", "8": "octavi",
+            "9": "noni", "10": "decimi", "11": "undecimi", "12": "duodecimi",
+            "mix": "mixti", "per": "peregrini", "pro": "proprii"
         };
+
+        function formatToneDisplay(tone) {
+            if (!tone) return '';
+            const arr = Array.isArray(tone) ? tone : [tone];
+            if (arr.length === 0) return '';
+            const names = arr.map(t => toneMapping[t] || t);
+            return names.join(' et ') + ' toni';
+        }
             
             const evenOddMapping = {
                 0: "pares",
@@ -2040,7 +2113,7 @@
                 <tr>
                     <td>
                         <strong>${group.display_title || 'Untitled'}</strong>
-                        ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                        ${group.tone && group.tone.length ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
                         ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
                         ${(group.editions || []).map(edition => `
                             <div class="mt-1">
@@ -2132,20 +2205,13 @@
                                         <div class="col-md-5">
                                             ${source.clefs && source.clefs.length > 0 ? `
                                                 <div class="clef-images mb-2">
-                                                    ${sortClefsInDisplayOrder(source.clefs).map(clef => {
+                                                    ${sortClefsInDisplayOrder(source.clefs).map((clef, ci) => {
                                                         if (clef.clef && clef.clef.trim()) {
                                                             const clefName = clef.clef.trim();
-                                                            const clefImage = clef.transitions_to && clef.transitions_to.length > 0 ? 
-                                                                `${clefName}${clef.transitions_to.join('')}` : clefName;
-                                                            
-                                                            // Determine clef styling classes
-                                                            let clefClasses = '';
-                                                            if (clef.missing) clefClasses += 'clef-missing ';
-                                                            if (clef.incomplete) clefClasses += 'clef-incomplete ';
-                                                            if (clef.optional) clefClasses += 'clef-optional ';
-                                                            if (clef.transitions_to && clef.transitions_to.length > 0) clefClasses += 'clef-multiple ';
-                                                            
-                                                            return `<img src="/clef_images/${clefImage}.png" alt="${clefName}" class="${clefClasses.trim()}" onerror="this.style.display='none'">`;
+                                                            const clefCode = clef.transitions_to && clef.transitions_to.length > 0 ? 
+                                                                [clefName, ...clef.transitions_to].join('/') : clefName;
+                                                            const dataAttrs = `data-clef="${clefCode}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"`;
+                                                            return `<span class="clef-render-target" ${dataAttrs} style="display:inline-block;margin-right:2px"></span>`;
                                                         }
                                                         return '';
                                                     }).join('')}
@@ -2173,6 +2239,16 @@
                     </td>
                 </tr>
             `).join('');
+
+            // Render dynamic clef SVGs
+            document.querySelectorAll('.clef-render-target').forEach(el => {
+                window.clefRenderer.renderClef(el, {
+                    clef: el.dataset.clef,
+                    missing: el.dataset.missing === 'true',
+                    incomplete: el.dataset.incomplete === 'true',
+                    optional: el.dataset.optional === 'true'
+                });
+            });
             
             // Update pagination
             updatePagination(data);

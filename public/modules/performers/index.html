@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
     <div class="container-fluid py-4">
@@ -25,9 +26,9 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPerformerModal">
+                    <a href="new.html" target="_blank" class="btn btn-primary" title="Add a new performer (opens in new tab)">
                         <i class="bi bi-plus-lg"></i> Add Performer
-                    </button>
+                    </a>
                 </div>
 
                 <div class="table-responsive">
@@ -42,30 +43,6 @@
                             <!-- Performers will be populated here -->
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Performer Modal -->
-    <div class="modal fade" id="addPerformerModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Performer</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addPerformerForm">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="savePerformerButton">Save</button>
                 </div>
             </div>
         </div>
@@ -97,92 +74,16 @@
                 <tr>
                     <td>${performer.name || ''}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editPerformer(${performer.id})">
+                        <a href="edit.html?id=${performer.id}" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Edit this performer (opens in new tab)">
                             <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deletePerformer(${performer.id})">
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePerformer(${performer.id})" title="Delete this performer">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
         }
-
-        const form = document.getElementById('addPerformerForm');
-        const submitBtn = document.getElementById('savePerformerButton');
-        const modal = document.getElementById('addPerformerModal');
-        let editingId = null;
-
-        submitBtn.addEventListener('click', async () => {
-            const name = document.getElementById('name').value;
-            if (!name) {
-                alert('Please enter a name');
-                return;
-            }
-
-            try {
-                const url = editingId ? `/api/admin/performers/${editingId}` : '/api/admin/performers';
-                const method = editingId ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to ${editingId ? 'update' : 'create'} performer`);
-                }
-
-                // Close modal and refresh list
-                const modalInstance = bootstrap.Modal.getInstance(modal);
-                modalInstance.hide();
-                form.reset();
-                resetFormState();
-                fetchPerformers();
-            } catch (error) {
-                console.error(`Error ${editingId ? 'updating' : 'creating'} performer:`, error);
-                alert(`Failed to ${editingId ? 'update' : 'create'} performer. Please try again.`);
-            }
-        });
-
-        function resetFormState() {
-            editingId = null;
-            modal.querySelector('.modal-title').textContent = 'Add New Performer';
-            submitBtn.textContent = 'Save';
-        }
-
-        // Handle edit
-        async function editPerformer(id) {
-            try {
-                const response = await fetch(`/api/admin/performers/${id}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch performer details');
-                }
-                const data = await response.json();
-                const performer = data.performer;
-
-                // Set editing state
-                editingId = id;
-                modal.querySelector('.modal-title').textContent = 'Edit Performer';
-                submitBtn.textContent = 'Save Changes';
-
-                // Populate the form with performer data
-                document.getElementById('name').value = performer.name || '';
-
-                // Show the modal
-                const modalInstance = new bootstrap.Modal(modal);
-                modalInstance.show();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to load performer details. Please try again.');
-            }
-        }
-
-        // Reset form state when modal is hidden
-        modal.addEventListener('hidden.bs.modal', resetFormState);
 
         // Delete performer
         async function deletePerformer(id) {
@@ -209,5 +110,6 @@
         // Initialize
         fetchPerformers();
     </script>
+    <script src="/js/admin-layout.js"></script>
 </body>
 </html> 

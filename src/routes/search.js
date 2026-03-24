@@ -440,7 +440,7 @@ router.get('/groups', async (req, res) => {
       if (validToneValues.length > 0) {
         whereConditions.push(`EXISTS (
           SELECT 1 FROM compositions c2
-          WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
+          WHERE c2.group_id = g.id AND c2.tone && $${paramIndex}::text[]
         )`);
         queryParams.push(validToneValues);
         paramIndex++;
@@ -884,6 +884,9 @@ router.get('/groups', async (req, res) => {
           ) DESC`;
         }
         break;
+      case 'recent':
+        orderByClause = 'ORDER BY g.updated_at DESC NULLS LAST';
+        break;
       default:
         orderByClause = 'ORDER BY g.display_title';
         break;
@@ -903,71 +906,8 @@ router.get('/groups', async (req, res) => {
         g.display_title,
         g.created_at,
         g.updated_at,
-        -- Get composer information with conflict detection
-        -- Only consider named composers (exclude anonymous ID 23) for conflict detection
-        (
-          WITH group_composers AS (
-            SELECT DISTINCT composer_id
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            WHERE c.group_id = g.id 
-              AND c.composer_id_list IS NOT NULL 
-              AND array_length(c.composer_id_list, 1) > 0
-              AND composer_id != 23 -- Exclude anonymous composer from conflict detection
-          ),
-          all_composers AS (
-            SELECT DISTINCT composer_id
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            WHERE c.group_id = g.id 
-              AND c.composer_id_list IS NOT NULL 
-              AND array_length(c.composer_id_list, 1) > 0
-          )
-          SELECT 
-            CASE 
-              WHEN (SELECT COUNT(*) FROM group_composers) > 1 THEN 'conflicting attributions'
-              WHEN (SELECT COUNT(*) FROM group_composers) = 1 THEN (
-                SELECT comp.name 
-                FROM composers comp 
-                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
-              )
-              ELSE 'Anon'
-            END
-          FROM all_composers
-          LIMIT 1
-        ) as composer_display,
-        (
-          WITH group_composers AS (
-            SELECT DISTINCT composer_id
-            FROM compositions c
-            CROSS JOIN unnest(COALESCE(c.composer_id_list, ARRAY[]::integer[])) AS composer_id
-            WHERE c.group_id = g.id 
-              AND c.composer_id_list IS NOT NULL 
-              AND array_length(c.composer_id_list, 1) > 0
-              AND composer_id != 23 -- Exclude anonymous composer for dates
-          )
-          SELECT 
-            CASE 
-              WHEN COUNT(*) > 1 THEN NULL
-              WHEN COUNT(*) = 1 THEN (
-                SELECT CASE 
-                  WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
-                  THEN '(' || 
-                       COALESCE(comp.from_year_annotation, '') || comp.from_year || '–' || 
-                       COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
-                  WHEN comp.from_year IS NOT NULL 
-                  THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–)'
-                  WHEN comp.to_year IS NOT NULL 
-                  THEN '(–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
-                  ELSE NULL
-                END
-                FROM composers comp 
-                WHERE comp.id = (SELECT composer_id FROM group_composers LIMIT 1)
-              )
-              ELSE NULL
-            END
-          FROM group_composers
-        ) as composer_dates,
+        gc_info.composer_display,
+        gc_info.composer_dates,
         (
           SELECT array_agg(voice_count ORDER BY voice_count)
           FROM (
@@ -976,12 +916,10 @@ router.get('/groups', async (req, res) => {
             WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
           ) voices
         ) as voice_counts,
-        -- Get tone and even/odd information
         (
-          SELECT DISTINCT c.tone
-          FROM compositions c
-          WHERE c.group_id = g.id AND c.tone IS NOT NULL 
-          LIMIT 1
+          SELECT array_agg(DISTINCT t ORDER BY t)
+          FROM compositions c, unnest(c.tone) AS t
+          WHERE c.group_id = g.id AND c.tone IS NOT NULL
         ) as tone,
         (
           SELECT DISTINCT c.even_odd
@@ -1091,8 +1029,46 @@ router.get('/groups', async (req, res) => {
           WHERE comp.group_id = g.id AND s.catalogued = true
         ) as sources
       FROM groups g
+      LEFT JOIN LATERAL (
+        SELECT
+          CASE 
+            WHEN named_ct > 1 THEN 'conflicting attributions'
+            WHEN named_ct = 1 THEN single_name
+            ELSE 'Anon'
+          END as composer_display,
+          CASE 
+            WHEN named_ct = 1 THEN (
+              SELECT CASE 
+                WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
+                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                WHEN comp.from_year IS NOT NULL 
+                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–)'
+                WHEN comp.to_year IS NOT NULL 
+                THEN '(–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                ELSE NULL
+              END
+              FROM composers comp WHERE comp.id = single_id
+            )
+            ELSE NULL
+          END as composer_dates
+        FROM (
+          SELECT 
+            COUNT(DISTINCT cid) as named_ct,
+            MIN(cid) as single_id,
+            (SELECT comp2.name FROM composers comp2 WHERE comp2.id = MIN(cid)) as single_name
+          FROM (
+            SELECT DISTINCT unnest_id as cid
+            FROM compositions c2
+            CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS unnest_id
+            WHERE c2.group_id = g.id 
+              AND c2.composer_id_list IS NOT NULL 
+              AND array_length(c2.composer_id_list, 1) > 0
+              AND unnest_id != 23
+          ) named
+        ) agg
+      ) gc_info ON true
       ${whereClause}
-      GROUP BY g.id, g.display_title, g.created_at, g.updated_at
+      GROUP BY g.id, g.display_title, g.created_at, g.updated_at, gc_info.composer_display, gc_info.composer_dates
       ${orderByClause}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -1103,12 +1079,6 @@ router.get('/groups', async (req, res) => {
     
         queryParams.push(finalLimit, finalOffset);
 
-    // Add debugging to help track down the issue
-    console.log('=== SEARCH DEBUG ===');
-    console.log('Query parameters:', queryParams);
-    console.log('Parameter count:', queryParams.length);
-    console.log('Where conditions:', whereConditions.length);
-    
     const [countResult, searchResult] = await Promise.all([
       pool.query(countQuery, queryParams.slice(0, -2)),
       pool.query(searchQuery, queryParams)
@@ -1329,10 +1299,16 @@ router.get('/composition-types', async (req, res) => {
 router.get('/tones', async (req, res) => {
   try {
     const query = `
-      SELECT DISTINCT tone
-      FROM compositions
+      SELECT DISTINCT t AS tone FROM compositions, unnest(tone) AS t
       WHERE tone IS NOT NULL 
-      ORDER BY tone
+      ORDER BY CASE t
+        WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3
+        WHEN '4' THEN 4 WHEN '5' THEN 5 WHEN '6' THEN 6
+        WHEN '7' THEN 7 WHEN '8' THEN 8 WHEN '9' THEN 9
+        WHEN '10' THEN 10 WHEN '11' THEN 11 WHEN '12' THEN 12
+        WHEN 'per' THEN 13 WHEN 'mix' THEN 14 WHEN 'pro' THEN 15
+        ELSE 99
+      END
     `;
     const result = await pool.query(query);
     

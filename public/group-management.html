@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
     <style>
         .group-card {
             border: 1px solid #dee2e6;
@@ -851,22 +852,18 @@
 
         // Add tone and even_odd mappings
         const toneMapping = {
-            "1": "primi toni",
-            "2": "secundi toni", 
-            "3": "tertii toni",
-            "4": "quarti toni",
-            "5": "quinti toni",
-            "6": "sexti toni",
-            "7": "septimi toni",
-            "8": "octavi toni",
-            "9": "noni toni",
-            "10": "decimi toni",
-            "11": "undecimi toni",
-            "12": "duodecimi toni",
-            "mix": "mixti toni",
-            "per": "peregrini toni",
-            "pro": "proprii toni"
+            "1": "primi", "2": "secundi", "3": "tertii", "4": "quarti",
+            "5": "quinti", "6": "sexti", "7": "septimi", "8": "octavi",
+            "9": "noni", "10": "decimi", "11": "undecimi", "12": "duodecimi",
+            "mix": "mixti", "per": "peregrini", "pro": "proprii"
         };
+
+        function formatToneDisplay(tone) {
+            if (!tone) return '';
+            const arr = Array.isArray(tone) ? tone : [tone];
+            if (arr.length === 0) return '';
+            return arr.map(t => toneMapping[t] || t).join(' et ') + ' toni';
+        }
         
         const evenOddMapping = {
             0: "pares",
@@ -896,7 +893,7 @@
                         <div class="flex-grow-1">
                             <h6 class="mb-2">
                                 <strong>${group.display_title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
                                 ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
                             </h6>
                             <div class="group-info">
@@ -1278,7 +1275,7 @@
                         <div class="mb-1">
                             <strong>${comp.title || 'Untitled'}</strong>
                             ${comp.composition_type ? `<span class="badge bg-info ms-1">${comp.composition_type}</span>` : ''}
-                            ${comp.tone ? `<span class="text-muted ms-1">${toneMapping[comp.tone] || comp.tone}</span>` : ''}
+                            ${comp.tone ? `<span class="text-muted ms-1">${formatToneDisplay(comp.tone)}</span>` : ''}
                             ${comp.even_odd !== null && comp.even_odd !== undefined ? `<span class="text-muted ms-1">(${evenOddMapping[comp.even_odd] || comp.even_odd})</span>` : ''}
                             ${comp.composer ? `<span class="text-muted ms-1">— ${comp.composer}</span>` : ''}
                         </div>
@@ -1540,7 +1537,7 @@
                         <div>
                             <h6 class="mb-1">
                                 <strong>${group.title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${toneMapping[group.tone] || group.tone}</span>` : ''}
+                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
                                 ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.evenOdd] || group.evenOdd})</span>` : ''}
                             </h6>
                             <div class="text-muted small">
@@ -1639,11 +1636,10 @@
                 incompatibilities.push(`different composition types (${firstType} vs ${mismatchType})`);
             }
 
-            // Check tone
-            const toneMismatch = selectedGroups.find(group => group.tone !== first.tone);
+            const toneMismatch = selectedGroups.find(group => JSON.stringify(group.tone) !== JSON.stringify(first.tone));
             if (toneMismatch) {
-                const firstToneDisplay = first.tone ? (toneMapping[first.tone] || first.tone) : 'unspecified';
-                const mismatchToneDisplay = toneMismatch.tone ? (toneMapping[toneMismatch.tone] || toneMismatch.tone) : 'unspecified';
+                const firstToneDisplay = first.tone ? formatToneDisplay(first.tone) : 'unspecified';
+                const mismatchToneDisplay = toneMismatch.tone ? formatToneDisplay(toneMismatch.tone) : 'unspecified';
                 incompatibilities.push(`different tones (${firstToneDisplay} vs ${mismatchToneDisplay})`);
             }
 
@@ -2106,5 +2102,6 @@
 
 
     </script>
+    <script src="/js/admin-layout.js"></script>
 </body>
 </html> 

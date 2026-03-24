@@ -7,40 +7,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
     <style>
-        .auth-info {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            font-size: 14px;
-            z-index: 1000;
-            border: 1px solid #dee2e6;
-        }
-
-        .auth-info .user-name {
-            font-weight: bold;
-            color: #333;
-        }
-
-        .auth-info .logout-btn {
-            color: #007bff;
-            text-decoration: none;
-            margin-left: 10px;
-            cursor: pointer;
-        }
-
-        .auth-info .logout-btn:hover {
-            text-decoration: underline;
-        }
-
         .admin-section {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 2px;
             margin-bottom: 30px;
             border-left: 4px solid #007bff;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -57,13 +29,12 @@
             background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
             color: white;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 2px;
             transition: all 0.3s ease;
             font-weight: 500;
         }
 
         .admin-links .btn:hover {
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,123,255,0.3);
             color: white;
         }
@@ -72,7 +43,7 @@
             background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
             color: #155724;
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 2px;
             margin-bottom: 30px;
             border: 1px solid #c3e6cb;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -85,7 +56,6 @@
         }
 
         .card:hover {
-            transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
 
@@ -108,7 +78,6 @@
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,123,255,0.3);
         }
 
@@ -131,107 +100,11 @@
             background: #000;
         }
 
-        /* New Feature Sparkly Styling */
-        .new-feature-card {
-            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
-            background-size: 400% 400%;
-            animation: sparkle 4s ease-in-out infinite;
-            border: none;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .new-feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255,255,255,0.9);
-            z-index: 1;
-        }
-
-        .new-feature-card .card-body {
-            position: relative;
-            z-index: 2;
-        }
-
-        .new-feature-card .card-title {
-            color: #333 !important;
-            font-weight: 600;
-            position: relative;
-            z-index: 2;
-        }
-
-        .new-feature-card .card-title i {
-            color: #667eea !important;
-        }
-
-        .new-feature-card .card-text {
-            color: #666 !important;
-            position: relative;
-            z-index: 2;
-        }
-
-        .new-feature-card .btn {
-            font-weight: 600;
-            position: relative;
-            z-index: 2;
-        }
-
-        .new-feature-card .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        @keyframes sparkle {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .new-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #ff6b6b;
-            color: white;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 12px;
-            z-index: 3;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
     </style>
 </head>
 <body>
-    <div class="auth-info" id="authInfo" style="display: none;">
-        <span class="user-name" id="userName"></span>
-        <span class="logout-btn" onclick="logout()">Logout</span>
-    </div>
-
     <div class="container-fluid py-4">
-        <div class="text-center mb-5">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div></div>
-                <div>
-                    <h1 class="display-4 text-white mb-0">Admin Dashboard</h1>
-                    <p class="lead text-white mb-0">Polyphony Database Administration System</p>
-                </div>
-                <div>
-                    <a href="/" target="_blank" class="btn btn-outline-light">
-                        <i class="bi bi-globe2 me-2"></i>View Public Database
-                    </a>
-                </div>
-            </div>
-        </div>
+        <h4 class="fw-bold mb-3">Dashboard</h4>
 
         <div id="welcomeMessage" class="welcome-message" style="display: none;">
             <h5><i class="bi bi-check-circle-fill me-2"></i>Welcome back!</h5>
@@ -266,158 +139,54 @@
             </div>
         </div>
 
-        <div class="row g-4">
-            <!-- Top Priority: Core Content Management -->
-            
-            <!-- Sources Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-2 border-primary">
+        <!-- Stats Overview -->
+        <div class="row g-3 mb-4" id="statsRow">
+            <div class="col-sm-6 col-lg-3">
+                <div class="card"><div class="card-body py-3">
+                    <div class="text-muted small">Sources</div>
+                    <div class="fs-4 fw-bold" id="statSources">-</div>
+                    <div class="text-muted small" id="statCatalogued">-</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card"><div class="card-body py-3">
+                    <div class="text-muted small">Compositions</div>
+                    <div class="fs-4 fw-bold" id="statCompositions">-</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card"><div class="card-body py-3">
+                    <div class="text-muted small">Groups</div>
+                    <div class="fs-4 fw-bold" id="statGroups">-</div>
+                </div></div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="card"><div class="card-body py-3">
+                    <div class="text-muted small">Composers</div>
+                    <div class="fs-4 fw-bold" id="statComposers">-</div>
+                </div></div>
+            </div>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div class="row g-3 mb-4">
+            <div class="col-lg-8">
+                <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-book text-primary me-2"></i>Sources
-                        </h5>
-                        <p class="card-text">Manage manuscript and print sources with detailed cataloguing information.</p>
-                        <a href="/admin/modules/sources/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Sources
-                        </a>
+                        <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Recent Activity</h6>
+                        <div id="activityFeed" class="small">
+                            <div class="text-center py-3 text-muted">Loading activity...</div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Groups Management Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-2 border-primary">
+            <div class="col-lg-4">
+                <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-collection text-primary me-2"></i>Groups & Media
-                        </h5>
-                        <p class="card-text">Merge compositions into groups and manage editions and recordings.</p>
-                        <a href="/admin/groups" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Manage Groups
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Functions & Titles Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-2 border-primary">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-card-text text-primary me-2"></i>Functions & Titles
-                        </h5>
-                        <p class="card-text">Manage liturgical functions, composition title, and title languages.</p>
-                        <a href="/admin/modules/functions/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Functions
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Group Suggestions Card - NEW FEATURE -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card new-feature-card h-100">
-                    <div class="new-badge">BETA</div>
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-search me-2"></i>Anonymous Attribution Suggestions
-                        </h5>
-                        <p class="card-text">Find potential attribution resolutions for anonymous compositions using advanced pattern matching.</p>
-                        <a href="/admin/group-suggestions" class="btn btn-primary">
-                            <i class="bi bi-magic me-2"></i>Analyze Suggestions
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Secondary: Entity Management -->
-            
-            <!-- Composers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-music-note-beamed text-primary me-2"></i>Composers
-                        </h5>
-                        <p class="card-text">Add composers and maintain their information.</p>
-                        <a href="/admin/modules/composers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Composers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Editors Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-pencil-square text-primary me-2"></i>Modern Editors
-                        </h5>
-                        <p class="card-text">Add editors for use when adding modern editions.</p>
-                        <a href="/admin/modules/editors/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Editors
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scribes Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-pen text-primary me-2"></i>Scribes & Editors
-                        </h5>
-                        <p class="card-text">Catalog scribe information for manuscript sources and historical editions.</p>
-                        <a href="/admin/modules/scribes/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Scribes
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Publishers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-building text-primary me-2"></i>Publishers
-                        </h5>
-                        <p class="card-text">Manage publisher details for historical and modern publications.</p>
-                        <a href="/admin/modules/publishers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Publishers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Performers Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-person-video3 text-primary me-2"></i>Performers
-                        </h5>
-                        <p class="card-text">Add performers to the database for use when adding recordings.</p>
-                        <a href="/admin/modules/performers/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Access Performers
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Clef Combinations & Voicings Card -->
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-music-note-list text-primary me-2"></i>Clef & Voicings
-                        </h5>
-                        <p class="card-text">Assign voicing types to clef combinations for enhanced search functionality.</p>
-                        <a href="/modules/clef-voicings/index.html" class="btn btn-primary">
-                            <i class="bi bi-arrow-right me-2"></i>Manage Mappings
-                        </a>
+                        <h6 class="fw-bold mb-3"><i class="bi bi-people me-2"></i>Recent Users</h6>
+                        <div id="recentUsers" class="small">
+                            <div class="text-center py-3 text-muted">Loading...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -656,10 +425,6 @@
                     const data = await response.json();
                     const user = data.user;
                     
-                    // Show auth info
-                    document.getElementById('userName').textContent = user.name;
-                    document.getElementById('authInfo').style.display = 'block';
-                    
                     // Show welcome message
                     document.getElementById('welcomeMessage').style.display = 'block';
                     
@@ -673,7 +438,9 @@
                             section.style.display = 'block';
                         });
                         
-                        // Load admin data
+                        loadDashboardStats();
+                        loadActivityFeed();
+                        loadRecentUsersPanel();
                         loadDataQualityAlerts();
                         loadCleanupPreview();
                         loadRecentActivity();
@@ -687,6 +454,86 @@
                 console.error('Error loading user info:', error);
                 window.location.href = '/admin/login';
             }
+        }
+
+        async function loadDashboardStats() {
+            try {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('statSources').textContent = stats.sources || 0;
+                    const pct = stats.sources > 0 ? Math.round((stats.catalogued / stats.sources) * 100) : 0;
+                    document.getElementById('statCatalogued').textContent = `${stats.catalogued || 0} catalogued (${pct}%)`;
+                    document.getElementById('statCompositions').textContent = stats.compositions || 0;
+                    document.getElementById('statGroups').textContent = stats.groups || 0;
+                    document.getElementById('statComposers').textContent = stats.composers || 0;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadActivityFeed() {
+            try {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/recent-activity?limit=15');
+                if (response.ok) {
+                    const data = await response.json();
+                    const feed = document.getElementById('activityFeed');
+                    if (data.length === 0) {
+                        feed.innerHTML = '<div class="text-muted">No recent activity.</div>';
+                        return;
+                    }
+                    feed.innerHTML = data.map(entry => {
+                        const date = new Date(entry.created_at || entry.timestamp);
+                        const timeAgo = formatTimeAgo(date);
+                        return `<div class="d-flex justify-content-between align-items-start py-1 border-bottom">
+                            <div>
+                                <span class="fw-medium">${entry.user_name || 'System'}</span>
+                                <span class="text-muted"> ${entry.action || entry.description || ''}</span>
+                                ${entry.entity_type ? `<span class="badge bg-light text-dark ms-1">${entry.entity_type}</span>` : ''}
+                            </div>
+                            <small class="text-muted text-nowrap ms-2">${timeAgo}</small>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading activity feed:', error);
+                document.getElementById('activityFeed').innerHTML = '<div class="text-muted">Could not load activity.</div>';
+            }
+        }
+
+        async function loadRecentUsersPanel() {
+            try {
+                const response = await window.authUtils.authenticatedFetch('/api/admin/recent-users');
+                if (response.ok) {
+                    const users = await response.json();
+                    const container = document.getElementById('recentUsers');
+                    if (users.length === 0) {
+                        container.innerHTML = '<div class="text-muted">No recent users.</div>';
+                        return;
+                    }
+                    container.innerHTML = users.map(user => `
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span>${user.username || user.email}</span>
+                            <small class="text-muted">${user.last_login ? formatTimeAgo(new Date(user.last_login)) : 'Never'}</small>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading recent users:', error);
+            }
+        }
+
+        function formatTimeAgo(date) {
+            const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            if (days < 30) return `${days}d ago`;
+            return date.toLocaleDateString();
         }
 
         async function loadMissingClefImages() {
@@ -2155,5 +2002,6 @@
 
 
     </script>
+    <script src="/js/admin-layout.js"></script>
 </body>
 </html> 

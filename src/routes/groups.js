@@ -492,7 +492,7 @@ router.get('/', async (req, res) => {
 
         if (tone) {
             paramCount++;
-            conditions.push(`c.tone = $${paramCount}`);
+            conditions.push(`c.tone && ARRAY[$${paramCount}]::text[]`);
             params.push(tone);
         }
 
@@ -853,7 +853,7 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
                 const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
                 const newTone = tone !== undefined ? 
-                    (tone || null) : composition.tone;
+                    (tone ? [tone] : null) : composition.tone;
                 const newEvenOdd = evenOdd !== undefined ? 
                     (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 
@@ -862,7 +862,6 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
                     composition.composer_id_list[0] === 23;
 
                 if (isAnonymous) {
-                    // For anonymous compositions, always update in place (no checking for duplicates)
                     const updateResult = await client.query(`
                         UPDATE compositions 
                         SET composition_type_id = $1, tone = $2, even_odd = $3, updated_at = $4
@@ -1223,7 +1222,7 @@ router.post('/bulk-update-compositions', async (req, res) => {
                 const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
                 const newTone = tone !== undefined ? 
-                    (tone || null) : composition.tone;
+                    (tone ? [tone] : null) : composition.tone;
                 const newEvenOdd = evenOdd !== undefined ? 
                     (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 

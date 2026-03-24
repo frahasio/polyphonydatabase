@@ -121,7 +121,7 @@ async function getUserById(id) {
 
 // Generate JWT token
 export function generateToken(userId) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '365d' });
 }
 
 // Check if user account is locked
