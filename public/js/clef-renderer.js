@@ -25,7 +25,7 @@
           viewBox: '0 0 20 44', path: 'M10 44c-1-3-3-6-3-9 0-5 3-8 5-10L8 6C6 2 8 0 10 0s4 2 2 6l-4 19c3-2 7-1 7 4 0 4-2 6-4 7 1 3 0 6-1 8z' },
     f:  { svgFile: '/svg/clefs/f-clef.svg',     anchorRatio: 0.50,
           viewBox: '0 0 20 28', path: 'M0 8c8-12 18-4 14 4-3 6-9 6-12 4M16 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M16 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3' },
-    c1: { svgFile: '/svg/clefs/c1-clef.svg',    anchorRatio: 0.652,
+    c1: { svgFile: '/svg/clefs/c1-clef.svg',    anchorRatio: 0.635,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
     c2: { svgFile: '/svg/clefs/c2-clef.svg',    anchorRatio: 0.553,
           viewBox: '0 0 18 32', path: 'M0 0h3v32H0zM5 0h2v32H5zM9 10c4 0 7 3 7 6s-3 6-7 6M9 10v12' },
