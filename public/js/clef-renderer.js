@@ -8,12 +8,12 @@
 (function() {
   'use strict';
 
-  const STAFF_HEIGHT = 36;
+  const STAFF_HEIGHT = 27;
   const LINE_SPACING = STAFF_HEIGHT / 4;
-  const PRIMARY_WIDTH = 16;
-  const SECONDARY_WIDTH = 9;
+  const PRIMARY_WIDTH = 12;
+  const SECONDARY_WIDTH = 7;
   const SECONDARY_COLOR = '#0d6efd';
-  const CELL_PAD = 4;
+  const CELL_PAD = 3;
   const CLEF_GAP = 1;
 
   function lineY(n) {
@@ -44,7 +44,7 @@
   };
 
   const TEXT_INSTRUMENTS = { org: 'ORG', bc: 'BC', lut: 'LUT' };
-  const TEXT_WIDTH = 14;
+  const TEXT_WIDTH = 11;
 
   // --- SVG file loading & cache ---
   const svgCache = {};
@@ -119,7 +119,7 @@
   function gapForPrimary(parts) {
     const p = parts[0];
     if (!p || p.type !== 'clef') return CLEF_GAP;
-    if (p.family === 'f') return 3;
+    if (p.family === 'f') return 2;
     if (p.family === 'c') return -2;
     return CLEF_GAP;
   }
@@ -230,7 +230,7 @@
     wrapper.style.display = 'inline-block';
     wrapper.style.position = 'relative';
     wrapper.style.verticalAlign = 'middle';
-    wrapper.style.padding = '35px 0';
+    wrapper.style.padding = '26px 0';
 
     if (clefData.missing) wrapper.classList.add('clef-missing');
     if (clefData.incomplete) wrapper.classList.add('clef-incomplete');
