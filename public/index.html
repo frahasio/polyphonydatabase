@@ -2441,7 +2441,9 @@
             return clefs.slice().sort((a, b) => {
                 const indexA = clefDisplayOrder.indexOf(a.clef?.trim());
                 const indexB = clefDisplayOrder.indexOf(b.clef?.trim());
-                return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                const pitchDiff = (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                if (pitchDiff !== 0) return pitchDiff;
+                return (a.voice_number ?? Infinity) - (b.voice_number ?? Infinity);
             });
         }
 

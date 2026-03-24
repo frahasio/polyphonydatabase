@@ -1372,7 +1372,7 @@
             const optionalClefs = clefs.filter(clef => clef.clef && clef.optional);
             const emptyClefs = clefs.filter(clef => !clef.clef);
             
-            // Sort non-optional clefs by display order
+            // Sort non-optional clefs by display order, with voice_number as tiebreaker
             const sortedNonOptional = nonOptionalClefs.sort((a, b) => {
                 const aIndex = clefDisplayOrder.indexOf(a.clef);
                 const bIndex = clefDisplayOrder.indexOf(b.clef);
@@ -1382,10 +1382,11 @@
                 if (aIndex === -1) return 1;
                 if (bIndex === -1) return -1;
                 
-                return aIndex - bIndex;
+                if (aIndex !== bIndex) return aIndex - bIndex;
+                return (a.voice_number ?? Infinity) - (b.voice_number ?? Infinity);
             });
             
-            // Sort optional clefs by display order
+            // Sort optional clefs by display order, with voice_number as tiebreaker
             const sortedOptional = optionalClefs.sort((a, b) => {
                 const aIndex = clefDisplayOrder.indexOf(a.clef);
                 const bIndex = clefDisplayOrder.indexOf(b.clef);
@@ -1395,7 +1396,8 @@
                 if (aIndex === -1) return 1;
                 if (bIndex === -1) return -1;
                 
-                return aIndex - bIndex;
+                if (aIndex !== bIndex) return aIndex - bIndex;
+                return (a.voice_number ?? Infinity) - (b.voice_number ?? Infinity);
             });
             
             // Return sorted clefs: non-optional first, then optional, then empty slots
@@ -2473,6 +2475,12 @@
                 inclusionsData.forEach((inclusion, index) => {
                     inclusion.order = index + 1;
                     
+                    if (inclusion.clefs) {
+                        const sorted = sortClefsByDisplayOrder(inclusion.clefs);
+                        sorted.forEach((clef, idx) => { clef.voice_number = idx + 1; });
+                        inclusion.clefs = sorted;
+                    }
+
                     if (inclusion.composition && inclusion.clefs) {
                         inclusion.composition.number_of_voices = calculateNumberOfVoices(inclusion.clefs);
                     }
