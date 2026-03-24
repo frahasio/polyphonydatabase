@@ -8,6 +8,22 @@ const router = express.Router();
 // Apply authentication to all routes in this router
 router.use(requireAuth);
 
+// Detect tone column type (cached)
+let _toneIsArray = null;
+async function toneIsArray() {
+  if (_toneIsArray !== null) return _toneIsArray;
+  try {
+    const res = await pool.query(`
+      SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'compositions' AND column_name = 'tone'
+    `);
+    _toneIsArray = res.rows.length > 0 && res.rows[0].data_type === 'ARRAY';
+  } catch {
+    _toneIsArray = false;
+  }
+  return _toneIsArray;
+}
+
 const VALID_TONES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const SPECIAL_TONES = {
   'mix': 'mix', 'mixti': 'mix',
@@ -23,17 +39,25 @@ function normalizeSingleTone(val) {
   return null;
 }
 
-// Convert tone input (string, array, or null) to a PostgreSQL text[] value
-function convertToneToArray(toneValue) {
+// Convert tone input to the appropriate format for the database.
+// Returns text[] if column is array type, single string if varchar.
+async function convertToneForDB(toneValue) {
   if (!toneValue) return null;
   const arr = Array.isArray(toneValue) ? toneValue : [toneValue];
   const normalized = arr.map(normalizeSingleTone).filter(Boolean);
-  return normalized.length > 0 ? normalized : null;
+  if (normalized.length === 0) return null;
+
+  const isArr = await toneIsArray();
+  if (isArr) return normalized;           // text[]
+  return normalized[0];                   // varchar: take first value
 }
 
-// Backward-compatible alias
+// Aliases used throughout the save logic
 function convertToneToString(toneValue) {
-  return convertToneToArray(toneValue);
+  return convertToneForDB(toneValue);
+}
+function convertToneToArray(toneValue) {
+  return convertToneForDB(toneValue);
 }
 
 // Get list of sources
@@ -743,7 +767,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           
           // Process tone and even_odd
           let tone = tempInclusion.tone;
-          if (tone !== null) tone = convertToneToString(tone);
+          if (tone !== null) tone = await convertToneToString(tone);
           
           let evenOdd = tempInclusion.even_odd;
           if (evenOdd === 'even') evenOdd = 0;
@@ -898,7 +922,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
       // Process tone and even_odd
       let tone = inclusion.composition.tone;
-      if (tone !== null && tone !== undefined) tone = convertToneToString(tone);
+      if (tone !== null && tone !== undefined) tone = await convertToneToString(tone);
       
       let evenOdd = inclusion.composition.even_odd;
       if (evenOdd === 'even') evenOdd = 0;

@@ -1,11 +1,13 @@
 /* Global styles for Polyphony Database */
 
 body {
-    background: #f5f6f8;
+    background: repeating-linear-gradient(45deg, #3a3a3a, #3a3a3a 1px, #3c3c3c 3px, #3a3a3a 5px);
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #333333;
 }
+
+/* Admin pages override the dark background via admin.css */
 
 /* Container and layout */
 .container-fluid {

@@ -3,6 +3,23 @@ import { pool } from '../db.js';
 
 const router = express.Router();
 
+// Detect whether compositions.tone is text[] (post-migration) or varchar (pre-migration).
+// Caches result so the detection query only runs once.
+let _toneIsArray = null;
+async function toneIsArray() {
+  if (_toneIsArray !== null) return _toneIsArray;
+  try {
+    const res = await pool.query(`
+      SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'compositions' AND column_name = 'tone'
+    `);
+    _toneIsArray = res.rows.length > 0 && res.rows[0].data_type === 'ARRAY';
+  } catch {
+    _toneIsArray = false;
+  }
+  return _toneIsArray;
+}
+
 // Main public search endpoint for groups
 router.get('/groups', async (req, res) => {
   try {
@@ -34,8 +51,8 @@ router.get('/groups', async (req, res) => {
     } = req.query;
 
     const limit = parseInt(page_size);
-
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    const isArray = await toneIsArray();
     
     // Parse multi-select parameters (comma-separated)
     const composerIds = composers && composers.trim() ? composers.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
@@ -438,11 +455,19 @@ router.get('/groups', async (req, res) => {
       const validToneValues = toneValues.filter(val => val && val.trim());
       
       if (validToneValues.length > 0) {
-        whereConditions.push(`EXISTS (
-          SELECT 1 FROM compositions c2
-          WHERE c2.group_id = g.id AND c2.tone && $${paramIndex}::text[]
-        )`);
-        queryParams.push(validToneValues);
+        if (isArray) {
+          whereConditions.push(`EXISTS (
+            SELECT 1 FROM compositions c2
+            WHERE c2.group_id = g.id AND c2.tone && $${paramIndex}::text[]
+          )`);
+          queryParams.push(validToneValues);
+        } else {
+          whereConditions.push(`EXISTS (
+            SELECT 1 FROM compositions c2
+            WHERE c2.group_id = g.id AND c2.tone = ANY($${paramIndex}::text[])
+          )`);
+          queryParams.push(validToneValues);
+        }
         paramIndex++;
       }
     }
@@ -892,6 +917,10 @@ router.get('/groups', async (req, res) => {
         break;
     }
 
+    const toneSubquery = isArray
+      ? `(SELECT array_agg(DISTINCT t ORDER BY t) FROM compositions c, unnest(c.tone) AS t WHERE c.group_id = g.id AND c.tone IS NOT NULL)`
+      : `(SELECT array_agg(DISTINCT c.tone ORDER BY c.tone) FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL)`;
+
     // Count query for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT g.id) as total
@@ -916,11 +945,7 @@ router.get('/groups', async (req, res) => {
             WHERE c.group_id = g.id AND c.number_of_voices IS NOT NULL
           ) voices
         ) as voice_counts,
-        (
-          SELECT array_agg(DISTINCT t ORDER BY t)
-          FROM compositions c, unnest(c.tone) AS t
-          WHERE c.group_id = g.id AND c.tone IS NOT NULL
-        ) as tone,
+        ${toneSubquery} as tone,
         (
           SELECT DISTINCT c.even_odd
           FROM compositions c
@@ -1298,18 +1323,19 @@ router.get('/composition-types', async (req, res) => {
 
 router.get('/tones', async (req, res) => {
   try {
-    const query = `
-      SELECT DISTINCT t AS tone FROM compositions, unnest(tone) AS t
-      WHERE tone IS NOT NULL 
-      ORDER BY CASE t
+    const isArray = await toneIsArray();
+    const toneOrderCase = `CASE val
         WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3
         WHEN '4' THEN 4 WHEN '5' THEN 5 WHEN '6' THEN 6
         WHEN '7' THEN 7 WHEN '8' THEN 8 WHEN '9' THEN 9
         WHEN '10' THEN 10 WHEN '11' THEN 11 WHEN '12' THEN 12
         WHEN 'per' THEN 13 WHEN 'mix' THEN 14 WHEN 'pro' THEN 15
-        ELSE 99
-      END
-    `;
+        ELSE 99 END`;
+    const query = isArray
+      ? `SELECT DISTINCT t AS tone FROM compositions, unnest(tone) AS t
+         WHERE tone IS NOT NULL ORDER BY ${toneOrderCase.replace(/val/g, 't')}`
+      : `SELECT DISTINCT tone FROM compositions
+         WHERE tone IS NOT NULL ORDER BY ${toneOrderCase.replace(/val/g, 'tone')}`;
     const result = await pool.query(query);
     
     const toneMapping = {

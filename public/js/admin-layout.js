@@ -2,17 +2,17 @@
   'use strict';
 
   const NAV_ITEMS = [
-    { label: 'Dashboard',      icon: 'bi-speedometer2',   href: '/admin/dashboard' },
-    { label: 'Sources',        icon: 'bi-book',           href: '/modules/sources/index.html' },
-    { label: 'Composers',      icon: 'bi-person',         href: '/modules/composers/index.html' },
-    { label: 'Editors',        icon: 'bi-pencil',         href: '/modules/editors/index.html' },
-    { label: 'Scribes',        icon: 'bi-pen',            href: '/modules/scribes/index.html' },
-    { label: 'Publishers',     icon: 'bi-printer',        href: '/modules/publishers/index.html' },
-    { label: 'Performers',     icon: 'bi-music-note',     href: '/modules/performers/index.html' },
-    { label: 'Functions',      icon: 'bi-tag',            href: '/modules/functions/index.html' },
-    { label: 'Groups',         icon: 'bi-collection',     href: '/group-management.html' },
-    { label: 'Clef / Voicings',icon: 'bi-music-note-list',href: '/modules/clef-voicings/index.html' },
-    { label: 'Users',          icon: 'bi-people',         href: '/user-management.html' }
+    { label: 'Dashboard',      icon: 'bi-speedometer2',   href: '/admin/dashboard', adminOnly: false },
+    { label: 'Sources',        icon: 'bi-book',           href: '/modules/sources/index.html', adminOnly: false },
+    { label: 'Composers',      icon: 'bi-person',         href: '/modules/composers/index.html', adminOnly: false },
+    { label: 'Editors',        icon: 'bi-pencil',         href: '/modules/editors/index.html', adminOnly: false },
+    { label: 'Scribes',        icon: 'bi-pen',            href: '/modules/scribes/index.html', adminOnly: false },
+    { label: 'Publishers',     icon: 'bi-printer',        href: '/modules/publishers/index.html', adminOnly: false },
+    { label: 'Performers',     icon: 'bi-music-note',     href: '/modules/performers/index.html', adminOnly: false },
+    { label: 'Functions',      icon: 'bi-tag',            href: '/modules/functions/index.html', adminOnly: false },
+    { label: 'Groups',         icon: 'bi-collection',     href: '/group-management.html', adminOnly: true },
+    { label: 'Clef / Voicings',icon: 'bi-music-note-list',href: '/modules/clef-voicings/index.html', adminOnly: true },
+    { label: 'Users',          icon: 'bi-people',         href: '/user-management.html', adminOnly: true }
   ];
 
   const COLLAPSED_KEY = 'admin_sidebar_collapsed';
@@ -25,12 +25,8 @@
     localStorage.setItem(COLLAPSED_KEY, val ? '1' : '0');
   }
 
-  function currentPath() {
-    return window.location.pathname;
-  }
-
   function isActive(href) {
-    const path = currentPath();
+    const path = window.location.pathname;
     if (href === '/admin/dashboard') {
       return path === '/admin/dashboard' || path === '/admin-dashboard.html';
     }
@@ -63,7 +59,8 @@
     html += '<ul class="sidebar-nav">';
     for (const item of NAV_ITEMS) {
       const active = isActive(item.href) ? ' active' : '';
-      html += `<li class="sidebar-item${active}">
+      const adminClass = item.adminOnly ? ' admin-only' : '';
+      html += `<li class="sidebar-item${active}${adminClass}">
         <a href="${item.href}" class="sidebar-link" title="${item.label}">
           <i class="bi ${item.icon}"></i>
           <span class="sidebar-label">${item.label}</span>
@@ -103,34 +100,33 @@
   function init() {
     const collapsed = isCollapsed();
 
-    const existingContent = document.body.innerHTML;
-    document.body.innerHTML = '';
+    // Move existing body children into a wrapper without serializing/re-parsing
+    const main = document.createElement('div');
+    main.id = 'adminMainContent';
+    main.className = 'admin-main';
+    while (document.body.firstChild) {
+      main.appendChild(document.body.firstChild);
+    }
+
     document.body.classList.add('admin-layout');
     if (collapsed) document.body.classList.add('sidebar-collapsed');
 
     const sidebar = buildSidebar(collapsed);
     const header = buildHeader();
 
-    const main = document.createElement('div');
-    main.id = 'adminMainContent';
-    main.className = 'admin-main';
-    main.innerHTML = existingContent;
-
     document.body.appendChild(sidebar);
     document.body.appendChild(header);
     document.body.appendChild(main);
 
+    // Toggle uses only CSS class changes -- no DOM rebuilding
     document.getElementById('sidebarToggle').addEventListener('click', function() {
       const nowCollapsed = !document.body.classList.contains('sidebar-collapsed');
       document.body.classList.toggle('sidebar-collapsed', nowCollapsed);
-      const sb = document.getElementById('adminSidebar');
-      sb.classList.toggle('collapsed', nowCollapsed);
+      document.getElementById('adminSidebar').classList.toggle('collapsed', nowCollapsed);
       setCollapsed(nowCollapsed);
 
-      const brand = sb.querySelector('.sidebar-brand');
-      brand.textContent = nowCollapsed ? 'PD' : 'Polyphony DB';
-      const icon = sb.querySelector('.sidebar-toggle i');
-      icon.className = 'bi ' + (nowCollapsed ? 'bi-chevron-right' : 'bi-chevron-left');
+      sidebar.querySelector('.sidebar-brand').textContent = nowCollapsed ? 'PD' : 'Polyphony DB';
+      this.querySelector('i').className = 'bi ' + (nowCollapsed ? 'bi-chevron-right' : 'bi-chevron-left');
     });
 
     document.getElementById('headerLogout').addEventListener('click', function() {
@@ -144,8 +140,9 @@
     });
 
     // Remove old nav elements that pages may have had
-    main.querySelectorAll('.auth-info, .back-to-dashboard, [href*="admin-dashboard"]').forEach(el => {
-      if (el.classList.contains('auth-info') || el.textContent.includes('Back to Dashboard')) {
+    main.querySelectorAll('.auth-info, .back-to-dashboard').forEach(el => el.remove());
+    main.querySelectorAll('a[href*="admin-dashboard"]').forEach(el => {
+      if (el.textContent.includes('Back to Dashboard') || el.textContent.includes('Admin Dashboard')) {
         el.remove();
       }
     });

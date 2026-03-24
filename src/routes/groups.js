@@ -4,6 +4,21 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
+let _toneIsArray = null;
+async function toneIsArray() {
+  if (_toneIsArray !== null) return _toneIsArray;
+  try {
+    const res = await pool.query(`
+      SELECT data_type FROM information_schema.columns
+      WHERE table_name = 'compositions' AND column_name = 'tone'
+    `);
+    _toneIsArray = res.rows.length > 0 && res.rows[0].data_type === 'ARRAY';
+  } catch {
+    _toneIsArray = false;
+  }
+  return _toneIsArray;
+}
+
 // Apply authentication to all routes in this router
 router.use(requireAuth);
 
@@ -491,8 +506,13 @@ router.get('/', async (req, res) => {
         }
 
         if (tone) {
+            const isArr = await toneIsArray();
             paramCount++;
-            conditions.push(`c.tone && ARRAY[$${paramCount}]::text[]`);
+            if (isArr) {
+                conditions.push(`c.tone && ARRAY[$${paramCount}]::text[]`);
+            } else {
+                conditions.push(`c.tone = $${paramCount}`);
+            }
             params.push(tone);
         }
 
@@ -846,6 +866,8 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
             errors: []
         };
 
+        const isArr = await toneIsArray();
+
         // Process each composition individually
         for (const composition of compositionsBefore) {
             try {
@@ -853,7 +875,7 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
                 const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
                 const newTone = tone !== undefined ? 
-                    (tone ? [tone] : null) : composition.tone;
+                    (tone ? (isArr ? [tone] : tone) : null) : composition.tone;
                 const newEvenOdd = evenOdd !== undefined ? 
                     (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 
@@ -1215,6 +1237,8 @@ router.post('/bulk-update-compositions', async (req, res) => {
             errors: []
         };
 
+        const isArr2 = await toneIsArray();
+
         // Process each composition individually
         for (const composition of compositions) {
             try {
@@ -1222,7 +1246,7 @@ router.post('/bulk-update-compositions', async (req, res) => {
                 const newCompositionTypeId = compositionTypeId !== undefined ? 
                     (compositionTypeId ? parseInt(compositionTypeId) : null) : composition.composition_type_id;
                 const newTone = tone !== undefined ? 
-                    (tone ? [tone] : null) : composition.tone;
+                    (tone ? (isArr2 ? [tone] : tone) : null) : composition.tone;
                 const newEvenOdd = evenOdd !== undefined ? 
                     (evenOdd !== null ? parseInt(evenOdd) : null) : composition.even_odd;
 

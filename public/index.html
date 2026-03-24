@@ -433,7 +433,7 @@
     <div class="container mt-3">
         <div class="row">
             <div class="col-12 text-center">
-                <small class="text-muted"><strong id="totalResults">0</strong> results</small>
+                <small style="color: #ccc;"><strong id="totalResults">0</strong> results</small>
             </div>
         </div>
     </div>
@@ -715,7 +715,7 @@
         <!-- Sort Dropdown (between filters and table, aligned right) -->
         <div class="d-flex justify-content-end mt-3 mb-2 w-100">
             <div class="d-flex align-items-center" style="flex-wrap: nowrap;">
-                <label for="sortBy" class="form-label filter-label mb-0 me-2" style="white-space: nowrap; flex-shrink: 0;">Sort by</label>
+                <label for="sortBy" class="form-label filter-label mb-0 me-2" style="white-space: nowrap; flex-shrink: 0; color: #ccc;">Sort by</label>
                 <select class="form-select form-select-sm filter-input" id="sortBy" style="max-width: 200px; flex-shrink: 1;">
                     <option value="recent">Recently updated</option>
                     <option value="title">Title (A-Z)</option>
@@ -824,25 +824,19 @@
         });
 
         async function initializeInterface() {
-            // Disable all filters and show loading indicator immediately on initial load
-            if (isInitialLoad) {
+            // Check early if we have URL params that require a search
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasUrlFilters = Array.from(urlParams.keys()).some(k => k !== 'page_size');
+
+            if (isInitialLoad && hasUrlFilters) {
                 disableFilters();
                 const loadingIndicator = document.getElementById('loadingIndicator');
-                const resultsBody = document.getElementById('resultsBody');
-                const paginationInfo = document.getElementById('paginationInfo');
                 const tableContainer = document.getElementById('tableContainer');
-                if (loadingIndicator) {
-                    loadingIndicator.style.display = 'block';
-                }
-                if (tableContainer) {
-                    tableContainer.style.display = 'none';
-                }
-                if (resultsBody) {
-                    resultsBody.innerHTML = '';
-                }
-                if (paginationInfo) {
-                    paginationInfo.style.display = 'none';
-                }
+                if (loadingIndicator) loadingIndicator.style.display = 'block';
+                if (tableContainer) tableContainer.style.display = 'none';
+            } else if (isInitialLoad) {
+                // No URL filters: show placeholder immediately, no spinner
+                showWelcomePlaceholder();
             }
             
             // Load sources first for wildcard expansion
@@ -1040,16 +1034,10 @@
             lastSearchParams = getCurrentFilterParams();
             updateSearchButtonText();
 
-            // Only search if URL has filter/page params; otherwise show welcome placeholder
-            const urlParams = new URLSearchParams(window.location.search);
-            const hasUrlFilters = Array.from(urlParams.keys()).some(k => k !== 'page_size');
             if (hasUrlFilters) {
                 performSearch();
             } else {
-                const loadingIndicator = document.getElementById('loadingIndicator');
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
                 enableFilters();
-                showWelcomePlaceholder();
             }
 
             // Mark initial load as complete
@@ -2041,6 +2029,8 @@
             const resultsBody = document.getElementById('resultsBody');
             const tableContainer = document.getElementById('tableContainer');
             const paginationInfo = document.getElementById('paginationInfo');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             if (tableContainer) tableContainer.style.display = '';
             if (paginationInfo) paginationInfo.style.display = 'none';
             resultsBody.innerHTML = `
@@ -2050,25 +2040,48 @@
                             <i class="bi bi-search me-2"></i>Use the filters above to search the database
                         </div>
                         <small class="text-muted">
-                            For example, search by title, composer, liturgical function, number of voices, or source.
+                            Search by title, composer, liturgical function, number of voices, source, and more.
                             <br>Press <kbd>Enter</kbd> or click <strong>Update Filters</strong> to see results.
                         </small>
                     </td>
                 </tr>
-                <tr class="opacity-50" style="pointer-events: none;">
-                    <td>
+                <tr class="opacity-50">
+                    <td title="Title of the composition group, with tone information">
                         <strong>Missa O quam gloriosum</strong>
                         <span class="text-muted">primi toni</span>
                     </td>
-                    <td>Mass</td>
-                    <td>
+                    <td title="Liturgical function(s) of the piece">Mass</td>
+                    <td title="Attributed composer(s) with dates">
                         Victoria, Tom&aacute;s Luis de
                         <br><small class="text-muted fst-italic">c.1548&ndash;1611</small>
                     </td>
-                    <td>4</td>
-                    <td><small class="text-muted fst-italic">Example entry</small></td>
+                    <td title="Number of voices">4</td>
+                    <td title="Sources containing this piece, with clef voicings for each">
+                        <div class="mb-1">
+                            <small><strong>V-CVbav CS 35</strong></small>
+                            <small class="text-muted ms-1">c.1590&ndash;1600</small>
+                        </div>
+                        <div class="clef-images mb-1">
+                            <span class="clef-render-target" data-clef="g2" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="g2 clef &mdash; Cantus voice"></span>
+                            <span class="clef-render-target" data-clef="c2" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="c2 clef &mdash; Altus voice"></span>
+                            <span class="clef-render-target" data-clef="c3" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="c3 clef &mdash; Tenor voice"></span>
+                            <span class="clef-render-target" data-clef="f4" data-missing="false" data-incomplete="false" data-optional="false" style="display:inline-block;margin-right:2px" title="f4 clef &mdash; Bassus voice"></span>
+                        </div>
+                        <small class="text-muted fst-italic">Example entry &mdash; hover over elements for explanations</small>
+                    </td>
                 </tr>
             `;
+            // Render dynamic clef SVGs for example row
+            resultsBody.querySelectorAll('.clef-render-target').forEach(el => {
+                if (window.clefRenderer) {
+                    window.clefRenderer.renderClef(el, {
+                        clef: el.dataset.clef,
+                        missing: el.dataset.missing === 'true',
+                        incomplete: el.dataset.incomplete === 'true',
+                        optional: el.dataset.optional === 'true'
+                    });
+                }
+            });
         }
 
         function displayResults(data) {

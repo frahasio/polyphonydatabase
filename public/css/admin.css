@@ -132,6 +132,17 @@ body.admin-layout {
   display: none;
 }
 
+.sidebar-item.admin-only .sidebar-link::after {
+  content: '\F538';
+  font-family: 'bootstrap-icons';
+  font-size: 0.6rem;
+  opacity: 0.4;
+  margin-left: auto;
+}
+.admin-sidebar.collapsed .sidebar-item.admin-only .sidebar-link::after {
+  display: none;
+}
+
 /* === Header === */
 .admin-header {
   position: fixed;
