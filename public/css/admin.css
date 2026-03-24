@@ -361,17 +361,42 @@ body.sidebar-collapsed .admin-main {
   /* Header shifts to left edge on mobile */
   .admin-header {
     left: 0 !important;
-    padding: 0 12px;
+    padding: 0 8px;
   }
 
   body.sidebar-collapsed .admin-header {
     left: 0 !important;
   }
 
+  .header-title {
+    font-size: 0.8rem;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  /* Compact header: hide text labels, show only icons */
+  .header-link-text,
+  .header-user-text {
+    display: none;
+  }
+
+  .header-link,
+  .header-user,
+  .header-btn {
+    font-size: 1.1rem;
+    padding: 6px;
+    min-width: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   /* Main content fills full width */
   .admin-main {
     margin-left: 0 !important;
-    padding: 16px 12px;
   }
 
   body.sidebar-collapsed .admin-main {
@@ -401,34 +426,90 @@ body.sidebar-collapsed .admin-main {
     display: none;
   }
 
-  /* Admin forms: prevent horizontal overflow */
+  /* Always show full labels when sidebar is open on mobile, even if collapsed on desktop */
+  .admin-sidebar.mobile-open {
+    width: var(--sidebar-width) !important;
+  }
+
+  .admin-sidebar.mobile-open .sidebar-label {
+    display: inline !important;
+  }
+
+  .admin-sidebar.mobile-open .sidebar-item.admin-only .sidebar-link::after {
+    display: inline !important;
+  }
+
+  /* --- Content area --- */
+  .admin-main {
+    padding: 10px 8px;
+  }
+
+  /* Page headings */
+  .admin-main h1, .admin-main .h3 {
+    font-size: 1.1rem;
+  }
+
+  .admin-main h5, .admin-main .h5 {
+    font-size: 0.95rem;
+  }
+
+  .admin-main p.text-muted {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Page header flex rows: stack on mobile */
+  .admin-main .d-flex.justify-content-between {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* --- Bootstrap grid: force all columns to full width --- */
   .admin-main .row {
     margin-left: 0;
     margin-right: 0;
   }
 
   .admin-main .row > [class*="col-"] {
-    padding-left: 8px;
-    padding-right: 8px;
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-bottom: 0.5rem;
+  }
+
+  /* --- Cards --- */
+  .admin-main .card {
+    margin-bottom: 0.75rem;
   }
 
   .admin-main .card-body {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 
-  .admin-main .table {
-    font-size: 0.8rem;
-  }
-
-  .admin-main .table th,
-  .admin-main .table td {
+  /* --- Forms --- */
+  .admin-main .form-control,
+  .admin-main .form-select {
+    font-size: 0.85rem;
     padding: 0.4rem 0.5rem;
   }
 
-  /* Make forms stack vertically on mobile */
+  .admin-main .input-group {
+    flex-wrap: nowrap;
+  }
+
+  .admin-main .btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+    min-height: 38px;
+  }
+
+  /* Filter bars: stack vertically */
   .admin-main .filter-bar {
     flex-direction: column;
     align-items: stretch;
+    padding: 8px;
+    gap: 6px;
   }
 
   .admin-main .filter-bar .form-control,
@@ -436,21 +517,90 @@ body.sidebar-collapsed .admin-main {
     width: 100%;
   }
 
-  /* Source edit: inclusion rows stack better */
+  /* --- Tables: allow horizontal scroll, never hide content --- */
+  .admin-main .card-body:has(.table),
+  .admin-main .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-main .table {
+    font-size: 0.78rem;
+    min-width: 500px;
+  }
+
+  .admin-main .table th,
+  .admin-main .table td {
+    padding: 0.35rem 0.4rem;
+    white-space: nowrap;
+  }
+
+  .admin-main .table td:first-child,
+  .admin-main .table td:nth-child(2) {
+    white-space: normal;
+    min-width: 100px;
+  }
+
+  /* --- Source edit: inclusion rows --- */
+  .inclusion-row {
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
   .inclusion-row .row > [class*="col-"] {
     flex: 0 0 100%;
     max-width: 100%;
     margin-bottom: 0.5rem;
+    padding-left: 4px;
+    padding-right: 4px;
   }
 
-  /* Prevent wide content from overflowing */
-  .admin-main {
-    overflow-x: hidden;
+  .inclusion-row .form-label {
+    font-size: 0.75rem;
+    margin-bottom: 0.15rem;
   }
 
-  .admin-main .table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  .inclusion-row .form-control,
+  .inclusion-row .form-select {
+    font-size: 0.82rem;
+  }
+
+  /* --- Source edit: sticky header --- */
+  .sticky-header {
+    padding: 6px 8px !important;
+  }
+
+  .sticky-header h5 {
+    font-size: 0.85rem !important;
+  }
+
+  .sticky-header .btn {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .sticky-header .d-flex {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  /* Pagination in header: wrap below heading on small screens */
+  .pagination-in-header {
+    order: 10;
+    width: 100%;
+  }
+
+  /* --- Touch-friendly spacing --- */
+  .admin-main .btn,
+  .admin-main .form-control,
+  .admin-main .form-select {
+    min-height: 36px;
+  }
+
+  /* Modals: full-width on mobile */
+  .admin-main .modal-dialog {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
   }
 }
 

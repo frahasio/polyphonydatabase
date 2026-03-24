@@ -387,9 +387,11 @@
                 display: none !important;
             }
 
-            /* When col-md-7/col-md-5 stack, add spacing above the clef strip column */
+            /* When col-md-7/col-md-5 stack, add clear spacing above the clef strip column */
             .source-item .col-md-5 {
-                margin-top: 0.75rem;
+                margin-top: 1.25rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid #e9ecef;
             }
         }
     </style>
@@ -2291,9 +2293,9 @@
                                                     <div class="d-flex align-items-center">
                                                         <strong>${source.code || ''}</strong>
                                                         ${isUserLoggedIn && source.id ? `
-                                                            <a href="/modules/sources/edit.html?id=${source.id}" 
+                                                            <a href="/modules/sources/edit.html?id=${source.id}${source.order > 100 ? '&page=' + Math.ceil(source.order / 100) : ''}"
                                                                class="ms-2 text-primary edit-link" 
-                                                               title="Edit source">
+                                                               title="Edit source${source.order ? ' (inclusion #' + source.order + ')' : ''}">
                                                                 <i class="bi bi-pencil-square"></i>
                                                             </a>
                                                         ` : ''}

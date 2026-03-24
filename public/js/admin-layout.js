@@ -91,10 +91,10 @@
       </div>
       <div class="header-right">
         <a href="/" target="_blank" class="header-link" title="Open public database">
-          <i class="bi bi-globe"></i> Public Database
+          <i class="bi bi-globe"></i><span class="header-link-text"> Public Database</span>
         </a>
         <span class="header-user">
-          <i class="bi bi-person-circle"></i> ${getUserName()}
+          <i class="bi bi-person-circle"></i><span class="header-user-text"> ${getUserName()}</span>
         </span>
         <button class="header-btn" id="headerLogout" title="Logout">
           <i class="bi bi-box-arrow-right"></i>
