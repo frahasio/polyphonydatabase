@@ -865,7 +865,7 @@
     <script>
         let currentPage = 1;
         let currentPageSize = 10; // Reduced from 25 to speed up initial load
-        let currentSort = 'recent';
+        let currentSort = 'title';
         let isSearching = false;
         let currentSearchAbortController = null;
         let lastSearchParams = new URLSearchParams();
@@ -1450,9 +1450,9 @@
             });
 
             // Reset sort to default
-            currentSort = 'recent';
+            currentSort = 'title';
             const sortEl = document.getElementById('sortBy');
-            if (sortEl) sortEl.value = 'recent';
+            if (sortEl) sortEl.value = 'title';
             
             // Reset page
             currentPage = 1;
