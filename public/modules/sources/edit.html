@@ -654,13 +654,16 @@
         const inclusionsPageSize = 100;
         let initialLoadDone = false;
 
+        let isNewSource = false;
+
         // Fetch source details with paginated inclusions
         async function fetchSource(page) {
             const urlParams = new URLSearchParams(window.location.search);
             const sourceId = urlParams.get('id');
 
             if (!sourceId) {
-                alert('No source ID provided');
+                isNewSource = true;
+                await initNewSource();
                 return;
             }
 
@@ -704,6 +707,26 @@
                     </div>
                 `;
             }
+        }
+
+        async function initNewSource() {
+            sourceData = {};
+            inclusionsData = [];
+            inclusionsPagination = null;
+
+            await loadPublishersAndScribes();
+            initialLoadDone = true;
+
+            document.getElementById('headerSourceCode').textContent = 'New Source';
+            document.title = 'New Source - Polyphony Database';
+
+            displayPublishers();
+            displayScribes();
+            displaySourceImages();
+            displayInclusions();
+
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
         }
 
         function populateSourceForm() {
@@ -2545,12 +2568,40 @@
                 document.getElementById('saveStatusText').textContent = 'Saving source data...';
                 document.getElementById('saveProgressBar').style.width = '25%';
 
-                const sourceId = document.getElementById('source_id').value;
-                let finalSourceId = sourceId;
-                if (!sourceId) {
+                let finalSourceId = document.getElementById('source_id').value;
+                if (!finalSourceId) {
                     const urlParams = new URLSearchParams(window.location.search);
                     finalSourceId = urlParams.get('id');
                 }
+
+                if (!finalSourceId && isNewSource) {
+                    const createResponse = await fetch('/api/admin/sources', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: sourceUpdateData.code,
+                            title: sourceUpdateData.title,
+                            type: sourceUpdateData.type,
+                            format: sourceUpdateData.format,
+                            town: sourceUpdateData.town,
+                            rismLink: sourceUpdateData.rism_link,
+                            catalogued: sourceUpdateData.catalogued
+                        })
+                    });
+                    if (!createResponse.ok) {
+                        const err = await createResponse.json().catch(() => ({ error: 'Failed to create source' }));
+                        throw new Error(err.error || 'Failed to create source');
+                    }
+                    const created = await createResponse.json();
+                    finalSourceId = created.id;
+                    document.getElementById('source_id').value = finalSourceId;
+                    isNewSource = false;
+
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.set('id', finalSourceId);
+                    window.history.replaceState({}, '', newUrl);
+                }
+
                 if (!finalSourceId) {
                     throw new Error('No source ID found. Cannot save.');
                 }

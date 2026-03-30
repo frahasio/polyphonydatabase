@@ -60,12 +60,35 @@ function convertToneToArray(toneValue) {
   return convertToneForDB(toneValue);
 }
 
-// Get list of sources
+// Get list of sources (with pagination)
 router.get('/', async (req, res) => {
   try {
     const searchTerm = req.query.search || '';
     const cataloguedFilter = req.query.catalogued;
-    
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+    const offset = (page - 1) * limit;
+
+    const queryParams = [];
+    const whereConditions = [];
+
+    if (searchTerm) {
+      whereConditions.push(`(s.code ILIKE $${queryParams.length + 1} OR s.title ILIKE $${queryParams.length + 1})`);
+      queryParams.push(`%${searchTerm}%`);
+    }
+
+    if (cataloguedFilter !== undefined) {
+      const cataloguedValue = cataloguedFilter === 'true';
+      whereConditions.push(`s.catalogued = $${queryParams.length + 1}`);
+      queryParams.push(cataloguedValue);
+    }
+
+    const whereClause = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const countQuery = `SELECT COUNT(*) FROM sources s${whereClause}`;
+    const countResult = await pool.query(countQuery, queryParams);
+    const totalCount = parseInt(countResult.rows[0].count);
+
     let query = `
       SELECT 
         s.*,
@@ -92,39 +115,27 @@ router.get('/', async (req, res) => {
       LEFT JOIN publishers p ON ps.publisher_id = p.id
       LEFT JOIN scribes_sources ss ON s.id = ss.source_id
       LEFT JOIN scribes sc ON ss.scribe_id = sc.id
-    `;
-
-    const queryParams = [];
-    const whereConditions = [];
-    
-    if (searchTerm) {
-      whereConditions.push(`(s.code ILIKE $${queryParams.length + 1} OR s.title ILIKE $${queryParams.length + 1})`);
-      queryParams.push(`%${searchTerm}%`);
-    }
-    
-    if (cataloguedFilter !== undefined) {
-      const cataloguedValue = cataloguedFilter === 'true';
-      whereConditions.push(`s.catalogued = $${queryParams.length + 1}`);
-      queryParams.push(cataloguedValue);
-    }
-    
-    if (whereConditions.length > 0) {
-      query += ` WHERE ${whereConditions.join(' AND ')}`;
-    }
-
-    query += `
+      ${whereClause}
       GROUP BY s.id
       ORDER BY s.code
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
+    queryParams.push(limit, offset);
 
     const result = await pool.query(query, queryParams);
-    
+
     res.json({
       sources: result.rows.map(row => ({
         ...row,
         publishers: row.publishers || [],
         scribes: row.scribes || []
-      }))
+      })),
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
     });
   } catch (error) {
     console.error('Error fetching sources:', error);
