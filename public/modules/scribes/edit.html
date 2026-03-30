@@ -50,7 +50,8 @@
                 if (!response.ok) {
                     throw new Error('Failed to fetch scribe');
                 }
-                const scribe = await response.json();
+                const data = await response.json();
+                const scribe = data.scribe;
                 
                 // Populate form
                 document.getElementById('name').value = scribe.name || '';

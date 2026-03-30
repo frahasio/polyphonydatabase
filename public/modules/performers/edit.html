@@ -50,7 +50,8 @@
                 if (!response.ok) {
                     throw new Error('Failed to fetch performer');
                 }
-                const performer = await response.json();
+                const data = await response.json();
+                const performer = data.performer;
                 
                 // Populate form
                 document.getElementById('name').value = performer.name || '';

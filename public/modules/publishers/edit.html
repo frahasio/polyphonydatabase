@@ -50,7 +50,8 @@
                 if (!response.ok) {
                     throw new Error('Failed to fetch publisher');
                 }
-                const publisher = await response.json();
+                const data = await response.json();
+                const publisher = data.publisher;
                 
                 // Populate form
                 document.getElementById('name').value = publisher.name || '';
