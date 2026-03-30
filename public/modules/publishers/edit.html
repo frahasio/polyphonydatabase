@@ -46,7 +46,7 @@
         // Fetch publisher data
         async function fetchPublisher() {
             try {
-                const response = await fetch(`/publishers/${publisherId}`);
+                const response = await fetch(`/api/admin/publishers/${publisherId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch publisher');
                 }
@@ -69,7 +69,7 @@
             };
 
             try {
-                const response = await fetch(`/publishers/${publisherId}`, {
+                const response = await fetch(`/api/admin/publishers/${publisherId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -95,7 +95,7 @@
             }
 
             try {
-                const response = await fetch(`/publishers/${publisherId}`, {
+                const response = await fetch(`/api/admin/publishers/${publisherId}`, {
                     method: 'DELETE'
                 });
 

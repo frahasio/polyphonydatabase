@@ -46,7 +46,7 @@
         // Fetch scribe data
         async function fetchScribe() {
             try {
-                const response = await fetch(`/scribes/${scribeId}`);
+                const response = await fetch(`/api/admin/scribes/${scribeId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch scribe');
                 }
@@ -69,7 +69,7 @@
             };
 
             try {
-                const response = await fetch(`/scribes/${scribeId}`, {
+                const response = await fetch(`/api/admin/scribes/${scribeId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -95,7 +95,7 @@
             }
 
             try {
-                const response = await fetch(`/scribes/${scribeId}`, {
+                const response = await fetch(`/api/admin/scribes/${scribeId}`, {
                     method: 'DELETE'
                 });
 

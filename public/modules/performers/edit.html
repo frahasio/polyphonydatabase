@@ -46,7 +46,7 @@
         // Fetch performer data
         async function fetchPerformer() {
             try {
-                const response = await fetch(`/performers/${performerId}`);
+                const response = await fetch(`/api/admin/performers/${performerId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch performer');
                 }
@@ -69,7 +69,7 @@
             };
 
             try {
-                const response = await fetch(`/performers/${performerId}`, {
+                const response = await fetch(`/api/admin/performers/${performerId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -95,7 +95,7 @@
             }
 
             try {
-                const response = await fetch(`/performers/${performerId}`, {
+                const response = await fetch(`/api/admin/performers/${performerId}`, {
                     method: 'DELETE'
                 });
 
