@@ -45,8 +45,12 @@
             border-radius: 0;
             overflow: visible;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            min-width: 100%;
+            width: 100%;
+        }
+        
+        .results-table .table {
             width: max-content;
+            min-width: 100%;
         }
         
         .table th {
@@ -168,8 +172,16 @@
         }
 
         @media (min-width: 768px) {
+            .source-item {
+                width: max-content;
+                min-width: 100%;
+            }
             .source-item > .row {
                 flex-wrap: nowrap;
+            }
+            .source-item .col-md-4 {
+                flex: 0 0 220px;
+                width: 220px;
             }
             .source-item .col-md-8 {
                 flex: 0 0 auto;
@@ -251,10 +263,11 @@
             width: 100% !important;
         }
         
-        /* Full width table */
+        /* Full width table — no local scrollbar; page-level scroll handles overflow */
         .table-responsive {
             width: 100%;
-            overflow-x: auto;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
         }
         
         .container-fluid {
