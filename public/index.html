@@ -49,7 +49,6 @@
         }
         
         .results-table .table {
-            width: max-content;
             min-width: 100%;
         }
         
@@ -274,12 +273,12 @@
             max-width: none !important;
         }
         
-        /* Table column widths — percentages spread at normal width; min/max stop them collapsing or ballooning */
-        .table th:nth-child(1), .table td:nth-child(1) { width: 20%; min-width: 180px; max-width: 300px; } /* Title */
-        .table th:nth-child(2), .table td:nth-child(2) { width: 15%; min-width: 120px; max-width: 220px; } /* Function */
-        .table th:nth-child(3), .table td:nth-child(3) { width: 15%; min-width: 120px; max-width: 220px; } /* Composer */
-        .table th:nth-child(4), .table td:nth-child(4) { width: 5%;  min-width: 40px;  max-width: 80px; }  /* # */
-        .table th:nth-child(5), .table td:nth-child(5) { white-space: normal; }                             /* Sources */
+        /* Table column widths — back to original percentages */
+        .table th:nth-child(1), .table td:nth-child(1) { width: 20%; } /* Title */
+        .table th:nth-child(2), .table td:nth-child(2) { width: 15%; } /* Function */
+        .table th:nth-child(3), .table td:nth-child(3) { width: 15%; } /* Composer */
+        .table th:nth-child(4), .table td:nth-child(4) { width: 5%; }  /* # */
+        .table th:nth-child(5), .table td:nth-child(5) { width: 45%; } /* Sources */
         
         /* Allow text wrapping in smaller columns */
         .table td:nth-child(1), .table td:nth-child(2), .table td:nth-child(3) {
