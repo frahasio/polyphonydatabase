@@ -274,12 +274,12 @@
             max-width: none !important;
         }
         
-        /* Table column widths — first four columns are fixed-size, Sources stretches to fit clef strips */
-        .table th:nth-child(1), .table td:nth-child(1) { width: 240px; min-width: 180px; }  /* Title */
-        .table th:nth-child(2), .table td:nth-child(2) { width: 160px; min-width: 120px; }  /* Function */
-        .table th:nth-child(3), .table td:nth-child(3) { width: 160px; min-width: 120px; }  /* Composer */
-        .table th:nth-child(4), .table td:nth-child(4) { width: 50px;  min-width: 40px; }   /* # */
-        .table th:nth-child(5), .table td:nth-child(5) { white-space: normal; }              /* Sources */
+        /* Table column widths — percentages spread at normal width; min/max stop them collapsing or ballooning */
+        .table th:nth-child(1), .table td:nth-child(1) { width: 20%; min-width: 180px; max-width: 300px; } /* Title */
+        .table th:nth-child(2), .table td:nth-child(2) { width: 15%; min-width: 120px; max-width: 220px; } /* Function */
+        .table th:nth-child(3), .table td:nth-child(3) { width: 15%; min-width: 120px; max-width: 220px; } /* Composer */
+        .table th:nth-child(4), .table td:nth-child(4) { width: 5%;  min-width: 40px;  max-width: 80px; }  /* # */
+        .table th:nth-child(5), .table td:nth-child(5) { white-space: normal; }                             /* Sources */
         
         /* Allow text wrapping in smaller columns */
         .table td:nth-child(1), .table td:nth-child(2), .table td:nth-child(3) {
