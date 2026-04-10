@@ -7,40 +7,51 @@ try {
   console.log('BEFORE:', JSON.stringify(before.rows[0]));
 
   if (before.rows[0]?.data_type !== 'ARRAY') {
-    // Find dependent views
+    // Find ALL dependent views/rules using pg_depend
     const deps = await pool.query(`
-      SELECT DISTINCT v.table_name AS view_name
-      FROM information_schema.view_column_usage v
-      WHERE v.column_name = 'tone' AND v.table_name != 'compositions'
+      SELECT DISTINCT c.relname AS view_name, c.relkind
+      FROM pg_depend d
+      JOIN pg_rewrite r ON d.objid = r.oid
+      JOIN pg_class c ON r.ev_class = c.oid
+      JOIN pg_attribute a ON d.refobjid = a.attrelid AND d.refobjsubid = a.attnum
+      WHERE a.attrelid = 'compositions'::regclass
+        AND a.attname = 'tone'
+        AND c.relname != 'compositions'
     `);
-    console.log('Dependent views:', JSON.stringify(deps.rows));
+    console.log('Dependent objects:', JSON.stringify(deps.rows));
 
-    // Get view definitions so we can recreate them
+    // Also find any views that reference the compositions table at all
+    const allViews = await pool.query(`
+      SELECT c.relname AS view_name, pg_get_viewdef(c.oid, true) AS definition
+      FROM pg_class c
+      JOIN pg_depend d ON c.oid = d.objid
+      JOIN pg_class t ON d.refobjid = t.oid
+      WHERE c.relkind = 'v'
+        AND t.relname = 'compositions'
+      GROUP BY c.relname, c.oid
+    `);
+    console.log('All views referencing compositions:', allViews.rows.map(r => r.view_name));
+
+    // Save and drop all dependent views
     const viewDefs = {};
-    for (const dep of deps.rows) {
-      const def = await pool.query(`SELECT pg_get_viewdef($1::regclass, true) AS definition`, [dep.view_name]);
-      viewDefs[dep.view_name] = def.rows[0]?.definition;
-      console.log(`View ${dep.view_name} definition saved.`);
-    }
-
-    // Drop dependent views
-    for (const viewName of Object.keys(viewDefs)) {
-      await pool.query(`DROP VIEW IF EXISTS ${viewName} CASCADE`);
-      console.log(`Dropped view: ${viewName}`);
+    for (const v of allViews.rows) {
+      viewDefs[v.view_name] = v.definition;
+      await pool.query(`DROP VIEW IF EXISTS "${v.view_name}" CASCADE`);
+      console.log(`Dropped view: ${v.view_name}`);
     }
 
     // Apply the migration
-    console.log('Applying migration: converting tone from varchar to text[]...');
+    console.log('Applying migration...');
     await pool.query(`ALTER TABLE compositions ALTER COLUMN tone TYPE text[] USING CASE WHEN tone IS NOT NULL THEN ARRAY[tone] ELSE NULL END`);
     console.log('Migration applied successfully.');
 
     // Recreate views
-    for (const [viewName, definition] of Object.entries(viewDefs)) {
+    for (const [name, def] of Object.entries(viewDefs)) {
       try {
-        await pool.query(`CREATE OR REPLACE VIEW ${viewName} AS ${definition}`);
-        console.log(`Recreated view: ${viewName}`);
+        await pool.query(`CREATE OR REPLACE VIEW "${name}" AS ${def}`);
+        console.log(`Recreated view: ${name}`);
       } catch (e) {
-        console.error(`Failed to recreate view ${viewName}: ${e.message}`);
+        console.error(`WARN: Could not recreate view ${name}: ${e.message}`);
       }
     }
   } else {
