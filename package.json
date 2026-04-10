@@ -20,6 +20,7 @@
     "express-session": "^1.17.3",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.7",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.11.3",
     "puppeteer": "^24.40.0",
     "validator": "^13.11.0",
