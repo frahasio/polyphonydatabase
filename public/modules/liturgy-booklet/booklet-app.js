@@ -1699,7 +1699,7 @@
     const rawNodes = [];
     const source = sanitizeToFragment(b.text || '');
     while (source.firstChild) {
-      rawNodes.push(source.firstChild);
+      rawNodes.push(source.removeChild(source.firstChild));
     }
     if (!rawNodes.length) {
       const br = document.createDocumentFragment();
