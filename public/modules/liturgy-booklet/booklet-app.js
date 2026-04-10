@@ -1627,7 +1627,7 @@
         if (curY > 0) curY += gap;
         curPageEls.push(el);
         curY += h;
-      } else if (!item.splittable || h <= pageHPx) {
+      } else if (!item.splittable) {
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
