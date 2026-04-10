@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "postinstall": "npx --yes puppeteer browsers install chrome"
+    "postinstall": "npx --yes puppeteer browsers install chrome --path node_modules/.cache/puppeteer"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -22,7 +22,8 @@
     "nodemailer": "^6.9.7",
     "pg": "^8.11.3",
     "puppeteer": "^24.40.0",
-    "validator": "^13.11.0"
+    "validator": "^13.11.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
