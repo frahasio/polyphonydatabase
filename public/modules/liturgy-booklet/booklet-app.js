@@ -6,10 +6,7 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  /** Extra vertical room when packing pages (measurement vs rendered chant lines). */
-  const BOOKLET_PAGE_PACK_SLACK_PX = 14;
-  /** Last page appends a credits footer; reserve this height so packing leaves room (px @ 96dpi). */
-  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 48;
+  
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -223,13 +220,7 @@
     return Math.max(120, mmToPx(pageH - 2 * m));
   }
 
-  /** Max height used when splitting rich text / packing flow items (includes slack, excludes footer strip). */
-  function getPackMaxBodyHeightPx() {
-    return Math.max(
-      100,
-      getMaxPageBodyHeightPx() + BOOKLET_PAGE_PACK_SLACK_PX - BOOKLET_PAGE_FOOTER_RESERVE_PX
-    );
-  }
+  
 
   function escapeHtml(s) {
     return String(s)
@@ -1285,7 +1276,7 @@
       const first = Math.min(from, pdf.numPages);
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
-      const maxBodyPx = getPackMaxBodyHeightPx();
+      const maxBodyPx = getMaxPageBodyHeightPx();
       const marginPx = mmToPx(getBookletMarginMm());
       const bleedWidthPx = widthPx + 2 * marginPx;
       for (let pNum = first; pNum <= last; pNum++) {
@@ -1453,463 +1444,48 @@
     return Number.isFinite(g) ? Math.min(40, Math.max(-40, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
   }
 
-  async function buildFlowList() {
+  /**
+   * Build a single continuous HTML flow for Paged.js to paginate.
+   * Each block becomes a section div with CSS break hints; Paged.js handles
+   * page splitting using the browser's own fragmentation engine.
+   */
+  async function buildContinuousFlow() {
     const w = getContentWidthPx();
-    const out = [];
+    const frag = document.createDocumentFragment();
     for (const b of state.blocks) {
       if (b.hidden) continue;
       if (b.type === 'page_break') {
-        out.push({ t: 'break' });
+        const br = document.createElement('div');
+        br.className = 'booklet-force-page-break';
+        frag.appendChild(br);
         continue;
       }
-      const gapAfter = blockSectionGapAfterMm(b);
+      const gapMm = blockSectionGapAfterMm(b);
       if (b.type === 'chant_gabc') {
+        const wrap = document.createElement('div');
+        wrap.className = 'booklet-section booklet-chant-section';
+        wrap.style.marginBottom = gapMm + 'mm';
         const lines = renderChantGabcToLines(b.gabc || '', w, b);
-        const last = lines.length - 1;
-        lines.forEach(function (el, i) {
-          const isLast = i === last;
-          out.push({
-            t: 'line',
-            el: el,
-            internalLineBreak: !isLast,
-            afterInternalPx: 3,
-            sectionGapAfterMm: isLast ? gapAfter : undefined,
-          });
+        lines.forEach(function (el) {
+          wrap.appendChild(el);
         });
+        frag.appendChild(wrap);
         continue;
       }
       if (b.type === 'edition_pdf') {
         const units = await renderEditionPageUnits(b, w);
-        const uLast = units.length - 1;
         units.forEach(function (el, i) {
-          const isLast = i === uLast;
-          out.push({
-            t: 'flow',
-            el: el,
-            internalLineBreak: !isLast,
-            afterInternalPx: 2,
-            sectionGapAfterMm: isLast ? gapAfter : undefined,
-          });
+          el.style.breakBefore = 'page';
+          el.style.breakAfter = i === units.length - 1 ? 'auto' : 'page';
+          frag.appendChild(el);
         });
         continue;
       }
-      if (b.type === 'rubric') {
-        const chunkEls = chunkStaticRichTextToElements(b, 'rubric', w);
-        const lastIdx = chunkEls.length - 1;
-        chunkEls.forEach(function (el, idx) {
-          const isLast = idx === lastIdx;
-          out.push({
-            t: 'flow',
-            el,
-            skipGapBefore: idx > 0,
-            tightGapPx: 0,
-            internalLineBreak: !isLast,
-            afterInternalPx: 0,
-            sectionGapAfterMm: isLast ? gapAfter : undefined,
-          });
-        });
-        continue;
-      }
-      if (b.type === 'reading' && !translationHasContent(b.translation)) {
-        const chunkEls = chunkStaticRichTextToElements(b, 'reading', w);
-        const lastIdx = chunkEls.length - 1;
-        chunkEls.forEach(function (el, idx) {
-          const isLast = idx === lastIdx;
-          out.push({
-            t: 'flow',
-            el,
-            skipGapBefore: idx > 0,
-            tightGapPx: 0,
-            internalLineBreak: !isLast,
-            afterInternalPx: 0,
-            sectionGapAfterMm: isLast ? gapAfter : undefined,
-          });
-        });
-        continue;
-      }
-      out.push({
-        t: 'flow',
-        el: buildStaticSectionEl(b),
-        sectionGapAfterMm: gapAfter,
-      });
+      const el = buildStaticSectionEl(b);
+      el.style.marginBottom = gapMm + 'mm';
+      frag.appendChild(el);
     }
-    return out;
-  }
-
-  function measureElHeight(el, widthPx) {
-    const mount = document.getElementById('bookletMeasureMount');
-    if (!mount) {
-      const c = el.cloneNode(true);
-      c.style.visibility = 'hidden';
-      c.style.position = 'absolute';
-      document.body.appendChild(c);
-      const h = c.offsetHeight;
-      c.remove();
-      return h || 1;
-    }
-    mount.innerHTML = '';
-    mount.style.visibility = 'hidden';
-    mount.style.position = 'absolute';
-    mount.style.left = '-9999px';
-    mount.style.top = '0';
-    mount.style.width = 'auto';
-    mount.style.height = 'auto';
-    mount.style.overflow = 'visible';
-    const shell = document.createElement('div');
-    shell.className = 'page-inner-flow';
-    shell.style.width = widthPx + 'px';
-    shell.style.maxWidth = widthPx + 'px';
-    shell.style.boxSizing = 'border-box';
-    const bodyShell = document.createElement('div');
-    bodyShell.className = 'booklet-page-body';
-    bodyShell.style.width = '100%';
-    bodyShell.style.boxSizing = 'border-box';
-    const clone = el.cloneNode(true);
-    bodyShell.appendChild(clone);
-    shell.appendChild(bodyShell);
-    mount.appendChild(shell);
-    const h = clone.offsetHeight;
-    mount.innerHTML = '';
-    mount.style.width = '1px';
-    mount.style.height = '1px';
-    mount.style.overflow = 'hidden';
-    return h || 1;
-  }
-
-  function stripBookletExportFooters(pageDivs) {
-    (pageDivs || []).forEach(function (page) {
-      page.querySelectorAll('.booklet-export-footer').forEach(function (f) {
-        f.remove();
-      });
-    });
-  }
-
-  /**
-   * After real layout, move overflow from each .booklet-page-body to the top of the next page.
-   * Fixes packFlow underestimates (measure vs rendered fonts, SVG, subpixels).
-   */
-  function reflowBookletPagesUntilNoOverflow(pageDivs, sizeStr, sinkEl) {
-    const EPS = 4;
-    let iterations = 0;
-    const MAX_ITER = 80000;
-
-    function ensurePageAt(idx) {
-      while (pageDivs.length <= idx) {
-        const page = document.createElement('div');
-        page.className = 'booklet-page';
-        page.dataset.size = sizeStr;
-        const inner = document.createElement('div');
-        inner.className = 'page-inner-flow';
-        const body = document.createElement('div');
-        body.className = 'booklet-page-body';
-        inner.appendChild(body);
-        page.appendChild(inner);
-        pageDivs.push(page);
-        sinkEl.appendChild(page);
-      }
-    }
-
-    let pi = 0;
-    while (pi < pageDivs.length && iterations < MAX_ITER) {
-      const page = pageDivs[pi];
-      const body = page.querySelector('.booklet-page-body');
-      if (!body) {
-        pi++;
-        continue;
-      }
-      const over = body.scrollHeight - body.clientHeight;
-      if (over <= EPS) {
-        pi++;
-        continue;
-      }
-      const last = body.lastElementChild;
-      if (!last) {
-        pi++;
-        continue;
-      }
-      if (body.childElementCount === 1 && last.offsetHeight > body.clientHeight + EPS) {
-        pi++;
-        continue;
-      }
-      body.removeChild(last);
-      ensurePageAt(pi + 1);
-      const nextBody = pageDivs[pi + 1].querySelector('.booklet-page-body');
-      if (nextBody) {
-        nextBody.insertBefore(last, nextBody.firstChild);
-      }
-      iterations++;
-    }
-  }
-
-  function trimTrailingEmptyBookletPages(pageDivs) {
-    while (pageDivs.length > 1) {
-      const last = pageDivs[pageDivs.length - 1];
-      const body = last.querySelector('.booklet-page-body');
-      const hasFlow = body && body.childElementCount > 0;
-      if (hasFlow) break;
-      last.remove();
-      pageDivs.pop();
-    }
-  }
-
-  function buildStaticBodyChunkEl(b, kind, bodyFrag, includeHeading) {
-    const wrap = document.createElement('div');
-    wrap.className = 'booklet-section';
-    const fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
-    wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
-    if (includeHeading) {
-      appendSectionHeading(wrap, b);
-    }
-    const inner = document.createElement('div');
-    inner.className = kind === 'rubric' ? 'rubric booklet-richtext' : 'reading booklet-richtext';
-    while (bodyFrag.firstChild) {
-      inner.appendChild(bodyFrag.firstChild);
-    }
-    wrap.appendChild(inner);
-    return wrap;
-  }
-
-  function splitTextContentAcrossChunks(text, b, kind, widthPx, maxH, useHeading, wrapperTag) {
-    const s0 = String(text || '');
-    if (!s0.length) {
-      return [];
-    }
-    let start = 0;
-    const out = [];
-    let head = useHeading;
-    while (start < s0.length) {
-      let lo = start + 1;
-      let hi = s0.length;
-      let best = start + 1;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        const slice = s0.slice(start, mid);
-        const frag = document.createDocumentFragment();
-        if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
-          const wEl = document.createElement(wrapperTag);
-          wEl.appendChild(document.createTextNode(slice));
-          frag.appendChild(wEl);
-        } else {
-          frag.appendChild(document.createTextNode(slice));
-        }
-        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, frag, head), widthPx);
-        if (h <= maxH) {
-          best = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-      if (best <= start) {
-        best = Math.min(start + 1, s0.length);
-      }
-      const slice2 = s0.slice(start, best);
-      const frag2 = document.createDocumentFragment();
-      if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
-        const wEl2 = document.createElement(wrapperTag);
-        wEl2.appendChild(document.createTextNode(slice2));
-        frag2.appendChild(wEl2);
-      } else {
-        frag2.appendChild(document.createTextNode(slice2));
-      }
-      out.push(buildStaticBodyChunkEl(b, kind, frag2, head));
-      head = false;
-      start = best;
-    }
-    return out;
-  }
-
-  function splitTopLevelOversizedNode(node, b, kind, widthPx, maxH, chunksProducedSoFar) {
-    const includeHead = chunksProducedSoFar === 0;
-    if (node.nodeType === Node.TEXT_NODE) {
-      return splitTextContentAcrossChunks(node.textContent, b, kind, widthPx, maxH, includeHead, null);
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return [];
-    }
-    const tag = node.tagName.toLowerCase();
-    const children = Array.from(node.childNodes);
-    const kids = children.filter(function (ch) {
-      if (ch.nodeType === Node.TEXT_NODE) {
-        return (ch.textContent || '').length > 0;
-      }
-      return true;
-    });
-    const onlyText = kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE;
-    if (onlyText || kids.length === 0) {
-      const t = kids.length === 1 ? kids[0].textContent : node.textContent || '';
-      return splitTextContentAcrossChunks(t, b, kind, widthPx, maxH, includeHead, tag === 'br' ? null : tag);
-    }
-    function wrapListTrial(nodesToWrap) {
-      const innerFrag = document.createDocumentFragment();
-      if (/^(div|p|ol|ul)$/i.test(tag)) {
-        const wrapperEl = document.createElement(tag);
-        if (tag === 'ol' && node.getAttribute('start')) {
-          const st = String(node.getAttribute('start') || '').trim();
-          if (/^\d+$/.test(st)) {
-            const n0 = parseInt(st, 10);
-            if (n0 >= 1 && n0 <= 9999) {
-              wrapperEl.setAttribute('start', st);
-            }
-          }
-        }
-        nodesToWrap.forEach(function (ch) {
-          wrapperEl.appendChild(ch.cloneNode(true));
-        });
-        innerFrag.appendChild(wrapperEl);
-      } else {
-        nodesToWrap.forEach(function (ch) {
-          innerFrag.appendChild(ch.cloneNode(true));
-        });
-      }
-      return innerFrag;
-    }
-
-    let idx = 0;
-    const outs = [];
-    let head = includeHead;
-    while (idx < kids.length) {
-      let cur = [];
-      let j = idx;
-      while (j < kids.length) {
-        const trial = cur.concat([kids[j]]);
-        const innerFrag = wrapListTrial(trial);
-        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, innerFrag, head), widthPx);
-        if (h <= maxH) {
-          cur = trial;
-          j++;
-        } else if (cur.length === 0) {
-          splitTopLevelOversizedNode(kids[j], b, kind, widthPx, maxH, chunksProducedSoFar + outs.length).forEach(
-            function (el) {
-              outs.push(el);
-            }
-          );
-          j++;
-          idx = j;
-          head = false;
-          cur = null;
-          break;
-        } else {
-          break;
-        }
-      }
-      if (cur && cur.length) {
-        outs.push(buildStaticBodyChunkEl(b, kind, wrapListTrial(cur), head));
-        head = false;
-        idx = j;
-      }
-    }
-    return outs;
-  }
-
-  function chunkStaticRichTextToElements(b, kind, widthPx) {
-    const maxH = getPackMaxBodyHeightPx();
-    const rawNodes = [];
-    const source = sanitizeToFragment(b.text || '');
-    while (source.firstChild) {
-      rawNodes.push(source.removeChild(source.firstChild));
-    }
-    if (!rawNodes.length) {
-      const br = document.createDocumentFragment();
-      br.appendChild(document.createElement('br'));
-      return [buildStaticBodyChunkEl(b, kind, br, true)];
-    }
-    const chunks = [];
-    let i = 0;
-    while (i < rawNodes.length) {
-      let cur = [];
-      let j = i;
-      while (j < rawNodes.length) {
-        const trial = cur.concat([rawNodes[j]]);
-        const frag = document.createDocumentFragment();
-        trial.forEach(function (n) {
-          frag.appendChild(n.cloneNode(true));
-        });
-        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0), widthPx);
-        if (h <= maxH) {
-          cur = trial;
-          j++;
-        } else if (cur.length === 0) {
-          splitTopLevelOversizedNode(rawNodes[j], b, kind, widthPx, maxH, chunks.length).forEach(function (el) {
-            chunks.push(el);
-          });
-          j++;
-          i = j;
-          cur = [];
-          break;
-        } else {
-          break;
-        }
-      }
-      if (cur.length) {
-        const frag = document.createDocumentFragment();
-        cur.forEach(function (n) {
-          frag.appendChild(n.cloneNode(true));
-        });
-        chunks.push(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0));
-        i = j;
-      }
-    }
-    return chunks.length ? chunks : [buildStaticBodyChunkEl(b, kind, document.createDocumentFragment(), true)];
-  }
-
-  function packFlow(items) {
-    const widthPx = getContentWidthPx();
-    const maxH = getPackMaxBodyHeightPx();
-    const defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
-    const gapLine = 3;
-    const pages = [];
-    let page = [];
-    let curH = 0;
-    let lastWasLine = false;
-    let pendingGapMm = defaultGapMm;
-
-    function flush() {
-      if (page.length) pages.push(page);
-      page = [];
-      curH = 0;
-      lastWasLine = false;
-    }
-
-    for (const it of items) {
-      if (it.t === 'break') {
-        flush();
-        pendingGapMm = defaultGapMm;
-        continue;
-      }
-      const isLine = it.t === 'line';
-      const el = it.el;
-      const h = measureElHeight(el, widthPx);
-      let gap = 0;
-      if (page.length) {
-        if (it.skipGapBefore) {
-          gap = it.tightGapPx != null ? it.tightGapPx : 0;
-        } else if (isLine && lastWasLine && it.internalLineBreak) {
-          gap = it.afterInternalPx != null ? it.afterInternalPx : gapLine;
-        } else {
-          gap = mmToPx(pendingGapMm);
-        }
-      }
-      if (page.length && curH + gap + h > maxH) {
-        flush();
-        page.push(el);
-        curH = h;
-        lastWasLine = isLine;
-        if (!it.internalLineBreak) {
-          pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
-        }
-        continue;
-      }
-      if (page.length) curH += gap;
-      page.push(el);
-      curH += h;
-      lastWasLine = isLine;
-      if (!it.internalLineBreak) {
-        pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
-      }
-    }
-    flush();
-    return pages;
+    return frag;
   }
 
   function buildBookletSpreadViews(numPages) {
@@ -1992,20 +1568,20 @@
     if (!has0 && !has1) return;
     const box0 = has0 ? spreadPageNaturalSize(pgs[0]) : { w: 1, h: 1 };
     const box1 = has1 ? spreadPageNaturalSize(pgs[1]) : { w: 1, h: 1 };
+    const MIN_SPREAD_SCALE = 0.45;
     let sc = 1;
     if (has0 && has1) {
       sc = Math.min(
         slotW / box0.w,
-        slotH / box0.h,
         slotW / box1.w,
-        slotH / box1.h,
         1
       );
     } else if (has0) {
-      sc = Math.min(slotW / box0.w, slotH / box0.h, 1);
+      sc = Math.min(slotW / box0.w, 1);
     } else {
-      sc = Math.min(slotW / box1.w, slotH / box1.h, 1);
+      sc = Math.min(slotW / box1.w, 1);
     }
+    sc = Math.max(sc, MIN_SPREAD_SCALE);
     const scaledH = [];
     scaledH[0] = has0 ? box0.h * sc : 0;
     scaledH[1] = has1 ? box1.h * sc : 0;
@@ -2185,6 +1761,16 @@
     syncNavButtons();
   }
 
+  function buildPagedJsStylesheet() {
+    const size = state.settings.pageSize === 'A5' ? '148mm 210mm' : '210mm 297mm';
+    const m = getBookletMarginMm();
+    const bodyFont = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey || 'georgia'] || BOOKLET_FONT_STACKS.georgia;
+    const rubric = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
+    return '@page { size: ' + size + '; margin: ' + m + 'mm; }' +
+      'body, html { font-family: ' + bodyFont + '; font-size: calc(11pt * 1); line-height: 1.45; color: #212529; }' +
+      '.rubric { color: ' + rubric + '; font-style: italic; }';
+  }
+
   async function renderPreview() {
     const root = document.getElementById('previewPages');
     const store = document.getElementById('bookletPageStore');
@@ -2212,89 +1798,109 @@
 
     root.innerHTML = '<p class="text-muted small no-print px-2">Laying out preview…</p>';
 
-    let flow;
+    let flowFrag;
     try {
-      flow = await buildFlowList();
+      flowFrag = await buildContinuousFlow();
     } catch (e) {
       console.error(e);
-      root.innerHTML = '<p class="text-danger small">Layout error.</p>';
+      root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
       return;
     }
     if (myTok !== previewToken) return;
 
-    const pageGroups = packFlow(flow);
-    const pageDivs = pageGroups.map(function (elements) {
-      const page = document.createElement('div');
-      page.className = 'booklet-page';
-      page.dataset.size = size;
-      const inner = document.createElement('div');
-      inner.className = 'page-inner-flow';
-      const body = document.createElement('div');
-      body.className = 'booklet-page-body';
-      elements.forEach((el) => body.appendChild(el));
-      inner.appendChild(body);
-      page.appendChild(inner);
-      return page;
-    });
+    const contentEl = document.createElement('div');
+    contentEl.className = 'booklet-paged-content';
+    contentEl.appendChild(flowFrag);
 
-    root.innerHTML = '';
-    if (!pageDivs.length) {
-      root.innerHTML =
-        '<p class="text-muted small px-2">Nothing to show yet — add text, chant, or other sections (page breaks alone do not add pages).</p>';
-      exportPageElements = [];
-      return;
-    }
-
-    const sink = document.createElement('div');
-    sink.className = 'booklet-reflow-sink no-print';
-    sink.setAttribute('aria-hidden', 'true');
-    sink.style.cssText =
-      'position:fixed;left:-120vw;top:0;width:auto;height:auto;overflow:visible;opacity:0;pointer-events:none;z-index:-9999;';
-    document.body.appendChild(sink);
-    pageDivs.forEach(function (p) {
-      sink.appendChild(p);
-    });
-
-    await new Promise(function (resolve) {
-      requestAnimationFrame(function () {
-        requestAnimationFrame(resolve);
-      });
-    });
-    if (document.fonts && document.fonts.ready) {
-      try {
-        await document.fonts.ready;
-      } catch (e) {
-        /* ignore */
+    try {
+      if (typeof Paged === 'undefined' || !Paged.Previewer) {
+        throw new Error('Paged.js library not loaded');
       }
-    }
-    if (myTok !== previewToken) {
-      document.body.removeChild(sink);
-      return;
-    }
 
-    appendCreditsFooterToLastPage(pageDivs);
-    reflowBookletPagesUntilNoOverflow(pageDivs, size, sink);
-    stripBookletExportFooters(pageDivs);
-    appendCreditsFooterToLastPage(pageDivs);
-    trimTrailingEmptyBookletPages(pageDivs);
+      root.innerHTML = '';
+      const renderTarget = document.createElement('div');
+      renderTarget.className = 'booklet-paged-render';
+      root.appendChild(renderTarget);
 
-    document.body.removeChild(sink);
+      const pageStyleUrl = URL.createObjectURL(
+        new Blob([buildPagedJsStylesheet()], { type: 'text/css' })
+      );
 
-    exportPageElements = pageDivs;
+      const previewer = new Paged.Previewer();
+      const flowResult = await previewer.preview(
+        contentEl,
+        [pageStyleUrl],
+        renderTarget
+      );
+      URL.revokeObjectURL(pageStyleUrl);
 
-    const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+      if (myTok !== previewToken) return;
 
-    if (display === 'scroll') {
+      const pagedPages = renderTarget.querySelectorAll('.pagedjs_page');
+      const pageDivs = [];
+
+      pagedPages.forEach(function (pp) {
+        const page = document.createElement('div');
+        page.className = 'booklet-page';
+        page.dataset.size = size;
+        const inner = document.createElement('div');
+        inner.className = 'page-inner-flow';
+        const area = pp.querySelector('.pagedjs_page_content');
+        if (area) {
+          while (area.firstChild) {
+            inner.appendChild(area.firstChild);
+          }
+        } else {
+          while (pp.firstChild) {
+            inner.appendChild(pp.firstChild);
+          }
+        }
+        page.appendChild(inner);
+        pageDivs.push(page);
+      });
+
+      renderTarget.remove();
+
+      if (!pageDivs.length) {
+        root.innerHTML =
+          '<p class="text-muted small px-2">Nothing to show yet.</p>';
+        exportPageElements = [];
+        return;
+      }
+
+      appendCreditsFooterToLastPage(pageDivs);
+      exportPageElements = pageDivs;
+
+      const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+
+      if (display === 'scroll') {
+        pageDivs.forEach(function (p) {
+          root.appendChild(p);
+        });
+      } else {
+        if (store) {
+          pageDivs.forEach(function (p) {
+            store.appendChild(p);
+          });
+        }
+        mountBookletSpreadUi(root, pageDivs);
+      }
+    } catch (pagedErr) {
+      console.error('Paged.js pagination error, falling back:', pagedErr);
+      root.innerHTML = '';
+      const fallbackPage = document.createElement('div');
+      fallbackPage.className = 'booklet-page';
+      fallbackPage.dataset.size = size;
+      const fallbackInner = document.createElement('div');
+      fallbackInner.className = 'page-inner-flow';
+      fallbackInner.appendChild(contentEl);
+      fallbackPage.appendChild(fallbackInner);
+      const pageDivs = [fallbackPage];
+      appendCreditsFooterToLastPage(pageDivs);
+      exportPageElements = pageDivs;
       pageDivs.forEach(function (p) {
         root.appendChild(p);
       });
-    } else {
-      if (store) {
-        pageDivs.forEach(function (p) {
-          store.appendChild(p);
-        });
-      }
-      mountBookletSpreadUi(root, pageDivs);
     }
   }
 
@@ -3336,6 +2942,36 @@
     reader.readAsText(file, 'utf-8');
   }
 
+  function printBookletClientSide() {
+    const pages = exportPageElements.filter(
+      (el) => el && el.isConnected && el.dataset.placeholder !== 'true'
+    );
+    if (!pages.length) {
+      alert('Add content before printing.');
+      return;
+    }
+    const html = buildBookletServerPdfHtml(pages);
+    const w = window.open('', '_blank');
+    if (!w) {
+      alert('Pop-up blocked — please allow pop-ups for this site, then try again.');
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    const ready = function () {
+      setTimeout(function () {
+        w.focus();
+        w.print();
+      }, 600);
+    };
+    if (w.document.fonts && w.document.fonts.ready) {
+      w.document.fonts.ready.then(ready).catch(ready);
+    } else {
+      w.addEventListener('load', ready);
+    }
+  }
+
   async function downloadPdf() {
     const pages = exportPageElements.filter(
       (el) => el && el.isConnected && el.dataset.placeholder !== 'true'
@@ -3367,14 +3003,24 @@
         }),
       });
       if (!r.ok) {
-        let msg = 'PDF export failed.';
+        let msg = '';
         try {
           const j = await r.json();
           if (j && j.error) msg = j.error;
         } catch (parseErr) {
           /* ignore */
         }
-        alert(msg);
+        console.warn('Server PDF failed (' + r.status + '): ' + msg);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldText;
+        }
+        const usePrint = confirm(
+          'Server PDF is unavailable (Chrome not installed on the host).\n\n' +
+          'Use your browser\'s built-in "Save as PDF" instead?\n' +
+          '(Choose your page size in the print dialog and set margins to None.)'
+        );
+        if (usePrint) printBookletClientSide();
         return;
       }
       const blob = await r.blob();
@@ -3385,7 +3031,16 @@
       URL.revokeObjectURL(a.href);
     } catch (e) {
       console.error(e);
-      alert('PDF export failed (network or server error).');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+      }
+      const usePrint = confirm(
+        'PDF export failed (network or server error).\n\n' +
+        'Use your browser\'s "Save as PDF" instead?'
+      );
+      if (usePrint) printBookletClientSide();
+      return;
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -3453,6 +3108,7 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
+    document.getElementById('btnPrintBooklet')?.addEventListener('click', () => printBookletClientSide());
   }
 
   loadAutosave();

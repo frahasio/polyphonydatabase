@@ -49,6 +49,41 @@ function resolveChromeExecutable(puppeteerModule) {
     }
   }
 
+  // Scan known Puppeteer cache directories for any chrome/chromium binary.
+  const cacheDirs = [
+    '/app/node_modules/.cache/puppeteer',
+    '/app/.cache/puppeteer',
+    process.env.HOME ? process.env.HOME + '/.cache/puppeteer' : null,
+  ].filter(Boolean);
+  for (const dir of cacheDirs) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      const walk = [dir];
+      while (walk.length) {
+        const d = walk.pop();
+        for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+          const full = d + '/' + ent.name;
+          if (ent.isDirectory()) {
+            walk.push(full);
+          } else if (
+            ent.isFile() &&
+            /^(chrome|chromium)$/i.test(ent.name) &&
+            chromeBinaryExists(full)
+          ) {
+            try {
+              fs.accessSync(full, fs.constants.X_OK);
+              return full;
+            } catch {
+              /* not executable */
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore unreadable directories */
+    }
+  }
+
   return null;
 }
 

@@ -104,8 +104,8 @@
         .booklet-main-preview {
             display: flex;
             flex-direction: column;
-            min-height: calc(100vh - 9.5rem);
-            max-height: calc(100vh - 9.5rem);
+            min-height: calc(100vh - 5.5rem);
+            max-height: calc(100vh - 5.5rem);
         }
         @media (max-width: 991.98px) {
             .booklet-main-preview {
@@ -154,23 +154,36 @@
             flex: 1 1 auto;
             min-height: 0;
             width: 100%;
-            display: flex;
-            flex-direction: column;
             overflow: hidden;
             font-family: var(--booklet-body-font);
             font-size: calc(11pt * var(--booklet-font-scale));
             line-height: 1.45;
         }
-        .booklet-page-body {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow: hidden;
-        }
-        .booklet-export-footer {
-            flex-shrink: 0;
+        .booklet-force-page-break {
+            break-before: page;
+            page-break-before: always;
+            height: 0;
+            margin: 0;
+            padding: 0;
         }
         .booklet-section {
             margin-bottom: 0;
+        }
+        .booklet-chant-section {
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+        .booklet-image-frame {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .booklet-title-rule {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .booklet-reading-parallel {
+            break-inside: avoid;
+            page-break-inside: avoid;
         }
         .booklet-page .rubric {
             color: var(--booklet-rubric-color);
@@ -400,17 +413,17 @@
         .booklet-spread-viewport {
             flex: 1 1 auto;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             gap: 0.35rem;
             width: 100%;
             max-width: 100%;
             min-height: 0;
-            max-height: 100%;
-            overflow: hidden;
-            padding: 0.15rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 0.5rem 0.15rem;
             box-sizing: border-box;
-            touch-action: none;
+            touch-action: pan-y;
         }
         .booklet-spread-slot {
             flex: 1 1 0;
@@ -531,7 +544,10 @@
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
-                <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Vector-friendly PDF via server Chromium (same print CSS as preview). Requires Node with Puppeteer on the server."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-success" id="btnDownloadPdf" title="Server-rendered PDF (vector). Falls back to browser print dialog if the server has no Chrome."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+                    <button type="button" class="btn btn-outline-success" id="btnPrintBooklet" title="Open a print-friendly view and use your browser's Save as PDF / Print. Works everywhere, no server needed."><i class="bi bi-printer me-1"></i>Print</button>
+                </div>
                 <div class="vr d-none d-md-block"></div>
                 <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
                     <option value="A4">A4 page</option>
@@ -608,8 +624,6 @@
 
     <div id="bookletPageStore" aria-hidden="true"></div>
 
-    <div id="bookletMeasureMount" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;"></div>
-
     <input type="file" id="fileImagePick" accept="image/*" class="d-none">
 
     <script src="/vendor/jgabc/jquery.min.js"></script>
@@ -617,6 +631,7 @@
     <script src="/vendor/jgabc/util.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pagedjs@0.4.3/dist/paged.js"></script>
     <script src="/modules/liturgy-booklet/booklet-app.js"></script>
 </body>
 </html>
