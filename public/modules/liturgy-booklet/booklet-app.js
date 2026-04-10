@@ -1596,6 +1596,10 @@
     var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     var pendingGapMm = defaultGapMm;
 
+    // #region agent log
+    console.log('[DEBUG paginateFlow] entry:', { itemCount: flowItems.length, widthPx: Math.round(widthPx), pageHPx: Math.round(pageHPx) });
+    // #endregion
+
     function flushPage() {
       if (curPageEls.length) pages.push(curPageEls);
       curPageEls = [];
@@ -1623,15 +1627,28 @@
         gap = 0;
       }
 
+      // #region agent log
+      var _branch = 'none';
+      // #endregion
+
       if (curY + gap + h <= pageHPx) {
         if (curY > 0) curY += gap;
         curPageEls.push(el);
         curY += h;
+        // #region agent log
+        _branch = 'fits';
+        // #endregion
       } else if (!item.splittable) {
+        // #region agent log
+        _branch = 'atomic-newpage';
+        // #endregion
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
       } else {
+        // #region agent log
+        _branch = 'SPLIT';
+        // #endregion
         var remaining = pageHPx - curY;
         if (curY > 0) remaining -= gap;
         if (remaining < 30) {
@@ -1663,10 +1680,19 @@
         }
       }
 
+      // #region agent log
+      console.log('[DEBUG paginateFlow] item', i, { t: item.t, splittable: item.splittable, h: Math.round(h), gap: Math.round(gap), curY: Math.round(curY), pageHPx: Math.round(pageHPx), branch: _branch, class: el && el.className ? el.className.slice(0, 50) : '' });
+      // #endregion
+
       if (item.gapMm != null) pendingGapMm = item.gapMm;
       else pendingGapMm = defaultGapMm;
     }
     if (curPageEls.length) pages.push(curPageEls);
+
+    // #region agent log
+    console.log('[DEBUG paginateFlow] done:', { totalPages: pages.length, totalItems: flowItems.length });
+    // #endregion
+
     return pages;
   }
 
