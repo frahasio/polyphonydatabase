@@ -1,32 +1,454 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 1;
-  const STORAGE_KEY = 'liturgyBooklet_autosave_v1';
+  const SCHEMA_VERSION = 5;
+  const STORAGE_KEY = 'liturgyBooklet_autosave_v5';
 
-  /** @type {{ schemaVersion: number, settings: object, blocks: object[] }} */
+  const BOOKLET_FONT_STACKS = {
+    georgia: 'Georgia, "Times New Roman", Times, serif',
+    times: '"Times New Roman", Times, Georgia, serif',
+    palatino: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif',
+    garamond: '"Palatino Linotype", Palatino, Garamond, "Times New Roman", serif',
+    arial: 'Arial, Helvetica, sans-serif',
+    verdana: 'Verdana, Geneva, Tahoma, sans-serif',
+    trebuchet: '"Trebuchet MS", Helvetica, Arial, sans-serif',
+    tahoma: 'Tahoma, Geneva, Verdana, sans-serif',
+    courier: '"Courier New", Courier, monospace',
+  };
+
+  /** @type {{ schemaVersion: number, projectTitle: string, settings: object, blocks: object[] }} */
   let state = {
     schemaVersion: SCHEMA_VERSION,
+    projectTitle: '',
     settings: {
       pageSize: 'A4',
       marginMm: 15,
       fontScale: 1,
-      viewMode: 'page',
+      sectionGapMm: 8,
+      previewDisplay: 'scroll',
+      fontFamilyKey: 'georgia',
+      rubricColor: '#8b1538',
     },
     blocks: [],
   };
 
   let selectedBlockId = null;
   let autosaveTimer = null;
+  let previewToken = 0;
+  /** @type {HTMLElement[]} */
+  let exportPageElements = [];
+  let bookletSpreadIndex = 0;
+  /** @type {{ left: number, right: number }[]} */
+  let bookletSpreadViews = [];
+  let bookletWheelAccum = 0;
+  /** @type {AbortController | null} */
+  let editionSearchAbort = null;
 
   function uid() {
     return 'b_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  }
+
+  function resolvePdfUrl(url) {
+    const s = String(url || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith('//')) return window.location.protocol + s;
+    if (s.startsWith('/')) return window.location.origin + s;
+    return s;
+  }
+
+  function safeFilenameBase(title, fallback) {
+    let s = String(title || '').trim();
+    s = s.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    s = s.slice(0, 80);
+    return s || fallback;
+  }
+
+  function normalizeEditionPdfBlock(b) {
+    if (b.type !== 'edition_pdf') return b;
+    const out = { ...b };
+    delete out.catalogueEditionId;
+    if (out.catalogueEditorName === undefined) out.catalogueEditorName = '';
+    if (out.catalogueGroupTitle === undefined) out.catalogueGroupTitle = '';
+    if (out.catalogueSourceUrl === undefined) out.catalogueSourceUrl = null;
+    return out;
+  }
+
+  function collectCatalogueEditionCredits(blocks) {
+    const names = new Set();
+    (blocks || []).forEach(function (b) {
+      if (b.type !== 'edition_pdf') return;
+      const n = String(b.catalogueEditorName || '').trim();
+      if (n) names.add(n);
+    });
+    return Array.from(names).sort(function (a, b2) {
+      return a.localeCompare(b2);
+    });
+  }
+
+  function buildWatermarkPage(size) {
+    const page = document.createElement('div');
+    page.className = 'booklet-page';
+    page.dataset.size = size;
+    page.dataset.watermark = 'true';
+    const inner = document.createElement('div');
+    inner.className = 'page-inner-flow';
+    inner.style.display = 'flex';
+    inner.style.flexDirection = 'column';
+    inner.style.minHeight = '100%';
+    const box = document.createElement('div');
+    box.className = 'booklet-watermark booklet-section';
+    const p1 = document.createElement('p');
+    p1.className = 'text-muted text-center mb-2 booklet-richtext';
+    p1.style.textAlign = 'center';
+    p1.innerHTML =
+      'Generated with <strong>Polyphony Database</strong> (<a href="https://polyphonydatabase.com" target="_blank" rel="noopener noreferrer">polyphonydatabase.com</a>).';
+    box.appendChild(p1);
+    const credits = collectCatalogueEditionCredits(state.blocks);
+    if (credits.length) {
+      const p2 = document.createElement('p');
+      p2.className = 'text-muted text-center mb-0 booklet-richtext';
+      p2.style.textAlign = 'center';
+      p2.textContent = 'Edition credits: ' + credits.join(', ') + '.';
+      box.appendChild(p2);
+    }
+    inner.appendChild(box);
+    page.appendChild(inner);
+    return page;
+  }
+
+  async function fetchEditionSearchResults(query, signal) {
+    const params = new URLSearchParams({
+      page: 1,
+      page_size: 25,
+      title: query,
+      has_editions: 'true',
+    });
+    const r = await fetch('/api/search/groups?' + params.toString(), { signal });
+    if (!r.ok) throw new Error('Search failed');
+    return r.json();
+  }
+
+  function flattenEditionSearchRows(data) {
+    const rows = [];
+    const groups = data.groups || [];
+    groups.forEach(function (g) {
+      const eds = g.editions;
+      if (!eds || !Array.isArray(eds)) return;
+      eds.forEach(function (e) {
+        if (!e || !e.file_url) return;
+        rows.push({
+          groupTitle: g.display_title || '',
+          editorName: e.editor_name || 'Unknown editor',
+          voicing: e.voicing != null ? String(e.voicing) : '',
+          fileUrl: e.file_url,
+        });
+      });
+    });
+    return rows;
+  }
+
+  function mmToPx(mm) {
+    return (mm * 96) / 25.4;
   }
 
   function applyCssVars() {
     const root = document.documentElement;
     root.style.setProperty('--booklet-margin-mm', String(state.settings.marginMm));
     root.style.setProperty('--booklet-font-scale', String(state.settings.fontScale));
+    root.style.setProperty('--booklet-section-gap-mm', String(state.settings.sectionGapMm ?? 8));
+    const fk = state.settings.fontFamilyKey || 'georgia';
+    root.style.setProperty(
+      '--booklet-body-font',
+      BOOKLET_FONT_STACKS[fk] || BOOKLET_FONT_STACKS.georgia
+    );
+    const rc = state.settings.rubricColor || '#8b1538';
+    root.style.setProperty('--booklet-rubric-color', /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538');
+  }
+
+  function getContentWidthPx() {
+    const pageW = state.settings.pageSize === 'A5' ? 148 : 210;
+    return Math.max(200, mmToPx(pageW - 2 * state.settings.marginMm));
+  }
+
+  function getMaxPageBodyHeightPx() {
+    const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
+    return Math.max(120, mmToPx(pageH - 2 * state.settings.marginMm));
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  /**
+   * Safe subset for rubric/reading/translation: b, i, u, br, span[style=color only].
+   * @returns {DocumentFragment}
+   */
+  function sanitizeToFragment(html) {
+    const frag = document.createDocumentFragment();
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(html || '').trim();
+
+    function appendChildren(parent, node) {
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        const n = walk(c);
+        if (!n) continue;
+        if (n.nodeType === 11) {
+          while (n.firstChild) parent.appendChild(n.firstChild);
+        } else parent.appendChild(n);
+      }
+    }
+
+    function walk(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return document.createTextNode(node.textContent);
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return null;
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'br') return document.createElement('br');
+      if (tag === 'b' || tag === 'strong') {
+        const el = document.createElement('b');
+        appendChildren(el, node);
+        return el;
+      }
+      if (tag === 'i' || tag === 'em') {
+        const el = document.createElement('i');
+        appendChildren(el, node);
+        return el;
+      }
+      if (tag === 'u') {
+        const el = document.createElement('u');
+        appendChildren(el, node);
+        return el;
+      }
+      if (tag === 'span') {
+        const el = document.createElement('span');
+        const st = node.getAttribute('style') || '';
+        const cm = st.match(/color\s*:\s*([^;]+)/i);
+        if (cm) {
+          const col = cm[1].trim();
+          if (/^#[0-9a-f]{3,8}$/i.test(col) || /^rgba?\s*\(/i.test(col)) {
+            el.setAttribute('style', 'color:' + col);
+          }
+        }
+        appendChildren(el, node);
+        return el;
+      }
+      if (tag === 'p' || tag === 'div' || tag === 'font') {
+        const f = document.createDocumentFragment();
+        appendChildren(f, node);
+        return f;
+      }
+      const f = document.createDocumentFragment();
+      appendChildren(f, node);
+      return f;
+    }
+
+    for (let c = tpl.content.firstChild; c; c = c.nextSibling) {
+      const n = walk(c);
+      if (!n) continue;
+      if (n.nodeType === 11) {
+        while (n.firstChild) frag.appendChild(n.firstChild);
+      } else frag.appendChild(n);
+    }
+    return frag;
+  }
+
+  function initialRichHtmlForEditor(stored) {
+    const s = stored || '';
+    if (!s.trim()) return '<br>';
+    if (!/<[a-z][\s\S]*>/i.test(s)) {
+      return escapeHtml(s).replace(/\r\n|\r|\n/g, '<br>');
+    }
+    const w = document.createElement('div');
+    w.appendChild(sanitizeToFragment(s));
+    const h = w.innerHTML;
+    return h.trim() ? h : '<br>';
+  }
+
+  function translationHasContent(html) {
+    const w = document.createElement('div');
+    w.appendChild(sanitizeToFragment(html));
+    return (w.textContent || '').trim().length > 0;
+  }
+
+  function stripTagsForPreview(html) {
+    const w = document.createElement('div');
+    w.appendChild(sanitizeToFragment(html));
+    let t = (w.textContent || '').replace(/\s+/g, ' ').trim();
+    return t.length > 48 ? t.slice(0, 48) + '…' : t;
+  }
+
+  function bindRichToolbar(toolbarRoot, ed, onChange) {
+    toolbarRoot.querySelectorAll('[data-rich-cmd]').forEach(function (btn) {
+      btn.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+      });
+      btn.addEventListener('click', function () {
+        ed.focus();
+        const cmd = btn.getAttribute('data-rich-cmd');
+        try {
+          if (cmd === 'foreColor') {
+            const c = btn.getAttribute('data-color');
+            if (c) document.execCommand('foreColor', false, c);
+          } else if (cmd) {
+            document.execCommand(cmd, false, null);
+          }
+        } catch (err) {
+          /* ignore */
+        }
+        onChange();
+      });
+    });
+    ed.addEventListener('input', onChange);
+    ed.addEventListener('blur', onChange);
+  }
+
+  function migrateProject(parsed) {
+    if (!parsed || typeof parsed !== 'object') return null;
+    const v = parsed.schemaVersion || 1;
+    if (v >= SCHEMA_VERSION) {
+      parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
+      parsed.settings = parsed.settings || {};
+      parsed.settings.sectionGapMm = parsed.settings.sectionGapMm ?? 8;
+      parsed.settings.previewDisplay =
+        parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+      parsed.settings.fontFamilyKey =
+        BOOKLET_FONT_STACKS[parsed.settings.fontFamilyKey] != null
+          ? parsed.settings.fontFamilyKey
+          : 'georgia';
+      const rc = parsed.settings.rubricColor || '#8b1538';
+      parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'image' && b.label === undefined) b.label = '';
+        if (b.type === 'reading') {
+          if (b.translation === undefined) b.translation = '';
+          if (b.parallelLeftPct == null) b.parallelLeftPct = 50;
+          if (b.parallelBorder === undefined) b.parallelBorder = false;
+          if (b.parallelGapMm == null) b.parallelGapMm = 4;
+        }
+        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
+        return b;
+      });
+      return parsed;
+    }
+    if (v === 4) {
+      parsed.schemaVersion = SCHEMA_VERSION;
+      parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
+      parsed.settings = parsed.settings || {};
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'reading') {
+          return {
+            ...b,
+            translation: b.translation != null ? b.translation : '',
+            parallelLeftPct: b.parallelLeftPct != null ? b.parallelLeftPct : 50,
+            parallelBorder: !!b.parallelBorder,
+            parallelGapMm: b.parallelGapMm != null ? b.parallelGapMm : 4,
+          };
+        }
+        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
+        return { ...b };
+      });
+      return parsed;
+    }
+    if (v === 3) {
+      parsed.schemaVersion = SCHEMA_VERSION;
+      parsed.projectTitle = '';
+      parsed.settings = parsed.settings || {};
+      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.rubricColor = '#8b1538';
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'reading') {
+          return {
+            ...b,
+            translation: b.translation != null ? b.translation : '',
+            parallelLeftPct: b.parallelLeftPct != null ? b.parallelLeftPct : 50,
+            parallelBorder: !!b.parallelBorder,
+            parallelGapMm: b.parallelGapMm != null ? b.parallelGapMm : 4,
+          };
+        }
+        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
+        return { ...b };
+      });
+      return parsed;
+    }
+    if (v === 2) {
+      parsed.schemaVersion = SCHEMA_VERSION;
+      parsed.projectTitle = '';
+      parsed.settings = parsed.settings || {};
+      parsed.settings.previewDisplay = 'scroll';
+      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.rubricColor = '#8b1538';
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'image' && b.label === undefined) {
+          return { ...b, label: '' };
+        }
+        if (b.type === 'reading') {
+          return {
+            ...b,
+            translation: '',
+            parallelLeftPct: 50,
+            parallelBorder: false,
+            parallelGapMm: 4,
+          };
+        }
+        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock({ ...b, type: 'edition_pdf' });
+        return { ...b };
+      });
+      return parsed;
+    }
+    if (v === 1) {
+      parsed.schemaVersion = SCHEMA_VERSION;
+      parsed.projectTitle = '';
+      parsed.settings = parsed.settings || {};
+      parsed.settings.sectionGapMm = 8;
+      parsed.settings.previewDisplay = 'scroll';
+      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.rubricColor = '#8b1538';
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'jgabc_propers') {
+          return {
+            id: b.id,
+            type: 'chant_gabc',
+            gabc: '',
+            legacyHash: b.hash || '',
+          };
+        }
+        if (b.type === 'edition_pdf') {
+          return normalizeEditionPdfBlock({
+            ...b,
+            pdfPageFrom: b.pdfPageFrom != null ? b.pdfPageFrom : 1,
+            pdfPageTo: b.pdfPageTo != null ? b.pdfPageTo : null,
+            title: b.title != null ? b.title : '',
+            url: b.url != null ? b.url : '',
+            catalogueEditorName: '',
+            catalogueGroupTitle: '',
+            catalogueSourceUrl: null,
+          });
+        }
+        if (b.type === 'image') {
+          return { ...b, label: b.label != null ? b.label : '' };
+        }
+        if (b.type === 'reading') {
+          return {
+            ...b,
+            translation: '',
+            parallelLeftPct: 50,
+            parallelBorder: false,
+            parallelGapMm: 4,
+          };
+        }
+        return { ...b };
+      });
+      return parsed;
+    }
+    return null;
   }
 
   function scheduleAutosave() {
@@ -43,10 +465,52 @@
   function loadAutosave() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.schemaVersion === SCHEMA_VERSION && Array.isArray(parsed.blocks)) {
-        state = parsed;
+      if (!raw) {
+        const v4 = localStorage.getItem('liturgyBooklet_autosave_v4');
+        if (v4 && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(v4));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v4');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
+        const v3 = localStorage.getItem('liturgyBooklet_autosave_v3');
+        if (v3) {
+          const m = migrateProject(JSON.parse(v3));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v3');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
+        const v2 = localStorage.getItem('liturgyBooklet_autosave_v2');
+        if (v2 && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(v2));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v2');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
+        const old = localStorage.getItem('liturgyBooklet_autosave_v1');
+        if (old && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(old));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v1');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
+        return;
+      }
+      const m = migrateProject(JSON.parse(raw));
+      if (m && Array.isArray(m.blocks)) {
+        state = m;
         applyCssVars();
       }
     } catch (e) {
@@ -58,9 +522,599 @@
     const sz = document.getElementById('selPageSize');
     const m = document.getElementById('inpMargin');
     const fs = document.getElementById('rngFontScale');
+    const sg = document.getElementById('inpSectionGap');
+    const pd = document.getElementById('selPreviewDisplay');
+    const sf = document.getElementById('selBookletFont');
+    const rc = document.getElementById('inpRubricColor');
+    const pt = document.getElementById('inpProjectTitle');
     if (sz) sz.value = state.settings.pageSize;
     if (m) m.value = String(state.settings.marginMm);
     if (fs) fs.value = String(state.settings.fontScale);
+    if (sg) sg.value = String(state.settings.sectionGapMm ?? 8);
+    if (pd) pd.value = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+    if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
+    if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
+    if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
+  }
+
+  function gabcToExsurge(gabc) {
+    return gabc
+      .replace(/(<b>[^<]+)<sp>'(?:oe|œ)<\/sp>/g, '$1œ</b>\u0301<b>')
+      .replace(/<v>\\([VRAvra])bar<\/v>/g, '$1/.')
+      .replace(/<sp>([VRAvra])\/<\/sp>\.?/g, '$1/.')
+      .replace(/<b><\/b>/g, '')
+      .replace(/<sp>'(?:ae|æ)<\/sp>/g, 'ǽ')
+      .replace(/<sp>'(?:oe|œ)<\/sp>/g, 'œ́')
+      .replace(/<v>\\greheightstar<\/v>/g, '*')
+      .replace(/<\/?sc>/g, '%')
+      .replace(/<\/?b>/g, '*')
+      .replace(/<\/?i>/g, '_')
+      .replace(/(\s)_([^\s*]+)_(\(\))?(\s)/g, '$1^_$2_^$3$4')
+      .replace(/(\([cf][1-4]\)|\s)(\d+\.)(\s\S)/g, '$1^$2^$3');
+  }
+
+  function renderChantGabcToLines(gabcRaw, widthPx) {
+    if (!gabcRaw || !String(gabcRaw).trim()) {
+      const d = document.createElement('div');
+      d.className = 'text-muted small booklet-section';
+      d.textContent =
+        'Paste GABC here (e.g. copy from Ben Bloomfield’s propers tool — link under Advanced).';
+      return [d];
+    }
+    try {
+      const gabc = gabcToExsurge(String(gabcRaw));
+      const header = getHeader(gabcRaw);
+      const ctxt = makeExsurgeChantContext();
+      const staffColor = header.staffLineColor || (header.cValues && header.cValues.staffLineColor);
+      if (staffColor) ctxt.staffLineColor = staffColor;
+      const mappings = exsurge.Gabc.createMappingsFromSource(ctxt, gabc);
+      const initialStyle = header['initial-style'] !== '0' && header['initial-style'] !== 0;
+      const score = new exsurge.ChantScore(ctxt, mappings, initialStyle);
+      if (initialStyle && header.annotation) {
+        try {
+          const annotationArray = header.annotationArray;
+          if (annotationArray) {
+            score.annotation = new exsurge.Annotations(
+              ctxt,
+              '%' + annotationArray[0] + '%',
+              '%' + annotationArray[1] + '%'
+            );
+          } else if (header.annotation) {
+            score.annotation = new exsurge.Annotations(ctxt, '%' + header.annotation + '%');
+          }
+        } catch (annErr) {
+          console.warn('Annotation layout skipped', annErr);
+        }
+      }
+      if (typeof exsurge.Latin === 'function') {
+        ctxt.defaultLanguage = new exsurge.Latin();
+      }
+      score.mapExsurgeToGabc = function () {};
+      score.performLayout(ctxt);
+      score.layoutChantLines(ctxt, widthPx);
+      const html = score.createSvgForEachLine(ctxt);
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      const lines = [];
+      temp.querySelectorAll('svg').forEach(function (svg) {
+        const line = document.createElement('div');
+        line.className = 'booklet-chant-line';
+        line.appendChild(svg);
+        lines.push(line);
+      });
+      if (!lines.length) {
+        const fb = document.createElement('div');
+        fb.className = 'text-danger small booklet-section';
+        fb.textContent = 'Could not render this GABC.';
+        return [fb];
+      }
+      return lines;
+    } catch (err) {
+      console.error(err);
+      const e = document.createElement('div');
+      e.className = 'text-danger small booklet-section';
+      e.textContent = 'GABC error: ' + (err.message || String(err));
+      return [e];
+    }
+  }
+
+  function ensurePdfWorker() {
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+  }
+
+  async function renderEditionPageUnits(b, widthPx) {
+    const from = Math.max(1, parseInt(b.pdfPageFrom, 10) || 1);
+    let to = b.pdfPageTo;
+    if (to === '' || to === undefined || to === null) to = null;
+    else to = parseInt(to, 10);
+    if (!b.url || !String(b.url).trim()) {
+      const d = document.createElement('div');
+      d.className = 'text-muted small booklet-section';
+      d.textContent = 'Add a PDF URL. Optionally set “From page” / “To page” to import only some pages.';
+      return [d];
+    }
+    try {
+      if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded');
+      ensurePdfWorker();
+      const absUrl = resolvePdfUrl(b.url);
+      if (!absUrl) throw new Error('No PDF URL');
+      const pdf = await pdfjsLib.getDocument({ url: absUrl, withCredentials: false }).promise;
+      const last =
+        to != null && !isNaN(to) ? Math.min(to, pdf.numPages) : pdf.numPages;
+      const first = Math.min(from, pdf.numPages);
+      if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
+      const out = [];
+      for (let pNum = first; pNum <= last; pNum++) {
+        const page = await pdf.getPage(pNum);
+        const base = page.getViewport({ scale: 1 });
+        const scale = widthPx / base.width;
+        const vp = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.alt = 'PDF page ' + pNum;
+        const unit = document.createElement('div');
+        unit.className = 'booklet-pdf-page-unit';
+        unit.appendChild(img);
+        out.push(unit);
+      }
+      return out;
+    } catch (e) {
+      console.error(e);
+      const d = document.createElement('div');
+      d.className = 'text-warning small booklet-section';
+      d.innerHTML =
+        'Could not load PDF (often blocked by CORS if the file is on another domain). ' +
+        '<em>' +
+        escapeHtml(e.message || String(e)) +
+        '</em>';
+      return [d];
+    }
+  }
+
+  function buildStaticSectionEl(b) {
+    const wrap = document.createElement('div');
+    wrap.className = 'booklet-section';
+    if (b.type === 'rubric') {
+      const p = document.createElement('div');
+      p.className = 'rubric booklet-richtext';
+      p.appendChild(sanitizeToFragment(b.text || ''));
+      wrap.appendChild(p);
+    } else if (b.type === 'reading') {
+      if (translationHasContent(b.translation)) {
+        const leftPct = Math.min(80, Math.max(20, parseInt(b.parallelLeftPct, 10) || 50));
+        const rightPct = 100 - leftPct;
+        const gapMm = Math.min(20, Math.max(0, parseInt(b.parallelGapMm, 10) || 4));
+        const halfGap = gapMm / 2;
+        const table = document.createElement('table');
+        table.className = 'booklet-reading-parallel';
+        const tr = document.createElement('tr');
+        const tdL = document.createElement('td');
+        tdL.style.width = leftPct + '%';
+        tdL.style.paddingLeft = '0';
+        tdL.style.paddingRight = halfGap + 'mm';
+        tdL.style.paddingTop = '0';
+        tdL.style.paddingBottom = '0';
+        const tdR = document.createElement('td');
+        tdR.style.width = rightPct + '%';
+        tdR.style.paddingLeft = halfGap + 'mm';
+        tdR.style.paddingRight = '0';
+        tdR.style.paddingTop = '0';
+        tdR.style.paddingBottom = '0';
+        if (b.parallelBorder) {
+          table.style.border = '1px solid #6c757d';
+          tdL.style.borderRight = '1px solid #adb5bd';
+        }
+        const innerL = document.createElement('div');
+        innerL.className = 'booklet-richtext reading';
+        innerL.appendChild(sanitizeToFragment(b.text || ''));
+        const innerR = document.createElement('div');
+        innerR.className = 'booklet-richtext reading';
+        innerR.appendChild(sanitizeToFragment(b.translation || ''));
+        tdL.appendChild(innerL);
+        tdR.appendChild(innerR);
+        tr.appendChild(tdL);
+        tr.appendChild(tdR);
+        table.appendChild(tr);
+        wrap.appendChild(table);
+      } else {
+        const p = document.createElement('div');
+        p.className = 'reading booklet-richtext';
+        p.appendChild(sanitizeToFragment(b.text || ''));
+        wrap.appendChild(p);
+      }
+    } else if (b.type === 'image') {
+      if (b.dataBase64 && b.mime) {
+        const img = document.createElement('img');
+        img.className = 'user-img';
+        img.src = 'data:' + b.mime + ';base64,' + b.dataBase64;
+        img.alt = '';
+        wrap.appendChild(img);
+      } else {
+        const p = document.createElement('p');
+        p.className = 'text-muted small';
+        p.textContent = 'No image — use Replace image in the editor.';
+        wrap.appendChild(p);
+      }
+    } else if (b.type === 'jgabc_propers') {
+      const p = document.createElement('div');
+      p.className = 'small text-muted';
+      p.innerHTML =
+        'Legacy “embedded propers” block. Converted to <strong>Chant (paste GABC)</strong> — paste your GABC or reload an older project.';
+      wrap.appendChild(p);
+    } else {
+      wrap.textContent = 'Unknown block: ' + b.type;
+    }
+    return wrap;
+  }
+
+  /**
+   * @returns {Promise<{t:string, el?: HTMLElement}[]>}
+   */
+  async function buildFlowList() {
+    const w = getContentWidthPx();
+    const out = [];
+    for (const b of state.blocks) {
+      if (b.type === 'page_break') {
+        out.push({ t: 'break' });
+        continue;
+      }
+      if (b.type === 'chant_gabc') {
+        const lines = renderChantGabcToLines(b.gabc || '', w);
+        lines.forEach((el) => out.push({ t: 'line', el: el }));
+        continue;
+      }
+      if (b.type === 'edition_pdf') {
+        const units = await renderEditionPageUnits(b, w);
+        units.forEach((el) => out.push({ t: 'flow', el: el }));
+        continue;
+      }
+      out.push({ t: 'flow', el: buildStaticSectionEl(b) });
+    }
+    return out;
+  }
+
+  function measureElHeight(el, widthPx) {
+    const mount = document.getElementById('bookletMeasureMount');
+    mount.innerHTML = '';
+    mount.style.width = widthPx + 'px';
+    mount.style.visibility = 'hidden';
+    mount.style.position = 'absolute';
+    mount.style.left = '-9999px';
+    const clone = el.cloneNode(true);
+    mount.appendChild(clone);
+    const h = clone.offsetHeight;
+    mount.innerHTML = '';
+    return h || 1;
+  }
+
+  function packFlow(items) {
+    const widthPx = getContentWidthPx();
+    const maxH = getMaxPageBodyHeightPx();
+    const gapSection = mmToPx(state.settings.sectionGapMm ?? 8);
+    const gapLine = 3;
+    const pages = [];
+    let page = [];
+    let curH = 0;
+    let lastWasLine = false;
+
+    function flush() {
+      if (page.length) pages.push(page);
+      page = [];
+      curH = 0;
+      lastWasLine = false;
+    }
+
+    for (const it of items) {
+      if (it.t === 'break') {
+        flush();
+        continue;
+      }
+      const isLine = it.t === 'line';
+      const el = it.el;
+      const h = measureElHeight(el, widthPx);
+      const gap =
+        page.length === 0 ? 0 : isLine && lastWasLine ? gapLine : gapSection;
+      if (page.length && curH + gap + h > maxH) {
+        flush();
+        const gap2 = 0;
+        page.push(el);
+        curH = h + gap2;
+        lastWasLine = isLine;
+      } else {
+        if (page.length) curH += gap;
+        page.push(el);
+        curH += h;
+        lastWasLine = isLine;
+      }
+    }
+    flush();
+    return pages;
+  }
+
+  function buildBookletSpreadViews(numPages) {
+    const views = [];
+    if (numPages <= 0) return views;
+    const nPad = Math.ceil(numPages / 4) * 4;
+    const sheets = nPad / 4;
+    for (let s = 0; s < sheets; s++) {
+      views.push({
+        left: nPad - 2 * s - 1,
+        right: 2 * s,
+      });
+      views.push({
+        left: 2 * s + 1,
+        right: nPad - 2 * s - 2,
+      });
+    }
+    return views;
+  }
+
+  function makeBlankBookletPage() {
+    const size = state.settings.pageSize;
+    const page = document.createElement('div');
+    page.className = 'booklet-page';
+    page.dataset.size = size;
+    page.dataset.blank = 'true';
+    const inner = document.createElement('div');
+    inner.className = 'page-inner-flow';
+    inner.style.minHeight = '2mm';
+    page.appendChild(inner);
+    return page;
+  }
+
+  function cloneBookletSide(pageDivs, numReal, idx) {
+    if (idx >= 0 && idx < numReal) return pageDivs[idx].cloneNode(true);
+    return makeBlankBookletPage();
+  }
+
+  function scaleBookletSpread(host) {
+    const vp = host.querySelector('.booklet-spread-viewport');
+    if (!vp) return;
+    const inners = host.querySelectorAll('.booklet-scale-inner');
+    if (inners.length !== 2) return;
+    let totalW = 0;
+    let maxH = 0;
+    const gap = 6;
+    inners.forEach((inner) => {
+      const pg = inner.querySelector('.booklet-page');
+      if (!pg) return;
+      const r = pg.getBoundingClientRect();
+      totalW += r.width;
+      maxH = Math.max(maxH, r.height);
+    });
+    totalW += gap;
+    if (totalW <= 0 || maxH <= 0) return;
+    const sw = vp.clientWidth / totalW;
+    const sh = vp.clientHeight / maxH;
+    const sc = Math.min(sw, sh, 1);
+    inners.forEach((inner) => {
+      inner.style.transform = 'scale(' + sc + ')';
+      inner.style.transformOrigin = 'center center';
+    });
+  }
+
+  function updateBookletSpreadDisplay(host, pageDivs, views, index) {
+    const label = host.querySelector('#bookletSpreadLabel');
+    const leftSlot = host.querySelector('.booklet-spread-slot[data-side="left"]');
+    const rightSlot = host.querySelector('.booklet-spread-slot[data-side="right"]');
+    if (!leftSlot || !rightSlot || !views.length) return;
+    const v = views[Math.max(0, Math.min(index, views.length - 1))];
+    const n = pageDivs.length;
+    leftSlot.innerHTML = '';
+    rightSlot.innerHTML = '';
+    const li = document.createElement('div');
+    li.className = 'booklet-scale-inner';
+    li.appendChild(cloneBookletSide(pageDivs, n, v.left));
+    const ri = document.createElement('div');
+    ri.className = 'booklet-scale-inner';
+    ri.appendChild(cloneBookletSide(pageDivs, n, v.right));
+    leftSlot.appendChild(li);
+    rightSlot.appendChild(ri);
+    if (label) {
+      label.textContent =
+        'Sheet ' + (index + 1) + ' / ' + views.length + ' (print order; padded to ' + Math.ceil(n / 4) * 4 + ' pp.)';
+    }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        scaleBookletSpread(host);
+      });
+    });
+  }
+
+  function mountBookletSpreadUi(root, pageDivs) {
+    const n = pageDivs.length;
+    bookletSpreadViews = buildBookletSpreadViews(n);
+    if (bookletSpreadIndex >= bookletSpreadViews.length) {
+      bookletSpreadIndex = Math.max(0, bookletSpreadViews.length - 1);
+    }
+
+    const host = document.createElement('div');
+    host.className = 'booklet-spread-host booklet-spread-ui';
+
+    const nav = document.createElement('div');
+    nav.className = 'booklet-spread-nav';
+    const btnPrev = document.createElement('button');
+    btnPrev.type = 'button';
+    btnPrev.className = 'btn btn-sm btn-outline-secondary';
+    btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i> Previous sheet';
+    const btnNext = document.createElement('button');
+    btnNext.type = 'button';
+    btnNext.className = 'btn btn-sm btn-outline-secondary';
+    btnNext.innerHTML = 'Next sheet <i class="bi bi-chevron-right"></i>';
+    const lab = document.createElement('span');
+    lab.className = 'small text-muted';
+    lab.id = 'bookletSpreadLabel';
+    nav.appendChild(btnPrev);
+    nav.appendChild(lab);
+    nav.appendChild(btnNext);
+
+    const vp = document.createElement('div');
+    vp.className = 'booklet-spread-viewport';
+    const leftSlot = document.createElement('div');
+    leftSlot.className = 'booklet-spread-slot';
+    leftSlot.dataset.side = 'left';
+    const rightSlot = document.createElement('div');
+    rightSlot.className = 'booklet-spread-slot';
+    rightSlot.dataset.side = 'right';
+    vp.appendChild(leftSlot);
+    vp.appendChild(rightSlot);
+    host.appendChild(nav);
+    host.appendChild(vp);
+    root.appendChild(host);
+
+    function goPrev() {
+      if (bookletSpreadIndex <= 0) bookletSpreadIndex = bookletSpreadViews.length - 1;
+      else bookletSpreadIndex--;
+      updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+    }
+    function goNext() {
+      if (bookletSpreadIndex >= bookletSpreadViews.length - 1) bookletSpreadIndex = 0;
+      else bookletSpreadIndex++;
+      updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+    }
+    btnPrev.addEventListener('click', goPrev);
+    btnNext.addEventListener('click', goNext);
+
+    bookletWheelAccum = 0;
+    vp.addEventListener(
+      'wheel',
+      function (e) {
+        if (state.settings.previewDisplay !== 'booklet') return;
+        e.preventDefault();
+        bookletWheelAccum += e.deltaY;
+        if (bookletWheelAccum > 50) {
+          bookletWheelAccum = 0;
+          goNext();
+        } else if (bookletWheelAccum < -50) {
+          bookletWheelAccum = 0;
+          goPrev();
+        }
+      },
+      { passive: false }
+    );
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(function () {
+        scaleBookletSpread(host);
+      });
+      ro.observe(vp);
+    }
+    window.addEventListener('resize', onWinResize);
+    function onWinResize() {
+      scaleBookletSpread(host);
+    }
+    host._bookletCleanup = function () {
+      window.removeEventListener('resize', onWinResize);
+      if (ro) ro.disconnect();
+    };
+
+    updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+  }
+
+  async function renderPreview() {
+    const root = document.getElementById('previewPages');
+    const store = document.getElementById('bookletPageStore');
+    if (!root) return;
+    const myTok = ++previewToken;
+    const size = state.settings.pageSize;
+    const prevHost = root.querySelector('.booklet-spread-host');
+    if (prevHost && prevHost._bookletCleanup) prevHost._bookletCleanup();
+    exportPageElements = [];
+    if (store) store.innerHTML = '';
+
+    if (!state.blocks.length) {
+      const hint = document.createElement('div');
+      hint.className = 'booklet-page';
+      hint.dataset.placeholder = 'true';
+      hint.dataset.size = size;
+      const inner = document.createElement('div');
+      inner.className = 'page-inner-flow text-muted text-center py-5';
+      inner.innerHTML =
+        '<p>Add sections from the left.</p><p class="small">Use <strong>Chant (paste GABC)</strong> with text from <a href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s propers tool</a>.</p>';
+      root.innerHTML = '';
+      root.appendChild(hint);
+      return;
+    }
+
+    root.innerHTML = '<p class="text-muted small no-print px-2">Laying out preview…</p>';
+
+    let flow;
+    try {
+      flow = await buildFlowList();
+    } catch (e) {
+      console.error(e);
+      root.innerHTML = '<p class="text-danger small">Layout error.</p>';
+      return;
+    }
+    if (myTok !== previewToken) return;
+
+    const pageGroups = packFlow(flow);
+    const pageDivs = pageGroups.map(function (elements) {
+      const page = document.createElement('div');
+      page.className = 'booklet-page';
+      page.dataset.size = size;
+      const inner = document.createElement('div');
+      inner.className = 'page-inner-flow';
+      elements.forEach((el) => inner.appendChild(el));
+      page.appendChild(inner);
+      return page;
+    });
+
+    root.innerHTML = '';
+    if (!pageDivs.length) {
+      root.innerHTML =
+        '<p class="text-muted small px-2">Nothing to show yet — add text, chant, or other sections (page breaks alone do not add pages).</p>';
+      exportPageElements = [];
+      return;
+    }
+
+    pageDivs.push(buildWatermarkPage(size));
+    exportPageElements = pageDivs;
+
+    const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+
+    const hintEl = document.getElementById('previewHint');
+    if (hintEl) {
+      hintEl.innerHTML =
+        display === 'booklet'
+          ? '<strong>Preview</strong> — booklet sheets (saddle-stitch order, padded to a multiple of four pages). Arrow buttons or wheel: next/previous sheet. PDF export still uses every page in order.'
+          : '<strong>Preview</strong> — layout matches PDF pages (raster export). Switch to <em>booklet spreads</em> in the toolbar to preview folded imposition.';
+    }
+
+    if (display === 'scroll') {
+      pageDivs.forEach(function (p) {
+        root.appendChild(p);
+      });
+    } else {
+      if (store) {
+        pageDivs.forEach(function (p) {
+          store.appendChild(p);
+        });
+      }
+      mountBookletSpreadUi(root, pageDivs);
+    }
+  }
+
+  function moveBlock(blockId, delta) {
+    const i = state.blocks.findIndex((x) => x.id === blockId);
+    if (i < 0) return;
+    const j = i + delta;
+    if (j < 0 || j >= state.blocks.length) return;
+    const t = state.blocks[i];
+    state.blocks[i] = state.blocks[j];
+    state.blocks[j] = t;
+    scheduleAutosave();
+    renderBlockList();
+    renderPreview();
   }
 
   function renderBlockList() {
@@ -68,6 +1122,34 @@
     if (!el) return;
     el.innerHTML = '';
     state.blocks.forEach((b, idx) => {
+      const row = document.createElement('div');
+      row.className = 'booklet-block-row';
+
+      const moves = document.createElement('div');
+      moves.className = 'booklet-block-move';
+      const btnUp = document.createElement('button');
+      btnUp.type = 'button';
+      btnUp.className = 'btn btn-outline-secondary';
+      btnUp.title = 'Move up';
+      btnUp.innerHTML = '<i class="bi bi-chevron-up" aria-hidden="true"></i>';
+      btnUp.disabled = idx === 0;
+      const btnDown = document.createElement('button');
+      btnDown.type = 'button';
+      btnDown.className = 'btn btn-outline-secondary';
+      btnDown.title = 'Move down';
+      btnDown.innerHTML = '<i class="bi bi-chevron-down" aria-hidden="true"></i>';
+      btnDown.disabled = idx === state.blocks.length - 1;
+      btnUp.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        moveBlock(b.id, -1);
+      });
+      btnDown.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        moveBlock(b.id, 1);
+      });
+      moves.appendChild(btnUp);
+      moves.appendChild(btnDown);
+
       const div = document.createElement('div');
       div.className = 'block-list-item' + (b.id === selectedBlockId ? ' active' : '');
       const label =
@@ -79,27 +1161,43 @@
               ? 'Image'
               : b.type === 'edition_pdf'
                 ? 'Edition PDF'
-                : b.type === 'jgabc_propers'
-                  ? 'Mass propers (jgabc)'
-                  : b.type;
-      const preview =
-        b.type === 'rubric' || b.type === 'reading'
-          ? (b.text || '').slice(0, 48) + ((b.text || '').length > 48 ? '…' : '')
-          : b.type === 'edition_pdf'
-            ? (b.url || '').slice(0, 40)
-            : b.type === 'jgabc_propers'
-              ? (b.hash || '(default propers)').slice(0, 40)
-              : b.type === 'image'
-                ? '(image)'
-                : '';
-      div.textContent = `${idx + 1}. ${label}: ${preview}`;
+                : b.type === 'chant_gabc'
+                  ? 'Chant (GABC)'
+                  : b.type === 'page_break'
+                    ? '— Page break —'
+                    : b.type === 'jgabc_propers'
+                      ? 'Propers (legacy)'
+                      : b.type;
+      let preview = '';
+      if (b.type === 'rubric') {
+        preview = stripTagsForPreview(b.text || '');
+      } else if (b.type === 'reading') {
+        preview = stripTagsForPreview(b.text || '');
+        if (translationHasContent(b.translation)) {
+          preview += ' | ' + stripTagsForPreview(b.translation || '');
+        }
+      } else if (b.type === 'edition_pdf') {
+        const tit = (b.title || '').trim();
+        preview = (tit ? tit + ' · ' : '') + (b.url || '').slice(0, 28);
+        const fr = b.pdfPageFrom != null ? b.pdfPageFrom : 1;
+        const to = b.pdfPageTo;
+        preview += to != null && to !== '' ? ' p.' + fr + '-' + to : ' p.' + fr + '+';
+      } else if (b.type === 'chant_gabc') {
+        preview = (b.gabc || '').replace(/\s+/g, ' ').slice(0, 40);
+      } else if (b.type === 'image') {
+        const cap = (b.label || '').trim();
+        preview = cap ? cap.slice(0, 40) : '(no label)';
+      }
+      div.textContent = idx + 1 + '. ' + label + (preview ? ': ' + preview : '');
       div.dataset.id = b.id;
       div.addEventListener('click', () => {
         selectedBlockId = b.id;
         renderBlockList();
         renderEditor();
       });
-      el.appendChild(div);
+      row.appendChild(moves);
+      row.appendChild(div);
+      el.appendChild(row);
     });
     const rm = document.getElementById('btnRemoveBlock');
     if (rm) rm.disabled = !selectedBlockId;
@@ -113,190 +1211,286 @@
       panel.innerHTML = '<p class="text-muted">Select a section or add one.</p>';
       return;
     }
-    if (b.type === 'rubric' || b.type === 'reading') {
+    if (b.type === 'page_break') {
+      panel.innerHTML =
+        '<p class="small text-muted">This forces the next section onto a new page in the preview and PDF.</p>';
+      return;
+    }
+    if (b.type === 'rubric') {
       panel.innerHTML = `
-        <label class="form-label small mb-1">${b.type === 'rubric' ? 'Rubric' : 'Text'}</label>
-        <textarea class="form-control form-control-sm" rows="6" id="edField">${escapeHtml(b.text || '')}</textarea>
+        <p class="small text-muted mb-1">Bold, italic, underline, and text colour (preview + PDF).</p>
+        <div class="booklet-rich-toolbar rubric-tb">
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
+          </div>
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
+          </div>
+        </div>
+        <div class="form-control form-control-sm booklet-rich-ed" contenteditable="true" id="edRichRubric"></div>
       `;
-      const ta = panel.querySelector('#edField');
-      ta.addEventListener('input', () => {
-        b.text = ta.value;
-        scheduleAutosave();
-        renderPreview();
-        renderBlockList();
-      });
-    } else if (b.type === 'image') {
-      panel.innerHTML = `
-        <p class="small">Image is stored in the project file as base64 (can make large files).</p>
-        <button type="button" class="btn btn-sm btn-outline-primary" id="edReplaceImg">Replace image</button>
-      `;
-      panel.querySelector('#edReplaceImg').addEventListener('click', () => pickImageForBlock(b.id));
-    } else if (b.type === 'edition_pdf') {
-      panel.innerHTML = `
-        <label class="form-label small mb-1">PDF URL (from Polyphony catalogue)</label>
-        <input type="url" class="form-control form-control-sm mb-2" id="edUrl" value="${escapeAttr(b.url || '')}" placeholder="https://...">
-        <label class="form-label small mb-1">Catalogue edition ID (optional)</label>
-        <input type="text" class="form-control form-control-sm mb-2" id="edCatId" value="${escapeAttr(b.catalogueEditionId != null ? String(b.catalogueEditionId) : '')}" placeholder="e.g. database id for templates">
-        <label class="form-label small mb-1">Label (optional)</label>
-        <input type="text" class="form-control form-control-sm" id="edTitle" value="${escapeAttr(b.title || '')}">
-      `;
-      const u = panel.querySelector('#edUrl');
-      const c = panel.querySelector('#edCatId');
-      const t = panel.querySelector('#edTitle');
-      u.addEventListener('input', () => {
-        b.url = u.value.trim();
-        scheduleAutosave();
-        renderPreview();
-        renderBlockList();
-      });
-      c.addEventListener('input', () => {
-        const v = c.value.trim();
-        b.catalogueEditionId = v === '' ? null : v;
-        scheduleAutosave();
-      });
-      t.addEventListener('input', () => {
-        b.title = t.value;
-        scheduleAutosave();
-        renderPreview();
-      });
-    } else if (b.type === 'jgabc_propers') {
-      panel.innerHTML = `
-        <p class="small text-muted">Optional: paste a fragment from the propers tool (starts with <code>#</code>) to restore selections. The embedded tool below updates this when possible.</p>
-        <textarea class="form-control form-control-sm font-monospace" rows="3" id="edHash">${escapeHtml(b.hash || '')}</textarea>
-        <a href="/vendor/jgabc/propers.html" target="_blank" rel="noopener" class="small d-inline-block mt-2">Open full propers in new tab</a>
-      `;
-      const h = panel.querySelector('#edHash');
-      const applyHash = () => {
-        b.hash = h.value.trim();
+      const ed = panel.querySelector('#edRichRubric');
+      ed.innerHTML = initialRichHtmlForEditor(b.text);
+      const push = () => {
+        b.text = ed.innerHTML;
         scheduleAutosave();
         renderPreview();
         renderBlockList();
       };
-      h.addEventListener('input', applyHash);
-      h.addEventListener('change', applyHash);
-    }
-  }
+      bindRichToolbar(panel.querySelector('.rubric-tb'), ed, push);
+    } else if (b.type === 'reading') {
+      const split = b.parallelLeftPct != null ? b.parallelLeftPct : 50;
+      const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
+      panel.innerHTML = `
+        <label class="form-label small mb-1">Original</label>
+        <div class="booklet-rich-toolbar read-tb-orig">
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
+          </div>
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
+          </div>
+        </div>
+        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
+        <label class="form-label small mb-1">Translation <span class="text-muted">(parallel columns when this has text)</span></label>
+        <div class="booklet-rich-toolbar read-tb-trans">
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
+          </div>
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
+          </div>
+        </div>
+        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadTrans"></div>
+        <div id="readParallelOpts" class="border rounded p-2 bg-light small">
+          <label class="form-label small mb-1">Column split <span class="text-muted">(original width %)</span></label>
+          <input type="range" class="form-range" id="rngReadSplit" min="20" max="80" step="1" value="${split}">
+          <div class="d-flex justify-content-between"><span>20%</span><span id="readSplitVal">${split}%</span><span>80%</span></div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="chkReadBorder" ${b.parallelBorder ? 'checked' : ''}>
+            <label class="form-check-label" for="chkReadBorder">Border between columns</label>
+          </div>
+          <label class="form-label small mb-0 mt-2">Space between columns (mm)</label>
+          <input type="number" class="form-control form-control-sm" id="inpReadGap" min="0" max="20" value="${gap}">
+        </div>
+      `;
+      const edO = panel.querySelector('#edReadOrig');
+      const edT = panel.querySelector('#edReadTrans');
+      edO.innerHTML = initialRichHtmlForEditor(b.text);
+      edT.innerHTML = initialRichHtmlForEditor(b.translation);
+      const push = () => {
+        b.text = edO.innerHTML;
+        b.translation = edT.innerHTML;
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      bindRichToolbar(panel.querySelector('.read-tb-orig'), edO, push);
+      bindRichToolbar(panel.querySelector('.read-tb-trans'), edT, push);
+      const rng = panel.querySelector('#rngReadSplit');
+      const rv = panel.querySelector('#readSplitVal');
+      const chk = panel.querySelector('#chkReadBorder');
+      const ig = panel.querySelector('#inpReadGap');
+      const syncParallel = () => {
+        b.parallelLeftPct = parseInt(rng.value, 10) || 50;
+        if (rv) rv.textContent = b.parallelLeftPct + '%';
+        b.parallelBorder = !!chk.checked;
+        b.parallelGapMm = Math.min(20, Math.max(0, parseInt(ig.value, 10) || 4));
+        scheduleAutosave();
+        renderPreview();
+      };
+      rng.addEventListener('input', syncParallel);
+      chk.addEventListener('change', syncParallel);
+      ig.addEventListener('input', syncParallel);
+    } else if (b.type === 'image') {
+      panel.innerHTML = `
+        <label class="form-label small mb-1">Section list name</label>
+        <input type="text" class="form-control form-control-sm mb-2" id="edImgLabel" value="${escapeAttr(b.label || '')}" placeholder="e.g. Cover, Map — not shown in booklet">
+        <p class="small text-muted mb-2">Shown only in the left-hand section list. Stored as base64 in the project file.</p>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="edReplaceImg">Replace image</button>
+      `;
+      const li = panel.querySelector('#edImgLabel');
+      li.addEventListener('input', () => {
+        b.label = li.value;
+        scheduleAutosave();
+        renderBlockList();
+      });
+      panel.querySelector('#edReplaceImg').addEventListener('click', () => pickImageForBlock(b.id));
+    } else if (b.type === 'edition_pdf') {
+      panel.innerHTML = `
+        <label class="form-label small mb-1">Search Polyphony editions</label>
+        <input type="search" class="form-control form-control-sm mb-1" id="edEditionSearch" placeholder="Work title, composer…" autocomplete="off">
+        <div id="edEditionResults" class="booklet-edition-results mb-2 d-none list-group list-group-flush"></div>
+        <p class="small text-muted mb-1">Or paste a PDF URL (any host):</p>
+        <input type="url" class="form-control form-control-sm mb-2" id="edUrl" value="${escapeAttr(b.url || '')}" placeholder="https://… or site-relative path">
+        <label class="form-label small mb-1">From page (1-based)</label>
+        <input type="number" class="form-control form-control-sm mb-2" id="edPdfFrom" min="1" value="${escapeAttr(String(b.pdfPageFrom != null ? b.pdfPageFrom : 1))}">
+        <label class="form-label small mb-1">To page <span class="text-muted">(empty = through last page)</span></label>
+        <input type="number" class="form-control form-control-sm mb-2" id="edPdfTo" min="1" placeholder="e.g. 3" value="${b.pdfPageTo != null && b.pdfPageTo !== '' ? escapeAttr(String(b.pdfPageTo)) : ''}">
+        <label class="form-label small mb-1">Section list name <span class="text-muted">(not shown on pages)</span></label>
+        <input type="text" class="form-control form-control-sm" id="edTitle" value="${escapeAttr(b.title || '')}" placeholder="Label in the section list">
+      `;
+      const u = panel.querySelector('#edUrl');
+      const pf = panel.querySelector('#edPdfFrom');
+      const pt = panel.querySelector('#edPdfTo');
+      const t = panel.querySelector('#edTitle');
+      const searchInp = panel.querySelector('#edEditionSearch');
+      const resultsEl = panel.querySelector('#edEditionResults');
 
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/"/g, '&quot;');
-  }
-
-  function renderPreview() {
-    const root = document.getElementById('previewPages');
-    if (!root) return;
-    root.innerHTML = '';
-    const size = state.settings.pageSize;
-    state.blocks.forEach((b) => {
-      const page = document.createElement('div');
-      page.className = 'booklet-page';
-      page.dataset.size = size;
-      const inner = document.createElement('div');
-      inner.className = 'page-inner';
-
-      if (b.type === 'rubric') {
-        const p = document.createElement('p');
-        p.className = 'rubric';
-        p.textContent = b.text || '';
-        inner.appendChild(p);
-      } else if (b.type === 'reading') {
-        const p = document.createElement('div');
-        p.className = 'reading';
-        p.textContent = b.text || '';
-        inner.appendChild(p);
-      } else if (b.type === 'image') {
-        if (b.dataBase64 && b.mime) {
-          const img = document.createElement('img');
-          img.className = 'user-img';
-          img.src = `data:${b.mime};base64,${b.dataBase64}`;
-          img.alt = 'User image';
-          inner.appendChild(img);
-        } else {
-          const p = document.createElement('p');
-          p.className = 'text-muted small';
-          p.textContent = 'No image yet — select this section and click Replace image.';
-          inner.appendChild(p);
+      function applyCatalogueEditionPick(row) {
+        b.url = String(row.fileUrl || '').trim();
+        b.catalogueSourceUrl = resolvePdfUrl(row.fileUrl);
+        b.catalogueEditorName = row.editorName || '';
+        b.catalogueGroupTitle = row.groupTitle || '';
+        u.value = b.url;
+        if (!String(b.title || '').trim()) {
+          b.title = (row.groupTitle + ' — ' + row.editorName).slice(0, 120);
+          t.value = b.title;
         }
-      } else if (b.type === 'edition_pdf') {
-        const cap = document.createElement('div');
-        cap.className = 'small text-muted mb-2';
-        cap.textContent = b.title || 'Polyphony edition';
-        inner.appendChild(cap);
-        if (b.url) {
-          const iframe = document.createElement('iframe');
-          iframe.className = 'edition-frame';
-          iframe.src = b.url;
-          iframe.title = 'Edition PDF';
-          inner.appendChild(iframe);
-        } else {
-          const em = document.createElement('p');
-          em.className = 'text-muted small';
-          em.textContent = 'Add a PDF URL in the editor.';
-          inner.appendChild(em);
-        }
-      } else if (b.type === 'jgabc_propers') {
-        const cap = document.createElement('div');
-        cap.className = 'small text-muted mb-2';
-        cap.textContent = 'Mass propers (jgabc) — use the tool below; PDF snapshot may not capture all iframe detail.';
-        inner.appendChild(cap);
-        const iframe = document.createElement('iframe');
-        iframe.className = 'jgabc-frame';
-        iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
-        const hash = (b.hash || '').replace(/^#/, '');
-        iframe.src = '/vendor/jgabc/propers.html' + (hash ? '#' + hash : '');
-        iframe.title = 'jgabc Mass Propers';
-        iframe.addEventListener('load', () => {
-          try {
-            const h = iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.hash;
-            if (h && h !== (b.hash || '')) {
-              b.hash = h;
-              scheduleAutosave();
-              renderBlockList();
-            }
-          } catch (e) {
-            /* ignore */
-          }
-        });
-        inner.appendChild(iframe);
+        resultsEl.classList.add('d-none');
+        resultsEl.innerHTML = '';
+        searchInp.value = '';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
       }
 
-      page.appendChild(inner);
-      root.appendChild(page);
-    });
+      const onChange = () => {
+        const trimmed = u.value.trim();
+        const resolved = resolvePdfUrl(trimmed);
+        const src = b.catalogueSourceUrl ? resolvePdfUrl(b.catalogueSourceUrl) : '';
+        if (!b.catalogueSourceUrl || resolved !== src) {
+          b.catalogueEditorName = '';
+          b.catalogueGroupTitle = '';
+          b.catalogueSourceUrl = null;
+        }
+        b.url = trimmed;
+        b.pdfPageFrom = Math.max(1, parseInt(pf.value, 10) || 1);
+        const tv = pt.value.trim();
+        const toNum = tv === '' ? null : parseInt(tv, 10);
+        b.pdfPageTo = toNum != null && !isNaN(toNum) ? toNum : null;
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      u.addEventListener('input', onChange);
+      pf.addEventListener('input', onChange);
+      pt.addEventListener('input', onChange);
+      t.addEventListener('input', () => {
+        b.title = t.value;
+        scheduleAutosave();
+        renderBlockList();
+      });
 
-    if (state.blocks.length === 0) {
-      const hint = document.createElement('div');
-      hint.className = 'booklet-page';
-      hint.dataset.placeholder = 'true';
-      hint.dataset.size = size;
-      const inner = document.createElement('div');
-      inner.className = 'page-inner text-muted text-center py-5';
-      inner.innerHTML =
-        '<p>Add sections from <strong>Add section</strong> above.</p><p class="small">Use <strong>Save project</strong> to download a JSON file you can reload later. Polyphony PDFs are stored as URLs only.</p>';
-      hint.appendChild(inner);
-      root.appendChild(hint);
+      if (searchInp && resultsEl) {
+        let searchTimer = null;
+        searchInp.addEventListener('input', function () {
+          clearTimeout(searchTimer);
+          const q = searchInp.value.trim();
+          if (q.length < 2) {
+            resultsEl.classList.add('d-none');
+            resultsEl.innerHTML = '';
+            return;
+          }
+          searchTimer = setTimeout(async function () {
+            if (editionSearchAbort) editionSearchAbort.abort();
+            editionSearchAbort = new AbortController();
+            resultsEl.classList.remove('d-none');
+            resultsEl.innerHTML =
+              '<div class="list-group-item text-muted small py-2">Searching…</div>';
+            try {
+              const data = await fetchEditionSearchResults(q, editionSearchAbort.signal);
+              if (selectedBlockId !== b.id) return;
+              const rows = flattenEditionSearchRows(data);
+              resultsEl.innerHTML = '';
+              if (!rows.length) {
+                resultsEl.innerHTML =
+                  '<div class="list-group-item text-muted small py-2">No editions found.</div>';
+                return;
+              }
+              rows.forEach(function (row) {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action text-start';
+                const vo = row.voicing ? ' · ' + row.voicing : '';
+                item.textContent = row.groupTitle + ' — ' + row.editorName + vo;
+                item.addEventListener('click', function () {
+                  applyCatalogueEditionPick(row);
+                });
+                resultsEl.appendChild(item);
+              });
+            } catch (err) {
+              if (err.name === 'AbortError') return;
+              resultsEl.innerHTML =
+                '<div class="list-group-item text-danger small py-2">Search failed.</div>';
+            }
+          }, 320);
+        });
+      }
+    } else if (b.type === 'chant_gabc') {
+      panel.innerHTML = `
+        <p class="small text-muted mb-2">Paste full GABC (including header lines ending with <code>%%</code> if you use them). For complex Mass propers, build them in
+        <a href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben’s propers tool</a> and copy the GABC from there.</p>
+        <textarea class="form-control form-control-sm font-monospace" rows="12" id="edGabc">${escapeHtml(b.gabc || '')}</textarea>
+        ${b.legacyHash ? '<p class="small text-warning mt-2">Old saved hash (not used for preview): <code class="small">' + escapeHtml(String(b.legacyHash).slice(0, 80)) + '</code></p>' : ''}
+      `;
+      const ta = panel.querySelector('#edGabc');
+      ta.addEventListener('input', () => {
+        b.gabc = ta.value;
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+    } else if (b.type === 'jgabc_propers') {
+      panel.innerHTML =
+        '<p class="small text-muted">Replace this block with <strong>Chant (paste GABC)</strong> or reload after migration.</p>';
     }
   }
 
   function addBlock(type) {
     const b = { id: uid(), type };
-    if (type === 'rubric' || type === 'reading') b.text = '';
+    if (type === 'rubric') b.text = '';
+    if (type === 'reading') {
+      b.text = '';
+      b.translation = '';
+      b.parallelLeftPct = 50;
+      b.parallelBorder = false;
+      b.parallelGapMm = 4;
+    }
     if (type === 'image') {
       b.mime = 'image/png';
       b.dataBase64 = '';
+      b.label = '';
       setTimeout(() => pickImageForBlock(b.id), 0);
     }
     if (type === 'edition_pdf') {
       b.url = '';
       b.title = '';
-      b.catalogueEditionId = null;
+      b.catalogueEditorName = '';
+      b.catalogueGroupTitle = '';
+      b.catalogueSourceUrl = null;
+      b.pdfPageFrom = 1;
+      b.pdfPageTo = null;
     }
-    if (type === 'jgabc_propers') b.hash = '';
+    if (type === 'chant_gabc') b.gabc = '';
     state.blocks.push(b);
     selectedBlockId = b.id;
     scheduleAutosave();
@@ -347,7 +1541,7 @@
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'liturgy-booklet-project.json';
+    a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet-project') + '.json';
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -357,15 +1551,12 @@
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        if (!parsed || parsed.schemaVersion !== SCHEMA_VERSION) {
-          alert('Invalid or unsupported project file (expected schema version ' + SCHEMA_VERSION + ').');
+        const m = migrateProject(parsed);
+        if (!m || !Array.isArray(m.blocks)) {
+          alert('Invalid or unsupported project file (schema 1–' + SCHEMA_VERSION + ').');
           return;
         }
-        if (!Array.isArray(parsed.blocks)) {
-          alert('Invalid project: missing blocks array.');
-          return;
-        }
-        state = parsed;
+        state = m;
         selectedBlockId = null;
         applyCssVars();
         syncControlsFromState();
@@ -381,13 +1572,15 @@
   }
 
   async function downloadPdf() {
-    const pages = document.querySelectorAll('#previewPages .booklet-page:not([data-placeholder])');
+    const pages = exportPageElements.filter(
+      (el) => el && el.isConnected && el.dataset.placeholder !== 'true'
+    );
     if (!pages.length) {
-      alert('Add at least one section before downloading a PDF.');
+      alert('Add content before downloading a PDF.');
       return;
     }
     if (typeof html2canvas === 'undefined' || typeof PDFLib === 'undefined') {
-      alert('PDF libraries failed to load. Check your network connection.');
+      alert('PDF libraries failed to load.');
       return;
     }
 
@@ -410,7 +1603,7 @@
         const canvas = await html2canvas(el, {
           scale: 2.25,
           useCORS: true,
-          allowTaint: false,
+          allowTaint: true,
           backgroundColor: '#ffffff',
           logging: false,
         });
@@ -441,12 +1634,12 @@
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'liturgy-booklet.pdf';
+      a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet') + '.pdf';
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (e) {
       console.error(e);
-      alert('PDF export failed. If an edition PDF is cross-origin, try removing that section or use Print instead.');
+      alert('PDF export failed.');
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -456,6 +1649,13 @@
   }
 
   function bindUi() {
+    document.querySelectorAll('[data-add-type]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        addBlock(btn.getAttribute('data-add-type'));
+      });
+    });
+
     document.getElementById('selPageSize')?.addEventListener('change', (e) => {
       state.settings.pageSize = e.target.value;
       scheduleAutosave();
@@ -466,6 +1666,14 @@
       state.settings.marginMm = Number.isFinite(v) ? Math.min(40, Math.max(5, v)) : 15;
       applyCssVars();
       scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('inpSectionGap')?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value, 10);
+      state.settings.sectionGapMm = Number.isFinite(v) ? Math.min(30, Math.max(0, v)) : 8;
+      applyCssVars();
+      scheduleAutosave();
+      renderPreview();
     });
     document.getElementById('rngFontScale')?.addEventListener('input', (e) => {
       state.settings.fontScale = parseFloat(e.target.value) || 1;
@@ -473,26 +1681,28 @@
       scheduleAutosave();
       renderPreview();
     });
-
-    document.getElementById('addRubric')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      addBlock('rubric');
+    document.getElementById('selPreviewDisplay')?.addEventListener('change', (e) => {
+      state.settings.previewDisplay = e.target.value === 'booklet' ? 'booklet' : 'scroll';
+      scheduleAutosave();
+      renderPreview();
     });
-    document.getElementById('addReading')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      addBlock('reading');
+    document.getElementById('inpProjectTitle')?.addEventListener('input', (e) => {
+      state.projectTitle = e.target.value;
+      scheduleAutosave();
     });
-    document.getElementById('addImage')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      addBlock('image');
+    document.getElementById('selBookletFont')?.addEventListener('change', (e) => {
+      const k = e.target.value;
+      state.settings.fontFamilyKey = BOOKLET_FONT_STACKS[k] != null ? k : 'georgia';
+      applyCssVars();
+      scheduleAutosave();
+      renderPreview();
     });
-    document.getElementById('addEdition')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      addBlock('edition_pdf');
-    });
-    document.getElementById('addJgabc')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      addBlock('jgabc_propers');
+    document.getElementById('inpRubricColor')?.addEventListener('input', (e) => {
+      const v = e.target.value;
+      state.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
+      applyCssVars();
+      scheduleAutosave();
+      renderPreview();
     });
 
     document.getElementById('btnRemoveBlock')?.addEventListener('click', removeSelectedBlock);

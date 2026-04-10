@@ -11,6 +11,9 @@
         :root {
             --booklet-margin-mm: 15;
             --booklet-font-scale: 1;
+            --booklet-section-gap-mm: 8;
+            --booklet-body-font: Georgia, 'Times New Roman', Times, serif;
+            --booklet-rubric-color: #8b1538;
         }
         body {
             background: #e9ecef;
@@ -27,6 +30,23 @@
             top: 0;
             z-index: 1020;
         }
+        .booklet-sidebar {
+            position: sticky;
+            top: 4rem;
+            align-self: flex-start;
+            max-height: calc(100vh - 4.5rem);
+            overflow-y: auto;
+            z-index: 1010;
+            padding-bottom: 1rem;
+        }
+        @media (max-width: 991.98px) {
+            .booklet-sidebar {
+                position: relative;
+                top: auto;
+                max-height: none;
+                overflow-y: visible;
+            }
+        }
         .block-list-item {
             cursor: pointer;
             border: 1px solid #dee2e6;
@@ -38,6 +58,10 @@
         }
         .block-list-item:hover { background: #f8f9fa; }
         .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
+        .sidebar-add-btn {
+            font-size: 0.8rem;
+            text-align: left;
+        }
         #previewPages {
             padding-bottom: 3rem;
         }
@@ -47,7 +71,7 @@
             margin: 1.25rem auto;
             box-sizing: border-box;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
         .booklet-page[data-size="A4"] {
             width: 210mm;
@@ -59,34 +83,123 @@
             min-height: 210mm;
             padding: calc(var(--booklet-margin-mm) * 1mm);
         }
-        .booklet-page .page-inner {
+        .booklet-page .page-inner-flow {
+            font-family: var(--booklet-body-font);
             font-size: calc(11pt * var(--booklet-font-scale));
             line-height: 1.45;
         }
+        .booklet-section {
+            margin-bottom: calc(var(--booklet-section-gap-mm) * 1mm);
+        }
+        .booklet-section:last-child {
+            margin-bottom: 0;
+        }
         .booklet-page .rubric {
-            color: #8b1538;
+            color: var(--booklet-rubric-color);
             font-style: italic;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.35rem;
         }
         .booklet-page .reading {
-            margin-bottom: 0.75rem;
-            white-space: pre-wrap;
+            margin-bottom: 0.35rem;
         }
-        .booklet-page .edition-frame {
-            width: 100%;
-            min-height: 70vh;
-            border: 1px solid #ccc;
+        .booklet-richtext {
+            text-align: justify;
+            white-space: normal;
+            word-wrap: break-word;
         }
-        .booklet-page .jgabc-frame {
+        .booklet-richtext u {
+            text-underline-offset: 2px;
+        }
+        .booklet-reading-parallel {
             width: 100%;
-            min-height: 480px;
+            border-collapse: collapse;
+            margin-bottom: 0.35rem;
+            table-layout: fixed;
+        }
+        .booklet-reading-parallel td {
+            vertical-align: top;
+            text-align: justify;
+        }
+        .booklet-rich-ed {
+            min-height: 5rem;
+            overflow-y: auto;
+            white-space: normal;
+            text-align: left;
+        }
+        .booklet-rich-ed:focus {
+            outline: 1px solid rgba(139, 21, 56, 0.35);
+        }
+        .booklet-chant-line {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 0.25rem;
+        }
+        .booklet-chant-line svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        .booklet-pdf-page-unit {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin: 0;
+        }
+        .booklet-pdf-page-unit img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border: none;
+        }
+        .booklet-watermark {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.82em;
+        }
+        .booklet-watermark a {
+            color: inherit;
+        }
+        .booklet-edition-results {
+            max-height: 220px;
+            overflow-y: auto;
             border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .booklet-edition-results .list-group-item {
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0.35rem 0.5rem;
+        }
+        .booklet-edition-results .list-group-item:hover {
+            background: #f8f9fa;
+        }
+        .booklet-block-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.25rem;
+            margin-bottom: 0.35rem;
+        }
+        .booklet-block-row .block-list-item {
+            flex: 1;
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        .booklet-block-move {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            flex-shrink: 0;
+        }
+        .booklet-block-move .btn {
+            padding: 0.1rem 0.25rem;
+            line-height: 1;
+            font-size: 0.7rem;
         }
         .booklet-page img.user-img {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 0.5rem 0;
         }
         .template-placeholder {
             background: #f8f9fa;
@@ -95,9 +208,84 @@
             padding: 1rem;
             color: #6c757d;
         }
+        .booklet-scale-inner {
+            display: inline-block;
+        }
+        .booklet-spread-host {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            min-height: calc(100vh - 11rem);
+        }
+        .booklet-spread-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .booklet-spread-viewport {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            width: 100%;
+            max-width: 100%;
+            min-height: min(70vh, 720px);
+            padding: 0.25rem;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        .booklet-spread-slot {
+            flex: 1 1 50%;
+            max-width: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            max-height: 100%;
+        }
+        .booklet-spread-slot .booklet-page {
+            margin: 0;
+            transform-origin: center center;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+        }
+        #bookletPageStore {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            pointer-events: none;
+            z-index: -1;
+            transform: translateX(-120vw);
+        }
+        #bookletPageStore .booklet-page {
+            margin: 0 0 1rem 0;
+        }
         @media print {
-            .booklet-toolbar, .booklet-sidebar, .booklet-navbar, .no-print { display: none !important; }
-            .booklet-page { box-shadow: none; margin: 0; page-break-after: always; }
+            .booklet-toolbar, .booklet-sidebar, .booklet-navbar, .no-print, .booklet-spread-ui { display: none !important; }
+            #bookletPageStore:not(:empty) {
+                position: static !important;
+                left: auto !important;
+                transform: none !important;
+                z-index: auto !important;
+                width: 100% !important;
+                pointer-events: auto !important;
+            }
+            #bookletPageStore:not(:empty) .booklet-page {
+                margin: 0 !important;
+                box-shadow: none;
+                page-break-after: always;
+                break-after: page;
+            }
+            #previewPages .booklet-page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+                break-after: page;
+            }
         }
     </style>
 </head>
@@ -112,6 +300,11 @@
     <div class="booklet-toolbar py-2 px-3 no-print">
         <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center gap-2">
+                <label class="small mb-0 d-flex align-items-center gap-1">
+                    <span class="text-nowrap">Project title</span>
+                    <input type="text" id="inpProjectTitle" class="form-control form-control-sm" style="min-width: 12rem; max-width: 22rem" placeholder="e.g. Easter Vigil 2026" title="Shown in filenames when you save">
+                </label>
+                <div class="vr d-none d-md-block"></div>
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-primary" id="btnSaveProject" title="Download project JSON"><i class="bi bi-download me-1"></i>Save project</button>
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
@@ -131,26 +324,39 @@
                     <input type="number" id="inpMargin" class="form-control form-control-sm" style="width: 4rem" min="5" max="40" value="15">
                 </label>
                 <label class="small mb-0 d-flex align-items-center gap-1">
+                    Gap (mm)
+                    <input type="number" id="inpSectionGap" class="form-control form-control-sm" style="width: 4rem" min="0" max="30" value="8" title="Space between sections">
+                </label>
+                <label class="small mb-0 d-flex align-items-center gap-1">
                     Text size
                     <input type="range" id="rngFontScale" min="0.75" max="1.5" step="0.05" value="1" style="width: 6rem">
                 </label>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Add section</button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" id="addRubric">Rubric</a></li>
-                        <li><a class="dropdown-item" href="#" id="addReading">Reading / prayer (text)</a></li>
-                        <li><a class="dropdown-item" href="#" id="addImage">Image (from file)</a></li>
-                        <li><a class="dropdown-item" href="#" id="addEdition">Polyphony edition (PDF URL)</a></li>
-                        <li><a class="dropdown-item" href="#" id="addJgabc">Mass propers (jgabc tool)</a></li>
-                    </ul>
-                </div>
+                <select id="selPreviewDisplay" class="form-select form-select-sm" style="width: auto;" title="How the preview is shown on screen">
+                    <option value="scroll">Preview: scroll pages</option>
+                    <option value="booklet">Preview: booklet spreads</option>
+                </select>
+                <select id="selBookletFont" class="form-select form-select-sm" style="width: auto;" title="Body text font">
+                    <option value="georgia">Georgia</option>
+                    <option value="times">Times New Roman</option>
+                    <option value="palatino">Palatino</option>
+                    <option value="garamond">Garamond-style</option>
+                    <option value="arial">Arial</option>
+                    <option value="verdana">Verdana</option>
+                    <option value="trebuchet">Trebuchet MS</option>
+                    <option value="tahoma">Tahoma</option>
+                    <option value="courier">Courier New</option>
+                </select>
+                <label class="small mb-0 d-flex align-items-center gap-1" title="Rubric colour">
+                    Rubric
+                    <input type="color" id="inpRubricColor" value="#8b1538" style="width:2rem;height:1.75rem;padding:0;border:0;">
+                </label>
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Advanced</button>
                     <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
-                        <li class="dropdown-header">Source &amp; Summit (jgabc PDF)</li>
-                        <li><a class="dropdown-item" href="/vendor/jgabc/propers.html" target="_blank" rel="noopener">Open Mass Propers in new tab</a></li>
+                        <li><a class="dropdown-item" href="/vendor/jgabc/propers.html" target="_blank" rel="noopener">jgabc Mass Propers (this site)</a></li>
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s propers (github.io)</a></li>
                         <li class="dropdown-header mt-2">Future</li>
-                        <li><span class="dropdown-item-text text-muted">Server Gregorio renderer (WeeklyBooklets2) — set <code>PDF_RENDERER_URL</code> when available.</span></li>
+                        <li><span class="dropdown-item-text text-muted">Server Gregorio — <code>PDF_RENDERER_URL</code></span></li>
                         <li><button type="button" class="btn btn-sm btn-light w-100 mt-1" disabled>Render via server</button></li>
                     </ul>
                 </div>
@@ -159,16 +365,26 @@
     </div>
 
     <div class="container-fluid py-3">
-        <div class="row g-3">
+        <div class="row g-3 align-items-lg-start">
             <aside class="col-lg-3 booklet-sidebar no-print">
-                <h6 class="text-muted text-uppercase small">Sections</h6>
-                <p class="small text-muted">Click a section to edit. Each section prints as its own page in the PDF (simple layout).</p>
+                <h6 class="text-muted text-uppercase small">Add section</h6>
+                <div class="d-grid gap-1 mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="rubric"><i class="bi bi-type me-1"></i>Rubric</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-1"></i>Reading / prayer</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-1"></i>Chant (paste GABC)</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-1"></i>Image</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-1"></i>Polyphony edition PDF</button>
+                    <button type="button" class="btn btn-sm btn-outline-dark sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-1"></i>Force page break</button>
+                </div>
+
+                <h6 class="text-muted text-uppercase small">Sections in document</h6>
+                <p class="small text-muted">Content flows across pages; only <strong>Force page break</strong> starts a new page unless a section is too tall.</p>
                 <div id="blockList"></div>
                 <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-2" id="btnRemoveBlock" disabled>Remove selected</button>
 
                 <h6 class="text-muted text-uppercase small mt-4">Templates</h6>
                 <div class="template-placeholder small">
-                    <i class="bi bi-collection me-1"></i>Browse shared booklets (e.g. “SATTB Easter Vigil”) — <strong>coming soon</strong>.
+                    <i class="bi bi-collection me-1"></i>Browse shared booklets — <strong>coming soon</strong>.
                 </div>
 
                 <h6 class="text-muted text-uppercase small mt-4">Edit section</h6>
@@ -177,15 +393,23 @@
                 </div>
             </aside>
             <main class="col-lg-9">
-                <p class="small text-muted no-print mb-2"><strong>Preview</strong> — what you see is what is captured for PDF (one image per page below).</p>
+                <p class="small text-muted no-print mb-2" id="previewHint"><strong>Preview</strong> — layout matches PDF pages (raster export). Booklet view shows print order (pairs padded to a multiple of four); use arrows or wheel to step.</p>
                 <div id="previewPages"></div>
             </main>
         </div>
     </div>
 
+    <div id="bookletPageStore" aria-hidden="true"></div>
+
+    <div id="bookletMeasureMount" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;"></div>
+
     <input type="file" id="fileImagePick" accept="image/*" class="d-none">
 
+    <script src="/vendor/jgabc/jquery.min.js"></script>
+    <script src="/vendor/jgabc/exsurge.min.js"></script>
+    <script src="/vendor/jgabc/util.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="/modules/liturgy-booklet/booklet-app.js"></script>
