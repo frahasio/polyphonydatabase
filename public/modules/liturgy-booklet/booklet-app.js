@@ -478,12 +478,7 @@
   function blockTypeMeta(b) {
     const t = b.type;
     if (t === 'rubric') {
-      return {
-        icon: '',
-        color: '#8b1538',
-        label: 'Rubric',
-        svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="8" cy="2.5" r="1.7"/><path d="M8 5C7.2 5 6.5 5.4 6 6L3.5 4.2a.6.6 0 1 0-.7 1L5.5 7.5 4.2 12.5a.65.65 0 0 0 1.2.4L8 9.5l2.6 3.4a.65.65 0 0 0 1.2-.4L10.5 7.5l2.7-2.3a.6.6 0 1 0-.7-1L10 6c-.5-.6-1.2-1-2-1z"/></svg>'
-      };
+      return { icon: 'bi-person-arms-up', color: '#8b1538', label: 'Rubric' };
     }
     if (t === 'reading') {
       return { icon: 'bi-text-paragraph', color: '#0d6efd', label: 'Text' };
@@ -596,7 +591,7 @@
       'mousedown',
       function (e) {
         if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], .booklet-rich-color-pick')) return;
-        e.preventDefault();
+        if (e.target.closest('select')) return;
         const sel = window.getSelection();
         if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
           try {
@@ -1591,13 +1586,13 @@
     shell.style.width = widthPx + 'px';
     shell.style.maxWidth = widthPx + 'px';
     shell.style.boxSizing = 'border-box';
-    var bodyShell = document.createElement('div');
-    bodyShell.className = 'booklet-page-body';
-    bodyShell.style.width = '100%';
-    bodyShell.style.boxSizing = 'border-box';
+    shell.style.display = 'block';
+    shell.style.overflow = 'visible';
+    shell.style.height = 'auto';
+    shell.style.maxHeight = 'none';
+    shell.style.minHeight = '0';
     var clone = el.cloneNode(true);
-    bodyShell.appendChild(clone);
-    shell.appendChild(bodyShell);
+    shell.appendChild(clone);
     mount.appendChild(shell);
     var h = clone.offsetHeight;
     mount.innerHTML = '';
@@ -2203,6 +2198,10 @@
         if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
       }
       if (allPdf) p.classList.add('booklet-page--pdf-full');
+      var first = body.firstElementChild;
+      if (first && first.classList.contains('booklet-chant-line')) {
+        first.style.paddingTop = '6px';
+      }
     });
 
     exportPageElements = pageDivs;
@@ -2325,31 +2324,6 @@
       const meta = blockTypeMeta(b);
       const line = blockListLinePreview(b);
 
-      var vis = document.createElement('button');
-      vis.type = 'button';
-      vis.className = 'btn btn-outline-secondary';
-      vis.title = b.hidden ? 'Show in booklet' : 'Hide from booklet';
-      vis.innerHTML = b.hidden
-        ? '<i class="bi bi-eye-slash" aria-hidden="true"></i>'
-        : '<i class="bi bi-eye" aria-hidden="true"></i>';
-      vis.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        b.hidden = !b.hidden;
-        scheduleAutosave();
-        renderBlockList();
-        scheduleRenderPreview();
-      });
-
-      var dup = document.createElement('button');
-      dup.type = 'button';
-      dup.className = 'btn btn-outline-secondary';
-      dup.title = 'Duplicate section';
-      dup.innerHTML = '<i class="bi bi-copy" aria-hidden="true"></i>';
-      dup.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        duplicateBlock(b.id);
-      });
-
       var div = document.createElement('div');
       div.className =
         'block-list-item' +
@@ -2378,13 +2352,9 @@
       badge.style.backgroundColor = meta.color;
       badge.title = meta.label;
       badge.setAttribute('aria-hidden', 'true');
-      if (meta.svgIcon) {
-        badge.innerHTML = meta.svgIcon;
-      } else {
-        var ic = document.createElement('i');
-        ic.className = 'bi ' + meta.icon;
-        badge.appendChild(ic);
-      }
+      var ic = document.createElement('i');
+      ic.className = 'bi ' + meta.icon;
+      badge.appendChild(ic);
 
       var textEl = document.createElement('span');
       textEl.className = 'booklet-block-preview-text';
@@ -2398,9 +2368,52 @@
         renderEditor();
         setTimeout(function () { scrollPreviewToBlock(b.id); }, 100);
       });
-      row.appendChild(vis);
-      row.appendChild(dup);
       row.appendChild(div);
+
+      var actions = document.createElement('div');
+      actions.className = 'booklet-block-actions';
+      var vis = document.createElement('button');
+      vis.type = 'button';
+      vis.className = 'btn btn-outline-secondary';
+      vis.title = b.hidden ? 'Show' : 'Hide';
+      vis.innerHTML = b.hidden
+        ? '<i class="bi bi-eye-slash"></i>'
+        : '<i class="bi bi-eye"></i>';
+      vis.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        b.hidden = !b.hidden;
+        scheduleAutosave();
+        renderBlockList();
+        scheduleRenderPreview();
+      });
+      var dup = document.createElement('button');
+      dup.type = 'button';
+      dup.className = 'btn btn-outline-secondary';
+      dup.title = 'Duplicate';
+      dup.innerHTML = '<i class="bi bi-copy"></i>';
+      dup.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        duplicateBlock(b.id);
+      });
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'btn btn-outline-danger';
+      rm.title = 'Remove';
+      rm.innerHTML = '<i class="bi bi-trash3"></i>';
+      rm.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        state.blocks = state.blocks.filter(function (x) { return x.id !== b.id; });
+        if (selectedBlockId === b.id) selectedBlockId = null;
+        scheduleAutosave();
+        renderBlockList();
+        renderEditor();
+        scheduleRenderPreview();
+      });
+      actions.appendChild(vis);
+      actions.appendChild(dup);
+      actions.appendChild(rm);
+      row.appendChild(actions);
+
       el.appendChild(row);
     });
 
@@ -2437,8 +2450,6 @@
       scheduleRenderPreview();
     });
 
-    const rm = document.getElementById('btnRemoveBlock');
-    if (rm) rm.disabled = !selectedBlockId;
   }
 
   function renderEditor() {
@@ -3460,7 +3471,7 @@
       scheduleRenderPreview();
     });
 
-    document.getElementById('btnRemoveBlock')?.addEventListener('click', removeSelectedBlock);
+    
     document.getElementById('btnSaveProject')?.addEventListener('click', downloadJson);
     document.getElementById('btnLoadProject')?.addEventListener('click', () =>
       document.getElementById('fileLoadProject').click()
