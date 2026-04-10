@@ -918,8 +918,8 @@ router.get('/groups', async (req, res) => {
     }
 
     const toneSubquery = isArray
-      ? `(SELECT array_agg(DISTINCT t ORDER BY t) FROM compositions c, unnest(c.tone) AS t WHERE c.group_id = g.id AND c.tone IS NOT NULL)`
-      : `(SELECT array_agg(DISTINCT c.tone ORDER BY c.tone) FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL)`;
+      ? `(SELECT c.tone FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL LIMIT 1)`
+      : `(SELECT ARRAY[c.tone] FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL LIMIT 1)`;
 
     // Count query for pagination
     const countQuery = `
