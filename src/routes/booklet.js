@@ -3,6 +3,7 @@ import fs from 'fs';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { requireAuth } from '../middleware/auth.js';
+import { PDFDocument } from 'pdf-lib';
 
 const router = express.Router();
 
@@ -173,8 +174,16 @@ router.post('/pdf', requireAuth, async (req, res) => {
     }
     const page = await browser.newPage();
     await page.emulateMediaType('print');
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 120000 });
-    await page.evaluateHandle('document.fonts.ready');
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(resolve).catch(resolve);
+        } else {
+          resolve();
+        }
+      });
+    });
 
     const format = pageSize === 'A5' ? 'A5' : 'A4';
     const pdfBuffer = await page.pdf({
@@ -184,10 +193,52 @@ router.post('/pdf', requireAuth, async (req, res) => {
       preferCSSPageSize: false,
     });
 
+    const manifest = Array.isArray(req.body.manifest) ? req.body.manifest : null;
+
+    let finalBuffer;
+    if (manifest && manifest.some(e => e.type === 'edition')) {
+      const puppeteerDoc = await PDFDocument.load(pdfBuffer);
+      const finalDoc = await PDFDocument.create();
+      const editionCache = {};
+
+      for (const entry of manifest) {
+        if (entry.type === 'content') {
+          const idx = Number(entry.puppeteerPageIndex);
+          if (idx >= 0 && idx < puppeteerDoc.getPageCount()) {
+            const [copied] = await finalDoc.copyPages(puppeteerDoc, [idx]);
+            finalDoc.addPage(copied);
+          }
+        } else if (entry.type === 'edition' && entry.url) {
+          try {
+            if (!editionCache[entry.url]) {
+              const resp = await fetch(entry.url, {
+                redirect: 'follow',
+                headers: { 'User-Agent': 'PolyphonyDatabase-Booklet/1' },
+              });
+              if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
+              editionCache[entry.url] = await resp.arrayBuffer();
+            }
+            const editionDoc = await PDFDocument.load(editionCache[entry.url]);
+            const pageIdx = Math.max(0, (parseInt(entry.pdfPage, 10) || 1) - 1);
+            if (pageIdx < editionDoc.getPageCount()) {
+              const [copied] = await finalDoc.copyPages(editionDoc, [pageIdx]);
+              finalDoc.addPage(copied);
+            }
+          } catch (edErr) {
+            console.warn('booklet pdf: edition page merge failed for', entry.url, edErr.message);
+          }
+        }
+      }
+
+      finalBuffer = Buffer.from(await finalDoc.save());
+    } else {
+      finalBuffer = Buffer.from(pdfBuffer);
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="liturgy-booklet.pdf"');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(Buffer.from(pdfBuffer));
+    res.send(finalBuffer);
   } catch (err) {
     console.error('booklet pdf:', err);
     if (!res.headersSent) {

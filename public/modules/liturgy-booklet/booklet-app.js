@@ -1337,7 +1337,7 @@
       const pageHeightMm = state.settings.pageSize === 'A5' ? 210 : 297;
       const fullPageWidthPx = mmToPx(pageWidthMm);
       const fullPageHeightPx = mmToPx(pageHeightMm);
-      var PDF_DPI_MULT = 3;
+      var PDF_DPI_MULT = 1;
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
@@ -1359,6 +1359,8 @@
         unit.style.height = fullPageHeightPx + 'px';
         unit.style.maxHeight = fullPageHeightPx + 'px';
         unit.style.overflow = 'hidden';
+        unit.dataset.editionUrl = absUrl;
+        unit.dataset.editionPage = String(pNum);
         unit.appendChild(img);
         out.push(unit);
       }
@@ -3052,6 +3054,30 @@
     }
   }
 
+  function buildPdfManifestAndHtml(pages) {
+    var manifest = [];
+    var contentPages = [];
+    var puppeteerIdx = 0;
+    for (var i = 0; i < pages.length; i++) {
+      var p = pages[i];
+      if (p.classList.contains('booklet-page--pdf-full')) {
+        var body = p.querySelector('.booklet-page-body');
+        var unit = body && body.querySelector('.booklet-pdf-page-unit[data-edition-url]');
+        if (unit) {
+          manifest.push({ type: 'edition', url: unit.dataset.editionUrl, pdfPage: parseInt(unit.dataset.editionPage, 10) || 1 });
+        } else {
+          contentPages.push(p);
+          manifest.push({ type: 'content', puppeteerPageIndex: puppeteerIdx++ });
+        }
+      } else {
+        contentPages.push(p);
+        manifest.push({ type: 'content', puppeteerPageIndex: puppeteerIdx++ });
+      }
+    }
+    var html = buildBookletServerPdfHtml(contentPages);
+    return { html: html, manifest: manifest };
+  }
+
   async function downloadPdf() {
     var pages = exportPageElements.filter(function (el) { return el && el.isConnected && el.dataset.placeholder !== 'true'; });
     if (!pages.length) { alert('Add content before downloading a PDF.'); return; }
@@ -3060,10 +3086,10 @@
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Building\u2026'; }
     try {
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
-      var html = buildBookletServerPdfHtml(pages);
+      var mh = buildPdfManifestAndHtml(pages);
       var r = await fetch('/api/booklet/pdf', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ html: html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4' }),
+        body: JSON.stringify({ html: mh.html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4', manifest: mh.manifest }),
       });
       if (!r.ok) {
         var msg = 'Server PDF export failed (status ' + r.status + ').';
