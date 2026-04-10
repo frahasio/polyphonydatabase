@@ -23,10 +23,22 @@ router.post('/pdf', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Document too large' });
     }
 
-    let puppeteer;
+    let launch;
+    let chromePath = null;
     try {
       const mod = await import('puppeteer');
-      puppeteer = mod.default;
+      launch = mod.launch;
+      const fromEnv =
+        process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN || '';
+      if (typeof fromEnv === 'string' && fromEnv.trim()) {
+        chromePath = fromEnv.trim();
+      } else if (typeof mod.executablePath === 'function') {
+        try {
+          chromePath = mod.executablePath();
+        } catch (e) {
+          chromePath = null;
+        }
+      }
     } catch (impErr) {
       console.error('booklet pdf: puppeteer import failed', impErr);
       return res.status(503).json({
@@ -35,10 +47,25 @@ router.post('/pdf', requireAuth, async (req, res) => {
       });
     }
 
-    browser = await puppeteer.launch({
+    const launchOpts = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    };
+    if (chromePath) {
+      launchOpts.executablePath = chromePath;
+    }
+
+    try {
+      browser = await launch(launchOpts);
+    } catch (launchErr) {
+      console.error('booklet pdf: puppeteer launch failed', launchErr);
+      return res.status(503).json({
+        error:
+          'Chrome/Chromium is not available for PDF export. On Heroku add the Google Chrome ' +
+          'buildpack and set GOOGLE_CHROME_BIN / PUPPETEER_EXECUTABLE_PATH, or ensure ' +
+          '`npm install` runs `npx puppeteer browsers install chrome` so the browser is in the slug.',
+      });
+    }
     const page = await browser.newPage();
     await page.emulateMediaType('print');
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 120000 });

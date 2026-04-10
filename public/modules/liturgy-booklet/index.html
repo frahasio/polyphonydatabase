@@ -132,19 +132,28 @@
             margin: 1.25rem auto;
             box-sizing: border-box;
             position: relative;
-            overflow: visible;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .booklet-page[data-size="A4"] {
             width: 210mm;
+            height: 297mm;
             min-height: 297mm;
+            max-height: 297mm;
             padding: calc(var(--booklet-margin-mm) * 1mm);
         }
         .booklet-page[data-size="A5"] {
             width: 148mm;
+            height: 210mm;
             min-height: 210mm;
+            max-height: 210mm;
             padding: calc(var(--booklet-margin-mm) * 1mm);
         }
-        .booklet-page .page-inner-flow {
+        .booklet-page > .page-inner-flow {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
             font-family: var(--booklet-body-font);
             font-size: calc(11pt * var(--booklet-font-scale));
             line-height: 1.45;
@@ -200,13 +209,16 @@
         .booklet-pdf-page-unit {
             break-inside: avoid;
             page-break-inside: avoid;
-            margin: 0;
+            margin: 0 auto;
+            max-width: 100%;
+            display: block;
         }
         .booklet-pdf-page-unit img {
-            width: 100%;
-            height: auto;
             display: block;
             border: none;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
         }
         .booklet-pdf-bleed {
             margin-left: calc(-1 * var(--booklet-margin-mm) * 1mm);
@@ -364,14 +376,36 @@
             #bookletPageStore:not(:empty) .booklet-page {
                 margin: 0 !important;
                 box-shadow: none;
+                overflow: hidden !important;
                 page-break-after: always;
                 break-after: page;
+            }
+            #bookletPageStore:not(:empty) .booklet-page[data-size="A4"] {
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+            }
+            #bookletPageStore:not(:empty) .booklet-page[data-size="A5"] {
+                height: 210mm !important;
+                min-height: 210mm !important;
+                max-height: 210mm !important;
             }
             #previewPages .booklet-page {
                 box-shadow: none;
                 margin: 0;
+                overflow: hidden !important;
                 page-break-after: always;
                 break-after: page;
+            }
+            #previewPages .booklet-page[data-size="A4"] {
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+            }
+            #previewPages .booklet-page[data-size="A5"] {
+                height: 210mm !important;
+                min-height: 210mm !important;
+                max-height: 210mm !important;
             }
         }
     </style>

@@ -6,6 +6,8 @@
   const BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
+  /** Extra vertical room when packing pages (measurement vs rendered chant lines). */
+  const BOOKLET_PAGE_PACK_SLACK_PX = 14;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -502,7 +504,10 @@
     ctxt.specialCharText = function (char) {
       return defaultSpecialCharText(char).toLowerCase();
     };
-    ctxt.setRubricColor('#c62828');
+    const chantRub = String(b.chantRubricColor || '').trim();
+    ctxt.setRubricColor(
+      chantRub && /^#[0-9a-f]{6}$/i.test(chantRub) ? chantRub : '#000000'
+    );
     const sc = String(b.chantStaffColor || '').trim();
     if (sc && /^#[0-9a-f]{3,8}$/i.test(sc)) {
       ctxt.staffLineColor = sc;
@@ -632,6 +637,11 @@
         if (o.chantUseDropCap === undefined) o.chantUseDropCap = true;
         if (o.chantLyricLanguage !== 'english') o.chantLyricLanguage = 'latin';
         o.chantTextFont = normalizeChantTextFontKey(o.chantTextFont || 'crimson');
+        if (o.chantRubricColor === undefined) o.chantRubricColor = '';
+        else {
+          const cr = String(o.chantRubricColor).trim();
+          o.chantRubricColor = /^#[0-9a-f]{6}$/i.test(cr) ? cr : '';
+        }
       }
       if (o.type === 'reading') {
         if (o.translation === undefined) o.translation = '';
@@ -1051,10 +1061,11 @@
       const first = Math.min(from, pdf.numPages);
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
+      const maxBodyPx = getMaxPageBodyHeightPx();
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
-        const scale = widthPx / base.width;
+        const scale = Math.min(widthPx / base.width, maxBodyPx / base.height);
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1235,7 +1246,7 @@
 
   function packFlow(items) {
     const widthPx = getContentWidthPx();
-    const maxH = getMaxPageBodyHeightPx();
+    const maxH = getMaxPageBodyHeightPx() + BOOKLET_PAGE_PACK_SLACK_PX;
     const defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     const gapLine = 3;
     const pages = [];
@@ -1313,6 +1324,43 @@
     return null;
   }
 
+  /**
+   * Spread clones sometimes report tiny heights before SVG/text layout; prefer #bookletPageStore
+   * source pages when data-booklet-page-source-index is set.
+   */
+  function spreadPageNaturalSize(pg) {
+    const store = document.getElementById('bookletPageStore');
+    const idxStr = pg.dataset.bookletPageSourceIndex;
+    let src = null;
+    if (store && idxStr != null && idxStr !== '') {
+      const i = parseInt(idxStr, 10);
+      if (!isNaN(i) && i >= 0 && i < store.children.length) {
+        const c = store.children[i];
+        if (c && c.classList && c.classList.contains('booklet-page')) src = c;
+      }
+    }
+    const br = pg.getBoundingClientRect();
+    const ws = [pg.offsetWidth, pg.scrollWidth, br.width];
+    const hs = [pg.offsetHeight, pg.scrollHeight, br.height];
+    if (src) {
+      ws.push(src.offsetWidth, src.scrollWidth);
+      hs.push(src.offsetHeight, src.scrollHeight);
+    }
+    const nw = Math.max(
+      1,
+      ws.reduce(function (a, x) {
+        return Math.max(a, Number(x) || 0);
+      }, 0)
+    );
+    const nh = Math.max(
+      1,
+      hs.reduce(function (a, x) {
+        return Math.max(a, Number(x) || 0);
+      }, 0)
+    );
+    return { w: nw, h: nh };
+  }
+
   function scaleBookletSpread(host) {
     const slots = host.querySelectorAll('.booklet-spread-slot');
     if (slots.length !== 2) return;
@@ -1341,22 +1389,25 @@
     const has0 = !!pgs[0];
     const has1 = !!pgs[1];
     if (!has0 && !has1) return;
+    const box0 = has0 ? spreadPageNaturalSize(pgs[0]) : { w: 1, h: 1 };
+    const box1 = has1 ? spreadPageNaturalSize(pgs[1]) : { w: 1, h: 1 };
     let sc = 1;
     if (has0 && has1) {
-      const nw0 = pgs[0].offsetWidth || 1;
-      const nh0 = pgs[0].offsetHeight || 1;
-      const nw1 = pgs[1].offsetWidth || 1;
-      const nh1 = pgs[1].offsetHeight || 1;
-      sc = Math.min(slotW / nw0, slotH / nh0, slotW / nw1, slotH / nh1, 1);
+      sc = Math.min(
+        slotW / box0.w,
+        slotH / box0.h,
+        slotW / box1.w,
+        slotH / box1.h,
+        1
+      );
     } else if (has0) {
-      sc = Math.min(slotW / (pgs[0].offsetWidth || 1), slotH / (pgs[0].offsetHeight || 1), 1);
+      sc = Math.min(slotW / box0.w, slotH / box0.h, 1);
     } else {
-      sc = Math.min(slotW / (pgs[1].offsetWidth || 1), slotH / (pgs[1].offsetHeight || 1), 1);
+      sc = Math.min(slotW / box1.w, slotH / box1.h, 1);
     }
     const scaledH = [];
-    for (let i = 0; i < 2; i++) {
-      scaledH[i] = pgs[i] ? (pgs[i].offsetHeight || 1) * sc : 0;
-    }
+    scaledH[0] = has0 ? box0.h * sc : 0;
+    scaledH[1] = has1 ? box1.h * sc : 0;
     const maxScaledH = Math.max(scaledH[0], scaledH[1], 1);
     for (let i = 0; i < 2; i++) {
       const outer = outers[i];
@@ -1371,8 +1422,9 @@
         continue;
       }
       outer.classList.remove('booklet-scale-outer--empty');
-      const nw = pg.offsetWidth || 1;
-      const nh = pg.offsetHeight || 1;
+      const box = i === 0 ? box0 : box1;
+      const nw = box.w;
+      const nh = box.h;
       inner.style.width = nw + 'px';
       inner.style.height = nh + 'px';
       inner.style.transform = 'scale(' + sc + ')';
@@ -1392,6 +1444,7 @@
     leftSlot.innerHTML = '';
     rightSlot.innerHTML = '';
     const leftClone = cloneSpreadPageOrNull(pageDivs, n, v.left);
+    if (leftClone) leftClone.dataset.bookletPageSourceIndex = String(v.left);
     const lo = document.createElement('div');
     lo.className = 'booklet-scale-outer' + (leftClone ? '' : ' booklet-scale-outer--empty');
     const li = document.createElement('div');
@@ -1400,6 +1453,7 @@
     lo.appendChild(li);
     leftSlot.appendChild(lo);
     const rightClone = cloneSpreadPageOrNull(pageDivs, n, v.right);
+    if (rightClone) rightClone.dataset.bookletPageSourceIndex = String(v.right);
     const ro = document.createElement('div');
     ro.className = 'booklet-scale-outer' + (rightClone ? '' : ' booklet-scale-outer--empty');
     const ri = document.createElement('div');
@@ -1413,7 +1467,14 @@
     }
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
-        scaleBookletSpread(host);
+        const runScale = function () {
+          scaleBookletSpread(host);
+        };
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(runScale).catch(runScale);
+        } else {
+          runScale();
+        }
       });
     });
   }
@@ -2067,6 +2128,8 @@
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const csc = String(b.chantStaffColor || '').trim();
       const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
+      const crc = String(b.chantRubricColor || '').trim();
+      const crcVal = /^#[0-9a-f]{6}$/i.test(crc) ? crc : '#000000';
       const clang = b.chantLyricLanguage === 'english' ? 'english' : 'latin';
       const ctf = normalizeChantTextFontKey(b.chantTextFont);
       const chantFontOpts = [
@@ -2148,10 +2211,15 @@
             </div>
             <input type="range" class="form-range mt-0" id="edChantDropCap" min="0.5" max="1.6" step="0.05" value="${cd}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
           </div>
-          <label class="form-label mb-0" style="font-size:0.74rem">Staff colour</label>
-          <div class="d-flex align-items-center gap-2 mb-0">
+          <label class="form-label mb-0" style="font-size:0.74rem" title="Exsurge staff lines; leave GABC default when unset.">Staff lines</label>
+          <div class="d-flex align-items-center gap-2 mb-1">
             <input type="color" id="edChantStaff" class="form-control form-control-color" value="${escapeAttr(cscVal)}">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantStaffDef" title="Clear override; use staff colour from GABC header if present.">GABC default</button>
+          </div>
+          <label class="form-label mb-0" style="font-size:0.74rem" title="Asterisks, verse numbers, rubric text in chant (Exsurge setRubricColor). Default is black.">Rubric / verse marks</label>
+          <div class="d-flex align-items-center gap-2 mb-0">
+            <input type="color" id="edChantRubric" class="form-control form-control-color" value="${escapeAttr(crcVal)}">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantRubricDef" title="Use black (Exsurge default for this booklet).">Black</button>
           </div>
           </div>
         </details>
@@ -2272,6 +2340,21 @@
         renderPreview();
         renderBlockList();
       });
+      panel.querySelector('#edChantRubric')?.addEventListener('input', () => {
+        const cv = panel.querySelector('#edChantRubric').value;
+        b.chantRubricColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      panel.querySelector('#edChantRubricDef')?.addEventListener('click', () => {
+        b.chantRubricColor = '';
+        const inp = panel.querySelector('#edChantRubric');
+        if (inp) inp.value = '#000000';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
     } else if (b.type === 'jgabc_propers') {
       panel.innerHTML =
         '<p class="small text-muted">Replace this block with <strong>Chant (paste GABC)</strong> or reload after migration.</p>';
@@ -2320,6 +2403,7 @@
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
       b.chantTextFont = 'crimson';
+      b.chantRubricColor = '';
     }
     if (type !== 'page_break') {
       b.hidden = false;
