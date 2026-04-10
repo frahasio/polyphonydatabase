@@ -176,38 +176,88 @@
             border-radius: 0.375rem;
             min-height: calc(1.5em + 0.75rem + 2px);
         }
-        .tone-select2 + .select2-container {
-            min-width: 80px;
+        .tone-picker-wrap {
+            position: relative;
         }
-        .tone-select2 + .select2-container .select2-selection--multiple {
-            min-height: 28px;
-            padding: 2px 4px;
+        .tone-picker-display {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .tone-select2 + .select2-container .select2-selection--multiple .select2-selection__choice {
-            display: inline-flex !important;
-            align-items: center;
+        .tone-picker-display.has-value {
+            background-color: #e7f3ff;
+            border-color: #0d6efd;
+            font-weight: 500;
+        }
+        .tone-picker-display:not(.has-value) {
+            opacity: 0.7;
+            background-color: #f8f9fa;
+        }
+        .tone-picker-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1050;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+            padding: 8px;
+            min-width: 220px;
+            margin-top: 2px;
+        }
+        .tone-picker-panel.open { display: block; }
+        .tone-picker-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+        .tone-picker-btn {
+            width: 30px;
+            height: 26px;
+            padding: 0;
             font-size: 0.75rem;
-            padding: 0 5px;
-            margin: 1px 2px;
-            background-color: #e2e6ea;
             border: 1px solid #ced4da;
             border-radius: 3px;
-            line-height: 1.6;
-            max-height: 20px;
-        }
-        .tone-select2 + .select2-container .select2-selection--multiple .select2-selection__choice__remove {
-            float: none !important;
-            order: 1;
-            margin: 0 0 0 4px !important;
-            padding: 0 !important;
-            font-size: 0.85em;
-            color: #adb5bd;
-            font-weight: normal;
+            background: #f8f9fa;
             cursor: pointer;
-            line-height: 1;
+            text-align: center;
+            line-height: 24px;
+            transition: all 0.15s;
         }
-        .tone-select2 + .select2-container .select2-selection--multiple .select2-selection__choice__remove:hover {
-            color: #dc3545;
+        .tone-picker-btn:hover { background: #e2e6ea; }
+        .tone-picker-btn.active {
+            background: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
+        }
+        .tone-picker-btn.wide { width: auto; padding: 0 6px; }
+        .tone-connector-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #eee;
+            font-size: 0.75rem;
+        }
+        .tone-connector-btn {
+            padding: 2px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.15s;
+        }
+        .tone-connector-btn:hover { background: #e2e6ea; }
+        .tone-connector-btn.active {
+            background: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
         }
         
         /* Optional clef styling */
@@ -940,7 +990,6 @@
         function initializeAllRowInteractions() {
             initializeComposerSelects();
             updateAllDropdownStyling();
-            initializeToneSelect2();
             initializeTitleAutocomplete();
         }
 
@@ -950,23 +999,6 @@
 
             rowEl.querySelectorAll('.composition-dropdown').forEach(dropdown => {
                 updateDropdownStyling(dropdown);
-            });
-
-            $(rowEl).find('.tone-select2').each(function() {
-                if ($(this).data('select2')) return;
-                const idx = parseInt($(this).data('index'));
-                $(this).select2({
-                    placeholder: 'Tone...',
-                    allowClear: true,
-                    width: '100%',
-                    templateSelection: function(data) {
-                        if (!data.id) return data.text;
-                        return $('<span>').text(toneShortLabels[data.id] || data.id);
-                    }
-                }).on('change', function() {
-                    const vals = $(this).val() || [];
-                    updateCompositionField(idx, 'tone', vals);
-                });
             });
 
             rowEl.querySelectorAll('.title-autocomplete').forEach(input => {
@@ -1125,6 +1157,7 @@
                     title_text: '',
                     composition_type_name: '',
                     tone: null,
+                    tone_connector: null,
                     even_odd: null,
                     composer_names: []
                 }
@@ -1253,10 +1286,7 @@
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label small">Tone</label>
-                                    <select class="form-control form-control-sm tone-select2" multiple
-                                            data-index="${index}">
-                                        ${buildToneOptions(inclusion.composition?.tone)}
-                                    </select>
+                                    ${buildTonePicker(index, inclusion.composition?.tone, inclusion.composition?.tone_connector)}
                                 </div>
                                 <div class="col-4">
                                     <label class="form-label small">Even/Odd</label>
@@ -1314,23 +1344,6 @@
         let compositionTypes = [];
         let allPublishers = [];
         let allScribes = [];
-        const toneOptions = {
-            "1": "primi toni",
-            "2": "secundi toni",
-            "3": "tertii toni",
-            "4": "quarti toni",
-            "5": "quinti toni",
-            "6": "sexti toni",
-            "7": "septimi toni",
-            "8": "octavi toni",
-            "9": "noni toni",
-            "10": "decimi toni",
-            "11": "undecimi toni",
-            "12": "duodecimi toni",
-            "mix": "mixti toni",
-            "per": "peregrini toni",
-            "pro": "proprii toni"
-        };
         const toneShortLabels = {
             "1": "1", "2": "2", "3": "3", "4": "4", "5": "5",
             "6": "6", "7": "7", "8": "8", "9": "9", "10": "10",
@@ -1397,11 +1410,38 @@
             }).join('');
         }
 
-        function buildToneOptions(selectedTones) {
-            const selected = Array.isArray(selectedTones) ? selectedTones : (selectedTones ? [selectedTones] : []);
-            return Object.entries(toneOptions).map(([value, label]) => 
-                `<option value="${value}" ${selected.includes(value) ? 'selected' : ''}>${label}</option>`
+        function buildTonePicker(index, selectedTones, connector) {
+            const selected = Array.isArray(selectedTones) ? selectedTones : (selectedTones ? [String(selectedTones)] : []);
+            const conn = connector || 'et';
+            const displayText = selected.length > 0
+                ? (selected.length >= 2
+                    ? selected.map(t => toneShortLabels[t] || t).join(` ${conn} `)
+                    : selected.map(t => toneShortLabels[t] || t).join(', '))
+                : '';
+
+            const numBtns = ['1','2','3','4','5','6','7','8','9','10','11','12'].map(v =>
+                `<button type="button" class="tone-picker-btn ${selected.includes(v) ? 'active' : ''}" data-tone="${v}" onclick="toggleTone(${index},'${v}')">${v}</button>`
             ).join('');
+            const specialBtns = ['mix','per','pro'].map(v =>
+                `<button type="button" class="tone-picker-btn wide ${selected.includes(v) ? 'active' : ''}" data-tone="${v}" onclick="toggleTone(${index},'${v}')">${v}</button>`
+            ).join('');
+
+            const connectorRow = `
+                <div class="tone-connector-row" id="connectorRow-${index}" style="${selected.length >= 2 ? '' : 'display:none'}">
+                    <span>Joiner:</span>
+                    <button type="button" class="tone-connector-btn ${conn === 'et' ? 'active' : ''}" onclick="setToneConnector(${index},'et')">et</button>
+                    <button type="button" class="tone-connector-btn ${conn === 'vel' ? 'active' : ''}" onclick="setToneConnector(${index},'vel')">vel</button>
+                </div>`;
+
+            return `
+                <div class="tone-picker-wrap" data-index="${index}">
+                    <div class="form-control form-control-sm tone-picker-display ${displayText ? 'has-value' : ''}"
+                         onclick="openTonePicker(${index})">${displayText || '<span style="color:#adb5bd">Tone...</span>'}</div>
+                    <div class="tone-picker-panel" id="tonePanel-${index}">
+                        <div class="tone-picker-grid">${numBtns}${specialBtns}</div>
+                        ${connectorRow}
+                    </div>
+                </div>`;
         }
 
         function buildEvenOddOptions(selectedValue) {
@@ -1418,24 +1458,66 @@
             }).join('');
         }
 
-        function initializeToneSelect2() {
-            $('.tone-select2').each(function() {
-                if ($(this).data('select2')) return;
-                const idx = parseInt($(this).data('index'));
-                $(this).select2({
-                    placeholder: 'Tone...',
-                    allowClear: true,
-                    width: '100%',
-                    templateSelection: function(data) {
-                        if (!data.id) return data.text;
-                        return $('<span>').text(toneShortLabels[data.id] || data.id);
-                    }
-                }).on('change', function() {
-                    const vals = $(this).val() || [];
-                    updateCompositionField(idx, 'tone', vals);
-                });
-            });
+        function openTonePicker(index) {
+            const panel = document.getElementById('tonePanel-' + index);
+            const isOpen = panel.classList.contains('open');
+            closeTonePickers();
+            if (!isOpen) panel.classList.add('open');
         }
+
+        function closeTonePickers() {
+            document.querySelectorAll('.tone-picker-panel.open').forEach(p => p.classList.remove('open'));
+        }
+
+        function toggleTone(index, value) {
+            if (!inclusionsData[index]) inclusionsData[index] = createBlankInclusion();
+            if (!inclusionsData[index].composition) inclusionsData[index].composition = {};
+            let arr = Array.isArray(inclusionsData[index].composition.tone) ? [...inclusionsData[index].composition.tone] : [];
+            const pos = arr.indexOf(value);
+            if (pos >= 0) arr.splice(pos, 1); else arr.push(value);
+            updateCompositionField(index, 'tone', arr);
+            refreshTonePicker(index);
+        }
+
+        function setToneConnector(index, connector) {
+            updateCompositionField(index, 'tone_connector', connector);
+            refreshTonePicker(index);
+        }
+
+        function refreshTonePicker(index) {
+            const wrap = document.querySelector(`.tone-picker-wrap[data-index="${index}"]`);
+            if (!wrap) return;
+            const tones = inclusionsData[index]?.composition?.tone || [];
+            const conn = inclusionsData[index]?.composition?.tone_connector || 'et';
+
+            const display = wrap.querySelector('.tone-picker-display');
+            if (tones.length > 0) {
+                const text = tones.length >= 2
+                    ? tones.map(t => toneShortLabels[t] || t).join(` ${conn} `)
+                    : tones.map(t => toneShortLabels[t] || t).join(', ');
+                display.textContent = text;
+                display.classList.add('has-value');
+            } else {
+                display.innerHTML = '<span style="color:#adb5bd">Tone...</span>';
+                display.classList.remove('has-value');
+            }
+
+            wrap.querySelectorAll('.tone-picker-btn').forEach(btn => {
+                btn.classList.toggle('active', tones.includes(btn.dataset.tone));
+            });
+
+            const connRow = document.getElementById('connectorRow-' + index);
+            if (connRow) {
+                connRow.style.display = tones.length >= 2 ? '' : 'none';
+                connRow.querySelectorAll('.tone-connector-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent === conn);
+                });
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.tone-picker-wrap')) closeTonePickers();
+        });
 
         function buildClefInputs(clefs, inclusionIndex) {
             // Sort clefs by standard display order before displaying
@@ -1619,6 +1701,8 @@
             } else if (field === 'tone') {
                 const arr = Array.isArray(value) ? value.filter(v => v) : (value ? [value] : []);
                 inclusionsData[index].composition[field] = arr.length > 0 ? arr : null;
+            } else if (field === 'tone_connector') {
+                inclusionsData[index].composition.tone_connector = value || null;
             } else {
                 inclusionsData[index].composition[field] = value || null;
             }

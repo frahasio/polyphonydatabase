@@ -357,6 +357,7 @@ router.get('/:id', async (req, res) => {
         ct.name as composition_type_name,
         c.composition_type_id,
         c.tone,
+        c.tone_connector,
         c.even_odd,
         c.number_of_voices,
         COALESCE(cn.names, '[]'::json) as composer_names
@@ -403,6 +404,7 @@ router.get('/:id', async (req, res) => {
         composition_type_name: row.composition_type_name,
         composition_type_id: row.composition_type_id,
         tone: row.tone,
+        tone_connector: row.tone_connector,
         even_odd: row.even_odd,
         number_of_voices: row.number_of_voices,
         composer_names: row.composer_names || []
@@ -776,9 +778,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             }
           }
           
-          // Process tone and even_odd
+          // Process tone, tone_connector and even_odd
           let tone = tempInclusion.tone;
           if (tone !== null) tone = await convertToneToString(tone);
+          const toneConnector = tempInclusion.tone_connector || null;
           
           let evenOdd = tempInclusion.even_odd;
           if (evenOdd === 'even') evenOdd = 0;
@@ -831,9 +834,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             groupId = newGroupResult.rows[0].id;
             
             const compositionResult = await client.query(`
-              INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-            `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+              INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+            `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoices, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
             compositionId = compositionResult.rows[0].id;
           }
           
@@ -931,9 +934,10 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         }
       }
 
-      // Process tone and even_odd
+      // Process tone, tone_connector and even_odd
       let tone = inclusion.composition.tone;
       if (tone !== null && tone !== undefined) tone = await convertToneToString(tone);
+      const toneConnector = inclusion.composition.tone_connector || null;
       
       let evenOdd = inclusion.composition.even_odd;
       if (evenOdd === 'even') evenOdd = 0;
@@ -1039,12 +1043,13 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                     title_id = $1,
                     composition_type_id = $2,
                     tone = $3,
-                    even_odd = $4,
-                    number_of_voices = $5,
-                    composer_id_list = $6,
-                    updated_at = $7
-                  WHERE id = $8
-                `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, now, currentComposition.id]);
+                    tone_connector = $4,
+                    even_odd = $5,
+                    number_of_voices = $6,
+                    composer_id_list = $7,
+                    updated_at = $8
+                  WHERE id = $9
+                `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, now, currentComposition.id]);
                 compositionId = currentComposition.id;
                 groupId = currentComposition.group_id;
                 // If no group, create one
@@ -1064,9 +1069,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                 groupId = newGroupResult.rows[0].id;
                 
                 const compositionResult = await client.query(`
-                  INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-                `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+                  INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+                `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
                 compositionId = compositionResult.rows[0].id;
                 console.log(`  - Created new composition ID: ${compositionId}`);
               }
@@ -1078,9 +1083,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
               groupId = newGroupResult.rows[0].id;
               
               const compositionResult = await client.query(`
-                INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-              `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+                INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+              `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
               compositionId = compositionResult.rows[0].id;
             }
           } else {
@@ -1091,9 +1096,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             groupId = newGroupResult.rows[0].id;
             
             const compositionResult = await client.query(`
-              INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-            `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+              INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+            `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
             compositionId = compositionResult.rows[0].id;
           }
         } else {
@@ -1104,9 +1109,9 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           groupId = newGroupResult.rows[0].id;
           
           const compositionResult = await client.query(`
-            INSERT INTO compositions (title_id, composition_type_id, tone, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id
-          `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
+            INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+          `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
           compositionId = compositionResult.rows[0].id;
         }
       }

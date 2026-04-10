@@ -947,6 +947,12 @@ router.get('/groups', async (req, res) => {
         ) as voice_counts,
         ${toneSubquery} as tone,
         (
+          SELECT c.tone_connector
+          FROM compositions c
+          WHERE c.group_id = g.id AND c.tone_connector IS NOT NULL
+          LIMIT 1
+        ) as tone_connector,
+        (
           SELECT DISTINCT c.even_odd
           FROM compositions c
           WHERE c.group_id = g.id AND c.even_odd IS NOT NULL

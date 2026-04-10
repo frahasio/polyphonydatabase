@@ -838,11 +838,12 @@
             "mix": "mixti", "per": "peregrini", "pro": "proprii"
         };
 
-        function formatToneDisplay(tone) {
+        function formatToneDisplay(tone, connector) {
             if (!tone) return '';
             const arr = Array.isArray(tone) ? tone : [tone];
             if (arr.length === 0) return '';
-            return arr.map(t => toneMapping[t] || t).join(' et ') + ' toni';
+            const joiner = (connector === 'vel') ? ' vel ' : ' et ';
+            return arr.map(t => toneMapping[t] || t).join(joiner) + ' toni';
         }
         
         const evenOddMapping = {
@@ -873,7 +874,7 @@
                         <div class="flex-grow-1">
                             <h6 class="mb-2">
                                 <strong>${group.display_title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
+                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.tone_connector)}</span>` : ''}
                                 ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
                             </h6>
                             <div class="group-info">
@@ -955,6 +956,7 @@
                         voices: group.number_of_voices,
                         compositionType: group.composition_type,
                         tone: group.tone,
+                        toneConnector: group.tone_connector,
                         evenOdd: group.even_odd,
                         compositions: group.compositions_detail || []
                     };
@@ -1255,7 +1257,7 @@
                         <div class="mb-1">
                             <strong>${comp.title || 'Untitled'}</strong>
                             ${comp.composition_type ? `<span class="badge bg-info ms-1">${comp.composition_type}</span>` : ''}
-                            ${comp.tone ? `<span class="text-muted ms-1">${formatToneDisplay(comp.tone)}</span>` : ''}
+                            ${comp.tone ? `<span class="text-muted ms-1">${formatToneDisplay(comp.tone, comp.tone_connector)}</span>` : ''}
                             ${comp.even_odd !== null && comp.even_odd !== undefined ? `<span class="text-muted ms-1">(${evenOddMapping[comp.even_odd] || comp.even_odd})</span>` : ''}
                             ${comp.composer ? `<span class="text-muted ms-1">— ${comp.composer}</span>` : ''}
                         </div>
@@ -1517,7 +1519,7 @@
                         <div>
                             <h6 class="mb-1">
                                 <strong>${group.title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
+                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.toneConnector)}</span>` : ''}
                                 ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.evenOdd] || group.evenOdd})</span>` : ''}
                             </h6>
                             <div class="text-muted small">

@@ -435,13 +435,16 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="container-fluid">
+        <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between gap-2">
             <a class="navbar-brand" href="/">
                 <i class="bi bi-music-note-beamed me-2"></i>
                 The Polyphony Database
             </a>
-            <div class="navbar-text text-white">
-                <small>
+            <div class="d-flex align-items-center gap-2 text-white">
+                <a id="bookletNavLink" href="/booklet" class="admin-link" style="display: none;" title="Liturgy booklet creator (signed in)">
+                    <i class="bi bi-journal-richtext me-1"></i>Liturgy booklet
+                </a>
+                <small class="navbar-text text-white mb-0">
                     <i class="bi bi-envelope me-1"></i>
                     <a href="mailto:polyphonydatabase@gmail.com" class="text-white text-decoration-none">polyphonydatabase@gmail.com</a>
                 </small>
@@ -895,7 +898,11 @@
         let isUserLoggedIn = false;
 
         document.addEventListener('DOMContentLoaded', async function() {
-            checkAuthStatus();
+            await checkAuthStatus();
+            const bookletNav = document.getElementById('bookletNavLink');
+            if (bookletNav) {
+                bookletNav.style.display = isUserLoggedIn ? 'inline-flex' : 'none';
+            }
             initializeInterface();
             // Ensure SVG clef files are loaded before rendering explainer icons
             await window.clefRenderer.preloadClefs();
@@ -2275,12 +2282,12 @@
             "mix": "mixti", "per": "peregrini", "pro": "proprii"
         };
 
-        function formatToneDisplay(tone) {
+        function formatToneDisplay(tone, connector) {
             if (!tone) return '';
             const arr = Array.isArray(tone) ? tone : [tone];
             if (arr.length === 0) return '';
-            const names = arr.map(t => toneMapping[t] || t);
-            return names.join(' et ') + ' toni';
+            const joiner = (connector === 'vel') ? ' vel ' : ' et ';
+            return arr.map(t => toneMapping[t] || t).join(joiner) + ' toni';
         }
             
             const evenOddMapping = {
@@ -2293,7 +2300,7 @@
                 <tr>
                     <td>
                         <strong>${group.display_title || 'Untitled'}</strong>
-                        ${group.tone && group.tone.length ? ` <span class="text-muted">${formatToneDisplay(group.tone)}</span>` : ''}
+                        ${group.tone && group.tone.length ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.tone_connector)}</span>` : ''}
                         ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
                         ${(group.editions || []).map(edition => `
                             <div class="mt-1">

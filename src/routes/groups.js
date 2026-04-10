@@ -336,7 +336,7 @@ router.get('/:id', async (req, res) => {
         // Get compositions in this group
         const compositionsResult = await pool.query(`
             SELECT c.id, t.text as title, c.number_of_voices,
-                   ct.name as composition_type, c.tone, c.even_odd,
+                   ct.name as composition_type, c.tone, c.tone_connector, c.even_odd,
                    (
                      SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
                      FROM composers comp
@@ -545,6 +545,7 @@ router.get('/', async (req, res) => {
                 c.number_of_voices,
                 ct.name as composition_type,
                 c.tone,
+                c.tone_connector,
                 c.even_odd,
                 -- Composers for the group
                 (
@@ -562,7 +563,7 @@ router.get('/', async (req, res) => {
             LEFT JOIN editions e ON e.group_id = g.id
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
-            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name, c.tone, c.even_odd
+            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name, c.tone, c.tone_connector, c.even_odd
             ORDER BY ${sort === 'title' ? 'g.display_title' : 'g.updated_at DESC'}
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;
@@ -1087,6 +1088,7 @@ router.get('/:id/compositions', async (req, res) => {
                 c.number_of_voices,
                 ct.name as composition_type,
                 c.tone,
+                c.tone_connector,
                 c.even_odd,
                 (
                   SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
