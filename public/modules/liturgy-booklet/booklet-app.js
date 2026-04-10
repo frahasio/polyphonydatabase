@@ -1340,10 +1340,11 @@
       const pageHeightMm = state.settings.pageSize === 'A5' ? 210 : 297;
       const fullPageWidthPx = mmToPx(pageWidthMm);
       const fullPageHeightPx = mmToPx(pageHeightMm);
+      var PDF_DPI_MULT = 3;
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
-        const scale = fullPageWidthPx / base.width;
+        const scale = (fullPageWidthPx * PDF_DPI_MULT) / base.width;
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1353,6 +1354,8 @@
         const img = document.createElement('img');
         img.src = canvas.toDataURL('image/png');
         img.alt = 'PDF page ' + pNum;
+        img.style.width = fullPageWidthPx + 'px';
+        img.style.height = 'auto';
         img.style.objectPosition = 'top center';
         const unit = document.createElement('div');
         unit.className = 'booklet-pdf-page-unit booklet-pdf-bleed';
@@ -1737,6 +1740,7 @@
 
   function reflowBookletPagesUntilNoOverflow(pageDivs, sizeStr, sinkEl) {
     var EPS = 4, iterations = 0, MAX_ITER = 80000;
+    var bodyHPx = getMaxPageBodyHeightPx();
     function ensurePageAt(idx) {
       while (pageDivs.length <= idx) {
         var page = document.createElement('div');
@@ -1746,6 +1750,11 @@
         inner.className = 'page-inner-flow';
         var body = document.createElement('div');
         body.className = 'booklet-page-body';
+        body.style.display = 'block';
+        body.style.height = bodyHPx + 'px';
+        body.style.maxHeight = bodyHPx + 'px';
+        body.style.minHeight = bodyHPx + 'px';
+        body.style.overflow = 'hidden';
         inner.appendChild(body);
         page.appendChild(inner);
         pageDivs.push(page);
@@ -1858,8 +1867,8 @@
     if (slots.length !== 2) return;
     var slotW = slots[0].clientWidth;
     var slotH = slots[0].clientHeight;
-    if (slotW <= 10 || slotH <= 10) {
-      setTimeout(function () { scaleBookletSpread(host); }, 200);
+    if (slotW <= 100 || slotH <= 100) {
+      setTimeout(function () { scaleBookletSpread(host); }, 250);
       return;
     }
     var outers = [];
@@ -1900,7 +1909,8 @@
     } else {
       sc = Math.min(slotW / box1.w, slotH / box1.h, 1);
     }
-    const scaledH = [];
+    sc = Math.max(sc, 0.15);
+    var scaledH = [];
     scaledH[0] = has0 ? box0.h * sc : 0;
     scaledH[1] = has1 ? box1.h * sc : 0;
     const maxScaledH = Math.max(scaledH[0], scaledH[1], 1);
@@ -2144,7 +2154,19 @@
     sink.setAttribute('aria-hidden', 'true');
     sink.style.cssText = 'position:fixed;left:-120vw;top:0;width:auto;height:auto;overflow:visible;opacity:0;pointer-events:none;z-index:-9999;';
     document.body.appendChild(sink);
-    pageDivs.forEach(function (p) { sink.appendChild(p); });
+
+    var pageBodyHPx = getMaxPageBodyHeightPx();
+    pageDivs.forEach(function (p) {
+      var body = p.querySelector('.booklet-page-body');
+      if (body) {
+        body.style.display = 'block';
+        body.style.height = pageBodyHPx + 'px';
+        body.style.maxHeight = pageBodyHPx + 'px';
+        body.style.minHeight = pageBodyHPx + 'px';
+        body.style.overflow = 'hidden';
+      }
+      sink.appendChild(p);
+    });
 
     await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
     if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { /* ignore */ } }
@@ -2155,6 +2177,17 @@
     stripBookletExportFooters(pageDivs);
     appendCreditsFooterToLastPage(pageDivs);
     trimTrailingEmptyBookletPages(pageDivs);
+
+    pageDivs.forEach(function (p) {
+      var body = p.querySelector('.booklet-page-body');
+      if (body) {
+        body.style.display = '';
+        body.style.height = '';
+        body.style.maxHeight = '';
+        body.style.minHeight = '';
+        body.style.overflow = '';
+      }
+    });
 
     document.body.removeChild(sink);
 
@@ -2832,12 +2865,14 @@
         }
         <div class="small border rounded px-2 py-1 mt-1 bg-light">
           <div class="mt-1 pb-1">
-          <label class="form-label mb-0" style="font-size:0.74rem">Chant size</label>
-          <select id="edChantSizePreset" class="form-select form-select-sm mb-2">
-            <option value="small"${cn <= 18 ? ' selected' : ''}>Small</option>
-            <option value="medium"${cn > 18 && cn <= 27 ? ' selected' : ''}>Medium (default)</option>
-            <option value="large"${cn > 27 ? ' selected' : ''}>Large</option>
-          </select>
+          <div class="mb-2" style="font-size:0.72rem">
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><div class="btn-group btn-group-sm" data-chant-prop="chantNeumeSize" data-s="21" data-m="23" data-l="25"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><div class="btn-group btn-group-sm" data-chant-prop="chantGlyphScale" data-s="1.26" data-m="1.4" data-l="1.54"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>System gap</span><div class="btn-group btn-group-sm" data-chant-prop="chantSystemGap" data-s="0" data-m="1" data-l="2"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Tightness</span><div class="btn-group btn-group-sm" data-chant-prop="chantLyricTight" data-s="1.2" data-m="1.1" data-l="1.0"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Line pad</span><div class="btn-group btn-group-sm" data-chant-prop="chantLinePadTop" data-s="0" data-m="2" data-l="4"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><div class="btn-group btn-group-sm" data-chant-prop="chantDropCapScale" data-s="0.9" data-m="1.0" data-l="1.1"></div></div>
+          </div>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
             <label class="form-check-label" for="edChantUseDropCap">Drop cap</label>
@@ -2890,22 +2925,38 @@
         scheduleRenderPreview();
         renderBlockList();
       });
-      var CHANT_SIZE_PRESETS = {
-        small:  { chantNeumeSize: 17, chantGlyphScale: 1.0, chantSystemGap: 0, chantLyricTight: 1.3, chantLinePadTop: 0, chantDropCapScale: 0.8 },
-        medium: { chantNeumeSize: 23, chantGlyphScale: 1.4, chantSystemGap: 1, chantLyricTight: 1.1, chantLinePadTop: 2, chantDropCapScale: 1.0 },
-        large:  { chantNeumeSize: 30, chantGlyphScale: 1.8, chantSystemGap: 3, chantLyricTight: 0.9, chantLinePadTop: 4, chantDropCapScale: 1.2 },
-      };
-      panel.querySelector('#edChantSizePreset')?.addEventListener('change', function () {
-        var preset = CHANT_SIZE_PRESETS[this.value] || CHANT_SIZE_PRESETS.medium;
-        b.chantNeumeSize = preset.chantNeumeSize;
-        b.chantGlyphScale = preset.chantGlyphScale;
-        b.chantSystemGap = preset.chantSystemGap;
-        b.chantLyricTight = preset.chantLyricTight;
-        b.chantLinePadTop = preset.chantLinePadTop;
-        b.chantDropCapScale = preset.chantDropCapScale;
-        scheduleAutosave();
-        scheduleRenderPreview();
-        renderBlockList();
+      panel.querySelectorAll('[data-chant-prop]').forEach(function (grp) {
+        var prop = grp.dataset.chantProp;
+        var vals = { s: parseFloat(grp.dataset.s), m: parseFloat(grp.dataset.m), l: parseFloat(grp.dataset.l) };
+        var cur = b[prop] != null ? Number(b[prop]) : vals.m;
+        ['s', 'm', 'l'].forEach(function (key) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = key.toUpperCase();
+          var isActive = Math.abs(cur - vals[key]) <= Math.abs(cur - vals.s) && Math.abs(cur - vals[key]) <= Math.abs(cur - vals.m) && Math.abs(cur - vals[key]) <= Math.abs(cur - vals.l);
+          btn.className = 'btn ' + (isActive ? 'btn-primary' : 'btn-outline-secondary');
+          btn.style.fontSize = '0.6rem';
+          btn.style.padding = '0.1rem 0.35rem';
+          btn.addEventListener('click', function () {
+            b[prop] = vals[key];
+            grp.querySelectorAll('.btn').forEach(function (b2) { b2.className = 'btn btn-outline-secondary'; b2.style.fontSize = '0.6rem'; b2.style.padding = '0.1rem 0.35rem'; });
+            btn.className = 'btn btn-primary';
+            btn.style.fontSize = '0.6rem';
+            btn.style.padding = '0.1rem 0.35rem';
+            scheduleAutosave();
+            scheduleRenderPreview();
+            renderBlockList();
+          });
+          grp.appendChild(btn);
+        });
+        var closest = 'm';
+        var minDist = Math.abs(cur - vals.m);
+        if (Math.abs(cur - vals.s) < minDist) { closest = 's'; minDist = Math.abs(cur - vals.s); }
+        if (Math.abs(cur - vals.l) < minDist) { closest = 'l'; }
+        var btns = grp.querySelectorAll('.btn');
+        btns.forEach(function (b2) { b2.className = 'btn btn-outline-secondary'; b2.style.fontSize = '0.6rem'; b2.style.padding = '0.1rem 0.35rem'; });
+        var idx = closest === 's' ? 0 : closest === 'l' ? 2 : 1;
+        if (btns[idx]) { btns[idx].className = 'btn btn-primary'; btns[idx].style.fontSize = '0.6rem'; btns[idx].style.padding = '0.1rem 0.35rem'; }
       });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
