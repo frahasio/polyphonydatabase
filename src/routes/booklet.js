@@ -1,9 +1,56 @@
 import express from 'express';
+import fs from 'fs';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+
+function chromeBinaryExists(p) {
+  if (!p || typeof p !== 'string') return false;
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Heroku: Puppeteer's cached Chrome path from build often is missing at runtime in the slug.
+ * Prefer a real file: env vars, then common apt paths (Google Chrome buildpack), then Puppeteer
+ * only if that path exists.
+ */
+function resolveChromeExecutable(puppeteerModule) {
+  const envPath = (
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.GOOGLE_CHROME_BIN ||
+    ''
+  ).trim();
+  if (chromeBinaryExists(envPath)) return envPath;
+
+  const candidates = [
+    '/app/.apt/usr/bin/google-chrome-stable',
+    '/app/.apt/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+  ];
+  for (const p of candidates) {
+    if (chromeBinaryExists(p)) return p;
+  }
+
+  if (puppeteerModule && typeof puppeteerModule.executablePath === 'function') {
+    try {
+      const cached = puppeteerModule.executablePath();
+      if (chromeBinaryExists(cached)) return cached;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return null;
+}
 
 /**
  * Booklet PDF: headless Chromium via Puppeteer. Matches on-screen print CSS more closely than
@@ -24,21 +71,10 @@ router.post('/pdf', requireAuth, async (req, res) => {
     }
 
     let launch;
-    let chromePath = null;
+    let mod;
     try {
-      const mod = await import('puppeteer');
+      mod = await import('puppeteer');
       launch = mod.launch;
-      const fromEnv =
-        process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN || '';
-      if (typeof fromEnv === 'string' && fromEnv.trim()) {
-        chromePath = fromEnv.trim();
-      } else if (typeof mod.executablePath === 'function') {
-        try {
-          chromePath = mod.executablePath();
-        } catch (e) {
-          chromePath = null;
-        }
-      }
     } catch (impErr) {
       console.error('booklet pdf: puppeteer import failed', impErr);
       return res.status(503).json({
@@ -46,6 +82,8 @@ router.post('/pdf', requireAuth, async (req, res) => {
           'PDF engine unavailable. Run npm install on the server (Puppeteer bundles Chromium).',
       });
     }
+
+    const chromePath = resolveChromeExecutable(mod);
 
     const launchOpts = {
       headless: true,
@@ -61,9 +99,11 @@ router.post('/pdf', requireAuth, async (req, res) => {
       console.error('booklet pdf: puppeteer launch failed', launchErr);
       return res.status(503).json({
         error:
-          'Chrome/Chromium is not available for PDF export. On Heroku add the Google Chrome ' +
-          'buildpack and set GOOGLE_CHROME_BIN / PUPPETEER_EXECUTABLE_PATH, or ensure ' +
-          '`npm install` runs `npx puppeteer browsers install chrome` so the browser is in the slug.',
+          'Chrome/Chromium is not available for PDF export. On Heroku: add the ' +
+          '"Google Chrome" buildpack (heroku-buildpack-google-chrome), deploy, then run ' +
+          'heroku config:set PUPPETEER_EXECUTABLE_PATH=/app/.apt/usr/bin/google-chrome-stable ' +
+          'and PUPPETEER_SKIP_DOWNLOAD=true (or set GOOGLE_CHROME_BIN to that path). ' +
+          'Alternatively ensure Puppeteer’s downloaded browser exists in the slug (see build logs for postinstall).',
       });
     }
     const page = await browser.newPage();

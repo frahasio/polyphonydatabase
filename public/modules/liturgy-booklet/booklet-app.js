@@ -1062,10 +1062,12 @@
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
       const maxBodyPx = getMaxPageBodyHeightPx();
+      const marginPx = mmToPx(BOOKLET_MARGIN_MM);
+      const bleedWidthPx = widthPx + 2 * marginPx;
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
-        const scale = Math.min(widthPx / base.width, maxBodyPx / base.height);
+        const scale = bleedWidthPx / base.width;
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1075,8 +1077,12 @@
         const img = document.createElement('img');
         img.src = canvas.toDataURL('image/png');
         img.alt = 'PDF page ' + pNum;
+        img.style.objectPosition = 'top center';
         const unit = document.createElement('div');
         unit.className = 'booklet-pdf-page-unit booklet-pdf-bleed';
+        unit.style.height = maxBodyPx + 'px';
+        unit.style.maxHeight = maxBodyPx + 'px';
+        unit.style.overflow = 'hidden';
         unit.appendChild(img);
         out.push(unit);
       }
@@ -1331,34 +1337,24 @@
   function spreadPageNaturalSize(pg) {
     const store = document.getElementById('bookletPageStore');
     const idxStr = pg.dataset.bookletPageSourceIndex;
-    let src = null;
     if (store && idxStr != null && idxStr !== '') {
       const i = parseInt(idxStr, 10);
       if (!isNaN(i) && i >= 0 && i < store.children.length) {
-        const c = store.children[i];
-        if (c && c.classList && c.classList.contains('booklet-page')) src = c;
+        const src = store.children[i];
+        if (src && src.classList && src.classList.contains('booklet-page')) {
+          const br = src.getBoundingClientRect();
+          return {
+            w: Math.max(1, src.offsetWidth, src.scrollWidth, br.width),
+            h: Math.max(1, src.offsetHeight, src.scrollHeight, br.height),
+          };
+        }
       }
     }
     const br = pg.getBoundingClientRect();
-    const ws = [pg.offsetWidth, pg.scrollWidth, br.width];
-    const hs = [pg.offsetHeight, pg.scrollHeight, br.height];
-    if (src) {
-      ws.push(src.offsetWidth, src.scrollWidth);
-      hs.push(src.offsetHeight, src.scrollHeight);
-    }
-    const nw = Math.max(
-      1,
-      ws.reduce(function (a, x) {
-        return Math.max(a, Number(x) || 0);
-      }, 0)
-    );
-    const nh = Math.max(
-      1,
-      hs.reduce(function (a, x) {
-        return Math.max(a, Number(x) || 0);
-      }, 0)
-    );
-    return { w: nw, h: nh };
+    return {
+      w: Math.max(1, pg.offsetWidth, pg.scrollWidth, br.width),
+      h: Math.max(1, pg.offsetHeight, pg.scrollHeight, br.height),
+    };
   }
 
   function scaleBookletSpread(host) {
