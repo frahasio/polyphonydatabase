@@ -6,7 +6,8 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  
+  const BOOKLET_PAGE_PACK_SLACK_PX = 14;
+  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 48;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -66,6 +67,15 @@
   let lastBookletSpreadPageCount = -1;
   /** @type {AbortController | null} */
   let editionSearchAbort = null;
+  let renderPreviewTimer = null;
+
+  function scheduleRenderPreview() {
+    if (renderPreviewTimer) clearTimeout(renderPreviewTimer);
+    renderPreviewTimer = setTimeout(function () {
+      renderPreviewTimer = null;
+      renderPreview();
+    }, 250);
+  }
 
   function uid() {
     return 'b_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
@@ -220,6 +230,10 @@
     return Math.max(120, mmToPx(pageH - 2 * m));
   }
 
+  function getPackMaxBodyHeightPx() {
+    return Math.max(100, getMaxPageBodyHeightPx() + BOOKLET_PAGE_PACK_SLACK_PX - BOOKLET_PAGE_FOOTER_RESERVE_PX);
+  }
+
   
 
   function escapeHtml(s) {
@@ -263,6 +277,13 @@
         if (num > 0 && num <= 72) {
           parts.push('font-size:' + raw);
         }
+      }
+    }
+    const ta = st.match(/text-align\s*:\s*([^;]+)/i);
+    if (ta) {
+      const v = ta[1].trim().toLowerCase();
+      if (/^(left|center|right|justify|start|end)$/.test(v)) {
+        parts.push('text-align:' + v);
       }
     }
     return parts.join(';');
@@ -337,19 +358,10 @@
       }
       if (tag === 'p' || tag === 'div') {
         const st = node.getAttribute('style') || '';
-        const am = st.match(/text-align\s*:\s*([^;]+)/i);
-        let ta = '';
-        if (am) {
-          const v = am[1].trim().toLowerCase();
-          if (v === 'left' || v === 'right' || v === 'center' || v === 'justify') ta = v;
-        }
-        const inline = sanitizeRichInlineStyle(st);
-        if (ta || inline) {
+        const safe = sanitizeRichInlineStyle(st);
+        if (safe) {
           const el = document.createElement(tag);
-          const bits = [];
-          if (ta) bits.push('text-align:' + ta);
-          if (inline) bits.push(inline);
-          el.setAttribute('style', bits.join(';'));
+          el.setAttribute('style', safe);
           appendChildren(el, node);
           return el;
         }
@@ -629,9 +641,9 @@
     const b = chantBlock || {};
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
-    const glyphMult = Math.min(2, Math.max(0.35, Number(b.chantGlyphScale) || 1));
+    const glyphMult = Math.min(2.5, Math.max(0.3, Number(b.chantGlyphScale) || 1.3));
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
-    const lyricPx = Math.min(28, Math.max(12, Number(b.chantNeumeSize) || 19.2));
+    const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 21));
     const tfk = normalizeChantTextFontKey(b.chantTextFont);
     ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
     const gapUi = Math.min(12, Math.max(0, Number(b.chantSystemGap) || 2));
@@ -639,7 +651,7 @@
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 12.8);
-    const tight = Math.min(1.5, Math.max(0.35, Number(b.chantLyricTight) || 0.7));
+    const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.4));
     ctxt.minLyricWordSpacing *= tight;
     if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
       ctxt.defaultLanguage = new exsurge.English();
@@ -764,27 +776,27 @@
         const cd = chantD || {};
         o.chantNeumeSize =
           o.chantNeumeSize != null
-            ? Math.min(28, Math.max(12, Number(o.chantNeumeSize)))
-            : Math.min(28, Math.max(12, Number(cd.chantNeumeSize) || 19.2));
+            ? Math.min(36, Math.max(10, Number(o.chantNeumeSize)))
+            : Math.min(36, Math.max(10, Number(cd.chantNeumeSize) || 21));
         o.chantGlyphScale =
           o.chantGlyphScale != null
-            ? Math.min(2, Math.max(0.35, Number(o.chantGlyphScale)))
-            : 1;
+            ? Math.min(2.5, Math.max(0.3, Number(o.chantGlyphScale)))
+            : 1.3;
         o.chantStaffColor = o.chantStaffColor != null ? String(o.chantStaffColor) : cd.chantStaffColor || '';
         o.chantLinePadTop =
           o.chantLinePadTop != null
             ? Math.min(20, Math.max(0, Number(o.chantLinePadTop)))
-            : Math.min(20, Math.max(0, Number(cd.chantLinePadTop) || 6));
+            : Math.min(20, Math.max(0, Number(cd.chantLinePadTop) || 0.5));
         o.chantLyricTight =
           o.chantLyricTight != null
-            ? Math.min(1.5, Math.max(0.35, Number(o.chantLyricTight)))
-            : Math.min(1.5, Math.max(0.35, Number(cd.chantLyricTight) || 0.7));
+            ? Math.min(2.0, Math.max(0.2, Number(o.chantLyricTight)))
+            : Math.min(2.0, Math.max(0.2, Number(cd.chantLyricTight) || 1.4));
         let gapRaw =
           o.chantSystemGap != null
             ? Number(o.chantSystemGap)
             : cd.chantSystemGap != null
               ? Number(cd.chantSystemGap)
-              : 2;
+              : 0.1;
         if (!Number.isFinite(gapRaw)) {
           gapRaw = 2;
         }
@@ -1444,64 +1456,315 @@
     return Number.isFinite(g) ? Math.min(40, Math.max(-40, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
   }
 
-  /**
-   * Build a single continuous HTML flow for Paged.js to paginate.
-   * Each block becomes a section div with CSS break hints; Paged.js handles
-   * page splitting using the browser's own fragmentation engine.
-   */
-  async function buildContinuousFlow() {
+  async function buildFlowList() {
     const w = getContentWidthPx();
-    const frag = document.createDocumentFragment();
+    const out = [];
     for (const b of state.blocks) {
       if (b.hidden) continue;
       if (b.type === 'page_break') {
-        const br = document.createElement('div');
-        br.className = 'booklet-force-page-break';
-        frag.appendChild(br);
+        out.push({ t: 'break' });
         continue;
       }
-      const gapMm = blockSectionGapAfterMm(b);
+      const gapAfter = blockSectionGapAfterMm(b);
       if (b.type === 'chant_gabc') {
-        const wrap = document.createElement('div');
-        wrap.className = 'booklet-section booklet-chant-section';
-        wrap.style.marginBottom = gapMm + 'mm';
         const lines = renderChantGabcToLines(b.gabc || '', w, b);
-        lines.forEach(function (el) {
-          wrap.appendChild(el);
+        const last = lines.length - 1;
+        lines.forEach(function (el, i) {
+          var isLast = i === last;
+          out.push({ t: 'line', el: el, internalLineBreak: !isLast, afterInternalPx: 3, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
-        frag.appendChild(wrap);
         continue;
       }
       if (b.type === 'edition_pdf') {
-        const units = await renderEditionPageUnits(b, w);
+        var units = await renderEditionPageUnits(b, w);
+        var uLast = units.length - 1;
         units.forEach(function (el, i) {
-          el.style.breakBefore = 'page';
-          el.style.breakAfter = i === units.length - 1 ? 'auto' : 'page';
-          frag.appendChild(el);
+          var isLast = i === uLast;
+          out.push({ t: 'flow', el: el, internalLineBreak: !isLast, afterInternalPx: 2, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
         continue;
       }
-      const el = buildStaticSectionEl(b);
-      el.style.marginBottom = gapMm + 'mm';
-      frag.appendChild(el);
+      if (b.type === 'rubric') {
+        var chunkEls = chunkStaticRichTextToElements(b, 'rubric', w);
+        var lastIdx = chunkEls.length - 1;
+        chunkEls.forEach(function (el, idx) {
+          var isLast = idx === lastIdx;
+          out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
+        });
+        continue;
+      }
+      if (b.type === 'reading' && !translationHasContent(b.translation)) {
+        var chunkEls2 = chunkStaticRichTextToElements(b, 'reading', w);
+        var lastIdx2 = chunkEls2.length - 1;
+        chunkEls2.forEach(function (el, idx) {
+          var isLast = idx === lastIdx2;
+          out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
+        });
+        continue;
+      }
+      out.push({ t: 'flow', el: buildStaticSectionEl(b), sectionGapAfterMm: gapAfter });
     }
-    return frag;
+    return out;
+  }
+
+  function measureElHeight(el, widthPx) {
+    var mount = document.getElementById('bookletMeasureMount');
+    if (!mount) {
+      var c = el.cloneNode(true);
+      c.style.visibility = 'hidden';
+      c.style.position = 'absolute';
+      document.body.appendChild(c);
+      var h = c.offsetHeight;
+      c.remove();
+      return h || 1;
+    }
+    mount.innerHTML = '';
+    mount.style.visibility = 'hidden';
+    mount.style.position = 'absolute';
+    mount.style.left = '-9999px';
+    mount.style.top = '0';
+    mount.style.width = 'auto';
+    mount.style.height = 'auto';
+    mount.style.overflow = 'visible';
+    var shell = document.createElement('div');
+    shell.className = 'page-inner-flow';
+    shell.style.width = widthPx + 'px';
+    shell.style.maxWidth = widthPx + 'px';
+    shell.style.boxSizing = 'border-box';
+    var bodyShell = document.createElement('div');
+    bodyShell.className = 'booklet-page-body';
+    bodyShell.style.width = '100%';
+    bodyShell.style.boxSizing = 'border-box';
+    var clone = el.cloneNode(true);
+    bodyShell.appendChild(clone);
+    shell.appendChild(bodyShell);
+    mount.appendChild(shell);
+    var h = clone.offsetHeight;
+    mount.innerHTML = '';
+    mount.style.width = '1px';
+    mount.style.height = '1px';
+    mount.style.overflow = 'hidden';
+    return h || 1;
+  }
+
+  function buildStaticBodyChunkEl(b, kind, bodyFrag, includeHeading) {
+    var wrap = document.createElement('div');
+    wrap.className = 'booklet-section';
+    var fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
+    wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
+    if (includeHeading) appendSectionHeading(wrap, b);
+    var inner = document.createElement('div');
+    inner.className = kind === 'rubric' ? 'rubric booklet-richtext' : 'reading booklet-richtext';
+    while (bodyFrag.firstChild) inner.appendChild(bodyFrag.firstChild);
+    wrap.appendChild(inner);
+    return wrap;
+  }
+
+  function splitTextContentAcrossChunks(text, b, kind, widthPx, maxH, useHeading, wrapperTag) {
+    var s0 = String(text || '');
+    if (!s0.length) return [];
+    var start = 0, out = [], head = useHeading;
+    while (start < s0.length) {
+      var lo = start + 1, hi = s0.length, best = start + 1;
+      while (lo <= hi) {
+        var mid = Math.floor((lo + hi) / 2);
+        var slice = s0.slice(start, mid);
+        var frag = document.createDocumentFragment();
+        if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
+          var wEl = document.createElement(wrapperTag);
+          wEl.appendChild(document.createTextNode(slice));
+          frag.appendChild(wEl);
+        } else {
+          frag.appendChild(document.createTextNode(slice));
+        }
+        if (measureElHeight(buildStaticBodyChunkEl(b, kind, frag, head), widthPx) <= maxH) { best = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+      }
+      if (best <= start) best = Math.min(start + 1, s0.length);
+      var slice2 = s0.slice(start, best);
+      var frag2 = document.createDocumentFragment();
+      if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
+        var wEl2 = document.createElement(wrapperTag);
+        wEl2.appendChild(document.createTextNode(slice2));
+        frag2.appendChild(wEl2);
+      } else {
+        frag2.appendChild(document.createTextNode(slice2));
+      }
+      out.push(buildStaticBodyChunkEl(b, kind, frag2, head));
+      head = false;
+      start = best;
+    }
+    return out;
+  }
+
+  function splitTopLevelOversizedNode(node, b, kind, widthPx, maxH, chunksProducedSoFar) {
+    var includeHead = chunksProducedSoFar === 0;
+    if (node.nodeType === Node.TEXT_NODE)
+      return splitTextContentAcrossChunks(node.textContent, b, kind, widthPx, maxH, includeHead, null);
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+    var tag = node.tagName.toLowerCase();
+    var kids = Array.from(node.childNodes).filter(function (ch) {
+      return ch.nodeType !== Node.TEXT_NODE || (ch.textContent || '').length > 0;
+    });
+    var onlyText = kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE;
+    if (onlyText || kids.length === 0) {
+      var t = kids.length === 1 ? kids[0].textContent : node.textContent || '';
+      return splitTextContentAcrossChunks(t, b, kind, widthPx, maxH, includeHead, tag === 'br' ? null : tag);
+    }
+    function wrapListTrial(nodesToWrap) {
+      var innerFrag = document.createDocumentFragment();
+      if (/^(div|p|ol|ul)$/i.test(tag)) {
+        var wrapperEl = document.createElement(tag);
+        if (tag === 'ol' && node.getAttribute('start')) {
+          var st = String(node.getAttribute('start') || '').trim();
+          if (/^\d+$/.test(st) && parseInt(st, 10) >= 1 && parseInt(st, 10) <= 9999) wrapperEl.setAttribute('start', st);
+        }
+        nodesToWrap.forEach(function (ch) { wrapperEl.appendChild(ch.cloneNode(true)); });
+        innerFrag.appendChild(wrapperEl);
+      } else {
+        nodesToWrap.forEach(function (ch) { innerFrag.appendChild(ch.cloneNode(true)); });
+      }
+      return innerFrag;
+    }
+    var idx = 0, outs = [], head = includeHead;
+    while (idx < kids.length) {
+      var cur = [], j = idx;
+      while (j < kids.length) {
+        var trial = cur.concat([kids[j]]);
+        if (measureElHeight(buildStaticBodyChunkEl(b, kind, wrapListTrial(trial), head), widthPx) <= maxH) { cur = trial; j++; }
+        else if (cur.length === 0) {
+          splitTopLevelOversizedNode(kids[j], b, kind, widthPx, maxH, chunksProducedSoFar + outs.length).forEach(function (el) { outs.push(el); });
+          j++; idx = j; head = false; cur = null; break;
+        } else { break; }
+      }
+      if (cur && cur.length) { outs.push(buildStaticBodyChunkEl(b, kind, wrapListTrial(cur), head)); head = false; idx = j; }
+    }
+    return outs;
+  }
+
+  function chunkStaticRichTextToElements(b, kind, widthPx) {
+    var maxH = getPackMaxBodyHeightPx();
+    var rawNodes = [];
+    var source = sanitizeToFragment(b.text || '');
+    while (source.firstChild) rawNodes.push(source.removeChild(source.firstChild));
+    if (!rawNodes.length) {
+      var br = document.createDocumentFragment();
+      br.appendChild(document.createElement('br'));
+      return [buildStaticBodyChunkEl(b, kind, br, true)];
+    }
+    var chunks = [], i = 0;
+    while (i < rawNodes.length) {
+      var cur = [], j = i;
+      while (j < rawNodes.length) {
+        var trial = cur.concat([rawNodes[j]]);
+        var frag = document.createDocumentFragment();
+        trial.forEach(function (n) { frag.appendChild(n.cloneNode(true)); });
+        if (measureElHeight(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0), widthPx) <= maxH) { cur = trial; j++; }
+        else if (cur.length === 0) {
+          splitTopLevelOversizedNode(rawNodes[j], b, kind, widthPx, maxH, chunks.length).forEach(function (el) { chunks.push(el); });
+          j++; i = j; cur = []; break;
+        } else { break; }
+      }
+      if (cur.length) {
+        var frag2 = document.createDocumentFragment();
+        cur.forEach(function (n) { frag2.appendChild(n.cloneNode(true)); });
+        chunks.push(buildStaticBodyChunkEl(b, kind, frag2, chunks.length === 0));
+        i = j;
+      }
+    }
+    return chunks.length ? chunks : [buildStaticBodyChunkEl(b, kind, document.createDocumentFragment(), true)];
+  }
+
+  function stripBookletExportFooters(pageDivs) {
+    (pageDivs || []).forEach(function (page) {
+      page.querySelectorAll('.booklet-export-footer').forEach(function (f) { f.remove(); });
+    });
+  }
+
+  function reflowBookletPagesUntilNoOverflow(pageDivs, sizeStr, sinkEl) {
+    var EPS = 4, iterations = 0, MAX_ITER = 80000;
+    function ensurePageAt(idx) {
+      while (pageDivs.length <= idx) {
+        var page = document.createElement('div');
+        page.className = 'booklet-page';
+        page.dataset.size = sizeStr;
+        var inner = document.createElement('div');
+        inner.className = 'page-inner-flow';
+        var body = document.createElement('div');
+        body.className = 'booklet-page-body';
+        inner.appendChild(body);
+        page.appendChild(inner);
+        pageDivs.push(page);
+        sinkEl.appendChild(page);
+      }
+    }
+    var pi = 0;
+    while (pi < pageDivs.length && iterations < MAX_ITER) {
+      var page = pageDivs[pi];
+      var body = page.querySelector('.booklet-page-body');
+      if (!body) { pi++; continue; }
+      var over = body.scrollHeight - body.clientHeight;
+      if (over <= EPS) { pi++; continue; }
+      var last = body.lastElementChild;
+      if (!last) { pi++; continue; }
+      if (body.childElementCount === 1 && last.offsetHeight > body.clientHeight + EPS) { pi++; continue; }
+      body.removeChild(last);
+      ensurePageAt(pi + 1);
+      var nextBody = pageDivs[pi + 1].querySelector('.booklet-page-body');
+      if (nextBody) nextBody.insertBefore(last, nextBody.firstChild);
+      iterations++;
+    }
+  }
+
+  function trimTrailingEmptyBookletPages(pageDivs) {
+    while (pageDivs.length > 1) {
+      var last = pageDivs[pageDivs.length - 1];
+      var body = last.querySelector('.booklet-page-body');
+      if (body && body.childElementCount > 0) break;
+      last.remove();
+      pageDivs.pop();
+    }
+  }
+
+  function packFlow(items) {
+    var widthPx = getContentWidthPx();
+    var maxH = getPackMaxBodyHeightPx();
+    var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
+    var gapLine = 3;
+    var pages = [], page = [], curH = 0, lastWasLine = false, pendingGapMm = defaultGapMm;
+    function flush() { if (page.length) pages.push(page); page = []; curH = 0; lastWasLine = false; }
+    for (var k = 0; k < items.length; k++) {
+      var it = items[k];
+      if (it.t === 'break') { flush(); pendingGapMm = defaultGapMm; continue; }
+      var isLine = it.t === 'line';
+      var el = it.el;
+      var h = measureElHeight(el, widthPx);
+      var gap = 0;
+      if (page.length) {
+        if (it.skipGapBefore) { gap = it.tightGapPx != null ? it.tightGapPx : 0; }
+        else if (isLine && lastWasLine && it.internalLineBreak) { gap = it.afterInternalPx != null ? it.afterInternalPx : gapLine; }
+        else { gap = mmToPx(pendingGapMm); }
+      }
+      if (page.length && curH + gap + h > maxH) {
+        flush();
+        page.push(el); curH = h; lastWasLine = isLine;
+        if (!it.internalLineBreak) pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
+        continue;
+      }
+      if (page.length) curH += gap;
+      page.push(el); curH += h; lastWasLine = isLine;
+      if (!it.internalLineBreak) pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
+    }
+    flush();
+    return pages;
   }
 
   function buildBookletSpreadViews(numPages) {
-    const views = [];
+    var views = [];
     if (numPages <= 0) return views;
-    const nPad = Math.ceil(numPages / 4) * 4;
-    const sheets = nPad / 4;
-    for (let s = 0; s < sheets; s++) {
-      views.push({
-        left: nPad - 2 * s - 1,
-        right: 2 * s,
-      });
-      views.push({
-        left: 2 * s + 1,
-        right: nPad - 2 * s - 2,
-      });
+    views.push({ left: -1, right: 0 });
+    for (var i = 1; i < numPages; i += 2) {
+      views.push({ left: i, right: i + 1 < numPages ? i + 1 : -1 });
     }
     return views;
   }
@@ -1761,23 +2024,15 @@
     syncNavButtons();
   }
 
-  function buildPagedJsStylesheet() {
-    const size = state.settings.pageSize === 'A5' ? '148mm 210mm' : '210mm 297mm';
-    const m = getBookletMarginMm();
-    const bodyFont = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey || 'georgia'] || BOOKLET_FONT_STACKS.georgia;
-    const rubric = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
-    return '@page { size: ' + size + '; margin: ' + m + 'mm; }' +
-      'body, html { font-family: ' + bodyFont + '; font-size: calc(11pt * 1); line-height: 1.45; color: #212529; }' +
-      '.rubric { color: ' + rubric + '; font-style: italic; }';
-  }
+  
 
   async function renderPreview() {
-    const root = document.getElementById('previewPages');
-    const store = document.getElementById('bookletPageStore');
+    var root = document.getElementById('previewPages');
+    var store = document.getElementById('bookletPageStore');
     if (!root) return;
-    const myTok = ++previewToken;
-    const size = state.settings.pageSize;
-    const prevHost = root.querySelector('.booklet-spread-host');
+    var myTok = ++previewToken;
+    var size = state.settings.pageSize;
+    var prevHost = root.querySelector('.booklet-spread-host');
     if (prevHost && prevHost._bookletCleanup) prevHost._bookletCleanup();
     exportPageElements = [];
     if (store) store.innerHTML = '';
@@ -1798,9 +2053,9 @@
 
     root.innerHTML = '<p class="text-muted small no-print px-2">Laying out preview…</p>';
 
-    let flowFrag;
+    var flow;
     try {
-      flowFrag = await buildContinuousFlow();
+      flow = await buildFlowList();
     } catch (e) {
       console.error(e);
       root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
@@ -1808,99 +2063,53 @@
     }
     if (myTok !== previewToken) return;
 
-    const contentEl = document.createElement('div');
-    contentEl.className = 'booklet-paged-content';
-    contentEl.appendChild(flowFrag);
+    var pageGroups = packFlow(flow);
+    var pageDivs = pageGroups.map(function (elements) {
+      var page = document.createElement('div');
+      page.className = 'booklet-page';
+      page.dataset.size = size;
+      var inner = document.createElement('div');
+      inner.className = 'page-inner-flow';
+      var body = document.createElement('div');
+      body.className = 'booklet-page-body';
+      elements.forEach(function (el) { body.appendChild(el); });
+      inner.appendChild(body);
+      page.appendChild(inner);
+      return page;
+    });
 
-    try {
-      if (typeof Paged === 'undefined' || !Paged.Previewer) {
-        throw new Error('Paged.js library not loaded');
-      }
+    root.innerHTML = '';
+    if (!pageDivs.length) {
+      root.innerHTML = '<p class="text-muted small px-2">Nothing to show yet.</p>';
+      exportPageElements = [];
+      return;
+    }
 
-      root.innerHTML = '';
-      const renderTarget = document.createElement('div');
-      renderTarget.className = 'booklet-paged-render';
-      root.appendChild(renderTarget);
+    var sink = document.createElement('div');
+    sink.setAttribute('aria-hidden', 'true');
+    sink.style.cssText = 'position:fixed;left:-120vw;top:0;width:auto;height:auto;overflow:visible;opacity:0;pointer-events:none;z-index:-9999;';
+    document.body.appendChild(sink);
+    pageDivs.forEach(function (p) { sink.appendChild(p); });
 
-      const pageStyleUrl = URL.createObjectURL(
-        new Blob([buildPagedJsStylesheet()], { type: 'text/css' })
-      );
+    await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { /* ignore */ } }
+    if (myTok !== previewToken) { document.body.removeChild(sink); return; }
 
-      const previewer = new Paged.Previewer();
-      const flowResult = await previewer.preview(
-        contentEl,
-        [pageStyleUrl],
-        renderTarget
-      );
-      URL.revokeObjectURL(pageStyleUrl);
+    appendCreditsFooterToLastPage(pageDivs);
+    reflowBookletPagesUntilNoOverflow(pageDivs, size, sink);
+    stripBookletExportFooters(pageDivs);
+    appendCreditsFooterToLastPage(pageDivs);
+    trimTrailingEmptyBookletPages(pageDivs);
 
-      if (myTok !== previewToken) return;
+    document.body.removeChild(sink);
+    exportPageElements = pageDivs;
 
-      const pagedPages = renderTarget.querySelectorAll('.pagedjs_page');
-      const pageDivs = [];
-
-      pagedPages.forEach(function (pp) {
-        const page = document.createElement('div');
-        page.className = 'booklet-page';
-        page.dataset.size = size;
-        const inner = document.createElement('div');
-        inner.className = 'page-inner-flow';
-        const area = pp.querySelector('.pagedjs_page_content');
-        if (area) {
-          while (area.firstChild) {
-            inner.appendChild(area.firstChild);
-          }
-        } else {
-          while (pp.firstChild) {
-            inner.appendChild(pp.firstChild);
-          }
-        }
-        page.appendChild(inner);
-        pageDivs.push(page);
-      });
-
-      renderTarget.remove();
-
-      if (!pageDivs.length) {
-        root.innerHTML =
-          '<p class="text-muted small px-2">Nothing to show yet.</p>';
-        exportPageElements = [];
-        return;
-      }
-
-      appendCreditsFooterToLastPage(pageDivs);
-      exportPageElements = pageDivs;
-
-      const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
-
-      if (display === 'scroll') {
-        pageDivs.forEach(function (p) {
-          root.appendChild(p);
-        });
-      } else {
-        if (store) {
-          pageDivs.forEach(function (p) {
-            store.appendChild(p);
-          });
-        }
-        mountBookletSpreadUi(root, pageDivs);
-      }
-    } catch (pagedErr) {
-      console.error('Paged.js pagination error, falling back:', pagedErr);
-      root.innerHTML = '';
-      const fallbackPage = document.createElement('div');
-      fallbackPage.className = 'booklet-page';
-      fallbackPage.dataset.size = size;
-      const fallbackInner = document.createElement('div');
-      fallbackInner.className = 'page-inner-flow';
-      fallbackInner.appendChild(contentEl);
-      fallbackPage.appendChild(fallbackInner);
-      const pageDivs = [fallbackPage];
-      appendCreditsFooterToLastPage(pageDivs);
-      exportPageElements = pageDivs;
-      pageDivs.forEach(function (p) {
-        root.appendChild(p);
-      });
+    var display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+    if (display === 'scroll') {
+      pageDivs.forEach(function (p) { root.appendChild(p); });
+    } else {
+      if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
+      mountBookletSpreadUi(root, pageDivs);
     }
   }
 
@@ -1981,7 +2190,7 @@
           : DEFAULT_BLOCK_FONT_SCALE;
       }
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
       renderBlockList();
     };
     hid?.addEventListener('change', push);
@@ -1999,7 +2208,7 @@
     state.blocks[j] = t;
     scheduleAutosave();
     renderBlockList();
-    renderPreview();
+    scheduleRenderPreview();
   }
 
   function renderBlockList() {
@@ -2025,7 +2234,7 @@
         b.hidden = !b.hidden;
         scheduleAutosave();
         renderBlockList();
-        renderPreview();
+        scheduleRenderPreview();
       });
 
       const moves = document.createElement('div');
@@ -2157,7 +2366,7 @@
         const lc = panel.querySelector('#edTitleLineCol').value;
         b.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       panel.querySelector('#edTitleText').addEventListener('input', syncTitle);
@@ -2202,7 +2411,7 @@
         b.sectionTitle = st ? st.value : '';
         b.sectionSourceRef = ss ? ss.value : '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       st.addEventListener('input', pushMeta);
@@ -2211,7 +2420,7 @@
       const push = () => {
         b.text = ed.innerHTML;
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       bindRichToolbar(panel.querySelector('.rubric-tb'), ed, push);
@@ -2284,7 +2493,7 @@
         b.sectionTitle = rst ? rst.value : '';
         b.sectionSourceRef = rss ? rss.value : '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       rst.addEventListener('input', pushMetaRead);
@@ -2293,7 +2502,7 @@
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       bindRichToolbar(panel.querySelector('.read-tb-orig'), edO, push);
@@ -2312,7 +2521,7 @@
         }
         b.parallelGapMm = Math.min(20, Math.max(0, ggm));
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
       };
       rng.addEventListener('input', syncParallel);
       chk.addEventListener('change', syncParallel);
@@ -2347,7 +2556,7 @@
         b.imageWidthPx = Number.isFinite(w) ? Math.min(4000, Math.max(0, w)) : 0;
         b.imageAlign = panel.querySelector('#edImgAlign').value;
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       panel.querySelector('#edImgWidth').addEventListener('input', syncImgLayout);
@@ -2391,7 +2600,7 @@
         resultsEl.innerHTML = '';
         searchInp.value = '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       }
 
@@ -2410,7 +2619,7 @@
         const toNum = tv === '' ? null : parseInt(tv, 10);
         b.pdfPageTo = toNum != null && !isNaN(toNum) ? toNum : null;
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       u.addEventListener('input', onChange);
@@ -2537,16 +2746,16 @@
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Lyric / text size in px (Exsurge setFont).">Lyric size (px)</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantNeumeNum" min="12" max="28" step="0.1" value="${(Math.round(cn * 10) / 10).toFixed(1)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantNeumeNum" min="10" max="36" step="0.1" value="${(Math.round(cn * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantNeume" min="12" max="28" step="0.1" value="${cn}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantNeume" min="10" max="36" step="0.1" value="${cn}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Staff and neume glyph scale (Exsurge setGlyphScaling, multiplier on the usual jgabc baseline).">Staff / neume scale</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantGlyphNum" min="0.35" max="2" step="0.05" value="${(Math.round(cg * 100) / 100).toFixed(2)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantGlyphNum" min="0.3" max="2.5" step="0.05" value="${(Math.round(cg * 100) / 100).toFixed(2)}">
             </div>
-            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantGlyph" min="0.35" max="2" step="0.05" value="${cg}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantGlyph" min="0.3" max="2.5" step="0.05" value="${cg}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
@@ -2558,9 +2767,9 @@
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Multiplies Exsurge min lyric word spacing (smaller = tighter).">Lyric tightness</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantTightNum" min="0.35" max="1.5" step="0.1" value="${(Math.round(ct * 10) / 10).toFixed(1)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantTightNum" min="0.2" max="2.0" step="0.1" value="${(Math.round(ct * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantTight" min="0.35" max="1.5" step="0.1" value="${ct}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantTight" min="0.2" max="2.0" step="0.1" value="${ct}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
@@ -2593,7 +2802,7 @@
       ta.addEventListener('input', () => {
         b.gabc = ta.value;
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       wireEditorSectionLayout(panel, b, true, false);
@@ -2610,31 +2819,31 @@
           numDropCap.value = (Math.round(d * 10) / 10).toFixed(1);
         }
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       panel.querySelector('#edChantLyricLang')?.addEventListener('change', function () {
         b.chantLyricLanguage =
           panel.querySelector('#edChantLyricLang').value === 'english' ? 'english' : 'latin';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       panel.querySelector('#edChantTextFont')?.addEventListener('change', function () {
         b.chantTextFont = normalizeChantTextFontKey(panel.querySelector('#edChantTextFont').value);
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       const chantApplyFromDom = function () {
         const fbN = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
-        b.chantNeumeSize = parseBoundedNumber(panel.querySelector('#edChantNeume').value, 12, 28, fbN);
+        b.chantNeumeSize = parseBoundedNumber(panel.querySelector('#edChantNeume').value, 10, 36, fbN);
         const fbGlyph = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
-        b.chantGlyphScale = parseBoundedNumber(panel.querySelector('#edChantGlyph').value, 0.35, 2, fbGlyph);
+        b.chantGlyphScale = parseBoundedNumber(panel.querySelector('#edChantGlyph').value, 0.3, 2.5, fbGlyph);
         const fbG = b.chantSystemGap != null ? b.chantSystemGap : 2;
         b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, 0, 12, fbG);
         const fbT = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
-        b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.35, 1.5, fbT);
+        b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.2, 2.0, fbT);
         const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
         b.chantLinePadTop = parseBoundedNumber(panel.querySelector('#edChantPad').value, 0, 20, fbP);
         if (rngDropCap && !rngDropCap.disabled) {
@@ -2653,7 +2862,7 @@
           numDropCap.value = (Math.round(b.chantDropCapScale * 10) / 10).toFixed(1);
         }
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       };
       function wireChantPair(rangeId, numId, min, max, toNumStr) {
@@ -2683,16 +2892,16 @@
           chantApplyFromDom();
         });
       }
-      wireChantPair('#edChantNeume', '#edChantNeumeNum', 12, 28, function (v) {
+      wireChantPair('#edChantNeume', '#edChantNeumeNum', 10, 36, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
-      wireChantPair('#edChantGlyph', '#edChantGlyphNum', 0.35, 2, function (v) {
+      wireChantPair('#edChantGlyph', '#edChantGlyphNum', 0.3, 2.5, function (v) {
         return (Math.round(v * 100) / 100).toFixed(2);
       });
       wireChantPair('#edChantSysGap', '#edChantSysGapNum', 0, 12, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
-      wireChantPair('#edChantTight', '#edChantTightNum', 0.35, 1.5, function (v) {
+      wireChantPair('#edChantTight', '#edChantTightNum', 0.2, 2.0, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantPad', '#edChantPadNum', 0, 20, function (v) {
@@ -2705,20 +2914,20 @@
         const cv = panel.querySelector('#edChantStaff').value;
         b.chantStaffColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       panel.querySelector('#edChantStaffDef')?.addEventListener('click', () => {
         b.chantStaffColor = '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       panel.querySelector('#edChantRubric')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantRubric').value;
         b.chantRubricColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
       panel.querySelector('#edChantRubricDef')?.addEventListener('click', () => {
@@ -2726,7 +2935,7 @@
         const inp = panel.querySelector('#edChantRubric');
         if (inp) inp.value = '#000000';
         scheduleAutosave();
-        renderPreview();
+        scheduleRenderPreview();
         renderBlockList();
       });
     } else if (b.type === 'jgabc_propers') {
@@ -2776,12 +2985,12 @@
     }
     if (type === 'chant_gabc') {
       b.gabc = '';
-      b.chantNeumeSize = 19.2;
-      b.chantGlyphScale = 1;
+      b.chantNeumeSize = 21;
+      b.chantGlyphScale = 1.3;
       b.chantStaffColor = '';
-      b.chantLinePadTop = 6;
-      b.chantLyricTight = 0.7;
-      b.chantSystemGap = 2;
+      b.chantLinePadTop = 0.5;
+      b.chantLyricTight = 1.4;
+      b.chantSystemGap = 0.1;
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
@@ -2802,7 +3011,7 @@
     scheduleAutosave();
     renderBlockList();
     renderEditor();
-    renderPreview();
+    scheduleRenderPreview();
   }
 
   function pickImageForBlock(blockId) {
@@ -2822,7 +3031,7 @@
             b.mime = m[1];
             b.dataBase64 = m[2];
             scheduleAutosave();
-            renderPreview();
+            scheduleRenderPreview();
             renderBlockList();
             renderEditor();
           }
@@ -2840,7 +3049,7 @@
     scheduleAutosave();
     renderBlockList();
     renderEditor();
-    renderPreview();
+    scheduleRenderPreview();
   }
 
   function downloadJson() {
@@ -2934,7 +3143,7 @@
         scheduleAutosave();
         renderBlockList();
         renderEditor();
-        renderPreview();
+        scheduleRenderPreview();
       } catch (e) {
         alert('Could not read project file.');
       }
@@ -3060,12 +3269,12 @@
     document.getElementById('selPageSize')?.addEventListener('change', (e) => {
       state.settings.pageSize = e.target.value;
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
     });
     document.getElementById('selPreviewDisplay')?.addEventListener('change', (e) => {
       state.settings.previewDisplay = e.target.value === 'booklet' ? 'booklet' : 'scroll';
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
     });
     document.getElementById('inpProjectTitle')?.addEventListener('input', (e) => {
       state.projectTitle = e.target.value;
@@ -3076,14 +3285,14 @@
       state.settings.fontFamilyKey = BOOKLET_FONT_STACKS[k] != null ? k : 'georgia';
       applyCssVars();
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
     });
     document.getElementById('inpRubricColor')?.addEventListener('input', (e) => {
       const v = e.target.value;
       state.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
       applyCssVars();
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
     });
     document.getElementById('inpBookletMarginMm')?.addEventListener('change', (e) => {
       const inp = e.target;
@@ -3094,7 +3303,7 @@
       inp.value = String(getBookletMarginMm());
       applyCssVars();
       scheduleAutosave();
-      renderPreview();
+      scheduleRenderPreview();
     });
 
     document.getElementById('btnRemoveBlock')?.addEventListener('click', removeSelectedBlock);
@@ -3117,5 +3326,5 @@
   bindUi();
   renderBlockList();
   renderEditor();
-  renderPreview();
+  scheduleRenderPreview();
 })();
