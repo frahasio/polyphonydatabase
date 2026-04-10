@@ -174,6 +174,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
     const page = await browser.newPage();
     await page.emulateMediaType('print');
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 120000 });
+    await page.evaluateHandle('document.fonts.ready');
 
     const format = pageSize === 'A5' ? 'A5' : 'A4';
     const pdfBuffer = await page.pdf({

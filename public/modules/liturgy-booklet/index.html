@@ -130,13 +130,28 @@
         .booklet-block-actions {
             flex-shrink: 0;
             display: inline-flex;
-            gap: 0.15rem;
+            gap: 0.1rem;
             margin-left: auto;
         }
         .booklet-block-actions .btn {
-            padding: 0.05rem 0.2rem;
-            font-size: 0.55rem;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            padding: 0.1rem 0.22rem;
+            font-size: 0.6rem;
             line-height: 1;
+            border-radius: 3px;
+        }
+        .booklet-block-actions .btn:hover {
+            background: #e9ecef;
+            color: #212529;
+        }
+        .booklet-block-actions .booklet-action-danger {
+            color: #dc3545;
+        }
+        .booklet-block-actions .booklet-action-danger:hover {
+            background: #fff5f5;
+            color: #b02a37;
         }
         .sidebar-add-btn {
             font-size: 0.8rem;
@@ -484,6 +499,16 @@
             transform-origin: top left;
             box-shadow: 0 2px 16px rgba(0,0,0,0.1);
         }
+        .booklet-debug .booklet-section { outline: 2px solid blue; }
+        .booklet-debug .booklet-chant-line { outline: 1px dashed purple; }
+        .booklet-debug .booklet-pdf-page-unit { outline: 2px solid green; }
+        .booklet-debug .booklet-clip-top { outline: 2px solid orange; position: relative; }
+        .booklet-debug .booklet-clip-top::after { content: 'CLIP TOP'; position: absolute; top: 0; right: 0; background: orange; color: #fff; font-size: 9px; padding: 1px 4px; z-index: 5; }
+        .booklet-debug .booklet-clip-bottom { outline: 2px solid red; position: relative; }
+        .booklet-debug .booklet-clip-bottom::after { content: 'CLIP BTM'; position: absolute; top: 0; right: 0; background: red; color: #fff; font-size: 9px; padding: 1px 4px; z-index: 5; }
+        .booklet-debug .booklet-clip-mid { outline: 2px solid #e67e22; position: relative; }
+        .booklet-debug .booklet-clip-mid::after { content: 'CLIP MID'; position: absolute; top: 0; right: 0; background: #e67e22; color: #fff; font-size: 9px; padding: 1px 4px; z-index: 5; }
+        .booklet-debug .booklet-page-body { background: repeating-linear-gradient(0deg, transparent, transparent 99px, rgba(255,0,0,0.08) 99px, rgba(255,0,0,0.08) 100px); }
         #bookletPageStore {
             position: fixed;
             left: 0;
@@ -569,10 +594,7 @@
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-success" id="btnDownloadPdf" title="Server-rendered PDF (vector). Falls back to browser print dialog if the server has no Chrome."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
-                    <button type="button" class="btn btn-outline-success" id="btnPrintBooklet" title="Open a print-friendly view and use your browser's Save as PDF / Print. Works everywhere, no server needed."><i class="bi bi-printer me-1"></i>Print</button>
-                </div>
+                <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Export as PDF via the server"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
                 <div class="vr d-none d-md-block"></div>
                 <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
                     <option value="A4">A4 page</option>
@@ -606,6 +628,8 @@
                     <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 260px;">
                         <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s Mass propers (jgabc)</a></li>
                         <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener">Exsurge (original repo)</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li class="px-2"><div class="form-check"><input class="form-check-input" type="checkbox" id="chkDebugLayout"><label class="form-check-label" for="chkDebugLayout">Debug layout borders</label></div></li>
                     </ul>
                 </div>
             </div>

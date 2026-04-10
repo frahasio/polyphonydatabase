@@ -6,8 +6,7 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  const BOOKLET_PAGE_PACK_SLACK_PX = 40;
-  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 28;
+  var BOOKLET_FOOTER_RESERVE_PX = 30;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -240,9 +239,7 @@
     return Math.max(120, mmToPx(pageH - 2 * m));
   }
 
-  function getPackMaxBodyHeightPx() {
-    return getMaxPageBodyHeightPx() * 2;
-  }
+  
 
   
 
@@ -1510,334 +1507,164 @@
   }
 
   async function buildFlowList() {
-    const w = getContentWidthPx();
-    const out = [];
-    for (const b of state.blocks) {
+    var w = getContentWidthPx();
+    var out = [];
+    for (var bi = 0; bi < state.blocks.length; bi++) {
+      var b = state.blocks[bi];
       if (b.hidden) continue;
       if (b.type === 'page_break') {
         out.push({ t: 'break' });
         continue;
       }
-      const gapAfter = blockSectionGapAfterMm(b);
+      var gapAfter = blockSectionGapAfterMm(b);
+      var splittable = (b.type === 'rubric' || (b.type === 'reading' && !translationHasContent(b.translation)));
       if (b.type === 'chant_gabc') {
-        const lines = renderChantGabcToLines(b.gabc || '', w, b);
-        const last = lines.length - 1;
-        lines.forEach(function (el, i) {
-          el.dataset.blockId = b.id;
-          var isLast = i === last;
-          out.push({ t: 'line', el: el, internalLineBreak: !isLast, afterInternalPx: 3, sectionGapAfterMm: isLast ? gapAfter : undefined });
-        });
+        var lines = renderChantGabcToLines(b.gabc || '', w, b);
+        for (var li = 0; li < lines.length; li++) {
+          lines[li].dataset.blockId = b.id;
+          var isLast = li === lines.length - 1;
+          out.push({ t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0, internalGapPx: li > 0 ? 3 : 0 });
+        }
         continue;
       }
       if (b.type === 'edition_pdf') {
         var units = await renderEditionPageUnits(b, w);
-        var uLast = units.length - 1;
-        units.forEach(function (el, i) {
-          el.dataset.blockId = b.id;
-          var isLast = i === uLast;
-          out.push({ t: 'flow', el: el, internalLineBreak: !isLast, afterInternalPx: 2, sectionGapAfterMm: isLast ? gapAfter : undefined });
-        });
+        for (var ui = 0; ui < units.length; ui++) {
+          units[ui].dataset.blockId = b.id;
+          out.push({ t: 'flow', el: units[ui], splittable: false, gapMm: ui === units.length - 1 ? gapAfter : 0, forceBreakBefore: true });
+        }
         continue;
       }
-      if (b.type === 'rubric') {
-        var chunkEls = chunkStaticRichTextToElements(b, 'rubric', w);
-        var lastIdx = chunkEls.length - 1;
-        chunkEls.forEach(function (el, idx) {
-          el.dataset.blockId = b.id;
-          var isLast = idx === lastIdx;
-          out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
-        });
-        continue;
-      }
-      if (b.type === 'reading' && !translationHasContent(b.translation)) {
-        var chunkEls2 = chunkStaticRichTextToElements(b, 'reading', w);
-        var lastIdx2 = chunkEls2.length - 1;
-        chunkEls2.forEach(function (el, idx) {
-          el.dataset.blockId = b.id;
-          var isLast = idx === lastIdx2;
-          out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
-        });
-        continue;
-      }
-      out.push({ t: 'flow', el: buildStaticSectionEl(b), sectionGapAfterMm: gapAfter });
+      var el = buildStaticSectionEl(b);
+      el.dataset.blockId = b.id;
+      out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter });
     }
     return out;
   }
 
-  function measureElHeight(el, widthPx) {
+  function measureInContext(el, widthPx) {
     var mount = document.getElementById('bookletMeasureMount');
     if (!mount) {
       var c = el.cloneNode(true);
-      c.style.visibility = 'hidden';
-      c.style.position = 'absolute';
+      c.style.cssText = 'visibility:hidden;position:absolute;width:' + widthPx + 'px;';
       document.body.appendChild(c);
       var h = c.offsetHeight;
       c.remove();
       return h || 1;
     }
     mount.innerHTML = '';
-    mount.style.visibility = 'hidden';
-    mount.style.position = 'absolute';
-    mount.style.left = '-9999px';
-    mount.style.top = '0';
-    mount.style.width = 'auto';
-    mount.style.height = 'auto';
-    mount.style.overflow = 'visible';
-    var shell = document.createElement('div');
-    shell.className = 'page-inner-flow';
-    shell.style.width = widthPx + 'px';
-    shell.style.maxWidth = widthPx + 'px';
-    shell.style.boxSizing = 'border-box';
-    shell.style.display = 'block';
-    shell.style.overflow = 'visible';
-    shell.style.height = 'auto';
-    shell.style.maxHeight = 'none';
-    shell.style.minHeight = '0';
+    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + widthPx + 'px;overflow:visible;';
     var clone = el.cloneNode(true);
-    shell.appendChild(clone);
-    mount.appendChild(shell);
+    mount.appendChild(clone);
     var h = clone.offsetHeight;
     mount.innerHTML = '';
-    mount.style.width = '1px';
-    mount.style.height = '1px';
-    mount.style.overflow = 'hidden';
+    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
     return h || 1;
   }
 
-  function buildStaticBodyChunkEl(b, kind, bodyFrag, includeHeading) {
-    var wrap = document.createElement('div');
-    wrap.className = 'booklet-section';
-    var fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
-    wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
-    if (includeHeading) appendSectionHeading(wrap, b);
-    var inner = document.createElement('div');
-    inner.className = kind === 'rubric' ? 'rubric booklet-richtext' : 'reading booklet-richtext';
-    while (bodyFrag.firstChild) inner.appendChild(bodyFrag.firstChild);
-    wrap.appendChild(inner);
-    return wrap;
+  function snapToLineHeight(targetPx, el) {
+    var lineH = parseFloat(getComputedStyle(el).lineHeight);
+    if (!lineH || !Number.isFinite(lineH) || lineH < 8) lineH = 20;
+    var snapped = Math.floor(targetPx / lineH) * lineH;
+    return snapped > 0 ? snapped : lineH;
   }
 
-  function splitTextContentAcrossChunks(text, b, kind, widthPx, maxH, useHeading, wrapperTag) {
-    var s0 = String(text || '');
-    if (!s0.length) return [];
-    var start = 0, out = [], head = useHeading;
-    while (start < s0.length) {
-      var lo = start + 1, hi = s0.length, best = start + 1;
-      while (lo <= hi) {
-        var mid = Math.floor((lo + hi) / 2);
-        var slice = s0.slice(start, mid);
-        var frag = document.createDocumentFragment();
-        if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
-          var wEl = document.createElement(wrapperTag);
-          wEl.appendChild(document.createTextNode(slice));
-          frag.appendChild(wEl);
-        } else {
-          frag.appendChild(document.createTextNode(slice));
-        }
-        if (measureElHeight(buildStaticBodyChunkEl(b, kind, frag, head), widthPx) <= maxH) { best = mid; lo = mid + 1; }
-        else { hi = mid - 1; }
-      }
-      if (best <= start) best = Math.min(start + 1, s0.length);
-      var slice2 = s0.slice(start, best);
-      var frag2 = document.createDocumentFragment();
-      if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
-        var wEl2 = document.createElement(wrapperTag);
-        wEl2.appendChild(document.createTextNode(slice2));
-        frag2.appendChild(wEl2);
-      } else {
-        frag2.appendChild(document.createTextNode(slice2));
-      }
-      out.push(buildStaticBodyChunkEl(b, kind, frag2, head));
-      head = false;
-      start = best;
-    }
-    return out;
+  function createClippedView(el, fromPx, toPx, widthPx, clipClass) {
+    var container = document.createElement('div');
+    container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
+    container.style.width = widthPx + 'px';
+    container.style.height = (toPx - fromPx) + 'px';
+    container.style.overflow = 'hidden';
+    container.style.position = 'relative';
+    container.setAttribute('aria-hidden', 'true');
+    var clone = el.cloneNode(true);
+    clone.style.position = 'relative';
+    clone.style.top = (-fromPx) + 'px';
+    clone.style.width = widthPx + 'px';
+    clone.style.pointerEvents = 'none';
+    if (el.dataset && el.dataset.blockId) container.dataset.blockId = el.dataset.blockId;
+    container.appendChild(clone);
+    return container;
   }
 
-  function splitTopLevelOversizedNode(node, b, kind, widthPx, maxH, chunksProducedSoFar) {
-    var includeHead = chunksProducedSoFar === 0;
-    if (node.nodeType === Node.TEXT_NODE)
-      return splitTextContentAcrossChunks(node.textContent, b, kind, widthPx, maxH, includeHead, null);
-    if (node.nodeType !== Node.ELEMENT_NODE) return [];
-    var tag = node.tagName.toLowerCase();
-    var kids = Array.from(node.childNodes).filter(function (ch) {
-      return ch.nodeType !== Node.TEXT_NODE || (ch.textContent || '').length > 0;
-    });
-    var onlyText = kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE;
-    if (onlyText || kids.length === 0) {
-      var t = kids.length === 1 ? kids[0].textContent : node.textContent || '';
-      return splitTextContentAcrossChunks(t, b, kind, widthPx, maxH, includeHead, tag === 'br' ? null : tag);
-    }
-    function wrapListTrial(nodesToWrap) {
-      var innerFrag = document.createDocumentFragment();
-      if (/^(div|p|ol|ul)$/i.test(tag)) {
-        var wrapperEl = document.createElement(tag);
-        if (tag === 'ol' && node.getAttribute('start')) {
-          var st = String(node.getAttribute('start') || '').trim();
-          if (/^\d+$/.test(st) && parseInt(st, 10) >= 1 && parseInt(st, 10) <= 9999) wrapperEl.setAttribute('start', st);
-        }
-        nodesToWrap.forEach(function (ch) { wrapperEl.appendChild(ch.cloneNode(true)); });
-        innerFrag.appendChild(wrapperEl);
-      } else {
-        nodesToWrap.forEach(function (ch) { innerFrag.appendChild(ch.cloneNode(true)); });
-      }
-      return innerFrag;
-    }
-    var idx = 0, outs = [], head = includeHead;
-    while (idx < kids.length) {
-      var cur = [], j = idx;
-      while (j < kids.length) {
-        var trial = cur.concat([kids[j]]);
-        if (measureElHeight(buildStaticBodyChunkEl(b, kind, wrapListTrial(trial), head), widthPx) <= maxH) { cur = trial; j++; }
-        else if (cur.length === 0) {
-          splitTopLevelOversizedNode(kids[j], b, kind, widthPx, maxH, chunksProducedSoFar + outs.length).forEach(function (el) { outs.push(el); });
-          j++; idx = j; head = false; cur = null; break;
-        } else { break; }
-      }
-      if (cur && cur.length) { outs.push(buildStaticBodyChunkEl(b, kind, wrapListTrial(cur), head)); head = false; idx = j; }
-    }
-    return outs;
-  }
-
-  function chunkStaticRichTextToElements(b, kind, widthPx) {
-    var maxH = getPackMaxBodyHeightPx();
-    var rawNodes = [];
-    var source = sanitizeToFragment(b.text || '');
-    while (source.firstChild) rawNodes.push(source.removeChild(source.firstChild));
-    if (!rawNodes.length) {
-      var br = document.createDocumentFragment();
-      br.appendChild(document.createElement('br'));
-      return [buildStaticBodyChunkEl(b, kind, br, true)];
-    }
-    var chunks = [], i = 0;
-    while (i < rawNodes.length) {
-      var cur = [], j = i;
-      while (j < rawNodes.length) {
-        var trial = cur.concat([rawNodes[j]]);
-        var frag = document.createDocumentFragment();
-        trial.forEach(function (n) { frag.appendChild(n.cloneNode(true)); });
-        if (measureElHeight(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0), widthPx) <= maxH) { cur = trial; j++; }
-        else if (cur.length === 0) {
-          splitTopLevelOversizedNode(rawNodes[j], b, kind, widthPx, maxH, chunks.length).forEach(function (el) { chunks.push(el); });
-          j++; i = j; cur = []; break;
-        } else { break; }
-      }
-      if (cur.length) {
-        var frag2 = document.createDocumentFragment();
-        cur.forEach(function (n) { frag2.appendChild(n.cloneNode(true)); });
-        chunks.push(buildStaticBodyChunkEl(b, kind, frag2, chunks.length === 0));
-        i = j;
-      }
-    }
-    return chunks.length ? chunks : [buildStaticBodyChunkEl(b, kind, document.createDocumentFragment(), true)];
-  }
-
-  function stripBookletExportFooters(pageDivs) {
-    (pageDivs || []).forEach(function (page) {
-      page.querySelectorAll('.booklet-export-footer').forEach(function (f) { f.remove(); });
-    });
-  }
-
-  function reflowBookletPagesUntilNoOverflow(pageDivs, sizeStr, sinkEl) {
-    var EPS = 4, iterations = 0, MAX_ITER = 80000;
-    var bodyHPx = getMaxPageBodyHeightPx();
-    function ensurePageAt(idx) {
-      while (pageDivs.length <= idx) {
-        var page = document.createElement('div');
-        page.className = 'booklet-page';
-        page.dataset.size = sizeStr;
-        var inner = document.createElement('div');
-        inner.className = 'page-inner-flow';
-        var body = document.createElement('div');
-        body.className = 'booklet-page-body';
-        body.style.display = 'block';
-        body.style.height = bodyHPx + 'px';
-        body.style.maxHeight = bodyHPx + 'px';
-        body.style.minHeight = bodyHPx + 'px';
-        body.style.overflow = 'hidden';
-        inner.appendChild(body);
-        page.appendChild(inner);
-        pageDivs.push(page);
-        sinkEl.appendChild(page);
-      }
-    }
-    var pi = 0;
-    while (pi < pageDivs.length && iterations < MAX_ITER) {
-      var page = pageDivs[pi];
-      var body = page.querySelector('.booklet-page-body');
-      if (!body) { pi++; continue; }
-      var over = body.scrollHeight - body.clientHeight;
-      if (over <= EPS) { pi++; continue; }
-      var last = body.lastElementChild;
-      if (!last) { pi++; continue; }
-      if (body.childElementCount === 1 && last.offsetHeight > body.clientHeight + EPS) { pi++; continue; }
-      body.removeChild(last);
-      ensurePageAt(pi + 1);
-      var nextBody = pageDivs[pi + 1].querySelector('.booklet-page-body');
-      if (nextBody) nextBody.insertBefore(last, nextBody.firstChild);
-      iterations++;
-    }
-
-    for (var bi = 0; bi < pageDivs.length - 1 && iterations < MAX_ITER; bi++) {
-      var curBody = pageDivs[bi].querySelector('.booklet-page-body');
-      if (!curBody) continue;
-      var nxtBody = pageDivs[bi + 1].querySelector('.booklet-page-body');
-      if (!nxtBody) continue;
-      while (nxtBody.firstElementChild && iterations < MAX_ITER) {
-        var candidate = nxtBody.firstElementChild;
-        var candidateH = candidate.offsetHeight;
-        var curSpace = curBody.clientHeight - curBody.scrollHeight;
-        if (curSpace < candidateH + EPS) break;
-        curBody.appendChild(candidate);
-        if (curBody.scrollHeight > curBody.clientHeight + EPS) {
-          nxtBody.insertBefore(candidate, nxtBody.firstChild);
-          break;
-        }
-        iterations++;
-      }
-    }
-  }
-
-  function trimTrailingEmptyBookletPages(pageDivs) {
-    while (pageDivs.length > 1) {
-      var last = pageDivs[pageDivs.length - 1];
-      var body = last.querySelector('.booklet-page-body');
-      if (body && body.childElementCount > 0) break;
-      last.remove();
-      pageDivs.pop();
-    }
-  }
-
-  function packFlow(items) {
-    var widthPx = getContentWidthPx();
-    var maxH = getPackMaxBodyHeightPx();
+  function paginateFlow(flowItems, widthPx, pageHPx) {
+    var pages = [];
+    var curPageEls = [];
+    var curY = 0;
     var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
-    var gapLine = 3;
-    var pages = [], page = [], curH = 0, lastWasLine = false, pendingGapMm = defaultGapMm;
-    function flush() { if (page.length) pages.push(page); page = []; curH = 0; lastWasLine = false; }
-    for (var k = 0; k < items.length; k++) {
-      var it = items[k];
-      if (it.t === 'break') { flush(); pendingGapMm = defaultGapMm; continue; }
-      var isLine = it.t === 'line';
-      var el = it.el;
-      var h = measureElHeight(el, widthPx);
-      var gap = 0;
-      if (page.length) {
-        if (it.skipGapBefore) { gap = it.tightGapPx != null ? it.tightGapPx : 0; }
-        else if (isLine && lastWasLine && it.internalLineBreak) { gap = it.afterInternalPx != null ? it.afterInternalPx : gapLine; }
-        else { gap = mmToPx(pendingGapMm); }
-      }
-      if (page.length && curH + gap + h > maxH) {
-        flush();
-        page.push(el); curH = h; lastWasLine = isLine;
-        if (!it.internalLineBreak) pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
-        continue;
-      }
-      if (page.length) curH += gap;
-      page.push(el); curH += h; lastWasLine = isLine;
-      if (!it.internalLineBreak) pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
+    var pendingGapMm = defaultGapMm;
+
+    function flushPage() {
+      if (curPageEls.length) pages.push(curPageEls);
+      curPageEls = [];
+      curY = 0;
+      pendingGapMm = defaultGapMm;
     }
-    flush();
+
+    for (var i = 0; i < flowItems.length; i++) {
+      var item = flowItems[i];
+      if (item.t === 'break') { flushPage(); continue; }
+
+      var el = item.el;
+      var h = measureInContext(el, widthPx);
+      var gap = 0;
+      if (curY > 0) {
+        if (item.internalGapPx != null && item.internalGapPx >= 0) {
+          gap = item.internalGapPx;
+        } else {
+          gap = mmToPx(pendingGapMm);
+        }
+      }
+
+      if (item.forceBreakBefore && curPageEls.length) {
+        flushPage();
+        gap = 0;
+      }
+
+      if (curY + gap + h <= pageHPx) {
+        if (curY > 0) curY += gap;
+        curPageEls.push(el);
+        curY += h;
+      } else if (!item.splittable || h <= pageHPx) {
+        if (curPageEls.length) flushPage();
+        curPageEls.push(el);
+        curY = h;
+      } else {
+        var remaining = pageHPx - curY;
+        if (curY > 0) remaining -= gap;
+        if (remaining < 30) {
+          flushPage();
+          remaining = pageHPx;
+        } else if (curY > 0) {
+          curY += gap;
+        }
+
+        var offset = 0;
+        var totalH = h;
+        var isFirst = true;
+        while (offset < totalH) {
+          var sliceH = isFirst ? remaining : pageHPx;
+          if (offset + sliceH >= totalH) {
+            var clipEl = createClippedView(el, offset, totalH, widthPx, 'booklet-clip-bottom');
+            curPageEls.push(clipEl);
+            curY += (totalH - offset);
+            break;
+          }
+          var snapH = snapToLineHeight(sliceH, el);
+          if (snapH < 20) snapH = sliceH;
+          var clipClass = isFirst ? 'booklet-clip-top' : (offset + snapH >= totalH ? 'booklet-clip-bottom' : 'booklet-clip-mid');
+          var clipPart = createClippedView(el, offset, offset + snapH, widthPx, clipClass);
+          curPageEls.push(clipPart);
+          offset += snapH;
+          flushPage();
+          isFirst = false;
+        }
+      }
+
+      if (item.gapMm != null) pendingGapMm = item.gapMm;
+      else pendingGapMm = defaultGapMm;
+    }
+    if (curPageEls.length) pages.push(curPageEls);
     return pages;
   }
 
@@ -2128,7 +1955,10 @@
     }
     if (myTok !== previewToken) return;
 
-    var pageGroups = packFlow(flow);
+    var widthPx = getContentWidthPx();
+    var pageHPx = getMaxPageBodyHeightPx() - BOOKLET_FOOTER_RESERVE_PX;
+    var pageGroups = paginateFlow(flow, widthPx, pageHPx);
+
     var pageDivs = pageGroups.map(function (elements) {
       var page = document.createElement('div');
       page.className = 'booklet-page';
@@ -2150,47 +1980,6 @@
       return;
     }
 
-    var sink = document.createElement('div');
-    sink.setAttribute('aria-hidden', 'true');
-    sink.style.cssText = 'position:fixed;left:-120vw;top:0;width:auto;height:auto;overflow:visible;opacity:0;pointer-events:none;z-index:-9999;';
-    document.body.appendChild(sink);
-
-    var pageBodyHPx = getMaxPageBodyHeightPx();
-    pageDivs.forEach(function (p) {
-      var body = p.querySelector('.booklet-page-body');
-      if (body) {
-        body.style.display = 'block';
-        body.style.height = pageBodyHPx + 'px';
-        body.style.maxHeight = pageBodyHPx + 'px';
-        body.style.minHeight = pageBodyHPx + 'px';
-        body.style.overflow = 'hidden';
-      }
-      sink.appendChild(p);
-    });
-
-    await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
-    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { /* ignore */ } }
-    if (myTok !== previewToken) { document.body.removeChild(sink); return; }
-
-    appendCreditsFooterToLastPage(pageDivs);
-    reflowBookletPagesUntilNoOverflow(pageDivs, size, sink);
-    stripBookletExportFooters(pageDivs);
-    appendCreditsFooterToLastPage(pageDivs);
-    trimTrailingEmptyBookletPages(pageDivs);
-
-    pageDivs.forEach(function (p) {
-      var body = p.querySelector('.booklet-page-body');
-      if (body) {
-        body.style.display = '';
-        body.style.height = '';
-        body.style.maxHeight = '';
-        body.style.minHeight = '';
-        body.style.overflow = '';
-      }
-    });
-
-    document.body.removeChild(sink);
-
     pageDivs.forEach(function (p) {
       var body = p.querySelector('.booklet-page-body');
       if (!body) return;
@@ -2206,6 +1995,8 @@
         if (chantEl) chantEl.style.paddingTop = '10px';
       }
     });
+
+    appendCreditsFooterToLastPage(pageDivs);
 
     exportPageElements = pageDivs;
 
@@ -2367,7 +2158,7 @@
       actions.className = 'booklet-block-actions';
       var vis = document.createElement('button');
       vis.type = 'button';
-      vis.className = 'btn btn-outline-secondary';
+      vis.className = 'btn';
       vis.title = b.hidden ? 'Show' : 'Hide';
       vis.innerHTML = b.hidden ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
       vis.addEventListener('click', function (ev) {
@@ -2379,7 +2170,7 @@
       });
       var dup = document.createElement('button');
       dup.type = 'button';
-      dup.className = 'btn btn-outline-secondary';
+      dup.className = 'btn';
       dup.title = 'Duplicate';
       dup.innerHTML = '<i class="bi bi-copy"></i>';
       dup.addEventListener('click', function (ev) {
@@ -2388,7 +2179,7 @@
       });
       var rm = document.createElement('button');
       rm.type = 'button';
-      rm.className = 'btn btn-outline-danger';
+      rm.className = 'btn booklet-action-danger';
       rm.title = 'Remove';
       rm.innerHTML = '<i class="bi bi-trash3"></i>';
       rm.addEventListener('click', function (ev) {
@@ -3262,50 +3053,24 @@
   }
 
   async function downloadPdf() {
-    var pages = exportPageElements.filter(
-      function (el) { return el && el.isConnected && el.dataset.placeholder !== 'true'; }
-    );
-    if (!pages.length) {
-      alert('Add content before downloading a PDF.');
-      return;
-    }
-
+    var pages = exportPageElements.filter(function (el) { return el && el.isConnected && el.dataset.placeholder !== 'true'; });
+    if (!pages.length) { alert('Add content before downloading a PDF.'); return; }
     var btn = document.getElementById('btnDownloadPdf');
     var oldText = btn ? btn.innerHTML : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Building\u2026';
-    }
-
-    var fallbackHtml = buildBookletServerPdfHtml(pages);
-    var fallbackWin = window.open('', '_blank');
-
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Building\u2026'; }
     try {
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      var html = buildBookletServerPdfHtml(pages);
       var r = await fetch('/api/booklet/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          html: fallbackHtml,
-          pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ html: html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4' }),
       });
       if (!r.ok) {
-        console.warn('Server PDF failed (' + r.status + ')');
-        if (fallbackWin) {
-          fallbackWin.document.open();
-          fallbackWin.document.write(fallbackHtml);
-          fallbackWin.document.close();
-          setTimeout(function () { fallbackWin.focus(); fallbackWin.print(); }, 600);
-        } else {
-          alert('Server PDF unavailable and pop-up blocked. Allow pop-ups for this site and use the Print button instead.');
-        }
+        var msg = 'Server PDF export failed (status ' + r.status + ').';
+        try { var j = await r.json(); if (j && j.error) msg = j.error; } catch (e) { /* ignore */ }
+        alert(msg);
         return;
       }
-      if (fallbackWin) fallbackWin.close();
       var blob = await r.blob();
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -3314,19 +3079,9 @@
       URL.revokeObjectURL(a.href);
     } catch (e) {
       console.error(e);
-      if (fallbackWin) {
-        fallbackWin.document.open();
-        fallbackWin.document.write(fallbackHtml);
-        fallbackWin.document.close();
-        setTimeout(function () { fallbackWin.focus(); fallbackWin.print(); }, 600);
-      } else {
-        alert('PDF export failed and pop-up blocked. Allow pop-ups and use the Print button.');
-      }
+      alert('PDF export failed (network or server error).');
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = oldText;
-      }
+      if (btn) { btn.disabled = false; btn.innerHTML = oldText; }
     }
   }
 
@@ -3389,7 +3144,13 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
-    document.getElementById('btnPrintBooklet')?.addEventListener('click', () => printBookletClientSide());
+    document.getElementById('chkDebugLayout')?.addEventListener('change', function () {
+      var pp = document.getElementById('previewPages');
+      if (pp) {
+        if (this.checked) pp.classList.add('booklet-debug');
+        else pp.classList.remove('booklet-debug');
+      }
+    });
   }
 
   loadAutosave();
