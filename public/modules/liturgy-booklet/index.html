@@ -177,6 +177,27 @@
         .booklet-richtext u {
             text-underline-offset: 2px;
         }
+        .booklet-richtext ol,
+        .booklet-richtext ul,
+        .booklet-rich-ed ol,
+        .booklet-rich-ed ul {
+            margin: 0.35em 0;
+            padding-inline-start: 1.65em;
+            list-style-position: outside;
+        }
+        .booklet-richtext ol,
+        .booklet-rich-ed ol {
+            list-style-type: decimal;
+        }
+        .booklet-richtext ul,
+        .booklet-rich-ed ul {
+            list-style-type: disc;
+        }
+        .booklet-richtext li,
+        .booklet-rich-ed li {
+            margin: 0.2em 0;
+            padding-inline-start: 0.35em;
+        }
         .booklet-reading-parallel {
             width: 100%;
             border-collapse: collapse;
@@ -282,7 +303,70 @@
         .booklet-page img.user-img {
             max-width: 100%;
             height: auto;
-            display: block;
+        }
+        .booklet-image-frame {
+            width: 100%;
+        }
+        .booklet-title-rule {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: 100%;
+            margin: 0.35rem 0 0.65rem;
+        }
+        .booklet-title-rule-line {
+            flex: 1 1 auto;
+            height: 1px;
+            min-width: 0.75rem;
+        }
+        .booklet-title-rule-text {
+            flex: 0 1 auto;
+            font-variant: small-caps;
+            letter-spacing: 0.06em;
+            font-size: 1.06em;
+            text-align: center;
+            white-space: normal;
+            max-width: 88%;
+            line-height: 1.25;
+        }
+        .booklet-chant-details input[type="range"].booklet-chant-range,
+        .booklet-chant-details input[type="range"].form-range {
+            height: 0.5rem;
+            margin-top: 0.35rem;
+            margin-bottom: 0.15rem;
+        }
+        .booklet-chant-details input[type="range"].booklet-chant-range::-webkit-slider-runnable-track,
+        .booklet-chant-details input[type="range"].form-range::-webkit-slider-runnable-track {
+            height: 0.5rem;
+            border-radius: 0.25rem;
+            background: linear-gradient(90deg, #ced4da, #e9ecef);
+        }
+        .booklet-chant-details input[type="range"].booklet-chant-range::-webkit-slider-thumb,
+        .booklet-chant-details input[type="range"].form-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
+            margin-top: -0.25rem;
+            border-radius: 50%;
+            background: #8b1538;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+        }
+        .booklet-chant-details input[type="range"].booklet-chant-range::-moz-range-track,
+        .booklet-chant-details input[type="range"].form-range::-moz-range-track {
+            height: 0.5rem;
+            border-radius: 0.25rem;
+            background: linear-gradient(90deg, #ced4da, #e9ecef);
+        }
+        .booklet-chant-details input[type="range"].booklet-chant-range::-moz-range-thumb,
+        .booklet-chant-details input[type="range"].form-range::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: #8b1538;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
         }
         .booklet-scale-inner {
             display: inline-block;
@@ -442,6 +526,10 @@
                     <option value="A4">A4 page</option>
                     <option value="A5">A5 page</option>
                 </select>
+                <label class="small mb-0 d-flex align-items-center gap-1" title="Page margin in millimetres (preview padding and text column width). Imported edition PDF pages still use the full page area for the raster.">
+                    Margin (mm)
+                    <input type="number" id="inpBookletMarginMm" class="form-control form-control-sm" style="width:4.25rem" min="6" max="40" step="1" value="16">
+                </label>
                 <select id="selPreviewDisplay" class="form-select form-select-sm" style="width: auto;" title="How the preview is shown on screen">
                     <option value="scroll">Preview: scroll pages</option>
                     <option value="booklet">Preview: booklet spreads</option>
@@ -483,6 +571,7 @@
                     <ul class="dropdown-menu w-100">
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="rubric"><i class="bi bi-type me-2"></i>Rubric</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-2"></i>Reading / prayer</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="title"><i class="bi bi-text-center me-2"></i>Title rule</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-2"></i>Chant (GABC)</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-2"></i>Image</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-2"></i>Polyphony edition PDF</button></li>

@@ -1,9 +1,9 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 7;
-  const STORAGE_KEY = 'liturgyBooklet_autosave_v7';
-  const BOOKLET_MARGIN_MM = 16;
+  const SCHEMA_VERSION = 8;
+  const STORAGE_KEY = 'liturgyBooklet_autosave_v8';
+  const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
   /** Extra vertical room when packing pages (measurement vs rendered chant lines). */
@@ -47,6 +47,7 @@
     projectTitle: '',
     settings: {
       pageSize: 'A4',
+      marginMm: DEFAULT_BOOKLET_MARGIN_MM,
       previewDisplay: 'scroll',
       fontFamilyKey: 'georgia',
       rubricColor: '#8b1538',
@@ -192,9 +193,16 @@
     return (mm * 96) / 25.4;
   }
 
+  function getBookletMarginMm() {
+    const mm = Number(state.settings.marginMm);
+    return Number.isFinite(mm)
+      ? Math.min(40, Math.max(6, Math.round(mm)))
+      : DEFAULT_BOOKLET_MARGIN_MM;
+  }
+
   function applyCssVars() {
     const root = document.documentElement;
-    root.style.setProperty('--booklet-margin-mm', String(BOOKLET_MARGIN_MM));
+    root.style.setProperty('--booklet-margin-mm', String(getBookletMarginMm()));
     root.style.setProperty('--booklet-font-scale', '1');
     const fk = state.settings.fontFamilyKey || 'georgia';
     root.style.setProperty(
@@ -207,12 +215,14 @@
 
   function getContentWidthPx() {
     const pageW = state.settings.pageSize === 'A5' ? 148 : 210;
-    return Math.max(200, mmToPx(pageW - 2 * BOOKLET_MARGIN_MM));
+    const m = getBookletMarginMm();
+    return Math.max(200, mmToPx(pageW - 2 * m));
   }
 
   function getMaxPageBodyHeightPx() {
     const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
-    return Math.max(120, mmToPx(pageH - 2 * BOOKLET_MARGIN_MM));
+    const m = getBookletMarginMm();
+    return Math.max(120, mmToPx(pageH - 2 * m));
   }
 
   function escapeHtml(s) {
@@ -225,8 +235,44 @@
     return escapeHtml(s).replace(/"/g, '&quot;');
   }
 
+  function normalizeHtmlColorForSanitize(v) {
+    if (v == null) return '';
+    const s = String(v).trim();
+    if (!s) return '';
+    if (/^#[0-9a-f]{3,8}$/i.test(s)) return s;
+    if (/^rgba?\s*\(/i.test(s)) return s;
+    if (/^[a-z][a-z0-9()%,.\s-]*$/i.test(s) && s.length < 40) return s.toLowerCase();
+    return '';
+  }
+
+  function sanitizeRichInlineStyle(styleStr) {
+    const parts = [];
+    const st = String(styleStr || '');
+    const cm = st.match(/color\s*:\s*([^;]+)/i);
+    if (cm) {
+      const col = normalizeHtmlColorForSanitize(cm[1]);
+      if (col) {
+        parts.push('color:' + col);
+      }
+    }
+    const fm = st.match(/font-size\s*:\s*([^;]+)/i);
+    if (fm) {
+      const raw = fm[1].trim();
+      const low = raw.toLowerCase();
+      if (low === 'inherit' || low === 'initial') {
+        parts.push('font-size:' + low);
+      } else if (/^(?:\d+(?:\.\d+)?)(?:pt|px|em|rem|%)$/i.test(raw)) {
+        const num = parseFloat(raw);
+        if (num > 0 && num <= 72) {
+          parts.push('font-size:' + raw);
+        }
+      }
+    }
+    return parts.join(';');
+  }
+
   /**
-   * Safe subset for rubric/reading/translation: b, i, u, br, span[style=color only].
+   * Safe subset for rubric/reading/translation: b, i, u, br, lists, span[style=color|font-size].
    * @returns {DocumentFragment}
    */
   function sanitizeToFragment(html) {
@@ -266,15 +312,28 @@
         appendChildren(el, node);
         return el;
       }
+      if (tag === 'ol' || tag === 'ul') {
+        const el = document.createElement(tag);
+        const start = node.getAttribute('start');
+        if (tag === 'ol' && start != null && /^\d+$/.test(String(start).trim())) {
+          const n0 = parseInt(start, 10);
+          if (n0 >= 1 && n0 <= 9999) {
+            el.setAttribute('start', String(n0));
+          }
+        }
+        appendChildren(el, node);
+        return el;
+      }
+      if (tag === 'li') {
+        const el = document.createElement('li');
+        appendChildren(el, node);
+        return el;
+      }
       if (tag === 'span') {
         const el = document.createElement('span');
-        const st = node.getAttribute('style') || '';
-        const cm = st.match(/color\s*:\s*([^;]+)/i);
-        if (cm) {
-          const col = cm[1].trim();
-          if (/^#[0-9a-f]{3,8}$/i.test(col) || /^rgba?\s*\(/i.test(col)) {
-            el.setAttribute('style', 'color:' + col);
-          }
+        const safe = sanitizeRichInlineStyle(node.getAttribute('style') || '');
+        if (safe) {
+          el.setAttribute('style', safe);
         }
         appendChildren(el, node);
         return el;
@@ -287,9 +346,13 @@
           const v = am[1].trim().toLowerCase();
           if (v === 'left' || v === 'right' || v === 'center' || v === 'justify') ta = v;
         }
-        if (ta) {
+        const inline = sanitizeRichInlineStyle(st);
+        if (ta || inline) {
           const el = document.createElement(tag);
-          el.setAttribute('style', 'text-align:' + ta);
+          const bits = [];
+          if (ta) bits.push('text-align:' + ta);
+          if (inline) bits.push(inline);
+          el.setAttribute('style', bits.join(';'));
           appendChildren(el, node);
           return el;
         }
@@ -298,9 +361,18 @@
         return f;
       }
       if (tag === 'font') {
-        const f = document.createDocumentFragment();
-        appendChildren(f, node);
-        return f;
+        const col = normalizeHtmlColorForSanitize(node.getAttribute('color'));
+        const inner = document.createDocumentFragment();
+        appendChildren(inner, node);
+        if (col) {
+          const span = document.createElement('span');
+          span.setAttribute('style', 'color:' + col);
+          while (inner.firstChild) {
+            span.appendChild(inner.firstChild);
+          }
+          return span;
+        }
+        return inner;
       }
       const f = document.createDocumentFragment();
       appendChildren(f, node);
@@ -386,6 +458,9 @@
     if (t === 'image') {
       return { icon: 'bi-image', color: '#198754', label: 'Image' };
     }
+    if (t === 'title') {
+      return { icon: 'bi-text-center', color: '#495057', label: 'Title rule' };
+    }
     if (t === 'edition_pdf') {
       return { icon: 'bi-file-earmark-pdf', color: '#c41230', label: 'Edition PDF' };
     }
@@ -436,6 +511,10 @@
       const cap = String(b.label || '').trim();
       return cap || 'Image (no list label)';
     }
+    if (b.type === 'title') {
+      const tx = String(b.text || '').trim();
+      return tx || 'Title (empty)';
+    }
     if (b.type === 'page_break') {
       return 'Page break';
     }
@@ -445,15 +524,77 @@
     return String(b.type || '');
   }
 
+  function applyRichFontSize(ed, sizeCss, onChange) {
+    ed.focus();
+    try {
+      document.execCommand('styleWithCSS', false, true);
+    } catch (e) {
+      /* ignore */
+    }
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) {
+      onChange();
+      return;
+    }
+    const span = document.createElement('span');
+    span.style.fontSize = sizeCss === 'inherit' ? 'inherit' : sizeCss;
+    try {
+      range.surroundContents(span);
+    } catch (err) {
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+      range.setStartAfter(span);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    onChange();
+  }
+
   function bindRichToolbar(toolbarRoot, ed, onChange) {
-    toolbarRoot.querySelectorAll('[data-rich-cmd]').forEach(function (btn) {
-      btn.addEventListener('mousedown', function (e) {
+    let savedRange = null;
+    toolbarRoot.addEventListener(
+      'mousedown',
+      function (e) {
+        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select]')) return;
         e.preventDefault();
-      });
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
+          try {
+            savedRange = sel.getRangeAt(0).cloneRange();
+          } catch (e0) {
+            savedRange = null;
+          }
+        }
+      },
+      true
+    );
+
+    function restoreSelection() {
+      ed.focus();
+      if (!savedRange) return;
+      try {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      } catch (eR) {
+        /* ignore */
+      }
+    }
+
+    toolbarRoot.querySelectorAll('[data-rich-cmd]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        ed.focus();
+        restoreSelection();
         const cmd = btn.getAttribute('data-rich-cmd');
         try {
+          try {
+            document.execCommand('styleWithCSS', false, true);
+          } catch (e1) {
+            /* ignore */
+          }
           if (cmd === 'foreColor') {
             const c = btn.getAttribute('data-color');
             if (c) document.execCommand('foreColor', false, c);
@@ -473,6 +614,16 @@
         onChange();
       });
     });
+    const fontSel = toolbarRoot.querySelector('[data-rich-font-select]');
+    if (fontSel) {
+      fontSel.addEventListener('change', function () {
+        const v = fontSel.value;
+        if (v === '') return;
+        restoreSelection();
+        applyRichFontSize(ed, v, onChange);
+        fontSel.value = '';
+      });
+    }
     ed.addEventListener('input', onChange);
     ed.addEventListener('blur', onChange);
   }
@@ -481,14 +632,16 @@
     const b = chantBlock || {};
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
-    ctxt.setGlyphScaling(1 / 16);
-    const neumePx = Math.min(28, Math.max(12, Number(b.chantNeumeSize) || 19.2));
+    const glyphMult = Math.min(2, Math.max(0.35, Number(b.chantGlyphScale) || 1));
+    ctxt.setGlyphScaling((1 / 16) * glyphMult);
+    const lyricPx = Math.min(28, Math.max(12, Number(b.chantNeumeSize) || 19.2));
     const tfk = normalizeChantTextFontKey(b.chantTextFont);
-    ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], neumePx / 0.9);
-    ctxt.spaceBetweenSystems = Math.min(24, Math.max(0, Number(b.chantSystemGap) || 4));
+    ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
+    const gapUi = Math.min(12, Math.max(0, Number(b.chantSystemGap) || 2));
+    ctxt.spaceBetweenSystems = Math.min(24, gapUi * 2);
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
-    ctxt.textStyles.dropCap.size = Math.round((neumePx / 19.2) * 64 * dropCapScale);
-    ctxt.textStyles.annotation.size = Math.round((neumePx / 19.2) * 12.8);
+    ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
+    ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 12.8);
     const tight = Math.min(1.5, Math.max(0.35, Number(b.chantLyricTight) || 0.7));
     ctxt.minLyricWordSpacing *= tight;
     if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
@@ -547,7 +700,6 @@
 
   function stripLegacyBookletSettings(settings) {
     if (!settings || typeof settings !== 'object') return;
-    delete settings.marginMm;
     delete settings.fontScale;
     delete settings.sectionGapMm;
     delete settings.chantNeumeSize;
@@ -569,7 +721,7 @@
     };
   }
 
-  function normalizeBlocksV7(blocks, legSettings, applyLegacySpacingAndChant) {
+  function normalizeBlocksV8(blocks, legSettings, applyLegacySpacingAndChant, migrateChantGapToV8Ui) {
     const leg = legSettings || {};
     const legacyGap =
       applyLegacySpacingAndChant && leg.sectionGapMm != null
@@ -588,7 +740,7 @@
         if (o.sectionGapAfterMm == null) {
           o.sectionGapAfterMm = legacyGap != null ? legacyGap : DEFAULT_SECTION_GAP_AFTER_MM;
         } else {
-          o.sectionGapAfterMm = Math.min(30, Math.max(0, Number(o.sectionGapAfterMm)));
+          o.sectionGapAfterMm = Math.min(40, Math.max(-40, Number(o.sectionGapAfterMm)));
         }
         return o;
       }
@@ -602,7 +754,7 @@
       if (o.sectionGapAfterMm == null) {
         o.sectionGapAfterMm = legacyGap != null ? legacyGap : DEFAULT_SECTION_GAP_AFTER_MM;
       } else {
-        o.sectionGapAfterMm = Math.min(30, Math.max(0, Number(o.sectionGapAfterMm)));
+        o.sectionGapAfterMm = Math.min(40, Math.max(-40, Number(o.sectionGapAfterMm)));
       }
       if (o.type === 'rubric' || o.type === 'reading') {
         if (o.fontScale == null) {
@@ -617,6 +769,10 @@
           o.chantNeumeSize != null
             ? Math.min(28, Math.max(12, Number(o.chantNeumeSize)))
             : Math.min(28, Math.max(12, Number(cd.chantNeumeSize) || 19.2));
+        o.chantGlyphScale =
+          o.chantGlyphScale != null
+            ? Math.min(2, Math.max(0.35, Number(o.chantGlyphScale)))
+            : 1;
         o.chantStaffColor = o.chantStaffColor != null ? String(o.chantStaffColor) : cd.chantStaffColor || '';
         o.chantLinePadTop =
           o.chantLinePadTop != null
@@ -626,10 +782,21 @@
           o.chantLyricTight != null
             ? Math.min(1.5, Math.max(0.35, Number(o.chantLyricTight)))
             : Math.min(1.5, Math.max(0.35, Number(cd.chantLyricTight) || 0.7));
-        o.chantSystemGap =
+        let gapRaw =
           o.chantSystemGap != null
-            ? Math.min(24, Math.max(0, Number(o.chantSystemGap)))
-            : Math.min(24, Math.max(0, Number(cd.chantSystemGap) || 4));
+            ? Number(o.chantSystemGap)
+            : cd.chantSystemGap != null
+              ? Number(cd.chantSystemGap)
+              : 2;
+        if (!Number.isFinite(gapRaw)) {
+          gapRaw = 2;
+        }
+        if (migrateChantGapToV8Ui) {
+          gapRaw = Math.min(12, Math.max(0, gapRaw / 2));
+        } else {
+          gapRaw = Math.min(12, Math.max(0, gapRaw));
+        }
+        o.chantSystemGap = gapRaw;
         o.chantDropCapScale =
           o.chantDropCapScale != null
             ? Math.min(1.6, Math.max(0.5, Number(o.chantDropCapScale)))
@@ -655,12 +822,36 @@
         if (o.sectionTitle === undefined) o.sectionTitle = '';
         if (o.sectionSourceRef === undefined) o.sectionSourceRef = '';
       }
-      if (o.type === 'image' && o.label === undefined) o.label = '';
+      if (o.type === 'image') {
+        if (o.label === undefined) o.label = '';
+        if (o.imageWidthPx == null) {
+          o.imageWidthPx = 0;
+        } else {
+          o.imageWidthPx = Math.min(4000, Math.max(0, Math.round(Number(o.imageWidthPx))));
+        }
+        if (o.imageAlign !== 'left' && o.imageAlign !== 'right') {
+          o.imageAlign = 'center';
+        }
+      }
+      if (o.type === 'title') {
+        if (o.text === undefined) o.text = '';
+        o.titleFontKey =
+          BOOKLET_FONT_STACKS[o.titleFontKey] != null ? o.titleFontKey : '';
+        const tc = String(o.titleTextColor || '#212529').trim();
+        o.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+        const lc = String(o.titleLineColor || '#adb5bd').trim();
+        o.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
+      }
       return o;
     });
   }
 
-  function finalizeProjectV7(parsed, applyLegacySpacingAndChant) {
+  function finalizeProjectV8(parsed, applyLegacySpacingAndChant) {
+    const oldSv =
+      parsed.schemaVersion != null && Number.isFinite(Number(parsed.schemaVersion))
+        ? Number(parsed.schemaVersion)
+        : 1;
+    const migrateChantGap = oldSv < SCHEMA_VERSION;
     parsed.schemaVersion = SCHEMA_VERSION;
     parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
     parsed.settings = parsed.settings || {};
@@ -673,7 +864,16 @@
         : 'georgia';
     const rc = parsed.settings.rubricColor || '#8b1538';
     parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
-    parsed.blocks = normalizeBlocksV7(parsed.blocks, parsed.settings, applyLegacySpacingAndChant);
+    const mg = Number(parsed.settings.marginMm);
+    parsed.settings.marginMm = Number.isFinite(mg)
+      ? Math.min(40, Math.max(6, Math.round(mg)))
+      : DEFAULT_BOOKLET_MARGIN_MM;
+    parsed.blocks = normalizeBlocksV8(
+      parsed.blocks,
+      parsed.settings,
+      applyLegacySpacingAndChant,
+      migrateChantGap
+    );
     return parsed;
   }
 
@@ -681,11 +881,14 @@
     if (!parsed || typeof parsed !== 'object') return null;
     const v = parsed.schemaVersion || 1;
     if (v >= SCHEMA_VERSION) {
-      return finalizeProjectV7(parsed, false);
+      return finalizeProjectV8(parsed, false);
     }
     const applyLegacy = true;
+    if (v === 7) {
+      return finalizeProjectV8(parsed, false);
+    }
     if (v === 6) {
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     if (v === 5) {
       parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
@@ -712,7 +915,7 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     if (v === 4) {
       parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
@@ -735,7 +938,7 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     if (v === 3) {
       parsed.projectTitle = '';
@@ -760,7 +963,7 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     if (v === 2) {
       parsed.projectTitle = '';
@@ -770,7 +973,7 @@
       parsed.settings.rubricColor = '#8b1538';
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'image' && b.label === undefined) {
-          return { ...b, label: '' };
+          return { ...b, label: '', imageWidthPx: 0, imageAlign: 'center' };
         }
         if (b.type === 'reading') {
           return {
@@ -789,7 +992,7 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock({ ...b, type: 'edition_pdf' });
         return { ...b };
       });
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     if (v === 1) {
       parsed.projectTitle = '';
@@ -820,7 +1023,7 @@
           });
         }
         if (b.type === 'image') {
-          return { ...b, label: b.label != null ? b.label : '' };
+          return { ...b, label: b.label != null ? b.label : '', imageWidthPx: 0, imageAlign: 'center' };
         }
         if (b.type === 'reading') {
           return {
@@ -838,7 +1041,7 @@
         }
         return { ...b };
       });
-      return finalizeProjectV7(parsed, applyLegacy);
+      return finalizeProjectV8(parsed, applyLegacy);
     }
     return null;
   }
@@ -858,6 +1061,16 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
+        const v7old = localStorage.getItem('liturgyBooklet_autosave_v7');
+        if (v7old && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(v7old));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v7');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
         const v6old = localStorage.getItem('liturgyBooklet_autosave_v6');
         if (v6old && !localStorage.getItem(STORAGE_KEY)) {
           const m = migrateProject(JSON.parse(v6old));
@@ -941,6 +1154,11 @@
     if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
     if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
+    const mgInp = document.getElementById('inpBookletMarginMm');
+    if (mgInp) {
+      const m = getBookletMarginMm();
+      mgInp.value = String(m);
+    }
   }
 
   function gabcToExsurge(gabc) {
@@ -1062,7 +1280,7 @@
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
       const maxBodyPx = getMaxPageBodyHeightPx();
-      const marginPx = mmToPx(BOOKLET_MARGIN_MM);
+      const marginPx = mmToPx(getBookletMarginMm());
       const bleedWidthPx = widthPx + 2 * marginPx;
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
@@ -1158,18 +1376,60 @@
         wrap.appendChild(p);
       }
     } else if (b.type === 'image') {
+      const frame = document.createElement('div');
+      frame.className = 'booklet-image-frame';
+      const align = b.imageAlign === 'left' || b.imageAlign === 'right' ? b.imageAlign : 'center';
+      frame.style.textAlign = align;
       if (b.dataBase64 && b.mime) {
         const img = document.createElement('img');
         img.className = 'user-img';
         img.src = 'data:' + b.mime + ';base64,' + b.dataBase64;
         img.alt = '';
-        wrap.appendChild(img);
+        const wPx = Number(b.imageWidthPx);
+        if (Number.isFinite(wPx) && wPx > 0) {
+          img.style.width = Math.min(4000, Math.round(wPx)) + 'px';
+          img.style.maxWidth = '100%';
+        }
+        img.style.height = 'auto';
+        img.style.display = 'inline-block';
+        img.style.verticalAlign = 'top';
+        frame.appendChild(img);
+        wrap.appendChild(frame);
       } else {
         const p = document.createElement('p');
         p.className = 'text-muted small';
         p.textContent = 'No image — use Replace image in the editor.';
         wrap.appendChild(p);
       }
+    } else if (b.type === 'title') {
+      const row = document.createElement('div');
+      row.className = 'booklet-title-rule';
+      const lineL = document.createElement('span');
+      lineL.className = 'booklet-title-rule-line';
+      lineL.setAttribute('aria-hidden', 'true');
+      const lineR = document.createElement('span');
+      lineR.className = 'booklet-title-rule-line';
+      lineR.setAttribute('aria-hidden', 'true');
+      const textEl = document.createElement('span');
+      textEl.className = 'booklet-title-rule-text';
+      textEl.textContent = String(b.text || '').trim();
+      const fk =
+        b.titleFontKey && BOOKLET_FONT_STACKS[b.titleFontKey] != null
+          ? b.titleFontKey
+          : null;
+      const fontStack =
+        BOOKLET_FONT_STACKS[fk || state.settings.fontFamilyKey] || BOOKLET_FONT_STACKS.georgia;
+      textEl.style.fontFamily = fontStack;
+      const tc = String(b.titleTextColor || '').trim();
+      textEl.style.color = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+      const lc = String(b.titleLineColor || '').trim();
+      const lineCol = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
+      lineL.style.backgroundColor = lineCol;
+      lineR.style.backgroundColor = lineCol;
+      row.appendChild(lineL);
+      row.appendChild(textEl);
+      row.appendChild(lineR);
+      wrap.appendChild(row);
     } else if (b.type === 'jgabc_propers') {
       const p = document.createElement('div');
       p.className = 'small text-muted';
@@ -1184,7 +1444,7 @@
 
   function blockSectionGapAfterMm(b) {
     const g = Number(b.sectionGapAfterMm);
-    return Number.isFinite(g) ? Math.min(30, Math.max(0, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
+    return Number.isFinite(g) ? Math.min(40, Math.max(-40, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
   }
 
   async function buildFlowList() {
@@ -1227,6 +1487,40 @@
         });
         continue;
       }
+      if (b.type === 'rubric') {
+        const chunkEls = chunkStaticRichTextToElements(b, 'rubric', w);
+        const lastIdx = chunkEls.length - 1;
+        chunkEls.forEach(function (el, idx) {
+          const isLast = idx === lastIdx;
+          out.push({
+            t: 'flow',
+            el,
+            skipGapBefore: idx > 0,
+            tightGapPx: 0,
+            internalLineBreak: !isLast,
+            afterInternalPx: 0,
+            sectionGapAfterMm: isLast ? gapAfter : undefined,
+          });
+        });
+        continue;
+      }
+      if (b.type === 'reading' && !translationHasContent(b.translation)) {
+        const chunkEls = chunkStaticRichTextToElements(b, 'reading', w);
+        const lastIdx = chunkEls.length - 1;
+        chunkEls.forEach(function (el, idx) {
+          const isLast = idx === lastIdx;
+          out.push({
+            t: 'flow',
+            el,
+            skipGapBefore: idx > 0,
+            tightGapPx: 0,
+            internalLineBreak: !isLast,
+            afterInternalPx: 0,
+            sectionGapAfterMm: isLast ? gapAfter : undefined,
+          });
+        });
+        continue;
+      }
       out.push({
         t: 'flow',
         el: buildStaticSectionEl(b),
@@ -1248,6 +1542,207 @@
     const h = clone.offsetHeight;
     mount.innerHTML = '';
     return h || 1;
+  }
+
+  function buildStaticBodyChunkEl(b, kind, bodyFrag, includeHeading) {
+    const wrap = document.createElement('div');
+    wrap.className = 'booklet-section';
+    const fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
+    wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
+    if (includeHeading) {
+      appendSectionHeading(wrap, b);
+    }
+    const inner = document.createElement('div');
+    inner.className = kind === 'rubric' ? 'rubric booklet-richtext' : 'reading booklet-richtext';
+    while (bodyFrag.firstChild) {
+      inner.appendChild(bodyFrag.firstChild);
+    }
+    wrap.appendChild(inner);
+    return wrap;
+  }
+
+  function splitTextContentAcrossChunks(text, b, kind, widthPx, maxH, useHeading, wrapperTag) {
+    const s0 = String(text || '');
+    if (!s0.length) {
+      return [];
+    }
+    let start = 0;
+    const out = [];
+    let head = useHeading;
+    while (start < s0.length) {
+      let lo = start + 1;
+      let hi = s0.length;
+      let best = start + 1;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const slice = s0.slice(start, mid);
+        const frag = document.createDocumentFragment();
+        if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
+          const wEl = document.createElement(wrapperTag);
+          wEl.appendChild(document.createTextNode(slice));
+          frag.appendChild(wEl);
+        } else {
+          frag.appendChild(document.createTextNode(slice));
+        }
+        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, frag, head), widthPx);
+        if (h <= maxH) {
+          best = mid;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      if (best <= start) {
+        best = Math.min(start + 1, s0.length);
+      }
+      const slice2 = s0.slice(start, best);
+      const frag2 = document.createDocumentFragment();
+      if (wrapperTag && /^(div|p)$/i.test(wrapperTag)) {
+        const wEl2 = document.createElement(wrapperTag);
+        wEl2.appendChild(document.createTextNode(slice2));
+        frag2.appendChild(wEl2);
+      } else {
+        frag2.appendChild(document.createTextNode(slice2));
+      }
+      out.push(buildStaticBodyChunkEl(b, kind, frag2, head));
+      head = false;
+      start = best;
+    }
+    return out;
+  }
+
+  function splitTopLevelOversizedNode(node, b, kind, widthPx, maxH, chunksProducedSoFar) {
+    const includeHead = chunksProducedSoFar === 0;
+    if (node.nodeType === Node.TEXT_NODE) {
+      return splitTextContentAcrossChunks(node.textContent, b, kind, widthPx, maxH, includeHead, null);
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return [];
+    }
+    const tag = node.tagName.toLowerCase();
+    const children = Array.from(node.childNodes);
+    const kids = children.filter(function (ch) {
+      if (ch.nodeType === Node.TEXT_NODE) {
+        return (ch.textContent || '').length > 0;
+      }
+      return true;
+    });
+    const onlyText = kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE;
+    if (onlyText || kids.length === 0) {
+      const t = kids.length === 1 ? kids[0].textContent : node.textContent || '';
+      return splitTextContentAcrossChunks(t, b, kind, widthPx, maxH, includeHead, tag === 'br' ? null : tag);
+    }
+    function wrapListTrial(nodesToWrap) {
+      const innerFrag = document.createDocumentFragment();
+      if (/^(div|p|ol|ul)$/i.test(tag)) {
+        const wrapperEl = document.createElement(tag);
+        if (tag === 'ol' && node.getAttribute('start')) {
+          const st = String(node.getAttribute('start') || '').trim();
+          if (/^\d+$/.test(st)) {
+            const n0 = parseInt(st, 10);
+            if (n0 >= 1 && n0 <= 9999) {
+              wrapperEl.setAttribute('start', st);
+            }
+          }
+        }
+        nodesToWrap.forEach(function (ch) {
+          wrapperEl.appendChild(ch.cloneNode(true));
+        });
+        innerFrag.appendChild(wrapperEl);
+      } else {
+        nodesToWrap.forEach(function (ch) {
+          innerFrag.appendChild(ch.cloneNode(true));
+        });
+      }
+      return innerFrag;
+    }
+
+    let idx = 0;
+    const outs = [];
+    let head = includeHead;
+    while (idx < kids.length) {
+      let cur = [];
+      let j = idx;
+      while (j < kids.length) {
+        const trial = cur.concat([kids[j]]);
+        const innerFrag = wrapListTrial(trial);
+        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, innerFrag, head), widthPx);
+        if (h <= maxH) {
+          cur = trial;
+          j++;
+        } else if (cur.length === 0) {
+          splitTopLevelOversizedNode(kids[j], b, kind, widthPx, maxH, chunksProducedSoFar + outs.length).forEach(
+            function (el) {
+              outs.push(el);
+            }
+          );
+          j++;
+          idx = j;
+          head = false;
+          cur = null;
+          break;
+        } else {
+          break;
+        }
+      }
+      if (cur && cur.length) {
+        outs.push(buildStaticBodyChunkEl(b, kind, wrapListTrial(cur), head));
+        head = false;
+        idx = j;
+      }
+    }
+    return outs;
+  }
+
+  function chunkStaticRichTextToElements(b, kind, widthPx) {
+    const maxH = getMaxPageBodyHeightPx();
+    const rawNodes = [];
+    const source = sanitizeToFragment(b.text || '');
+    while (source.firstChild) {
+      rawNodes.push(source.firstChild);
+    }
+    if (!rawNodes.length) {
+      const br = document.createDocumentFragment();
+      br.appendChild(document.createElement('br'));
+      return [buildStaticBodyChunkEl(b, kind, br, true)];
+    }
+    const chunks = [];
+    let i = 0;
+    while (i < rawNodes.length) {
+      let cur = [];
+      let j = i;
+      while (j < rawNodes.length) {
+        const trial = cur.concat([rawNodes[j]]);
+        const frag = document.createDocumentFragment();
+        trial.forEach(function (n) {
+          frag.appendChild(n.cloneNode(true));
+        });
+        const h = measureElHeight(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0), widthPx);
+        if (h <= maxH) {
+          cur = trial;
+          j++;
+        } else if (cur.length === 0) {
+          splitTopLevelOversizedNode(rawNodes[j], b, kind, widthPx, maxH, chunks.length).forEach(function (el) {
+            chunks.push(el);
+          });
+          j++;
+          i = j;
+          cur = [];
+          break;
+        } else {
+          break;
+        }
+      }
+      if (cur.length) {
+        const frag = document.createDocumentFragment();
+        cur.forEach(function (n) {
+          frag.appendChild(n.cloneNode(true));
+        });
+        chunks.push(buildStaticBodyChunkEl(b, kind, frag, chunks.length === 0));
+        i = j;
+      }
+    }
+    return chunks.length ? chunks : [buildStaticBodyChunkEl(b, kind, document.createDocumentFragment(), true)];
   }
 
   function packFlow(items) {
@@ -1279,7 +1774,9 @@
       const h = measureElHeight(el, widthPx);
       let gap = 0;
       if (page.length) {
-        if (isLine && lastWasLine && it.internalLineBreak) {
+        if (it.skipGapBefore) {
+          gap = it.tightGapPx != null ? it.tightGapPx : 0;
+        } else if (isLine && lastWasLine && it.internalLineBreak) {
           gap = it.afterInternalPx != null ? it.afterInternalPx : gapLine;
         } else {
           gap = mmToPx(pendingGapMm);
@@ -1659,10 +2156,34 @@
   function richAlignToolbarHtml() {
     return `
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left">L</button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre">C</button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right">R</button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify">J</button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left" aria-label="Align left"><i class="bi bi-text-left" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre" aria-label="Align centre"><i class="bi bi-text-center" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right" aria-label="Align right"><i class="bi bi-text-right" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify" aria-label="Justify"><i class="bi bi-justify" aria-hidden="true"></i></button>
+          </div>`;
+  }
+
+  function richFontSizeSelectHtml() {
+    return `
+          <select class="form-select form-select-sm mb-1 align-middle" data-rich-font-select style="max-width:7.75rem" title="Font size (selection)" aria-label="Font size">
+            <option value="" selected>Size…</option>
+            <option value="inherit">Default</option>
+            <option value="9pt">9 pt</option>
+            <option value="10pt">10 pt</option>
+            <option value="11pt">11 pt</option>
+            <option value="12pt">12 pt</option>
+            <option value="13pt">13 pt</option>
+            <option value="14pt">14 pt</option>
+            <option value="16pt">16 pt</option>
+            <option value="18pt">18 pt</option>
+          </select>`;
+  }
+
+  function richListToolbarHtml() {
+    return `
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertOrderedList" title="Numbered list (hanging indent for verses)"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
           </div>`;
   }
 
@@ -1677,8 +2198,8 @@
           </div>
           ${
             showGap
-              ? `<label class="form-label small mb-0">Space after this section (mm)</label>
-          <input type="number" class="form-control form-control-sm mb-0" id="edBlockGap" min="0" max="30" value="${gap}">`
+              ? `<label class="form-label small mb-0" title="Extra vertical space after this block. Negative values tighten the gap (e.g. when chant SVG leaves excess whitespace).">Space after this section (mm)</label>
+          <input type="number" class="form-control form-control-sm mb-0" id="edBlockGap" min="-40" max="40" step="1" value="${gap}">`
               : ''
           }
           ${
@@ -1697,9 +2218,9 @@
     const push = () => {
       if (hid) b.hidden = !!hid.checked;
       if (showGap && gapEl) {
-        const g = parseInt(gapEl.value, 10);
+        const g = parseFloat(String(gapEl.value).trim().replace(',', '.'));
         b.sectionGapAfterMm = Number.isFinite(g)
-          ? Math.min(30, Math.max(0, g))
+          ? Math.min(40, Math.max(-40, Math.round(g)))
           : DEFAULT_SECTION_GAP_AFTER_MM;
       }
       if (showFont && fsEl) {
@@ -1835,6 +2356,66 @@
       wireEditorSectionLayout(panel, b, false, false);
       return;
     }
+    if (b.type === 'title') {
+      const tfk = b.titleFontKey != null ? String(b.titleFontKey) : '';
+      const fontOpts =
+        '<option value=""' +
+        (tfk === '' ? ' selected' : '') +
+        '>Same as booklet body</option>' +
+        Object.keys(BOOKLET_FONT_STACKS)
+          .map(function (k) {
+            return (
+              '<option value="' +
+              escapeAttr(k) +
+              '"' +
+              (tfk === k ? ' selected' : '') +
+              '>' +
+              escapeHtml(k.charAt(0).toUpperCase() + k.slice(1)) +
+              '</option>'
+            );
+          })
+          .join('');
+      const ttc = /^#[0-9a-f]{6}$/i.test(String(b.titleTextColor || '').trim())
+        ? String(b.titleTextColor).trim()
+        : '#212529';
+      const tlc = /^#[0-9a-f]{6}$/i.test(String(b.titleLineColor || '').trim())
+        ? String(b.titleLineColor).trim()
+        : '#adb5bd';
+      panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, false)}
+        <label class="form-label small mb-1" for="edTitleText" title="Centered small caps with horizontal rules to the margins.">Title text</label>
+        <input type="text" class="form-control form-control-sm mb-2" id="edTitleText" value="${escapeAttr(b.text || '')}" placeholder="e.g. Kyrie">
+        <label class="form-label small mb-1" for="edTitleFont">Font</label>
+        <select id="edTitleFont" class="form-select form-select-sm mb-2">${fontOpts}</select>
+        <div class="row g-2 mb-0">
+          <div class="col-6">
+            <label class="form-label small mb-0" for="edTitleTextCol">Text colour</label>
+            <input type="color" id="edTitleTextCol" class="form-control form-control-color w-100" value="${escapeAttr(ttc)}">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-0" for="edTitleLineCol">Line colour</label>
+            <input type="color" id="edTitleLineCol" class="form-control form-control-color w-100" value="${escapeAttr(tlc)}">
+          </div>
+        </div>
+      `;
+      const syncTitle = function () {
+        b.text = panel.querySelector('#edTitleText').value;
+        b.titleFontKey = panel.querySelector('#edTitleFont').value;
+        const tc = panel.querySelector('#edTitleTextCol').value;
+        b.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+        const lc = panel.querySelector('#edTitleLineCol').value;
+        b.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      panel.querySelector('#edTitleText').addEventListener('input', syncTitle);
+      panel.querySelector('#edTitleFont').addEventListener('change', syncTitle);
+      panel.querySelector('#edTitleTextCol').addEventListener('input', syncTitle);
+      panel.querySelector('#edTitleLineCol').addEventListener('input', syncTitle);
+      wireEditorSectionLayout(panel, b, true, false);
+      return;
+    }
     if (b.type === 'rubric') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, true)}
@@ -1842,13 +2423,15 @@
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
         <label class="form-label small mb-1" title="Optional italic line, right-aligned under the title.">Source reference <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
-        <label class="form-label small mb-0" title="Bold, italic, underline, alignment, and text colour are reflected in the preview and PDF.">Rubric text</label>
-        <div class="booklet-rich-toolbar rubric-tb">
+        <label class="form-label small mb-0" title="Bold, italic, underline, size, lists, alignment, and colour are reflected in the preview and PDF.">Rubric text</label>
+        <div class="booklet-rich-toolbar rubric-tb d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richFontSizeSelectHtml()}
+          ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
@@ -1891,12 +2474,14 @@
         <label class="form-label small mb-1" title="Optional italic reference, right-aligned.">Source reference <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. John 3:16">
         <label class="form-label small mb-0" title="Primary column; formatting applies in preview and PDF.">Original</label>
-        <div class="booklet-rich-toolbar read-tb-orig">
+        <div class="booklet-rich-toolbar read-tb-orig d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richFontSizeSelectHtml()}
+          ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
@@ -1908,12 +2493,14 @@
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
         <label class="form-label small mb-0" title="When this field has text, the preview uses two parallel columns (original and translation) with the split and spacing you set below.">Translation <span class="text-muted">(parallel when filled)</span></label>
-        <div class="booklet-rich-toolbar read-tb-trans">
+        <div class="booklet-rich-toolbar read-tb-trans d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richFontSizeSelectHtml()}
+          ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
@@ -1981,10 +2568,20 @@
       ig.addEventListener('input', syncParallel);
       wireEditorSectionLayout(panel, b, true, true);
     } else if (b.type === 'image') {
+      const iw = b.imageWidthPx != null ? Math.round(Number(b.imageWidthPx)) : 0;
+      const ia = b.imageAlign === 'left' || b.imageAlign === 'right' ? b.imageAlign : 'center';
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-1" title="Shown only in the left section list, not on booklet pages. The image is stored as base64 inside the project JSON.">Section list name</label>
         <input type="text" class="form-control form-control-sm mb-1" id="edImgLabel" value="${escapeAttr(b.label || '')}" placeholder="e.g. Cover, Map — not shown in booklet">
+        <label class="form-label small mb-1" for="edImgWidth" title="0 = as wide as the text column allows (max 100% of page body).">Width (px)</label>
+        <input type="number" class="form-control form-control-sm mb-1" id="edImgWidth" min="0" max="4000" step="10" value="${iw > 0 ? iw : ''}" placeholder="0 = fit column">
+        <label class="form-label small mb-1" for="edImgAlign">Alignment</label>
+        <select id="edImgAlign" class="form-select form-select-sm mb-2">
+          <option value="left"${ia === 'left' ? ' selected' : ''}>Left</option>
+          <option value="center"${ia === 'center' ? ' selected' : ''}>Centre</option>
+          <option value="right"${ia === 'right' ? ' selected' : ''}>Right</option>
+        </select>
         <button type="button" class="btn btn-sm btn-outline-primary" id="edReplaceImg">Replace image</button>
       `;
       const li = panel.querySelector('#edImgLabel');
@@ -1993,6 +2590,18 @@
         scheduleAutosave();
         renderBlockList();
       });
+      const syncImgLayout = function () {
+        const wRaw = panel.querySelector('#edImgWidth').value.trim();
+        const w = wRaw === '' ? 0 : parseInt(wRaw, 10);
+        b.imageWidthPx = Number.isFinite(w) ? Math.min(4000, Math.max(0, w)) : 0;
+        b.imageAlign = panel.querySelector('#edImgAlign').value;
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      panel.querySelector('#edImgWidth').addEventListener('input', syncImgLayout);
+      panel.querySelector('#edImgWidth').addEventListener('change', syncImgLayout);
+      panel.querySelector('#edImgAlign').addEventListener('change', syncImgLayout);
       panel.querySelector('#edReplaceImg').addEventListener('click', () => pickImageForBlock(b.id));
       wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'edition_pdf') {
@@ -2118,9 +2727,10 @@
       wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'chant_gabc') {
       const cn = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
+      const cg = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
       const cl = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
       const ct = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
-      const cs = b.chantSystemGap != null ? b.chantSystemGap : 4;
+      const cs = b.chantSystemGap != null ? b.chantSystemGap : 2;
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const csc = String(b.chantStaffColor || '').trim();
       const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
@@ -2158,9 +2768,10 @@
               '</code>…</p>'
             : ''
         }
-        <details class="small border rounded px-2 py-1 mt-1 bg-light">
+        <details class="small border rounded px-2 py-1 mt-1 bg-light booklet-chant-details">
           <summary class="fw-semibold user-select-none" title="Exsurge layout engine. GABC initial-style: 0; disables the drop cap when the drop-cap checkbox is on. Original repo linked under Advanced.">Exsurge options (this section)</summary>
           <div class="mt-2 pb-1">
+          <p class="text-muted mb-2" style="font-size:0.7rem" title="Sliders use 0.1 steps. System gap uses a 0–12 control mapped to Exsurge spacing (×2, max 24); projects saved before schema v8 were converted from the old 0–24 scale.">Sliders: visible track, 0.1 steps. System gap is recalibrated for finer control at the low end.</p>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
             <label class="form-check-label" for="edChantUseDropCap" title="When off, no drop cap (overrides GABC except initial-style: 0). When on, initial-style: 0 in GABC still removes it.">Drop cap</label>
@@ -2170,42 +2781,49 @@
             <option value="latin"${clang === 'latin' ? ' selected' : ''}>Latin syllabification</option>
             <option value="english"${clang === 'english' ? ' selected' : ''}>English syllabification</option>
           </select>
-          <label class="form-label mb-0" style="font-size:0.74rem" title="Font for chant text and neumes in this section (Exsurge setFont).">Text &amp; note font</label>
+          <label class="form-label mb-0" style="font-size:0.74rem" title="Font for lyrics and text run through Exsurge setFont (staff glyphs use setGlyphScaling separately).">Lyric font</label>
           <select id="edChantTextFont" class="form-select form-select-sm mb-2">${chantFontOpts}</select>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
-              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Staff / neume size (px scale).">Neume scale</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantNeumeNum" min="12" max="28" step="0.2" value="${(Math.round(cn * 10) / 10).toFixed(1)}">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Lyric / text size in px (Exsurge setFont).">Lyric size (px)</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantNeumeNum" min="12" max="28" step="0.1" value="${(Math.round(cn * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range mt-0" id="edChantNeume" min="12" max="28" step="0.2" value="${cn}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantNeume" min="12" max="28" step="0.1" value="${cn}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
-              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Vertical gap between systems (0 is valid).">System gap</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantSysGapNum" min="0" max="24" step="0.5" value="${(Math.round(cs * 10) / 10).toFixed(1)}">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Staff and neume glyph scale (Exsurge setGlyphScaling, multiplier on the usual jgabc baseline).">Staff / neume scale</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantGlyphNum" min="0.35" max="2" step="0.05" value="${(Math.round(cg * 100) / 100).toFixed(2)}">
             </div>
-            <input type="range" class="form-range mt-0" id="edChantSysGap" min="0" max="24" step="0.5" value="${cs}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantGlyph" min="0.35" max="2" step="0.05" value="${cg}">
+          </div>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Space between chant systems; 0–12 here maps to Exsurge 0–24 (finer steps at the low end).">System gap</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantSysGapNum" min="0" max="12" step="0.1" value="${(Math.round(cs * 10) / 10).toFixed(1)}">
+            </div>
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantSysGap" min="0" max="12" step="0.1" value="${cs}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Multiplies Exsurge min lyric word spacing (smaller = tighter).">Lyric tightness</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantTightNum" min="0.35" max="1.5" step="0.05" value="${(Math.round(ct * 100) / 100).toFixed(2)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantTightNum" min="0.35" max="1.5" step="0.1" value="${(Math.round(ct * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range mt-0" id="edChantTight" min="0.35" max="1.5" step="0.05" value="${ct}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantTight" min="0.35" max="1.5" step="0.1" value="${ct}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Extra space above each staff line in the preview (0 is valid).">Line pad (px)</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantPadNum" min="0" max="20" step="1" value="${cl}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantPadNum" min="0" max="20" step="0.1" value="${(Math.round(cl * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range mt-0" id="edChantPad" min="0" max="20" step="1" value="${cl}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantPad" min="0" max="20" step="0.1" value="${cl}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Relative size of the drop cap when enabled.">Drop cap ×</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantDropCapNum" min="0.5" max="1.6" step="0.05" value="${(Math.round(cd * 100) / 100).toFixed(2)}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantDropCapNum" min="0.5" max="1.6" step="0.1" value="${(Math.round(cd * 10) / 10).toFixed(1)}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
             </div>
-            <input type="range" class="form-range mt-0" id="edChantDropCap" min="0.5" max="1.6" step="0.05" value="${cd}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantDropCap" min="0.5" max="1.6" step="0.1" value="${cd}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
           </div>
           <label class="form-label mb-0" style="font-size:0.74rem" title="Exsurge staff lines; leave GABC default when unset.">Staff lines</label>
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -2238,7 +2856,7 @@
         if (b.chantUseDropCap && rngDropCap && numDropCap) {
           const d = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
           rngDropCap.value = String(d);
-          numDropCap.value = (Math.round(d * 100) / 100).toFixed(2);
+          numDropCap.value = (Math.round(d * 10) / 10).toFixed(1);
         }
         scheduleAutosave();
         renderPreview();
@@ -2260,8 +2878,10 @@
       const chantApplyFromDom = function () {
         const fbN = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
         b.chantNeumeSize = parseBoundedNumber(panel.querySelector('#edChantNeume').value, 12, 28, fbN);
-        const fbG = b.chantSystemGap != null ? b.chantSystemGap : 4;
-        b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, 0, 24, fbG);
+        const fbGlyph = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
+        b.chantGlyphScale = parseBoundedNumber(panel.querySelector('#edChantGlyph').value, 0.35, 2, fbGlyph);
+        const fbG = b.chantSystemGap != null ? b.chantSystemGap : 2;
+        b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, 0, 12, fbG);
         const fbT = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
         b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.35, 1.5, fbT);
         const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
@@ -2271,11 +2891,15 @@
           b.chantDropCapScale = parseBoundedNumber(rngDropCap.value, 0.5, 1.6, fbD);
         }
         panel.querySelector('#edChantNeumeNum').value = (Math.round(b.chantNeumeSize * 10) / 10).toFixed(1);
+        const gNum = panel.querySelector('#edChantGlyphNum');
+        if (gNum) gNum.value = (Math.round(b.chantGlyphScale * 100) / 100).toFixed(2);
+        const glyphR = panel.querySelector('#edChantGlyph');
+        if (glyphR) glyphR.value = String(b.chantGlyphScale);
         panel.querySelector('#edChantSysGapNum').value = (Math.round(b.chantSystemGap * 10) / 10).toFixed(1);
-        panel.querySelector('#edChantTightNum').value = (Math.round(b.chantLyricTight * 100) / 100).toFixed(2);
-        panel.querySelector('#edChantPadNum').value = String(Math.round(b.chantLinePadTop));
+        panel.querySelector('#edChantTightNum').value = (Math.round(b.chantLyricTight * 10) / 10).toFixed(1);
+        panel.querySelector('#edChantPadNum').value = (Math.round(b.chantLinePadTop * 10) / 10).toFixed(1);
         if (numDropCap && !numDropCap.disabled) {
-          numDropCap.value = (Math.round(b.chantDropCapScale * 100) / 100).toFixed(2);
+          numDropCap.value = (Math.round(b.chantDropCapScale * 10) / 10).toFixed(1);
         }
         scheduleAutosave();
         renderPreview();
@@ -2311,17 +2935,20 @@
       wireChantPair('#edChantNeume', '#edChantNeumeNum', 12, 28, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
-      wireChantPair('#edChantSysGap', '#edChantSysGapNum', 0, 24, function (v) {
+      wireChantPair('#edChantGlyph', '#edChantGlyphNum', 0.35, 2, function (v) {
+        return (Math.round(v * 100) / 100).toFixed(2);
+      });
+      wireChantPair('#edChantSysGap', '#edChantSysGapNum', 0, 12, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantTight', '#edChantTightNum', 0.35, 1.5, function (v) {
-        return (Math.round(v * 100) / 100).toFixed(2);
+        return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantPad', '#edChantPadNum', 0, 20, function (v) {
-        return String(Math.round(v));
+        return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantDropCap', '#edChantDropCapNum', 0.5, 1.6, function (v) {
-        return (Math.round(v * 100) / 100).toFixed(2);
+        return (Math.round(v * 10) / 10).toFixed(1);
       });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
@@ -2377,7 +3004,15 @@
       b.mime = 'image/png';
       b.dataBase64 = '';
       b.label = '';
+      b.imageWidthPx = 0;
+      b.imageAlign = 'center';
       setTimeout(() => pickImageForBlock(b.id), 0);
+    }
+    if (type === 'title') {
+      b.text = '';
+      b.titleFontKey = '';
+      b.titleTextColor = '#212529';
+      b.titleLineColor = '#adb5bd';
     }
     if (type === 'edition_pdf') {
       b.url = '';
@@ -2391,10 +3026,11 @@
     if (type === 'chant_gabc') {
       b.gabc = '';
       b.chantNeumeSize = 19.2;
+      b.chantGlyphScale = 1;
       b.chantStaffColor = '';
       b.chantLinePadTop = 6;
       b.chantLyricTight = 0.7;
-      b.chantSystemGap = 4;
+      b.chantSystemGap = 2;
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
@@ -2645,6 +3281,17 @@
     document.getElementById('inpRubricColor')?.addEventListener('input', (e) => {
       const v = e.target.value;
       state.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
+      applyCssVars();
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('inpBookletMarginMm')?.addEventListener('change', (e) => {
+      const inp = e.target;
+      const raw = parseFloat(String(inp.value).trim().replace(',', '.'));
+      state.settings.marginMm = Number.isFinite(raw)
+        ? Math.min(40, Math.max(6, Math.round(raw)))
+        : DEFAULT_BOOKLET_MARGIN_MM;
+      inp.value = String(getBookletMarginMm());
       applyCssVars();
       scheduleAutosave();
       renderPreview();
