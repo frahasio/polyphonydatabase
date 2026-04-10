@@ -9,9 +9,8 @@
     <link rel="stylesheet" href="/css/styles.css">
     <style>
         :root {
-            --booklet-margin-mm: 15;
+            --booklet-margin-mm: 16;
             --booklet-font-scale: 1;
-            --booklet-section-gap-mm: 8;
             --booklet-body-font: Georgia, 'Times New Roman', Times, serif;
             --booklet-rubric-color: #8b1538;
         }
@@ -51,19 +50,67 @@
             cursor: pointer;
             border: 1px solid #dee2e6;
             border-radius: 6px;
-            padding: 0.5rem 0.75rem;
+            padding: 0.2rem 0.45rem 0.2rem 0.35rem;
             margin-bottom: 0.35rem;
             background: #fff;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
+            line-height: 1.25;
+            min-height: 2.125rem;
+            max-height: 2.125rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            overflow: hidden;
         }
         .block-list-item:hover { background: #f8f9fa; }
         .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
+        .booklet-block-type-badge {
+            flex-shrink: 0;
+            width: 1.65rem;
+            height: 1.65rem;
+            min-width: 1.65rem;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+        .booklet-block-preview-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .sidebar-add-btn {
             font-size: 0.8rem;
             text-align: left;
         }
+        .booklet-main-preview {
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 9.5rem);
+            max-height: calc(100vh - 9.5rem);
+        }
+        @media (max-width: 991.98px) {
+            .booklet-main-preview {
+                min-height: 60vh;
+                max-height: none;
+            }
+        }
         #previewPages {
-            padding-bottom: 3rem;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        #previewPages > .booklet-spread-host {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
         }
         .booklet-page {
             background: #fff;
@@ -89,9 +136,6 @@
             line-height: 1.45;
         }
         .booklet-section {
-            margin-bottom: calc(var(--booklet-section-gap-mm) * 1mm);
-        }
-        .booklet-section:last-child {
             margin-bottom: 0;
         }
         .booklet-page .rubric {
@@ -103,7 +147,7 @@
             margin-bottom: 0.35rem;
         }
         .booklet-richtext {
-            text-align: justify;
+            text-align: start;
             white-space: normal;
             word-wrap: break-word;
         }
@@ -118,7 +162,7 @@
         }
         .booklet-reading-parallel td {
             vertical-align: top;
-            text-align: justify;
+            text-align: start;
         }
         .booklet-rich-ed {
             min-height: 5rem;
@@ -150,6 +194,12 @@
             display: block;
             border: none;
         }
+        .booklet-pdf-bleed {
+            margin-left: calc(-1 * var(--booklet-margin-mm) * 1mm);
+            margin-right: calc(-1 * var(--booklet-margin-mm) * 1mm);
+            width: calc(100% + 2 * var(--booklet-margin-mm) * 1mm);
+            max-width: none;
+        }
         .booklet-watermark {
             margin-top: auto;
             padding-top: 1rem;
@@ -176,9 +226,15 @@
         }
         .booklet-block-row {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 0.25rem;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.28rem;
+            min-height: 2.125rem;
+        }
+        .booklet-block-row > button.btn:first-child {
+            flex-shrink: 0;
+            padding: 0.12rem 0.3rem;
+            line-height: 1;
         }
         .booklet-block-row .block-list-item {
             flex: 1;
@@ -190,11 +246,12 @@
             flex-direction: column;
             gap: 0;
             flex-shrink: 0;
+            justify-content: center;
         }
         .booklet-block-move .btn {
-            padding: 0.1rem 0.25rem;
+            padding: 0.05rem 0.2rem;
             line-height: 1;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
         }
         .booklet-page img.user-img {
             max-width: 100%;
@@ -215,8 +272,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.75rem;
-            min-height: calc(100vh - 11rem);
+            gap: 0.5rem;
+            flex: 1 1 auto;
+            min-height: 0;
         }
         .booklet-spread-nav {
             display: flex;
@@ -233,8 +291,10 @@
             gap: 0.35rem;
             width: 100%;
             max-width: 100%;
-            min-height: min(70vh, 720px);
-            padding: 0.25rem;
+            min-height: 0;
+            max-height: 100%;
+            overflow: hidden;
+            padding: 0.15rem;
             box-sizing: border-box;
             touch-action: none;
         }
@@ -319,27 +379,12 @@
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-success" id="btnDownloadPdf"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
-                    <button type="button" class="btn btn-outline-secondary" id="btnPrint"><i class="bi bi-printer me-1"></i>Print</button>
-                </div>
+                <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="High-resolution raster export (~300 DPI). First run may be slow; leave the tab focused."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
                 <div class="vr d-none d-md-block"></div>
                 <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
                     <option value="A4">A4 page</option>
                     <option value="A5">A5 page</option>
                 </select>
-                <label class="small mb-0 d-flex align-items-center gap-1">
-                    Margin (mm)
-                    <input type="number" id="inpMargin" class="form-control form-control-sm" style="width: 4rem" min="5" max="40" value="15">
-                </label>
-                <label class="small mb-0 d-flex align-items-center gap-1">
-                    Gap (mm)
-                    <input type="number" id="inpSectionGap" class="form-control form-control-sm" style="width: 4rem" min="0" max="30" value="8" title="Space between sections">
-                </label>
-                <label class="small mb-0 d-flex align-items-center gap-1">
-                    Text size
-                    <input type="range" id="rngFontScale" min="0.75" max="1.5" step="0.05" value="1" style="width: 6rem">
-                </label>
                 <select id="selPreviewDisplay" class="form-select form-select-sm" style="width: auto;" title="How the preview is shown on screen">
                     <option value="scroll">Preview: scroll pages</option>
                     <option value="booklet">Preview: booklet spreads</option>
@@ -364,6 +409,7 @@
                     <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
                         <li><a class="dropdown-item" href="/vendor/jgabc/propers.html" target="_blank" rel="noopener">jgabc Mass Propers (this site)</a></li>
                         <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s propers (github.io)</a></li>
+                        <li><a class="dropdown-item" href="https://github.com/BBloomF/Exsurge" target="_blank" rel="noopener">Exsurge (chant layout engine) — source &amp; issues</a></li>
                         <li class="dropdown-header mt-2">Future</li>
                         <li><span class="dropdown-item-text text-muted">Server Gregorio — <code>PDF_RENDERER_URL</code></span></li>
                         <li><button type="button" class="btn btn-sm btn-light w-100 mt-1" disabled>Render via server</button></li>
@@ -374,7 +420,7 @@
     </div>
 
     <div class="container-fluid py-3">
-        <div class="row g-3 align-items-lg-start">
+        <div class="row g-3 align-items-lg-stretch">
             <aside class="col-lg-3 booklet-sidebar no-print">
                 <h6 class="text-muted text-uppercase small">Add section</h6>
                 <div class="d-grid gap-1 mb-3">
@@ -396,33 +442,12 @@
                     <i class="bi bi-collection me-1"></i>Browse shared booklets — <strong>coming soon</strong>.
                 </div>
 
-                <details class="mt-3 small border rounded px-2 py-2 bg-white">
-                    <summary class="fw-semibold cursor-pointer user-select-none">Chant rendering (Exsurge)</summary>
-                    <p class="text-muted mt-2 mb-2" style="font-size: 0.78rem;">
-                        Neume size scales lyrics, drop cap, and annotations. Staff colour defaults to the GABC header unless you override. Exsurge does not expose full font/colour theming like a desktop editor; spacing below matches what the layout engine uses.
-                    </p>
-                    <label class="form-label mb-0" style="font-size: 0.78rem;">Neume / staff scale</label>
-                    <input type="range" id="rngChantNeume" class="form-range mb-2" min="12" max="28" step="0.2" value="19.2">
-                    <label class="form-label mb-0" style="font-size: 0.78rem;">Space between systems (vertical)</label>
-                    <input type="range" id="rngChantSystemGap" class="form-range mb-2" min="0" max="24" step="0.5" value="4">
-                    <label class="form-label mb-0" style="font-size: 0.78rem;">Lyric tightness</label>
-                    <input type="range" id="rngChantLyricTight" class="form-range mb-2" min="0.35" max="1.5" step="0.05" value="0.7" title="Lower = tighter word spacing under neumes">
-                    <label class="form-label mb-0" style="font-size: 0.78rem;">Extra padding above each staff line (px)</label>
-                    <input type="range" id="rngChantLinePad" class="form-range mb-2" min="0" max="20" step="1" value="6" title="Helps when the top of a staff is clipped">
-                    <label class="form-label mb-0" style="font-size: 0.78rem;">Staff line colour</label>
-                    <div class="d-flex align-items-center gap-2 mb-0">
-                        <input type="color" id="inpChantStaffColor" value="#000000" class="form-control form-control-color" title="Override GABC staff colour">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnChantStaffDefault">Use GABC</button>
-                    </div>
-                </details>
-
                 <h6 class="text-muted text-uppercase small mt-4">Edit section</h6>
                 <div id="editorPanel" class="small">
                     <p class="text-muted">Select a section or add one.</p>
                 </div>
             </aside>
-            <main class="col-lg-9">
-                <p class="small text-muted no-print mb-2" id="previewHint"><strong>Preview</strong> — layout matches PDF pages (raster export). Booklet view shows print order (pairs padded to a multiple of four); use arrows or wheel to step.</p>
+            <main class="col-lg-9 booklet-main-preview">
                 <div id="previewPages"></div>
             </main>
         </div>

@@ -1,8 +1,14 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 6;
-  const STORAGE_KEY = 'liturgyBooklet_autosave_v6';
+  const SCHEMA_VERSION = 7;
+  const STORAGE_KEY = 'liturgyBooklet_autosave_v7';
+  const BOOKLET_MARGIN_MM = 16;
+  const DEFAULT_SECTION_GAP_AFTER_MM = 8;
+  const DEFAULT_BLOCK_FONT_SCALE = 1;
+  /** html2canvas scale; ~3.25 gives ~300 DPI vs CSS A4 width (print-safe). */
+  const PDF_HTML2CANVAS_SCALE = 3.25;
+  const PDF_EXPORT_PAGE_DELAY_MS = 50;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -22,17 +28,9 @@
     projectTitle: '',
     settings: {
       pageSize: 'A4',
-      marginMm: 15,
-      fontScale: 1,
-      sectionGapMm: 8,
       previewDisplay: 'scroll',
       fontFamilyKey: 'georgia',
       rubricColor: '#8b1538',
-      chantNeumeSize: 19.2,
-      chantStaffColor: '',
-      chantLinePadTop: 6,
-      chantLyricTight: 0.7,
-      chantSystemGap: 4,
     },
     blocks: [],
   };
@@ -92,35 +90,27 @@
     });
   }
 
-  function buildWatermarkPage(size) {
-    const page = document.createElement('div');
-    page.className = 'booklet-page';
-    page.dataset.size = size;
-    page.dataset.watermark = 'true';
-    const inner = document.createElement('div');
-    inner.className = 'page-inner-flow';
+  function appendCreditsFooterToLastPage(pageDivs) {
+    if (!pageDivs.length) return;
+    const credits = collectCatalogueEditionCredits(state.blocks);
+    if (!credits.length) return;
+    const last = pageDivs[pageDivs.length - 1];
+    const inner = last.querySelector('.page-inner-flow');
+    if (!inner) return;
     inner.style.display = 'flex';
     inner.style.flexDirection = 'column';
     inner.style.minHeight = '100%';
-    const box = document.createElement('div');
-    box.className = 'booklet-watermark booklet-section';
-    const p1 = document.createElement('p');
-    p1.className = 'text-muted text-center mb-2 booklet-richtext';
-    p1.style.textAlign = 'center';
-    p1.innerHTML =
-      'Generated with <strong>Polyphony Database</strong> (<a href="https://polyphonydatabase.com" target="_blank" rel="noopener noreferrer">polyphonydatabase.com</a>).';
-    box.appendChild(p1);
-    const credits = collectCatalogueEditionCredits(state.blocks);
-    if (credits.length) {
-      const p2 = document.createElement('p');
-      p2.className = 'text-muted text-center mb-0 booklet-richtext';
-      p2.style.textAlign = 'center';
-      p2.textContent = 'Edition credits: ' + credits.join(', ') + '.';
-      box.appendChild(p2);
-    }
-    inner.appendChild(box);
-    page.appendChild(inner);
-    return page;
+    const old = inner.querySelector('.booklet-export-footer');
+    if (old) old.remove();
+    const footer = document.createElement('div');
+    footer.className = 'booklet-export-footer';
+    footer.style.marginTop = 'auto';
+    footer.style.paddingTop = '0.4rem';
+    footer.style.fontSize = '7.5pt';
+    footer.style.lineHeight = '1.35';
+    footer.style.color = '#6c757d';
+    footer.textContent = 'Edition credits: ' + credits.join(', ') + '.';
+    inner.appendChild(footer);
   }
 
   async function fetchEditionSearchResults(query, signal) {
@@ -180,9 +170,8 @@
 
   function applyCssVars() {
     const root = document.documentElement;
-    root.style.setProperty('--booklet-margin-mm', String(state.settings.marginMm));
-    root.style.setProperty('--booklet-font-scale', String(state.settings.fontScale));
-    root.style.setProperty('--booklet-section-gap-mm', String(state.settings.sectionGapMm ?? 8));
+    root.style.setProperty('--booklet-margin-mm', String(BOOKLET_MARGIN_MM));
+    root.style.setProperty('--booklet-font-scale', '1');
     const fk = state.settings.fontFamilyKey || 'georgia';
     root.style.setProperty(
       '--booklet-body-font',
@@ -194,12 +183,12 @@
 
   function getContentWidthPx() {
     const pageW = state.settings.pageSize === 'A5' ? 148 : 210;
-    return Math.max(200, mmToPx(pageW - 2 * state.settings.marginMm));
+    return Math.max(200, mmToPx(pageW - 2 * BOOKLET_MARGIN_MM));
   }
 
   function getMaxPageBodyHeightPx() {
     const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
-    return Math.max(120, mmToPx(pageH - 2 * state.settings.marginMm));
+    return Math.max(120, mmToPx(pageH - 2 * BOOKLET_MARGIN_MM));
   }
 
   function escapeHtml(s) {
@@ -266,7 +255,25 @@
         appendChildren(el, node);
         return el;
       }
-      if (tag === 'p' || tag === 'div' || tag === 'font') {
+      if (tag === 'p' || tag === 'div') {
+        const st = node.getAttribute('style') || '';
+        const am = st.match(/text-align\s*:\s*([^;]+)/i);
+        let ta = '';
+        if (am) {
+          const v = am[1].trim().toLowerCase();
+          if (v === 'left' || v === 'right' || v === 'center' || v === 'justify') ta = v;
+        }
+        if (ta) {
+          const el = document.createElement(tag);
+          el.setAttribute('style', 'text-align:' + ta);
+          appendChildren(el, node);
+          return el;
+        }
+        const f = document.createDocumentFragment();
+        appendChildren(f, node);
+        return f;
+      }
+      if (tag === 'font') {
         const f = document.createDocumentFragment();
         appendChildren(f, node);
         return f;
@@ -311,6 +318,88 @@
     return t.length > 48 ? t.slice(0, 48) + '…' : t;
   }
 
+  function plainTextFromHtml(html) {
+    const w = document.createElement('div');
+    w.appendChild(sanitizeToFragment(html));
+    return (w.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function blockTypeMeta(b) {
+    const t = b.type;
+    if (t === 'rubric') {
+      return { icon: 'bi-chat-square-text', color: '#8b1538', label: 'Rubric' };
+    }
+    if (t === 'reading') {
+      return { icon: 'bi-text-paragraph', color: '#0d6efd', label: 'Reading / prayer' };
+    }
+    if (t === 'chant_gabc') {
+      return { icon: 'bi-music-note-beamed', color: '#6f42c1', label: 'Chant (GABC)' };
+    }
+    if (t === 'image') {
+      return { icon: 'bi-image', color: '#198754', label: 'Image' };
+    }
+    if (t === 'edition_pdf') {
+      return { icon: 'bi-file-earmark-pdf', color: '#c41230', label: 'Edition PDF' };
+    }
+    if (t === 'page_break') {
+      return { icon: 'bi-file-earmark-break', color: '#6c757d', label: 'Page break' };
+    }
+    if (t === 'jgabc_propers') {
+      return { icon: 'bi-music-note', color: '#fd7e14', label: 'Propers (legacy)' };
+    }
+    return { icon: 'bi-question-square', color: '#6c757d', label: t || 'Section' };
+  }
+
+  function blockListLinePreview(b) {
+    if (b.type === 'rubric') {
+      const st = String(b.sectionTitle || '').trim();
+      const body = plainTextFromHtml(b.text || '');
+      if (st && body) return st + ' · ' + body;
+      return st || body || 'Empty rubric';
+    }
+    if (b.type === 'reading') {
+      const st = String(b.sectionTitle || '').trim();
+      const o = plainTextFromHtml(b.text || '');
+      const tr = plainTextFromHtml(b.translation || '');
+      const parts = [];
+      if (st) parts.push(st);
+      if (o) parts.push(o);
+      if (translationHasContent(b.translation) && tr) parts.push('(' + tr + ')');
+      return parts.length ? parts.join(' · ') : 'Empty reading';
+    }
+    if (b.type === 'edition_pdf') {
+      const tit = String(b.title || '').trim();
+      const u = String(b.url || '').trim();
+      const fr = b.pdfPageFrom != null ? b.pdfPageFrom : 1;
+      const to = b.pdfPageTo;
+      const pg =
+        to != null && to !== '' && !isNaN(parseInt(to, 10))
+          ? 'p.' + fr + '–' + to
+          : 'p.' + fr + '+';
+      if (tit && u) return tit + ' · ' + pg;
+      if (tit) return tit + ' · ' + pg;
+      if (u) return u + ' · ' + pg;
+      return 'Edition PDF · set URL';
+    }
+    if (b.type === 'chant_gabc') {
+      const raw = String(b.gabc || '').trim();
+      if (!raw) return 'Empty GABC';
+      const body = raw.replace(/^[^\n%]*%%\s*\n?/m, '').trim() || raw.split('\n')[0] || raw;
+      return body.replace(/\s+/g, ' ').trim();
+    }
+    if (b.type === 'image') {
+      const cap = String(b.label || '').trim();
+      return cap || 'Image (no list label)';
+    }
+    if (b.type === 'page_break') {
+      return 'Page break';
+    }
+    if (b.type === 'jgabc_propers') {
+      return 'Legacy propers — replace with GABC';
+    }
+    return String(b.type || '');
+  }
+
   function bindRichToolbar(toolbarRoot, ed, onChange) {
     toolbarRoot.querySelectorAll('[data-rich-cmd]').forEach(function (btn) {
       btn.addEventListener('mousedown', function (e) {
@@ -323,6 +412,13 @@
           if (cmd === 'foreColor') {
             const c = btn.getAttribute('data-color');
             if (c) document.execCommand('foreColor', false, c);
+          } else if (
+            cmd === 'justifyLeft' ||
+            cmd === 'justifyCenter' ||
+            cmd === 'justifyRight' ||
+            cmd === 'justifyFull'
+          ) {
+            document.execCommand(cmd, false, null);
           } else if (cmd) {
             document.execCommand(cmd, false, null);
           }
@@ -336,17 +432,18 @@
     ed.addEventListener('blur', onChange);
   }
 
-  function makeBookletChantContext() {
-    const s = state.settings || {};
+  function makeBookletChantContext(chantBlock) {
+    const b = chantBlock || {};
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
     ctxt.setGlyphScaling(1 / 16);
-    const neumePx = Math.min(28, Math.max(12, Number(s.chantNeumeSize) || 19.2));
+    const neumePx = Math.min(28, Math.max(12, Number(b.chantNeumeSize) || 19.2));
     ctxt.setFont("'Crimson Text', serif", neumePx / 0.9);
-    ctxt.spaceBetweenSystems = Math.min(24, Math.max(0, Number(s.chantSystemGap) || 4));
-    ctxt.textStyles.dropCap.size = Math.round((neumePx / 19.2) * 64);
+    ctxt.spaceBetweenSystems = Math.min(24, Math.max(0, Number(b.chantSystemGap) || 4));
+    const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
+    ctxt.textStyles.dropCap.size = Math.round((neumePx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round((neumePx / 19.2) * 12.8);
-    const tight = Math.min(1.5, Math.max(0.35, Number(s.chantLyricTight) || 0.7));
+    const tight = Math.min(1.5, Math.max(0.35, Number(b.chantLyricTight) || 0.7));
     ctxt.minLyricWordSpacing *= tight;
     ctxt.accidentalSpaceMultiplier = 1.5;
     ctxt.specialCharProperties['font-family'] = "'Versiculum'";
@@ -357,7 +454,7 @@
       return defaultSpecialCharText(char).toLowerCase();
     };
     ctxt.setRubricColor('#c62828');
-    const sc = String(s.chantStaffColor || '').trim();
+    const sc = String(b.chantStaffColor || '').trim();
     if (sc && /^#[0-9a-f]{3,8}$/i.test(sc)) {
       ctxt.staffLineColor = sc;
     }
@@ -394,54 +491,143 @@
     wrap.appendChild(row);
   }
 
+  function stripLegacyBookletSettings(settings) {
+    if (!settings || typeof settings !== 'object') return;
+    delete settings.marginMm;
+    delete settings.fontScale;
+    delete settings.sectionGapMm;
+    delete settings.chantNeumeSize;
+    delete settings.chantStaffColor;
+    delete settings.chantLinePadTop;
+    delete settings.chantLyricTight;
+    delete settings.chantSystemGap;
+    delete settings.chantDropCapScale;
+  }
+
+  function chantDefaultsFromLegacySettings(leg) {
+    return {
+      chantNeumeSize: leg.chantNeumeSize != null ? Number(leg.chantNeumeSize) : 19.2,
+      chantStaffColor: leg.chantStaffColor != null ? String(leg.chantStaffColor) : '',
+      chantLinePadTop: leg.chantLinePadTop != null ? Number(leg.chantLinePadTop) : 6,
+      chantLyricTight: leg.chantLyricTight != null ? Number(leg.chantLyricTight) : 0.7,
+      chantSystemGap: leg.chantSystemGap != null ? Number(leg.chantSystemGap) : 4,
+      chantDropCapScale: leg.chantDropCapScale != null ? Number(leg.chantDropCapScale) : 1,
+    };
+  }
+
+  function normalizeBlocksV7(blocks, legSettings, applyLegacySpacingAndChant) {
+    const leg = legSettings || {};
+    const legacyGap =
+      applyLegacySpacingAndChant && leg.sectionGapMm != null
+        ? Math.min(30, Math.max(0, Number(leg.sectionGapMm)))
+        : null;
+    const legacyFont =
+      applyLegacySpacingAndChant && leg.fontScale != null
+        ? Math.min(1.5, Math.max(0.75, Number(leg.fontScale)))
+        : null;
+    const chantD = applyLegacySpacingAndChant ? chantDefaultsFromLegacySettings(leg) : null;
+
+    return (blocks || []).map(function (b) {
+      if (b.type === 'edition_pdf') {
+        const o = normalizeEditionPdfBlock(b);
+        if (o.hidden === undefined) o.hidden = false;
+        if (o.sectionGapAfterMm == null) {
+          o.sectionGapAfterMm = legacyGap != null ? legacyGap : DEFAULT_SECTION_GAP_AFTER_MM;
+        } else {
+          o.sectionGapAfterMm = Math.min(30, Math.max(0, Number(o.sectionGapAfterMm)));
+        }
+        return o;
+      }
+      if (b.type === 'page_break') {
+        const o = { ...b };
+        if (o.hidden === undefined) o.hidden = false;
+        return o;
+      }
+      const o = { ...b };
+      if (o.hidden === undefined) o.hidden = false;
+      if (o.sectionGapAfterMm == null) {
+        o.sectionGapAfterMm = legacyGap != null ? legacyGap : DEFAULT_SECTION_GAP_AFTER_MM;
+      } else {
+        o.sectionGapAfterMm = Math.min(30, Math.max(0, Number(o.sectionGapAfterMm)));
+      }
+      if (o.type === 'rubric' || o.type === 'reading') {
+        if (o.fontScale == null) {
+          o.fontScale = legacyFont != null ? legacyFont : DEFAULT_BLOCK_FONT_SCALE;
+        } else {
+          o.fontScale = Math.min(1.5, Math.max(0.75, Number(o.fontScale)));
+        }
+      }
+      if (o.type === 'chant_gabc') {
+        const cd = chantD || {};
+        o.chantNeumeSize =
+          o.chantNeumeSize != null
+            ? Math.min(28, Math.max(12, Number(o.chantNeumeSize)))
+            : Math.min(28, Math.max(12, Number(cd.chantNeumeSize) || 19.2));
+        o.chantStaffColor = o.chantStaffColor != null ? String(o.chantStaffColor) : cd.chantStaffColor || '';
+        o.chantLinePadTop =
+          o.chantLinePadTop != null
+            ? Math.min(20, Math.max(0, Number(o.chantLinePadTop)))
+            : Math.min(20, Math.max(0, Number(cd.chantLinePadTop) || 6));
+        o.chantLyricTight =
+          o.chantLyricTight != null
+            ? Math.min(1.5, Math.max(0.35, Number(o.chantLyricTight)))
+            : Math.min(1.5, Math.max(0.35, Number(cd.chantLyricTight) || 0.7));
+        o.chantSystemGap =
+          o.chantSystemGap != null
+            ? Math.min(24, Math.max(0, Number(o.chantSystemGap)))
+            : Math.min(24, Math.max(0, Number(cd.chantSystemGap) || 4));
+        o.chantDropCapScale =
+          o.chantDropCapScale != null
+            ? Math.min(1.6, Math.max(0.5, Number(o.chantDropCapScale)))
+            : Math.min(1.6, Math.max(0.5, Number(cd.chantDropCapScale) || 1));
+      }
+      if (o.type === 'reading') {
+        if (o.translation === undefined) o.translation = '';
+        if (o.parallelLeftPct == null) o.parallelLeftPct = 50;
+        if (o.parallelBorder === undefined) o.parallelBorder = false;
+        if (o.parallelGapMm == null) o.parallelGapMm = 4;
+        if (o.sectionTitle === undefined) o.sectionTitle = '';
+        if (o.sectionSourceRef === undefined) o.sectionSourceRef = '';
+      }
+      if (o.type === 'rubric') {
+        if (o.sectionTitle === undefined) o.sectionTitle = '';
+        if (o.sectionSourceRef === undefined) o.sectionSourceRef = '';
+      }
+      if (o.type === 'image' && o.label === undefined) o.label = '';
+      return o;
+    });
+  }
+
+  function finalizeProjectV7(parsed, applyLegacySpacingAndChant) {
+    parsed.schemaVersion = SCHEMA_VERSION;
+    parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
+    parsed.settings = parsed.settings || {};
+    stripLegacyBookletSettings(parsed.settings);
+    parsed.settings.previewDisplay =
+      parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+    parsed.settings.fontFamilyKey =
+      BOOKLET_FONT_STACKS[parsed.settings.fontFamilyKey] != null
+        ? parsed.settings.fontFamilyKey
+        : 'georgia';
+    const rc = parsed.settings.rubricColor || '#8b1538';
+    parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
+    parsed.blocks = normalizeBlocksV7(parsed.blocks, parsed.settings, applyLegacySpacingAndChant);
+    return parsed;
+  }
+
   function migrateProject(parsed) {
     if (!parsed || typeof parsed !== 'object') return null;
     const v = parsed.schemaVersion || 1;
     if (v >= SCHEMA_VERSION) {
-      parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
-      parsed.settings = parsed.settings || {};
-      parsed.settings.sectionGapMm = parsed.settings.sectionGapMm ?? 8;
-      parsed.settings.previewDisplay =
-        parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
-      parsed.settings.fontFamilyKey =
-        BOOKLET_FONT_STACKS[parsed.settings.fontFamilyKey] != null
-          ? parsed.settings.fontFamilyKey
-          : 'georgia';
-      const rc = parsed.settings.rubricColor || '#8b1538';
-      parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
-      parsed.settings.chantNeumeSize = parsed.settings.chantNeumeSize ?? 19.2;
-      parsed.settings.chantStaffColor = parsed.settings.chantStaffColor || '';
-      parsed.settings.chantLinePadTop = parsed.settings.chantLinePadTop ?? 6;
-      parsed.settings.chantLyricTight = parsed.settings.chantLyricTight ?? 0.7;
-      parsed.settings.chantSystemGap = parsed.settings.chantSystemGap ?? 4;
-      parsed.blocks = (parsed.blocks || []).map((b) => {
-        if (b.type === 'image' && b.label === undefined) b.label = '';
-        if (b.type === 'reading') {
-          if (b.translation === undefined) b.translation = '';
-          if (b.parallelLeftPct == null) b.parallelLeftPct = 50;
-          if (b.parallelBorder === undefined) b.parallelBorder = false;
-          if (b.parallelGapMm == null) b.parallelGapMm = 4;
-          if (b.sectionTitle === undefined) b.sectionTitle = '';
-          if (b.sectionSourceRef === undefined) b.sectionSourceRef = '';
-        }
-        if (b.type === 'rubric') {
-          if (b.sectionTitle === undefined) b.sectionTitle = '';
-          if (b.sectionSourceRef === undefined) b.sectionSourceRef = '';
-        }
-        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
-        return b;
-      });
-      return parsed;
+      return finalizeProjectV7(parsed, false);
+    }
+    const applyLegacy = true;
+    if (v === 6) {
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     if (v === 5) {
-      parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
       parsed.settings = parsed.settings || {};
-      parsed.settings.chantNeumeSize = 19.2;
-      parsed.settings.chantStaffColor = '';
-      parsed.settings.chantLinePadTop = 6;
-      parsed.settings.chantLyricTight = 0.7;
-      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
           return {
@@ -464,17 +650,11 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return parsed;
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     if (v === 4) {
-      parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
       parsed.settings = parsed.settings || {};
-      parsed.settings.chantNeumeSize = 19.2;
-      parsed.settings.chantStaffColor = '';
-      parsed.settings.chantLinePadTop = 6;
-      parsed.settings.chantLyricTight = 0.7;
-      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
           return {
@@ -493,19 +673,13 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return parsed;
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     if (v === 3) {
-      parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = '';
       parsed.settings = parsed.settings || {};
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
-      parsed.settings.chantNeumeSize = 19.2;
-      parsed.settings.chantStaffColor = '';
-      parsed.settings.chantLinePadTop = 6;
-      parsed.settings.chantLyricTight = 0.7;
-      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
           return {
@@ -524,20 +698,14 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
       });
-      return parsed;
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     if (v === 2) {
-      parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = '';
       parsed.settings = parsed.settings || {};
       parsed.settings.previewDisplay = 'scroll';
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
-      parsed.settings.chantNeumeSize = 19.2;
-      parsed.settings.chantStaffColor = '';
-      parsed.settings.chantLinePadTop = 6;
-      parsed.settings.chantLyricTight = 0.7;
-      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'image' && b.label === undefined) {
           return { ...b, label: '' };
@@ -559,21 +727,15 @@
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock({ ...b, type: 'edition_pdf' });
         return { ...b };
       });
-      return parsed;
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     if (v === 1) {
-      parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = '';
       parsed.settings = parsed.settings || {};
-      parsed.settings.sectionGapMm = 8;
+      parsed.settings.sectionGapMm = parsed.settings.sectionGapMm ?? 8;
       parsed.settings.previewDisplay = 'scroll';
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
-      parsed.settings.chantNeumeSize = 19.2;
-      parsed.settings.chantStaffColor = '';
-      parsed.settings.chantLinePadTop = 6;
-      parsed.settings.chantLyricTight = 0.7;
-      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'jgabc_propers') {
           return {
@@ -614,7 +776,7 @@
         }
         return { ...b };
       });
-      return parsed;
+      return finalizeProjectV7(parsed, applyLegacy);
     }
     return null;
   }
@@ -634,6 +796,16 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
+        const v6old = localStorage.getItem('liturgyBooklet_autosave_v6');
+        if (v6old && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(v6old));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v6');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
         const v5old = localStorage.getItem('liturgyBooklet_autosave_v5');
         if (v5old && !localStorage.getItem(STORAGE_KEY)) {
           const m = migrateProject(JSON.parse(v5old));
@@ -698,34 +870,15 @@
 
   function syncControlsFromState() {
     const sz = document.getElementById('selPageSize');
-    const m = document.getElementById('inpMargin');
-    const fs = document.getElementById('rngFontScale');
-    const sg = document.getElementById('inpSectionGap');
     const pd = document.getElementById('selPreviewDisplay');
     const sf = document.getElementById('selBookletFont');
     const rc = document.getElementById('inpRubricColor');
     const pt = document.getElementById('inpProjectTitle');
-    const cn = document.getElementById('rngChantNeume');
-    const cl = document.getElementById('rngChantLinePad');
-    const ct = document.getElementById('rngChantLyricTight');
-    const cs = document.getElementById('rngChantSystemGap');
-    const csc = document.getElementById('inpChantStaffColor');
     if (sz) sz.value = state.settings.pageSize;
-    if (m) m.value = String(state.settings.marginMm);
-    if (fs) fs.value = String(state.settings.fontScale);
-    if (sg) sg.value = String(state.settings.sectionGapMm ?? 8);
     if (pd) pd.value = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
     if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
     if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
-    if (cn) cn.value = String(state.settings.chantNeumeSize ?? 19.2);
-    if (cl) cl.value = String(state.settings.chantLinePadTop ?? 6);
-    if (ct) ct.value = String(state.settings.chantLyricTight ?? 0.7);
-    if (cs) cs.value = String(state.settings.chantSystemGap ?? 4);
-    if (csc) {
-      const sc = String(state.settings.chantStaffColor || '').trim();
-      csc.value = /^#[0-9a-f]{6}$/i.test(sc) ? sc : '#000000';
-    }
   }
 
   function gabcToExsurge(gabc) {
@@ -744,7 +897,7 @@
       .replace(/(\([cf][1-4]\)|\s)(\d+\.)(\s\S)/g, '$1^$2^$3');
   }
 
-  function renderChantGabcToLines(gabcRaw, widthPx) {
+  function renderChantGabcToLines(gabcRaw, widthPx, chantBlock) {
     if (!gabcRaw || !String(gabcRaw).trim()) {
       const d = document.createElement('div');
       d.className = 'text-muted small booklet-section';
@@ -755,9 +908,10 @@
     try {
       const gabc = gabcToExsurge(String(gabcRaw));
       const header = getHeader(gabcRaw);
-      const ctxt = makeBookletChantContext();
+      const cb = chantBlock || {};
+      const ctxt = makeBookletChantContext(cb);
       const staffColor = header.staffLineColor || (header.cValues && header.cValues.staffLineColor);
-      const overrideStaff = String(state.settings.chantStaffColor || '').trim();
+      const overrideStaff = String(cb.chantStaffColor || '').trim();
       if (!overrideStaff && staffColor) ctxt.staffLineColor = staffColor;
       const mappings = exsurge.Gabc.createMappingsFromSource(ctxt, gabc);
       const initialStyle = header['initial-style'] !== '0' && header['initial-style'] !== 0;
@@ -788,7 +942,7 @@
       const temp = document.createElement('div');
       temp.innerHTML = html;
       const lines = [];
-      const padTop = Math.min(20, Math.max(0, Number(state.settings.chantLinePadTop) || 6));
+      const padTop = Math.min(20, Math.max(0, Number(cb.chantLinePadTop) || 6));
       temp.querySelectorAll('svg').forEach(function (svg) {
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
@@ -860,7 +1014,7 @@
         img.src = canvas.toDataURL('image/png');
         img.alt = 'PDF page ' + pNum;
         const unit = document.createElement('div');
-        unit.className = 'booklet-pdf-page-unit';
+        unit.className = 'booklet-pdf-page-unit booklet-pdf-bleed';
         unit.appendChild(img);
         out.push(unit);
       }
@@ -881,6 +1035,10 @@
   function buildStaticSectionEl(b) {
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
+    if (b.type === 'rubric' || b.type === 'reading') {
+      const fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
+      wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
+    }
     if (b.type === 'rubric') {
       appendSectionHeading(wrap, b);
       const p = document.createElement('div');
@@ -956,28 +1114,56 @@
     return wrap;
   }
 
-  /**
-   * @returns {Promise<{t:string, el?: HTMLElement}[]>}
-   */
+  function blockSectionGapAfterMm(b) {
+    const g = Number(b.sectionGapAfterMm);
+    return Number.isFinite(g) ? Math.min(30, Math.max(0, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
+  }
+
   async function buildFlowList() {
     const w = getContentWidthPx();
     const out = [];
     for (const b of state.blocks) {
+      if (b.hidden) continue;
       if (b.type === 'page_break') {
         out.push({ t: 'break' });
         continue;
       }
+      const gapAfter = blockSectionGapAfterMm(b);
       if (b.type === 'chant_gabc') {
-        const lines = renderChantGabcToLines(b.gabc || '', w);
-        lines.forEach((el) => out.push({ t: 'line', el: el }));
+        const lines = renderChantGabcToLines(b.gabc || '', w, b);
+        const last = lines.length - 1;
+        lines.forEach(function (el, i) {
+          const isLast = i === last;
+          out.push({
+            t: 'line',
+            el: el,
+            internalLineBreak: !isLast,
+            afterInternalPx: 3,
+            sectionGapAfterMm: isLast ? gapAfter : undefined,
+          });
+        });
         continue;
       }
       if (b.type === 'edition_pdf') {
         const units = await renderEditionPageUnits(b, w);
-        units.forEach((el) => out.push({ t: 'flow', el: el }));
+        const uLast = units.length - 1;
+        units.forEach(function (el, i) {
+          const isLast = i === uLast;
+          out.push({
+            t: 'flow',
+            el: el,
+            internalLineBreak: !isLast,
+            afterInternalPx: 2,
+            sectionGapAfterMm: isLast ? gapAfter : undefined,
+          });
+        });
         continue;
       }
-      out.push({ t: 'flow', el: buildStaticSectionEl(b) });
+      out.push({
+        t: 'flow',
+        el: buildStaticSectionEl(b),
+        sectionGapAfterMm: gapAfter,
+      });
     }
     return out;
   }
@@ -999,12 +1185,13 @@
   function packFlow(items) {
     const widthPx = getContentWidthPx();
     const maxH = getMaxPageBodyHeightPx();
-    const gapSection = mmToPx(state.settings.sectionGapMm ?? 8);
+    const defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     const gapLine = 3;
     const pages = [];
     let page = [];
     let curH = 0;
     let lastWasLine = false;
+    let pendingGapMm = defaultGapMm;
 
     function flush() {
       if (page.length) pages.push(page);
@@ -1016,24 +1203,36 @@
     for (const it of items) {
       if (it.t === 'break') {
         flush();
+        pendingGapMm = defaultGapMm;
         continue;
       }
       const isLine = it.t === 'line';
       const el = it.el;
       const h = measureElHeight(el, widthPx);
-      const gap =
-        page.length === 0 ? 0 : isLine && lastWasLine ? gapLine : gapSection;
+      let gap = 0;
+      if (page.length) {
+        if (isLine && lastWasLine && it.internalLineBreak) {
+          gap = it.afterInternalPx != null ? it.afterInternalPx : gapLine;
+        } else {
+          gap = mmToPx(pendingGapMm);
+        }
+      }
       if (page.length && curH + gap + h > maxH) {
         flush();
-        const gap2 = 0;
         page.push(el);
-        curH = h + gap2;
+        curH = h;
         lastWasLine = isLine;
-      } else {
-        if (page.length) curH += gap;
-        page.push(el);
-        curH += h;
-        lastWasLine = isLine;
+        if (!it.internalLineBreak) {
+          pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
+        }
+        continue;
+      }
+      if (page.length) curH += gap;
+      page.push(el);
+      curH += h;
+      lastWasLine = isLine;
+      if (!it.internalLineBreak) {
+        pendingGapMm = it.sectionGapAfterMm != null ? it.sectionGapAfterMm : defaultGapMm;
       }
     }
     flush();
@@ -1082,6 +1281,7 @@
     const slotW = slots[0].clientWidth;
     const slotH = slots[0].clientHeight;
     if (slotW <= 0 || slotH <= 0) return;
+    const pairs = [];
     slots.forEach(function (slot) {
       const outer = slot.querySelector('.booklet-scale-outer');
       const inner = outer && outer.querySelector('.booklet-scale-inner');
@@ -1092,15 +1292,23 @@
       inner.style.height = '';
       outer.style.width = '';
       outer.style.height = '';
-      const nw = pg.offsetWidth || 1;
-      const nh = pg.offsetHeight || 1;
-      const sc = Math.min(slotW / nw, slotH / nh, 1);
-      inner.style.width = nw + 'px';
-      inner.style.height = nh + 'px';
-      inner.style.transform = 'scale(' + sc + ')';
-      inner.style.transformOrigin = 'top left';
-      outer.style.width = nw * sc + 'px';
-      outer.style.height = nh * sc + 'px';
+      pairs.push({ outer: outer, inner: inner, pg: pg });
+    });
+    if (pairs.length !== 2) return;
+    const nw0 = pairs[0].pg.offsetWidth || 1;
+    const nh0 = pairs[0].pg.offsetHeight || 1;
+    const nw1 = pairs[1].pg.offsetWidth || 1;
+    const nh1 = pairs[1].pg.offsetHeight || 1;
+    const sc = Math.min(slotW / nw0, slotH / nh0, slotW / nw1, slotH / nh1, 1);
+    pairs.forEach(function (pair, i) {
+      const nw = i === 0 ? nw0 : nw1;
+      const nh = i === 0 ? nh0 : nh1;
+      pair.inner.style.width = nw + 'px';
+      pair.inner.style.height = nh + 'px';
+      pair.inner.style.transform = 'scale(' + sc + ')';
+      pair.inner.style.transformOrigin = 'top left';
+      pair.outer.style.width = nw * sc + 'px';
+      pair.outer.style.height = nh * sc + 'px';
     });
   }
 
@@ -1300,18 +1508,10 @@
       return;
     }
 
-    pageDivs.push(buildWatermarkPage(size));
+    appendCreditsFooterToLastPage(pageDivs);
     exportPageElements = pageDivs;
 
     const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
-
-    const hintEl = document.getElementById('previewHint');
-    if (hintEl) {
-      hintEl.innerHTML =
-        display === 'booklet'
-          ? '<strong>Preview</strong> — booklet sheets (saddle-stitch order, padded to a multiple of four pages). Arrow buttons or wheel: next/previous sheet. PDF export still uses every page in order.'
-          : '<strong>Preview</strong> — layout matches PDF pages (raster export). Switch to <em>booklet spreads</em> in the toolbar to preview folded imposition.';
-    }
 
     if (display === 'scroll') {
       pageDivs.forEach(function (p) {
@@ -1325,6 +1525,64 @@
       }
       mountBookletSpreadUi(root, pageDivs);
     }
+  }
+
+  function richAlignToolbarHtml() {
+    return `
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left">L</button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre">C</button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right">R</button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify">J</button>
+          </div>`;
+  }
+
+  function editorLayoutPanelHtml(b, showGap, showFont) {
+    const gap = b.sectionGapAfterMm != null ? b.sectionGapAfterMm : DEFAULT_SECTION_GAP_AFTER_MM;
+    const fs = b.fontScale != null ? b.fontScale : DEFAULT_BLOCK_FONT_SCALE;
+    return `
+        <div class="border rounded p-2 bg-light small mb-2">
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="edBlockHidden" ${b.hidden ? 'checked' : ''}>
+            <label class="form-check-label" for="edBlockHidden">Hidden in preview / PDF</label>
+          </div>
+          ${
+            showGap
+              ? `<label class="form-label small mb-0">Space after this section (mm)</label>
+          <input type="number" class="form-control form-control-sm mb-0" id="edBlockGap" min="0" max="30" value="${gap}">`
+              : ''
+          }
+          ${
+            showFont
+              ? `<label class="form-label small mb-0 mt-2">Text size (× body)</label>
+          <input type="range" class="form-range" id="edBlockFontScale" min="0.75" max="1.5" step="0.05" value="${fs}">`
+              : ''
+          }
+        </div>`;
+  }
+
+  function wireEditorSectionLayout(panel, b, showGap, showFont) {
+    const hid = panel.querySelector('#edBlockHidden');
+    const gapEl = panel.querySelector('#edBlockGap');
+    const fsEl = panel.querySelector('#edBlockFontScale');
+    const push = () => {
+      if (hid) b.hidden = !!hid.checked;
+      if (showGap && gapEl) {
+        b.sectionGapAfterMm = Math.min(
+          30,
+          Math.max(0, parseInt(gapEl.value, 10) || DEFAULT_SECTION_GAP_AFTER_MM)
+        );
+      }
+      if (showFont && fsEl) {
+        b.fontScale = Math.min(1.5, Math.max(0.75, parseFloat(fsEl.value) || 1));
+      }
+      scheduleAutosave();
+      renderPreview();
+      renderBlockList();
+    };
+    hid?.addEventListener('change', push);
+    gapEl?.addEventListener('input', push);
+    fsEl?.addEventListener('input', push);
   }
 
   function moveBlock(blockId, delta) {
@@ -1347,6 +1605,24 @@
     state.blocks.forEach((b, idx) => {
       const row = document.createElement('div');
       row.className = 'booklet-block-row';
+
+      const meta = blockTypeMeta(b);
+      const line = blockListLinePreview(b);
+
+      const vis = document.createElement('button');
+      vis.type = 'button';
+      vis.className = 'btn btn-outline-secondary';
+      vis.title = b.hidden ? 'Show in booklet' : 'Hide from booklet';
+      vis.innerHTML = b.hidden
+        ? '<i class="bi bi-eye-slash" aria-hidden="true"></i>'
+        : '<i class="bi bi-eye" aria-hidden="true"></i>';
+      vis.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        b.hidden = !b.hidden;
+        scheduleAutosave();
+        renderBlockList();
+        renderPreview();
+      });
 
       const moves = document.createElement('div');
       moves.className = 'booklet-block-move';
@@ -1374,50 +1650,35 @@
       moves.appendChild(btnDown);
 
       const div = document.createElement('div');
-      div.className = 'block-list-item' + (b.id === selectedBlockId ? ' active' : '');
-      const label =
-        b.type === 'rubric'
-          ? 'Rubric'
-          : b.type === 'reading'
-            ? 'Reading / prayer'
-            : b.type === 'image'
-              ? 'Image'
-              : b.type === 'edition_pdf'
-                ? 'Edition PDF'
-                : b.type === 'chant_gabc'
-                  ? 'Chant (GABC)'
-                  : b.type === 'page_break'
-                    ? '— Page break —'
-                    : b.type === 'jgabc_propers'
-                      ? 'Propers (legacy)'
-                      : b.type;
-      let preview = '';
-      if (b.type === 'rubric') {
-        preview = stripTagsForPreview(b.text || '');
-      } else if (b.type === 'reading') {
-        preview = stripTagsForPreview(b.text || '');
-        if (translationHasContent(b.translation)) {
-          preview += ' | ' + stripTagsForPreview(b.translation || '');
-        }
-      } else if (b.type === 'edition_pdf') {
-        const tit = (b.title || '').trim();
-        preview = (tit ? tit + ' · ' : '') + (b.url || '').slice(0, 28);
-        const fr = b.pdfPageFrom != null ? b.pdfPageFrom : 1;
-        const to = b.pdfPageTo;
-        preview += to != null && to !== '' ? ' p.' + fr + '-' + to : ' p.' + fr + '+';
-      } else if (b.type === 'chant_gabc') {
-        preview = (b.gabc || '').replace(/\s+/g, ' ').slice(0, 40);
-      } else if (b.type === 'image') {
-        const cap = (b.label || '').trim();
-        preview = cap ? cap.slice(0, 40) : '(no label)';
-      }
-      div.textContent = idx + 1 + '. ' + label + (preview ? ': ' + preview : '');
+      div.className =
+        'block-list-item' +
+        (b.id === selectedBlockId ? ' active' : '') +
+        (b.hidden ? ' opacity-50' : '');
       div.dataset.id = b.id;
+      div.title = meta.label + ' — ' + line;
+      div.setAttribute('aria-label', meta.label + ': ' + line);
+
+      const badge = document.createElement('span');
+      badge.className = 'booklet-block-type-badge';
+      badge.style.backgroundColor = meta.color;
+      badge.title = meta.label;
+      badge.setAttribute('aria-hidden', 'true');
+      const ic = document.createElement('i');
+      ic.className = 'bi ' + meta.icon;
+      badge.appendChild(ic);
+
+      const textEl = document.createElement('span');
+      textEl.className = 'booklet-block-preview-text';
+      textEl.textContent = line;
+
+      div.appendChild(badge);
+      div.appendChild(textEl);
       div.addEventListener('click', () => {
         selectedBlockId = b.id;
         renderBlockList();
         renderEditor();
       });
+      row.appendChild(vis);
       row.appendChild(moves);
       row.appendChild(div);
       el.appendChild(row);
@@ -1436,22 +1697,26 @@
     }
     if (b.type === 'page_break') {
       panel.innerHTML =
+        editorLayoutPanelHtml(b, false, false) +
         '<p class="small text-muted">This forces the next section onto a new page in the preview and PDF.</p>';
+      wireEditorSectionLayout(panel, b, false, false);
       return;
     }
     if (b.type === 'rubric') {
       panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, true)}
         <label class="form-label small mb-1">Title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
         <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-2" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
-        <p class="small text-muted mb-1">Bold, italic, underline, and text colour (preview + PDF).</p>
+        <p class="small text-muted mb-1">Bold, italic, underline, alignment, and text colour (preview + PDF).</p>
         <div class="booklet-rich-toolbar rubric-tb">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
@@ -1475,6 +1740,7 @@
       };
       st.addEventListener('input', pushMeta);
       ss.addEventListener('input', pushMeta);
+      wireEditorSectionLayout(panel, b, true, true);
       const push = () => {
         b.text = ed.innerHTML;
         scheduleAutosave();
@@ -1486,6 +1752,7 @@
       const split = b.parallelLeftPct != null ? b.parallelLeftPct : 50;
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
       panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, true)}
         <label class="form-label small mb-1">Section title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left above both columns">
         <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
@@ -1497,6 +1764,7 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
@@ -1513,6 +1781,7 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richAlignToolbarHtml()}
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
             <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
@@ -1573,8 +1842,10 @@
       rng.addEventListener('input', syncParallel);
       chk.addEventListener('change', syncParallel);
       ig.addEventListener('input', syncParallel);
+      wireEditorSectionLayout(panel, b, true, true);
     } else if (b.type === 'image') {
       panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-1">Section list name</label>
         <input type="text" class="form-control form-control-sm mb-2" id="edImgLabel" value="${escapeAttr(b.label || '')}" placeholder="e.g. Cover, Map — not shown in booklet">
         <p class="small text-muted mb-2">Shown only in the left-hand section list. Stored as base64 in the project file.</p>
@@ -1587,8 +1858,10 @@
         renderBlockList();
       });
       panel.querySelector('#edReplaceImg').addEventListener('click', () => pickImageForBlock(b.id));
+      wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'edition_pdf') {
       panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-1">Search Polyphony editions</label>
         <input type="search" class="form-control form-control-sm mb-1" id="edEditionSearch" placeholder="Work title, composer…" autocomplete="off">
         <div id="edEditionResults" class="booklet-edition-results mb-2 d-none list-group list-group-flush"></div>
@@ -1706,16 +1979,88 @@
           }, 320);
         });
       }
+      wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'chant_gabc') {
+      const cn = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
+      const cl = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
+      const ct = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
+      const cs = b.chantSystemGap != null ? b.chantSystemGap : 4;
+      const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
+      const csc = String(b.chantStaffColor || '').trim();
+      const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
       panel.innerHTML = `
+        ${editorLayoutPanelHtml(b, true, false)}
         <p class="small text-muted mb-2">Paste full GABC (including header lines ending with <code>%%</code> if you use them). For complex Mass propers, build them in
         <a href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben’s propers tool</a> and copy the GABC from there.</p>
-        <textarea class="form-control form-control-sm font-monospace" rows="12" id="edGabc">${escapeHtml(b.gabc || '')}</textarea>
+        <textarea class="form-control form-control-sm font-monospace" rows="10" id="edGabc">${escapeHtml(b.gabc || '')}</textarea>
         ${b.legacyHash ? '<p class="small text-warning mt-2">Old saved hash (not used for preview): <code class="small">' + escapeHtml(String(b.legacyHash).slice(0, 80)) + '</code></p>' : ''}
+        <details class="small border rounded px-2 py-2 mt-2 bg-light">
+          <summary class="fw-semibold user-select-none">Rendering options (this section only)</summary>
+          <p class="text-muted mt-2 mb-2" style="font-size:0.78rem;">Exsurge is documented mainly via its <a href="https://github.com/BBloomF/Exsurge" target="_blank" rel="noopener">GitHub repo</a> and TypeScript sources (<code>ChantContext</code>, <code>ChantScore</code>). Commonly tuned fields include <code>staffLineColor</code>, <code>spaceBetweenSystems</code>, lyric spacing via <code>minLyricWordSpacing</code>, neume size from <code>setFont</code>, and <code>textStyles.dropCap</code> / <code>textStyles.annotation</code>.</p>
+          <label class="form-label mb-0" style="font-size:0.78rem;">Neume / staff scale</label>
+          <input type="range" class="form-range mb-1" id="edChantNeume" min="12" max="28" step="0.2" value="${cn}">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Space between systems</label>
+          <input type="range" class="form-range mb-1" id="edChantSysGap" min="0" max="24" step="0.5" value="${cs}">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Lyric tightness</label>
+          <input type="range" class="form-range mb-1" id="edChantTight" min="0.35" max="1.5" step="0.05" value="${ct}">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Extra padding above each staff line (px)</label>
+          <input type="range" class="form-range mb-1" id="edChantPad" min="0" max="20" step="1" value="${cl}">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Drop cap size (× default for this neume scale)</label>
+          <input type="range" class="form-range mb-1" id="edChantDropCap" min="0.5" max="1.6" step="0.05" value="${cd}">
+          <label class="form-label mb-0" style="font-size:0.78rem;">Staff line colour</label>
+          <div class="d-flex align-items-center gap-2 mb-0">
+            <input type="color" id="edChantStaff" class="form-control form-control-color" value="${escapeAttr(cscVal)}">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantStaffDef">Use GABC</button>
+          </div>
+        </details>
       `;
       const ta = panel.querySelector('#edGabc');
       ta.addEventListener('input', () => {
         b.gabc = ta.value;
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      wireEditorSectionLayout(panel, b, true, false);
+      const pushChantOpts = () => {
+        b.chantNeumeSize = Math.min(
+          28,
+          Math.max(12, parseFloat(panel.querySelector('#edChantNeume').value) || 19.2)
+        );
+        b.chantSystemGap = Math.min(
+          24,
+          Math.max(0, parseFloat(panel.querySelector('#edChantSysGap').value) || 4)
+        );
+        b.chantLyricTight = Math.min(
+          1.5,
+          Math.max(0.35, parseFloat(panel.querySelector('#edChantTight').value) || 0.7)
+        );
+        b.chantLinePadTop = Math.min(
+          20,
+          Math.max(0, parseFloat(panel.querySelector('#edChantPad').value) || 6)
+        );
+        b.chantDropCapScale = Math.min(
+          1.6,
+          Math.max(0.5, parseFloat(panel.querySelector('#edChantDropCap').value) || 1)
+        );
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      ['#edChantNeume', '#edChantSysGap', '#edChantTight', '#edChantPad', '#edChantDropCap'].forEach(
+        function (sel) {
+          panel.querySelector(sel)?.addEventListener('input', pushChantOpts);
+        }
+      );
+      panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
+        const cv = panel.querySelector('#edChantStaff').value;
+        b.chantStaffColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      panel.querySelector('#edChantStaffDef')?.addEventListener('click', () => {
+        b.chantStaffColor = '';
         scheduleAutosave();
         renderPreview();
         renderBlockList();
@@ -1757,7 +2102,24 @@
       b.pdfPageFrom = 1;
       b.pdfPageTo = null;
     }
-    if (type === 'chant_gabc') b.gabc = '';
+    if (type === 'chant_gabc') {
+      b.gabc = '';
+      b.chantNeumeSize = 19.2;
+      b.chantStaffColor = '';
+      b.chantLinePadTop = 6;
+      b.chantLyricTight = 0.7;
+      b.chantSystemGap = 4;
+      b.chantDropCapScale = 1;
+    }
+    if (type !== 'page_break') {
+      b.hidden = false;
+      b.sectionGapAfterMm = DEFAULT_SECTION_GAP_AFTER_MM;
+    } else {
+      b.hidden = false;
+    }
+    if (type === 'rubric' || type === 'reading') {
+      b.fontScale = DEFAULT_BLOCK_FONT_SCALE;
+    }
     state.blocks.push(b);
     selectedBlockId = b.id;
     scheduleAutosave();
@@ -1813,6 +2175,116 @@
     URL.revokeObjectURL(a.href);
   }
 
+  function sleepPdf(ms) {
+    return new Promise(function (r) {
+      setTimeout(r, ms);
+    });
+  }
+
+  /**
+   * html2canvas often mis-renders Exsurge SVG (clip, fonts, overflow). Rasterize each SVG
+   * to a PNG at export resolution, then let html2canvas capture like normal layout.
+   */
+  async function rasterizeChantSvgForExport(svg, pixelScale) {
+    const rect = svg.getBoundingClientRect();
+    let cssW = rect.width || svg.clientWidth || 0;
+    let cssH = rect.height || svg.clientHeight || 0;
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if (cssW < 4 && vb && vb.width) cssW = vb.width;
+    if (cssH < 4 && vb && vb.height) cssH = vb.height;
+    if (cssW < 4) cssW = parseFloat(svg.getAttribute('width')) || 600;
+    if (cssH < 4) cssH = parseFloat(svg.getAttribute('height')) || 140;
+    let xml = new XMLSerializer().serializeToString(svg);
+    if (!/\sxmlns\s*=/.test(xml)) {
+      xml = xml.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    const wPx = Math.max(64, Math.ceil(cssW * pixelScale));
+    const hPx = Math.max(32, Math.ceil(cssH * pixelScale * 1.2));
+    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    try {
+      await new Promise(function (resolve, reject) {
+        img.onload = resolve;
+        img.onerror = function () {
+          reject(new Error('chant SVG raster failed'));
+        };
+        img.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = wPx;
+      canvas.height = hPx;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, wPx, hPx);
+        ctx.drawImage(img, 0, 0, wPx, hPx);
+      }
+      const dataUrl = canvas.toDataURL('image/png');
+      const out = document.createElement('img');
+      out.src = dataUrl;
+      out.alt = '';
+      out.setAttribute('data-booklet-chant-raster', '1');
+      out.style.cssText = 'display:block;width:100%;height:auto;vertical-align:top;';
+      svg.parentNode.replaceChild(out, svg);
+    } catch (e) {
+      console.warn('Chant SVG export fallback (left as vector)', e);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function rasterizeAllChantSvgsInRoot(root, pixelScale) {
+    const list = root.querySelectorAll('.booklet-chant-line svg');
+    const arr = Array.prototype.slice.call(list);
+    for (let i = 0; i < arr.length; i++) {
+      const svg = arr[i];
+      if (svg.parentNode) {
+        await rasterizeChantSvgForExport(svg, pixelScale);
+      }
+    }
+  }
+
+  async function captureBookletPageToCanvas(pageEl) {
+    const host = document.createElement('div');
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText =
+      'position:fixed;left:-9999px;top:0;width:auto;height:auto;max-width:none;overflow:visible;pointer-events:none;visibility:hidden;z-index:-9999;';
+    document.body.appendChild(host);
+    try {
+      const clone = pageEl.cloneNode(true);
+      clone.style.margin = '0 auto';
+      const ow = pageEl.offsetWidth;
+      const oh = pageEl.offsetHeight;
+      if (ow) clone.style.width = ow + 'px';
+      if (oh) clone.style.minHeight = oh + 'px';
+      host.appendChild(clone);
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise(function (r) {
+        requestAnimationFrame(r);
+      });
+      await rasterizeAllChantSvgsInRoot(clone, PDF_HTML2CANVAS_SCALE);
+      await new Promise(function (r) {
+        requestAnimationFrame(r);
+      });
+      return await html2canvas(clone, {
+        scale: PDF_HTML2CANVAS_SCALE,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+      });
+    } finally {
+      host.remove();
+    }
+  }
+
   function loadJsonFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -1820,7 +2292,7 @@
         const parsed = JSON.parse(reader.result);
         const m = migrateProject(parsed);
         if (!m || !Array.isArray(m.blocks)) {
-          alert('Invalid or unsupported project file (schema 1–' + SCHEMA_VERSION + ').');
+          alert('Invalid or unsupported project file (supported schemas: 1–' + SCHEMA_VERSION + ').');
           return;
         }
         state = m;
@@ -1866,32 +2338,37 @@
         state.settings.pageSize === 'A5' ? PDFLib.PageSizes.A5[1] : PDFLib.PageSizes.A4[1];
 
       for (let i = 0; i < pages.length; i++) {
-        const el = pages[i];
-        const canvas = await html2canvas(el, {
-          scale: 2.25,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-        });
-        const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.88);
-        const jpgBytes = await fetch(jpgDataUrl).then((r) => r.arrayBuffer());
-        let image;
+        if (i > 0) await sleepPdf(PDF_EXPORT_PAGE_DELAY_MS);
+        let canvas;
         try {
-          image = await pdfDoc.embedJpg(jpgBytes);
-        } catch (e) {
-          const pngBlob = await new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob'))), 'image/png');
-          });
-          const pngBytes = await pngBlob.arrayBuffer();
-          image = await pdfDoc.embedPng(pngBytes);
+          canvas = await captureBookletPageToCanvas(pages[i]);
+        } catch (pageErr) {
+          console.error('PDF page ' + (i + 1), pageErr);
+          alert(
+            'PDF export failed while capturing page ' +
+              (i + 1) +
+              '. If this repeats, try fewer pages or close other tabs (export uses a lot of memory).'
+          );
+          throw pageErr;
         }
+        const pngBlob = await new Promise(function (resolve, reject) {
+          canvas.toBlob(
+            function (blob) {
+              if (blob) resolve(blob);
+              else reject(new Error('toBlob'));
+            },
+            'image/png',
+            1
+          );
+        });
+        const pngBytes = await pngBlob.arrayBuffer();
+        const image = await pdfDoc.embedPng(pngBytes);
         const page = pdfDoc.addPage([pageW, pageH]);
         const iw = image.width;
         const ih = image.height;
-        const scale = Math.min(pageW / iw, pageH / ih);
-        const dw = iw * scale;
-        const dh = ih * scale;
+        const s = Math.min(pageW / iw, pageH / ih);
+        const dw = iw * s;
+        const dh = ih * s;
         const x = (pageW - dw) / 2;
         const y = (pageH - dh) / 2;
         page.drawImage(image, { x, y, width: dw, height: dh });
@@ -1928,26 +2405,6 @@
       scheduleAutosave();
       renderPreview();
     });
-    document.getElementById('inpMargin')?.addEventListener('input', (e) => {
-      const v = parseInt(e.target.value, 10);
-      state.settings.marginMm = Number.isFinite(v) ? Math.min(40, Math.max(5, v)) : 15;
-      applyCssVars();
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('inpSectionGap')?.addEventListener('input', (e) => {
-      const v = parseInt(e.target.value, 10);
-      state.settings.sectionGapMm = Number.isFinite(v) ? Math.min(30, Math.max(0, v)) : 8;
-      applyCssVars();
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('rngFontScale')?.addEventListener('input', (e) => {
-      state.settings.fontScale = parseFloat(e.target.value) || 1;
-      applyCssVars();
-      scheduleAutosave();
-      renderPreview();
-    });
     document.getElementById('selPreviewDisplay')?.addEventListener('change', (e) => {
       state.settings.previewDisplay = e.target.value === 'booklet' ? 'booklet' : 'scroll';
       scheduleAutosave();
@@ -1972,43 +2429,6 @@
       renderPreview();
     });
 
-    document.getElementById('rngChantNeume')?.addEventListener('input', (e) => {
-      const v = parseFloat(e.target.value);
-      state.settings.chantNeumeSize = Number.isFinite(v) ? Math.min(28, Math.max(12, v)) : 19.2;
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('rngChantLinePad')?.addEventListener('input', (e) => {
-      const v = parseFloat(e.target.value);
-      state.settings.chantLinePadTop = Number.isFinite(v) ? Math.min(20, Math.max(0, v)) : 6;
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('rngChantLyricTight')?.addEventListener('input', (e) => {
-      const v = parseFloat(e.target.value);
-      state.settings.chantLyricTight = Number.isFinite(v) ? Math.min(1.5, Math.max(0.35, v)) : 0.7;
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('rngChantSystemGap')?.addEventListener('input', (e) => {
-      const v = parseFloat(e.target.value);
-      state.settings.chantSystemGap = Number.isFinite(v) ? Math.min(24, Math.max(0, v)) : 4;
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('btnChantStaffDefault')?.addEventListener('click', () => {
-      state.settings.chantStaffColor = '';
-      syncControlsFromState();
-      scheduleAutosave();
-      renderPreview();
-    });
-    document.getElementById('inpChantStaffColor')?.addEventListener('input', (e) => {
-      const v = e.target.value;
-      state.settings.chantStaffColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '';
-      scheduleAutosave();
-      renderPreview();
-    });
-
     document.getElementById('btnRemoveBlock')?.addEventListener('click', removeSelectedBlock);
     document.getElementById('btnSaveProject')?.addEventListener('click', downloadJson);
     document.getElementById('btnLoadProject')?.addEventListener('click', () =>
@@ -2020,7 +2440,6 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
-    document.getElementById('btnPrint')?.addEventListener('click', () => window.print());
   }
 
   loadAutosave();
