@@ -15,6 +15,7 @@ import searchRouter from './routes/search.js';
 import bookletApiRouter from './routes/booklet.js';
 import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
+import importRouter from './routes/import.js';
 import path from 'path';
 
 const PgStore = connectPgSimple(session);
@@ -126,6 +127,7 @@ app.use('/api/admin/publishers', requireAuthWeb, publishersRouter);
 app.use('/api/admin/scribes', requireAuthWeb, scribesRouter);
 app.use('/api/admin/functions', requireAuthWeb, functionsRouter);
 app.use('/api/admin/groups', requireAuthWeb, groupsRouter);
+app.use('/api/admin/import', requireAuthWeb, importRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 
 // Start server

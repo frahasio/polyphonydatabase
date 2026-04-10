@@ -696,192 +696,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
     }
 
-    // Step 2: Check for and process persistent temp_inclusions
-    console.log('\n=== CHECKING FOR PERSISTENT TEMP_INCLUSIONS ===');
-    
-    // Check if persistent temp_inclusions table exists
-    const tableExistsResult = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'temp_inclusions'
-      ) as table_exists
-    `);
-    
-    let stagedInclusionsCount = 0;
-    
-    if (tableExistsResult.rows[0].table_exists) {
-      // Get any unprocessed temp inclusions for this source
-      const stagedInclusions = await client.query(`
-        SELECT * FROM temp_inclusions 
-        WHERE source_id = $1
-        ORDER BY position
-      `, [sourceId]);
-      
-      stagedInclusionsCount = stagedInclusions.rows.length;
-      
-      if (stagedInclusionsCount > 0) {
-        console.log(`Found ${stagedInclusionsCount} staged temp_inclusions to process`);
-        
-        // Collect processed temp_inclusion IDs for deletion
-        const processedTempIds = [];
-        
-        // Process each staged inclusion
-        for (const tempInclusion of stagedInclusions.rows) {
-          console.log(`Processing staged inclusion: ${tempInclusion.composition_name}`);
-          
-          // Parse JSON data
-          let clefs = [];
-          let composerIds = [];
-          try {
-            if (tempInclusion.clefs) clefs = JSON.parse(tempInclusion.clefs);
-            if (tempInclusion.composer_ids_json && tempInclusion.composer_ids_json !== '[]') {
-              composerIds = JSON.parse(tempInclusion.composer_ids_json);
-            }
-          } catch (e) {
-            console.error('Error parsing JSON:', e);
-          }
-          
-          // Validate and default composer_ids to prevent null arrays
-          if (!composerIds || composerIds.length === 0 || composerIds.every(id => !id || id === null)) {
-            composerIds = [23]; // Default to Anon composer
-            console.log(`Defaulting to Anon composer for temp inclusion: "${tempInclusion.composition_name}"`);
-          } else {
-            // Filter out any null values and ensure all are valid integers
-            composerIds = composerIds.filter(id => id !== null && id !== undefined && !isNaN(parseInt(id)))
-                                    .map(id => parseInt(id));
-            
-            // If after filtering we have no valid IDs, default to Anon
-            if (composerIds.length === 0) {
-              composerIds = [23];
-              console.log(`No valid composer IDs found, defaulting to Anon for temp inclusion: "${tempInclusion.composition_name}"`);
-            }
-          }
-          
-          // Create or find title
-          let titleResult = await client.query(`SELECT id FROM titles WHERE text = $1`, [tempInclusion.composition_name]);
-          let titleId;
-          if (titleResult.rows.length > 0) {
-            titleId = titleResult.rows[0].id;
-          } else {
-            const newTitleResult = await client.query(`
-              INSERT INTO titles (text, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
-            `, [tempInclusion.composition_name, now, now]);
-            titleId = newTitleResult.rows[0].id;
-          }
-          
-          // Handle composition type
-          let compositionTypeId = tempInclusion.composition_type_id;
-          if (!compositionTypeId && tempInclusion.composition_type) {
-            const typeResult = await client.query(`SELECT id FROM composition_types WHERE name = $1`, [tempInclusion.composition_type]);
-            if (typeResult.rows.length > 0) {
-              compositionTypeId = parseInt(typeResult.rows[0].id);
-            }
-          }
-          
-          // Process tone, tone_connector and even_odd
-          let tone = tempInclusion.tone;
-          if (tone !== null) tone = await convertToneToString(tone);
-          const toneConnector = tempInclusion.tone_connector || null;
-          
-          let evenOdd = tempInclusion.even_odd;
-          if (evenOdd === 'even') evenOdd = 0;
-          else if (evenOdd === 'odd') evenOdd = 1;
-          else if (evenOdd === 'both') evenOdd = 2;
-          else if (typeof evenOdd === 'number') evenOdd = evenOdd;
-          else evenOdd = null;
-          
-          const numberOfVoices = tempInclusion.number_of_voices ? parseInt(tempInclusion.number_of_voices) : null;
-          const isAnonymous = composerIds.length === 1 && composerIds[0] === 23;
-          
-          // Check for existing composition
-          let existingComposition = { rows: [] };
-          
-          if (isAnonymous) {
-            // BUGFIX: Anonymous compositions should NEVER be matched against existing ones
-            // Always create new compositions for anonymous works, even if they have identical properties
-            existingComposition = { rows: [] }; // Force creation of new composition
-          } else {
-            existingComposition = await client.query(`
-              SELECT id, group_id FROM compositions 
-              WHERE title_id = $1 
-              AND (composition_type_id = $2 OR ($2 IS NULL AND composition_type_id IS NULL))
-              AND (tone = $3 OR ($3 IS NULL AND tone IS NULL))
-              AND (even_odd = $4 OR ($4 IS NULL AND even_odd IS NULL))
-              AND (number_of_voices = $5 OR ($5 IS NULL AND number_of_voices IS NULL))
-              AND composer_id_list = $6
-            `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoices, composerIds]);
-          }
-          
-          let compositionId, groupId;
-          if (existingComposition.rows.length > 0) {
-            // Use existing composition
-            compositionId = existingComposition.rows[0].id;
-            groupId = existingComposition.rows[0].group_id;
-            
-            await client.query(`UPDATE compositions SET tone_connector = $1 WHERE id = $2`, [toneConnector, compositionId]);
-            
-            if (!groupId) {
-              // Create group for existing composition
-              const newGroupResult = await client.query(`
-                INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
-              `, [tempInclusion.composition_name, now, now]);
-              groupId = newGroupResult.rows[0].id;
-              await client.query(`UPDATE compositions SET group_id = $1 WHERE id = $2`, [groupId, compositionId]);
-            }
-          } else {
-            // Create new group and composition
-            const newGroupResult = await client.query(`
-              INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
-            `, [tempInclusion.composition_name, now, now]);
-            groupId = newGroupResult.rows[0].id;
-            
-            const compositionResult = await client.query(`
-              INSERT INTO compositions (title_id, composition_type_id, tone, tone_connector, even_odd, number_of_voices, composer_id_list, group_id, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
-            `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoices, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
-            compositionId = compositionResult.rows[0].id;
-          }
-          
-          // Create the inclusion
-          await client.query(`
-            INSERT INTO inclusions (
-              source_id, composition_id, "order", position, notes, 
-              attribution_texts, composer_ids, clefs, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          `, [
-            sourceId, 
-            compositionId, 
-            tempInclusion.position,
-            tempInclusion.position?.toString() || '',
-            '',
-            JSON.stringify([tempInclusion.composers || '']),
-            JSON.stringify(composerIds),
-            JSON.stringify(clefs),
-            now, 
-            now
-          ]);
-          
-          // Add to list of successfully processed temp inclusions
-          processedTempIds.push(tempInclusion.id);
-        }
-        
-        // Delete all successfully processed temp_inclusions
-        if (processedTempIds.length > 0) {
-          const deleteResult = await client.query(`
-            DELETE FROM temp_inclusions WHERE id = ANY($1)
-          `, [processedTempIds]);
-          console.log(`Deleted ${deleteResult.rowCount} processed temp_inclusions`);
-        }
-        
-        console.log(`Processed ${stagedInclusionsCount} staged inclusions`);
-      } else {
-        console.log('No staged temp_inclusions found for this source');
-      }
-    } else {
-      console.log('temp_inclusions table does not exist');
-    }
-
-    // Step 3: Handle form inclusions 
+    // Step 2: Handle form inclusions 
     console.log('\n=== PROCESSING FORM INCLUSIONS ===');
     
     // Only process inclusions that have titles (non-empty rows)
@@ -1184,15 +999,13 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             action: 'source_inclusions_update',
             sourceCode: source.code,
             sourceTitle: source.title,
-            stagedInclusionsCount: stagedInclusionsCount,
             formInclusionsCount: processedInclusions.length
           }),
           JSON.stringify({ 
             action: 'source_inclusions_update',
             sourceCode: source.code,
             sourceTitle: source.title,
-            totalInclusionsProcessed: stagedInclusionsCount + processedInclusions.length,
-            stagedInclusionsCount: stagedInclusionsCount,
+            totalInclusionsProcessed: processedInclusions.length,
             formInclusionsCount: processedInclusions.length,
             inclusions: processedInclusions.map(inc => ({
               compositionTitle: inc.composition?.title_text,
@@ -1212,19 +1025,16 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     await client.query('COMMIT');
     
     console.log(`\n=== SAVE COMPLETE ===`);
-    console.log(`Processed ${stagedInclusionsCount} staged inclusions`);
     console.log(`Processed ${processedInclusions.length} form inclusions`);
     console.log(`====================\n`);
     
-    // Trigger cleanup after source save (async, with delay to ensure all operations complete)
-    if (stagedInclusionsCount > 0 || processedInclusions.length > 0) {
+    if (processedInclusions.length > 0) {
       triggerCleanup(true, 'all', 'after source save', 5000);
     }
     
     res.json({ 
       success: true, 
-      message: `Source saved successfully. Processed ${stagedInclusionsCount} staged inclusions and ${processedInclusions.length} form inclusions.`,
-      processedStagedInclusions: stagedInclusionsCount,
+      message: `Source saved successfully. Processed ${processedInclusions.length} inclusions.`,
       processedFormInclusions: processedInclusions.length
     });
 

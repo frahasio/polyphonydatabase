@@ -11,6 +11,7 @@
     { label: 'Performers',      icon: 'bi-mic',            href: '/modules/performers/index.html',      adminOnly: false },
     { label: 'Titles',          icon: 'bi-card-text',      href: '/modules/titles/index.html',          adminOnly: false },
     { label: 'Functions',       icon: 'bi-tag',            href: '/modules/functions/index.html',       adminOnly: false },
+    { label: 'Import Source',  icon: 'bi-upload',     href: '/modules/import/index.html',       adminOnly: true },
     { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html', adminOnly: true, smallLabel: true },
     { label: 'Clef / Voicings', icon: 'custom-treble-clef', href: '/modules/clef-voicings/index.html', adminOnly: true },
     { label: 'Users',           icon: 'bi-people',         href: '/user-management.html',               adminOnly: true }

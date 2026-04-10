@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Source - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .drop-zone {
+            border: 3px dashed #adb5bd;
+            border-radius: 8px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: #f8f9fa;
+        }
+        .drop-zone:hover, .drop-zone.drag-over {
+            border-color: #0d6efd;
+            background: #e7f1ff;
+        }
+        .drop-zone .bi {
+            font-size: 3rem;
+            color: #6c757d;
+        }
+        .drop-zone.drag-over .bi {
+            color: #0d6efd;
+        }
+        .drop-zone p {
+            margin: 12px 0 0;
+            color: #6c757d;
+        }
+        .preview-section { display: none; }
+        .preview-section.visible { display: block; }
+        .badge-warning-row { background-color: #fff3cd !important; }
+        .badge-error-row { background-color: #f8d7da !important; }
+        .preview-table-wrap {
+            max-height: 60vh;
+            overflow: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .preview-table-wrap table {
+            font-size: 0.85rem;
+        }
+        .preview-table-wrap th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #e9ecef;
+        }
+        .source-card { border-left: 4px solid #0d6efd; }
+        .messages-area .alert { margin-bottom: 6px; font-size: 0.875rem; padding: 8px 14px; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <h3 class="mb-4"><i class="bi bi-upload"></i> Import Source from Spreadsheet</h3>
+
+        <!-- Step 1: Template + Upload -->
+        <div id="uploadSection">
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-file-earmark-spreadsheet" style="font-size:2.5rem;color:#198754"></i>
+                            <h5 class="mt-3">1. Download Template</h5>
+                            <p class="text-muted small">Get the XLSX template with all fields, valid values, and instructions.</p>
+                            <a href="/api/admin/import/template" class="btn btn-outline-success">
+                                <i class="bi bi-download"></i> Download Template
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="text-center mb-3">2. Upload Completed Spreadsheet</h5>
+                            <div class="drop-zone" id="dropZone">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                                <p>Drag &amp; drop your <strong>.xlsx</strong> file here, or click to browse</p>
+                                <input type="file" id="fileInput" accept=".xlsx,.xls" class="d-none">
+                            </div>
+                            <div id="fileInfo" class="mt-2 text-center small text-muted" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spinner while parsing -->
+        <div id="parseSpinner" class="text-center py-5" style="display:none">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Parsing and validating spreadsheet...</p>
+        </div>
+
+        <!-- Step 2: Preview -->
+        <div id="previewSection" class="preview-section">
+            <!-- Messages -->
+            <div class="messages-area mb-3" id="messagesArea"></div>
+
+            <!-- Source preview -->
+            <div class="card source-card mb-4">
+                <div class="card-header"><strong>Source</strong></div>
+                <div class="card-body" id="sourcePreview"></div>
+            </div>
+
+            <!-- Inclusions preview -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Inclusions (<span id="inclusionCount">0</span>)</h5>
+            </div>
+            <div class="preview-table-wrap mb-4">
+                <table class="table table-sm table-bordered table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Position</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Tone</th>
+                            <th>Even/Odd</th>
+                            <th>Clefs</th>
+                            <th>Voices</th>
+                            <th>Composers</th>
+                            <th>Attribution</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inclusionsBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="d-flex gap-3 mb-5">
+                <button class="btn btn-secondary" id="btnBack">
+                    <i class="bi bi-arrow-left"></i> Back
+                </button>
+                <button class="btn btn-primary" id="btnConfirm" disabled>
+                    <i class="bi bi-check-circle"></i> Confirm Import
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Progress / result -->
+        <div id="resultSection" style="display:none">
+            <div class="text-center py-5" id="importSpinner">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Importing source and inclusions...</p>
+            </div>
+            <div id="importResult" style="display:none"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/auth-utils.js"></script>
+    <script src="/js/admin-layout.js"></script>
+    <script>
+        let parsedData = null;
+
+        // --- DOM refs ---
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const parseSpinner = document.getElementById('parseSpinner');
+        const uploadSection = document.getElementById('uploadSection');
+        const previewSection = document.getElementById('previewSection');
+        const messagesArea = document.getElementById('messagesArea');
+        const sourcePreview = document.getElementById('sourcePreview');
+        const inclusionsBody = document.getElementById('inclusionsBody');
+        const inclusionCount = document.getElementById('inclusionCount');
+        const btnConfirm = document.getElementById('btnConfirm');
+        const btnBack = document.getElementById('btnBack');
+        const resultSection = document.getElementById('resultSection');
+        const importSpinner = document.getElementById('importSpinner');
+        const importResult = document.getElementById('importResult');
+
+        // --- Drag & drop ---
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) handleFile(fileInput.files[0]);
+        });
+
+        async function handleFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'xlsx' && ext !== 'xls') {
+                alert('Please upload a .xlsx or .xls file.');
+                return;
+            }
+
+            fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            fileInfo.style.display = '';
+
+            uploadSection.style.display = 'none';
+            parseSpinner.style.display = '';
+
+            try {
+                const response = await fetch('/api/admin/import/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/octet-stream' },
+                    body: file
+                });
+
+                parseSpinner.style.display = 'none';
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    alert(err.error || 'Failed to parse file');
+                    resetToUpload();
+                    return;
+                }
+
+                parsedData = await response.json();
+                showPreview();
+            } catch (err) {
+                parseSpinner.style.display = 'none';
+                alert('Network error: ' + err.message);
+                resetToUpload();
+            }
+        }
+
+        function resetToUpload() {
+            uploadSection.style.display = '';
+            parseSpinner.style.display = 'none';
+            previewSection.classList.remove('visible');
+            resultSection.style.display = 'none';
+            fileInput.value = '';
+            parsedData = null;
+        }
+
+        // --- Preview ---
+        function esc(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function showPreview() {
+            messagesArea.innerHTML = '';
+            const { source, inclusions, warnings, errors } = parsedData;
+
+            // Messages
+            for (const w of warnings) {
+                messagesArea.innerHTML += `<div class="alert alert-warning py-1 px-2 mb-1"><i class="bi bi-exclamation-triangle"></i> ${esc(w)}</div>`;
+            }
+            for (const e of errors) {
+                messagesArea.innerHTML += `<div class="alert alert-danger py-1 px-2 mb-1"><i class="bi bi-x-circle"></i> ${esc(e)}</div>`;
+            }
+
+            // Source card
+            const s = source;
+            sourcePreview.innerHTML = `
+                <div class="row g-2">
+                    <div class="col-md-4"><strong>Code:</strong> ${esc(s.code)}</div>
+                    <div class="col-md-4"><strong>Title:</strong> ${esc(s.title || '—')}</div>
+                    <div class="col-md-2"><strong>Type:</strong> ${esc(s.type)}</div>
+                    <div class="col-md-2"><strong>Format:</strong> ${esc(s.format || '—')}</div>
+                    <div class="col-md-3"><strong>Town:</strong> ${esc(s.town || '—')}</div>
+                    <div class="col-md-3"><strong>Years:</strong> ${s.from_year_annotation ? esc(s.from_year_annotation) + ' ' : ''}${s.from_year || '?'} – ${s.to_year_annotation ? esc(s.to_year_annotation) + ' ' : ''}${s.to_year || '?'}</div>
+                    <div class="col-md-3"><strong>Catalogued:</strong> ${s.catalogued ? 'Yes' : 'No'}</div>
+                    <div class="col-md-3"><strong>RISM:</strong> ${s.rism_link ? '<a href="'+esc(s.rism_link)+'" target="_blank">link</a>' : '—'}</div>
+                    ${s.notes ? '<div class="col-12"><strong>Notes:</strong> '+esc(s.notes)+'</div>' : ''}
+                </div>
+            `;
+
+            // Inclusions table
+            inclusionCount.textContent = inclusions.length;
+            inclusionsBody.innerHTML = '';
+            for (let i = 0; i < inclusions.length; i++) {
+                const inc = inclusions[i];
+                const c = inc.composition || {};
+                const clefStr = (inc.clefs || []).map(cl => {
+                    let s = cl.clef;
+                    if (cl.missing) s = '[' + s + ']';
+                    if (cl.optional) s = '(' + s + ')';
+                    if (cl.incomplete) s = '{' + s + '}';
+                    if (cl.transitions_to && cl.transitions_to.length) s += '>' + cl.transitions_to.join('>');
+                    return s;
+                }).filter(Boolean).join('; ');
+
+                const toneStr = Array.isArray(c.tone)
+                    ? c.tone.join(c.tone_connector ? ` ${c.tone_connector} ` : ', ')
+                    : (c.tone || '');
+
+                const evenOddMap = { 0: 'even', 1: 'odd', 2: 'both' };
+                const eoStr = c.even_odd !== null && c.even_odd !== undefined ? (evenOddMap[c.even_odd] || '') : '';
+
+                const composerStr = (c.composer_names && c.composer_names.length)
+                    ? c.composer_names.join('; ')
+                    : (inc.composer_ids && inc.composer_ids.length === 1 && inc.composer_ids[0] === 23 ? 'Anon' : '');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td>${esc(inc.position || '')}</td>
+                    <td>${esc(c.title_text || '')}</td>
+                    <td>${esc(c.composition_type_name || '')}</td>
+                    <td>${esc(toneStr)}</td>
+                    <td>${esc(eoStr)}</td>
+                    <td><code>${esc(clefStr)}</code></td>
+                    <td>${c.number_of_voices || ''}</td>
+                    <td>${esc(composerStr)}</td>
+                    <td>${esc((inc.attribution_texts || [])[0] || '')}</td>
+                    <td>${esc(inc.notes || '')}</td>
+                `;
+                inclusionsBody.appendChild(tr);
+            }
+
+            // Enable / disable confirm
+            btnConfirm.disabled = errors.length > 0;
+            if (errors.length > 0) {
+                btnConfirm.title = 'Fix errors before importing';
+            } else {
+                btnConfirm.title = '';
+            }
+
+            previewSection.classList.add('visible');
+        }
+
+        // --- Back ---
+        btnBack.addEventListener('click', resetToUpload);
+
+        // --- Confirm ---
+        btnConfirm.addEventListener('click', async () => {
+            if (!parsedData) return;
+
+            previewSection.classList.remove('visible');
+            resultSection.style.display = '';
+            importSpinner.style.display = '';
+            importResult.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/admin/import/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: parsedData.source,
+                        inclusions: parsedData.inclusions
+                    })
+                });
+
+                importSpinner.style.display = 'none';
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    importResult.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-x-circle"></i> Import Failed</h5>
+                            <p>${esc(err.details || err.error || 'Unknown error')}</p>
+                            <button class="btn btn-secondary mt-2" onclick="location.reload()">Try Again</button>
+                        </div>
+                    `;
+                    importResult.style.display = '';
+                    return;
+                }
+
+                const result = await response.json();
+                importResult.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5><i class="bi bi-check-circle"></i> Import Successful</h5>
+                        <p>${esc(result.message)}</p>
+                        <div class="d-flex gap-2 mt-3">
+                            <a href="/modules/sources/edit.html?id=${result.sourceId}" class="btn btn-primary">
+                                <i class="bi bi-pencil"></i> Open Source Editor
+                            </a>
+                            <a href="/modules/sources/index.html" class="btn btn-outline-secondary">
+                                <i class="bi bi-list"></i> Source List
+                            </a>
+                            <button class="btn btn-outline-success" onclick="location.reload()">
+                                <i class="bi bi-plus-circle"></i> Import Another
+                            </button>
+                        </div>
+                    </div>
+                `;
+                importResult.style.display = '';
+            } catch (err) {
+                importSpinner.style.display = 'none';
+                importResult.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-x-circle"></i> Network Error</h5>
+                        <p>${esc(err.message)}</p>
+                        <button class="btn btn-secondary mt-2" onclick="location.reload()">Try Again</button>
+                    </div>
+                `;
+                importResult.style.display = '';
+            }
+        });
+    </script>
+</body>
+</html>
