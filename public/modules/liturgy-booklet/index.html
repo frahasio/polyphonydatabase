@@ -30,34 +30,62 @@
             top: 0;
             z-index: 1020;
         }
-        .booklet-sidebar {
-            position: sticky;
-            top: 4rem;
-            align-self: flex-start;
-            max-height: calc(100vh - 4.5rem);
+        .booklet-columns {
+            display: flex;
+            gap: 0;
+            height: calc(100vh - 5.5rem);
+            overflow: hidden;
+        }
+        .booklet-pane {
             overflow-y: auto;
+            padding: 0.5rem;
+            box-sizing: border-box;
+        }
+        .booklet-pane-list {
+            flex: 0 0 190px;
+            min-width: 150px;
+            border-right: 1px solid #dee2e6;
             z-index: 1010;
-            padding-bottom: 0.5rem;
         }
-        .booklet-sidebar > h6 {
-            font-size: 0.68rem;
-            letter-spacing: 0.04em;
-            margin-bottom: 0.3rem;
-            margin-top: 0.65rem;
+        .booklet-pane-editor {
+            flex: 0 0 290px;
+            min-width: 200px;
+            border-right: 1px solid #dee2e6;
         }
-        .booklet-sidebar > h6:first-of-type {
-            margin-top: 0;
-        }
-        .booklet-sidebar .booklet-layout-compact {
+        .booklet-pane-editor .booklet-layout-compact {
             padding: 0.45rem 0.5rem !important;
             margin-bottom: 0.35rem !important;
         }
+        .booklet-pane-preview {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
         @media (max-width: 991.98px) {
-            .booklet-sidebar {
-                position: relative;
-                top: auto;
+            .booklet-columns {
+                flex-direction: column;
+                height: auto;
+                overflow: visible;
+            }
+            .booklet-pane {
                 max-height: none;
                 overflow-y: visible;
+            }
+            .booklet-pane-list {
+                flex: 0 0 auto;
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+            .booklet-pane-editor {
+                flex: 0 0 auto;
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+            .booklet-pane-preview {
+                min-height: 60vh;
+            }
+            .booklet-main-preview {
+                min-height: 60vh;
+                max-height: none;
             }
         }
         .block-list-item {
@@ -109,14 +137,7 @@
         .booklet-main-preview {
             display: flex;
             flex-direction: column;
-            min-height: calc(100vh - 5.5rem);
-            max-height: calc(100vh - 5.5rem);
-        }
-        @media (max-width: 991.98px) {
-            .booklet-main-preview {
-                min-height: 60vh;
-                max-height: none;
-            }
+            height: 100%;
         }
         #previewPages {
             flex: 1 1 auto;
@@ -286,6 +307,12 @@
             width: 100%;
             max-width: 100%;
         }
+        .booklet-page.booklet-page--pdf-full {
+            padding: 0 !important;
+        }
+        .booklet-page--pdf-full > .page-inner-flow {
+            overflow: hidden;
+        }
         .booklet-watermark {
             margin-top: auto;
             padding-top: 1rem;
@@ -317,10 +344,11 @@
             margin-bottom: 0.28rem;
             min-height: 2.125rem;
         }
-        .booklet-block-row > button.btn:first-child {
+        .booklet-block-row > button.btn {
             flex-shrink: 0;
             padding: 0.12rem 0.3rem;
             line-height: 1;
+            font-size: 0.75rem;
         }
         .booklet-block-row .block-list-item {
             flex: 1;
@@ -476,7 +504,7 @@
             margin: 0 0 1rem 0;
         }
         @media print {
-            .booklet-toolbar, .booklet-sidebar, .booklet-navbar, .no-print, .booklet-spread-ui { display: none !important; }
+            .booklet-toolbar, .booklet-navbar, .no-print, .booklet-spread-ui, .booklet-pane-list, .booklet-pane-editor { display: none !important; }
             #bookletPageStore:not(:empty) {
                 position: static !important;
                 left: auto !important;
@@ -591,11 +619,9 @@
         </div>
     </div>
 
-    <div class="container-fluid py-3">
-        <div class="row g-3 align-items-lg-stretch">
-            <aside class="col-lg-3 booklet-sidebar no-print" id="bookletSidebar">
-                <h6 class="text-muted text-uppercase small">Add section</h6>
-                <div class="dropdown mb-2">
+    <div class="booklet-columns">
+        <div class="booklet-pane booklet-pane-list no-print" id="bookletSidebar">
+            <div class="dropdown mb-2">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-plus-lg me-1"></i>Add section…
                     </button>
@@ -608,22 +634,19 @@
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-2"></i>Polyphony edition PDF</button></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-2"></i>Force page break</button></li>
-                    </ul>
-                </div>
-
-                <h6 class="text-muted text-uppercase small" title="Content flows across pages. Only “Force page break” starts a new page unless a section is too tall for the remaining space.">Sections</h6>
-                <div id="blockList"></div>
-                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-1" id="btnRemoveBlock" disabled>Remove selected</button>
-
-                <h6 class="text-muted text-uppercase small">Edit section</h6>
-                <div id="editorPanel" class="small">
-                    <p class="text-muted small mb-0" title="Pick a section in the list above, or use Add section.">Select a section or add one.</p>
-                </div>
-            </aside>
-            <main class="col-lg-9 booklet-main-preview">
-                <div id="previewPages"></div>
-            </main>
+                </ul>
+            </div>
+            <div id="blockList"></div>
+            <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-1" id="btnRemoveBlock" disabled>Remove selected</button>
         </div>
+        <div class="booklet-pane booklet-pane-editor no-print" id="bookletEditorPane">
+            <div id="editorPanel" class="small">
+                <p class="text-muted small mb-0">Select a section or add one.</p>
+            </div>
+        </div>
+        <main class="booklet-pane booklet-pane-preview booklet-main-preview">
+            <div id="previewPages"></div>
+        </main>
     </div>
 
     <div id="bookletPageStore" aria-hidden="true"></div>

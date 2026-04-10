@@ -77,6 +77,16 @@
     }, 250);
   }
 
+  function scrollPreviewToBlock(blockId) {
+    if (!blockId) return;
+    var root = document.getElementById('previewPages');
+    if (!root) return;
+    var target = root.querySelector('[data-block-id="' + blockId + '"]');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
   function uid() {
     return 'b_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
   }
@@ -287,6 +297,13 @@
         parts.push('text-align:' + v);
       }
     }
+    const tal = st.match(/text-align-last\s*:\s*([^;]+)/i);
+    if (tal) {
+      var vl = tal[1].trim().toLowerCase();
+      if (/^(left|center|right|justify|start|end|auto)$/.test(vl)) {
+        parts.push('text-align-last:' + vl);
+      }
+    }
     return parts.join(';');
   }
 
@@ -359,10 +376,14 @@
       }
       if (tag === 'p' || tag === 'div') {
         const st = node.getAttribute('style') || '';
-        const safe = sanitizeRichInlineStyle(st);
-        if (safe) {
+        var alignAttr = (node.getAttribute('align') || '').trim().toLowerCase();
+        var safeStyle = sanitizeRichInlineStyle(st);
+        if (!safeStyle && alignAttr && /^(left|center|right|justify)$/.test(alignAttr)) {
+          safeStyle = 'text-align:' + alignAttr;
+        }
+        if (safeStyle) {
           const el = document.createElement(tag);
-          el.setAttribute('style', safe);
+          el.setAttribute('style', safeStyle);
           appendChildren(el, node);
           return el;
         }
@@ -610,13 +631,29 @@
           } catch (e1) {
             /* ignore */
           }
-          if (
-            cmd === 'justifyLeft' ||
-            cmd === 'justifyCenter' ||
-            cmd === 'justifyRight' ||
-            cmd === 'justifyFull'
-          ) {
+          if (cmd === 'justifyLeft' || cmd === 'justifyCenter' || cmd === 'justifyRight' || cmd === 'justifyFull') {
             document.execCommand(cmd, false, null);
+            var alignVal = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right', justifyFull: 'justify' }[cmd];
+            var children = ed.childNodes;
+            for (var ci = 0; ci < children.length; ci++) {
+              var ch = children[ci];
+              if (ch.nodeType === 1 && (ch.tagName === 'DIV' || ch.tagName === 'P')) {
+                ch.style.textAlign = alignVal;
+                ch.removeAttribute('align');
+              }
+            }
+            if (ed.style.textAlign) {
+              ed.style.textAlign = '';
+            }
+            if (ed.getAttribute('align')) {
+              ed.removeAttribute('align');
+            }
+            if (children.length === 0 || (children.length === 1 && children[0].nodeType === 3)) {
+              var wrapper = document.createElement('div');
+              wrapper.style.textAlign = alignVal;
+              while (ed.firstChild) wrapper.appendChild(ed.firstChild);
+              ed.appendChild(wrapper);
+            }
           } else if (cmd) {
             document.execCommand(cmd, false, null);
           }
@@ -662,7 +699,7 @@
     ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
     const gapRaw = b.chantSystemGap != null ? Number(b.chantSystemGap) : 0;
     const gapUi = Math.min(8, Math.max(-8, Number.isFinite(gapRaw) ? gapRaw : 0));
-    ctxt.spaceBetweenSystems = Math.max(0, (gapUi + 8) * 1.5);
+    ctxt.spaceBetweenSystems = Math.max(0, gapUi * 3);
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 12.8);
@@ -1305,11 +1342,14 @@
       const first = Math.min(from, pdf.numPages);
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
-      const maxBodyPx = getMaxPageBodyHeightPx();
+      const pageWidthMm = state.settings.pageSize === 'A5' ? 148 : 210;
+      const pageHeightMm = state.settings.pageSize === 'A5' ? 210 : 297;
+      const fullPageWidthPx = mmToPx(pageWidthMm);
+      const fullPageHeightPx = mmToPx(pageHeightMm);
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
-        const scale = widthPx / base.width;
+        const scale = fullPageWidthPx / base.width;
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1322,8 +1362,8 @@
         img.style.objectPosition = 'top center';
         const unit = document.createElement('div');
         unit.className = 'booklet-pdf-page-unit booklet-pdf-bleed';
-        unit.style.height = maxBodyPx + 'px';
-        unit.style.maxHeight = maxBodyPx + 'px';
+        unit.style.height = fullPageHeightPx + 'px';
+        unit.style.maxHeight = fullPageHeightPx + 'px';
         unit.style.overflow = 'hidden';
         unit.appendChild(img);
         out.push(unit);
@@ -1345,6 +1385,7 @@
   function buildStaticSectionEl(b) {
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
+    wrap.dataset.blockId = b.id;
     if (b.type === 'rubric' || b.type === 'reading') {
       const fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
       wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
@@ -1485,6 +1526,7 @@
         const lines = renderChantGabcToLines(b.gabc || '', w, b);
         const last = lines.length - 1;
         lines.forEach(function (el, i) {
+          el.dataset.blockId = b.id;
           var isLast = i === last;
           out.push({ t: 'line', el: el, internalLineBreak: !isLast, afterInternalPx: 3, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
@@ -1494,6 +1536,7 @@
         var units = await renderEditionPageUnits(b, w);
         var uLast = units.length - 1;
         units.forEach(function (el, i) {
+          el.dataset.blockId = b.id;
           var isLast = i === uLast;
           out.push({ t: 'flow', el: el, internalLineBreak: !isLast, afterInternalPx: 2, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
@@ -1503,6 +1546,7 @@
         var chunkEls = chunkStaticRichTextToElements(b, 'rubric', w);
         var lastIdx = chunkEls.length - 1;
         chunkEls.forEach(function (el, idx) {
+          el.dataset.blockId = b.id;
           var isLast = idx === lastIdx;
           out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
@@ -1512,6 +1556,7 @@
         var chunkEls2 = chunkStaticRichTextToElements(b, 'reading', w);
         var lastIdx2 = chunkEls2.length - 1;
         chunkEls2.forEach(function (el, idx) {
+          el.dataset.blockId = b.id;
           var isLast = idx === lastIdx2;
           out.push({ t: 'flow', el: el, skipGapBefore: idx > 0, tightGapPx: 0, internalLineBreak: !isLast, afterInternalPx: 0, sectionGapAfterMm: isLast ? gapAfter : undefined });
         });
@@ -1819,9 +1864,12 @@
   function scaleBookletSpread(host) {
     const slots = host.querySelectorAll('.booklet-spread-slot');
     if (slots.length !== 2) return;
-    const slotW = slots[0].clientWidth;
-    const slotH = slots[0].clientHeight;
-    if (slotW <= 0 || slotH <= 0) return;
+    var slotW = slots[0].clientWidth;
+    var slotH = slots[0].clientHeight;
+    if (slotW <= 10 || slotH <= 10) {
+      setTimeout(function () { scaleBookletSpread(host); }, 200);
+      return;
+    }
     const outers = [];
     const inners = [];
     const pgs = [];
@@ -1918,7 +1966,7 @@
     rightSlot.appendChild(ro);
     if (label) {
       label.textContent =
-        'Sheet ' + (index + 1) + ' / ' + views.length + ' (print order; padded to ' + Math.ceil(n / 4) * 4 + ' pp.)';
+        'Spread ' + (index + 1) + ' / ' + views.length;
     }
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -2117,6 +2165,18 @@
     trimTrailingEmptyBookletPages(pageDivs);
 
     document.body.removeChild(sink);
+
+    pageDivs.forEach(function (p) {
+      var body = p.querySelector('.booklet-page-body');
+      if (!body) return;
+      var children = body.children;
+      var allPdf = children.length > 0;
+      for (var ci = 0; ci < children.length; ci++) {
+        if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
+      }
+      if (allPdf) p.classList.add('booklet-page--pdf-full');
+    });
+
     exportPageElements = pageDivs;
 
     var display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
@@ -2125,6 +2185,9 @@
     } else {
       if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
       mountBookletSpreadUi(root, pageDivs);
+    }
+    if (selectedBlockId) {
+      setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
   }
 
@@ -2305,6 +2368,7 @@
         selectedBlockId = b.id;
         renderBlockList();
         renderEditor();
+        setTimeout(function () { scrollPreviewToBlock(b.id); }, 100);
       });
       row.appendChild(vis);
       row.appendChild(dup);
@@ -2717,11 +2781,11 @@
       }
       wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'chant_gabc') {
-      const cn = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
+      const cn = b.chantNeumeSize != null ? b.chantNeumeSize : 23;
       const cg = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
-      const cl = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
-      const ct = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
-      const cs = b.chantSystemGap != null ? b.chantSystemGap : 2;
+      const cl = b.chantLinePadTop != null ? b.chantLinePadTop : 0;
+      const ct = b.chantLyricTight != null ? b.chantLyricTight : 1.1;
+      const cs = b.chantSystemGap != null ? b.chantSystemGap : 0;
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const csc = String(b.chantStaffColor || '').trim();
       const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
@@ -2759,8 +2823,7 @@
               '</code>…</p>'
             : ''
         }
-        <details class="small border rounded px-2 py-1 mt-1 bg-light booklet-chant-details">
-          <summary class="fw-semibold user-select-none" title="Exsurge layout engine. GABC initial-style: 0; disables the drop cap when the drop-cap checkbox is on. Original repo linked under Advanced.">Exsurge options (this section)</summary>
+        <div class="small border rounded px-2 py-1 mt-1 bg-light booklet-chant-details">
           <div class="mt-2 pb-1">
           <p class="text-muted mb-2" style="font-size:0.7rem" title="Sliders use 0.1 steps. System gap uses a 0–12 control mapped to Exsurge spacing (×2, max 24); projects saved before schema v8 were converted from the old 0–24 scale.">Sliders: visible track, 0.1 steps. System gap is recalibrated for finer control at the low end.</p>
           <div class="form-check mb-2">
@@ -2827,7 +2890,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantRubricDef" title="Use black (Exsurge default for this booklet).">Black</button>
           </div>
           </div>
-        </details>
+        </div>
       `;
       const ta = panel.querySelector('#edGabc');
       ta.addEventListener('input', () => {
@@ -2867,15 +2930,15 @@
         renderBlockList();
       });
       const chantApplyFromDom = function () {
-        const fbN = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
+        const fbN = b.chantNeumeSize != null ? b.chantNeumeSize : 23;
         b.chantNeumeSize = parseBoundedNumber(panel.querySelector('#edChantNeume').value, 10, 36, fbN);
         const fbGlyph = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
         b.chantGlyphScale = parseBoundedNumber(panel.querySelector('#edChantGlyph').value, 0.3, 2.5, fbGlyph);
-        const fbG = b.chantSystemGap != null ? b.chantSystemGap : 2;
+        const fbG = b.chantSystemGap != null ? b.chantSystemGap : 0;
         b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, -8, 8, fbG);
-        const fbT = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
+        const fbT = b.chantLyricTight != null ? b.chantLyricTight : 1.1;
         b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.2, 2.0, fbT);
-        const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
+        const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 0;
         b.chantLinePadTop = parseBoundedNumber(panel.querySelector('#edChantPad').value, -10, 10, fbP);
         if (rngDropCap && !rngDropCap.disabled) {
           const fbD = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
