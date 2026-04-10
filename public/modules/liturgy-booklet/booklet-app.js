@@ -6,9 +6,6 @@
   const BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  /** html2canvas scale; ~3.25 gives ~300 DPI vs CSS A4 width (print-safe). */
-  const PDF_HTML2CANVAS_SCALE = 3.25;
-  const PDF_EXPORT_PAGE_DELAY_MS = 50;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -21,6 +18,26 @@
     tahoma: 'Tahoma, Geneva, Verdana, sans-serif',
     courier: '"Courier New", Courier, monospace',
   };
+
+  const CHANT_TEXT_FONT_KEYS = ['crimson', 'times', 'palatino', 'garamond', 'georgia'];
+  const CHANT_TEXT_FONT_STACKS = {
+    crimson: "'Crimson Text', serif",
+    times: "'Times New Roman', Times, serif",
+    palatino: '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
+    garamond: '"Palatino Linotype", Palatino, Garamond, "Times New Roman", serif',
+    georgia: 'Georgia, "Times New Roman", Times, serif',
+  };
+
+  function normalizeChantTextFontKey(k) {
+    const s = String(k || '').toLowerCase();
+    return CHANT_TEXT_FONT_KEYS.indexOf(s) >= 0 ? s : 'crimson';
+  }
+
+  function parseBoundedNumber(raw, min, max, fallback) {
+    const n = parseFloat(String(raw).trim().replace(',', '.'));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
 
   /** @type {{ schemaVersion: number, projectTitle: string, settings: object, blocks: object[] }} */
   let state = {
@@ -92,8 +109,6 @@
 
   function appendCreditsFooterToLastPage(pageDivs) {
     if (!pageDivs.length) return;
-    const credits = collectCatalogueEditionCredits(state.blocks);
-    if (!credits.length) return;
     const last = pageDivs[pageDivs.length - 1];
     const inner = last.querySelector('.page-inner-flow');
     if (!inner) return;
@@ -109,7 +124,14 @@
     footer.style.fontSize = '7.5pt';
     footer.style.lineHeight = '1.35';
     footer.style.color = '#6c757d';
-    footer.textContent = 'Edition credits: ' + credits.join(', ') + '.';
+    const credits = collectCatalogueEditionCredits(state.blocks);
+    const parts = [
+      'Generated at polyphonydatabase.com (Polyphony Database).',
+    ];
+    if (credits.length) {
+      parts.push('Edition credits: ' + credits.join(', ') + '.');
+    }
+    footer.textContent = parts.join(' ');
     inner.appendChild(footer);
   }
 
@@ -324,6 +346,30 @@
     return (w.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
+  function stripGabcHeaderValue(v) {
+    return String(v || '')
+      .replace(/;+\s*$/g, '')
+      .trim();
+  }
+
+  /** Section list line for chant blocks: office-part · name when both exist in GABC header. */
+  function chantGabcListPreviewFromGabc(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return 'Empty GABC';
+    try {
+      if (typeof getHeader === 'function') {
+        const header = getHeader(s);
+        const part = stripGabcHeaderValue(header['office-part'] || header.officePart);
+        const name = stripGabcHeaderValue(header.name);
+        if (part && name) return part + ' · ' + name;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    const body = s.replace(/^[^\n%]*%%\s*\n?/m, '').trim() || s.split('\n')[0] || s;
+    return body.replace(/\s+/g, ' ').trim();
+  }
+
   function blockTypeMeta(b) {
     const t = b.type;
     if (t === 'rubric') {
@@ -382,10 +428,7 @@
       return 'Edition PDF · set URL';
     }
     if (b.type === 'chant_gabc') {
-      const raw = String(b.gabc || '').trim();
-      if (!raw) return 'Empty GABC';
-      const body = raw.replace(/^[^\n%]*%%\s*\n?/m, '').trim() || raw.split('\n')[0] || raw;
-      return body.replace(/\s+/g, ' ').trim();
+      return chantGabcListPreviewFromGabc(b.gabc);
     }
     if (b.type === 'image') {
       const cap = String(b.label || '').trim();
@@ -438,13 +481,19 @@
     ctxt.condenseLineAmount = 1;
     ctxt.setGlyphScaling(1 / 16);
     const neumePx = Math.min(28, Math.max(12, Number(b.chantNeumeSize) || 19.2));
-    ctxt.setFont("'Crimson Text', serif", neumePx / 0.9);
+    const tfk = normalizeChantTextFontKey(b.chantTextFont);
+    ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], neumePx / 0.9);
     ctxt.spaceBetweenSystems = Math.min(24, Math.max(0, Number(b.chantSystemGap) || 4));
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((neumePx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round((neumePx / 19.2) * 12.8);
     const tight = Math.min(1.5, Math.max(0.35, Number(b.chantLyricTight) || 0.7));
     ctxt.minLyricWordSpacing *= tight;
+    if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
+      ctxt.defaultLanguage = new exsurge.English();
+    } else if (typeof exsurge.Latin === 'function') {
+      ctxt.defaultLanguage = new exsurge.Latin();
+    }
     ctxt.accidentalSpaceMultiplier = 1.5;
     ctxt.specialCharProperties['font-family'] = "'Versiculum'";
     ctxt.specialCharProperties['font-variant'] = 'normal';
@@ -580,6 +629,9 @@
           o.chantDropCapScale != null
             ? Math.min(1.6, Math.max(0.5, Number(o.chantDropCapScale)))
             : Math.min(1.6, Math.max(0.5, Number(cd.chantDropCapScale) || 1));
+        if (o.chantUseDropCap === undefined) o.chantUseDropCap = true;
+        if (o.chantLyricLanguage !== 'english') o.chantLyricLanguage = 'latin';
+        o.chantTextFont = normalizeChantTextFontKey(o.chantTextFont || 'crimson');
       }
       if (o.type === 'reading') {
         if (o.translation === undefined) o.translation = '';
@@ -902,7 +954,7 @@
       const d = document.createElement('div');
       d.className = 'text-muted small booklet-section';
       d.textContent =
-        'Paste GABC here (e.g. copy from Ben Bloomfield’s propers tool — link under Advanced).';
+        'Paste GABC here (e.g. from Ben Bloomfield’s propers tool — link under Advanced in the toolbar).';
       return [d];
     }
     try {
@@ -914,7 +966,9 @@
       const overrideStaff = String(cb.chantStaffColor || '').trim();
       if (!overrideStaff && staffColor) ctxt.staffLineColor = staffColor;
       const mappings = exsurge.Gabc.createMappingsFromSource(ctxt, gabc);
-      const initialStyle = header['initial-style'] !== '0' && header['initial-style'] !== 0;
+      const headerAllowsInitial = header['initial-style'] !== '0' && header['initial-style'] !== 0;
+      const blockAllowsDropCap = cb.chantUseDropCap !== false;
+      const initialStyle = blockAllowsDropCap && headerAllowsInitial;
       const score = new exsurge.ChantScore(ctxt, mappings, initialStyle);
       if (initialStyle && header.annotation) {
         try {
@@ -931,9 +985,6 @@
         } catch (annErr) {
           console.warn('Annotation layout skipped', annErr);
         }
-      }
-      if (typeof exsurge.Latin === 'function') {
-        ctxt.defaultLanguage = new exsurge.Latin();
       }
       score.mapExsurgeToGabc = function () {};
       score.performLayout(ctxt);
@@ -1257,22 +1308,9 @@
     return views;
   }
 
-  function makeBlankBookletPage() {
-    const size = state.settings.pageSize;
-    const page = document.createElement('div');
-    page.className = 'booklet-page';
-    page.dataset.size = size;
-    page.dataset.blank = 'true';
-    const inner = document.createElement('div');
-    inner.className = 'page-inner-flow';
-    inner.style.minHeight = '2mm';
-    page.appendChild(inner);
-    return page;
-  }
-
-  function cloneBookletSide(pageDivs, numReal, idx) {
+  function cloneSpreadPageOrNull(pageDivs, numReal, idx) {
     if (idx >= 0 && idx < numReal) return pageDivs[idx].cloneNode(true);
-    return makeBlankBookletPage();
+    return null;
   }
 
   function scaleBookletSpread(host) {
@@ -1281,35 +1319,67 @@
     const slotW = slots[0].clientWidth;
     const slotH = slots[0].clientHeight;
     if (slotW <= 0 || slotH <= 0) return;
-    const pairs = [];
+    const outers = [];
+    const inners = [];
+    const pgs = [];
     slots.forEach(function (slot) {
       const outer = slot.querySelector('.booklet-scale-outer');
       const inner = outer && outer.querySelector('.booklet-scale-inner');
       const pg = inner && inner.querySelector('.booklet-page');
-      if (!outer || !inner || !pg) return;
-      inner.style.transform = '';
-      inner.style.width = '';
-      inner.style.height = '';
-      outer.style.width = '';
-      outer.style.height = '';
-      pairs.push({ outer: outer, inner: inner, pg: pg });
+      outers.push(outer);
+      inners.push(inner);
+      pgs.push(pg);
+      if (outer && inner) {
+        inner.style.transform = '';
+        inner.style.width = '';
+        inner.style.height = '';
+        outer.style.width = '';
+        outer.style.height = '';
+        outer.style.minHeight = '';
+      }
     });
-    if (pairs.length !== 2) return;
-    const nw0 = pairs[0].pg.offsetWidth || 1;
-    const nh0 = pairs[0].pg.offsetHeight || 1;
-    const nw1 = pairs[1].pg.offsetWidth || 1;
-    const nh1 = pairs[1].pg.offsetHeight || 1;
-    const sc = Math.min(slotW / nw0, slotH / nh0, slotW / nw1, slotH / nh1, 1);
-    pairs.forEach(function (pair, i) {
-      const nw = i === 0 ? nw0 : nw1;
-      const nh = i === 0 ? nh0 : nh1;
-      pair.inner.style.width = nw + 'px';
-      pair.inner.style.height = nh + 'px';
-      pair.inner.style.transform = 'scale(' + sc + ')';
-      pair.inner.style.transformOrigin = 'top left';
-      pair.outer.style.width = nw * sc + 'px';
-      pair.outer.style.height = nh * sc + 'px';
-    });
+    const has0 = !!pgs[0];
+    const has1 = !!pgs[1];
+    if (!has0 && !has1) return;
+    let sc = 1;
+    if (has0 && has1) {
+      const nw0 = pgs[0].offsetWidth || 1;
+      const nh0 = pgs[0].offsetHeight || 1;
+      const nw1 = pgs[1].offsetWidth || 1;
+      const nh1 = pgs[1].offsetHeight || 1;
+      sc = Math.min(slotW / nw0, slotH / nh0, slotW / nw1, slotH / nh1, 1);
+    } else if (has0) {
+      sc = Math.min(slotW / (pgs[0].offsetWidth || 1), slotH / (pgs[0].offsetHeight || 1), 1);
+    } else {
+      sc = Math.min(slotW / (pgs[1].offsetWidth || 1), slotH / (pgs[1].offsetHeight || 1), 1);
+    }
+    const scaledH = [];
+    for (let i = 0; i < 2; i++) {
+      scaledH[i] = pgs[i] ? (pgs[i].offsetHeight || 1) * sc : 0;
+    }
+    const maxScaledH = Math.max(scaledH[0], scaledH[1], 1);
+    for (let i = 0; i < 2; i++) {
+      const outer = outers[i];
+      const inner = inners[i];
+      const pg = pgs[i];
+      if (!outer || !inner) continue;
+      if (!pg) {
+        outer.classList.add('booklet-scale-outer--empty');
+        outer.style.width = '0';
+        outer.style.height = maxScaledH + 'px';
+        outer.style.minHeight = maxScaledH + 'px';
+        continue;
+      }
+      outer.classList.remove('booklet-scale-outer--empty');
+      const nw = pg.offsetWidth || 1;
+      const nh = pg.offsetHeight || 1;
+      inner.style.width = nw + 'px';
+      inner.style.height = nh + 'px';
+      inner.style.transform = 'scale(' + sc + ')';
+      inner.style.transformOrigin = 'top left';
+      outer.style.width = nw * sc + 'px';
+      outer.style.height = nh * sc + 'px';
+    }
   }
 
   function updateBookletSpreadDisplay(host, pageDivs, views, index) {
@@ -1321,18 +1391,20 @@
     const n = pageDivs.length;
     leftSlot.innerHTML = '';
     rightSlot.innerHTML = '';
+    const leftClone = cloneSpreadPageOrNull(pageDivs, n, v.left);
     const lo = document.createElement('div');
-    lo.className = 'booklet-scale-outer';
+    lo.className = 'booklet-scale-outer' + (leftClone ? '' : ' booklet-scale-outer--empty');
     const li = document.createElement('div');
     li.className = 'booklet-scale-inner';
-    li.appendChild(cloneBookletSide(pageDivs, n, v.left));
+    if (leftClone) li.appendChild(leftClone);
     lo.appendChild(li);
     leftSlot.appendChild(lo);
+    const rightClone = cloneSpreadPageOrNull(pageDivs, n, v.right);
     const ro = document.createElement('div');
-    ro.className = 'booklet-scale-outer';
+    ro.className = 'booklet-scale-outer' + (rightClone ? '' : ' booklet-scale-outer--empty');
     const ri = document.createElement('div');
     ri.className = 'booklet-scale-inner';
-    ri.appendChild(cloneBookletSide(pageDivs, n, v.right));
+    if (rightClone) ri.appendChild(rightClone);
     ro.appendChild(ri);
     rightSlot.appendChild(ro);
     if (label) {
@@ -1541,8 +1613,8 @@
     const gap = b.sectionGapAfterMm != null ? b.sectionGapAfterMm : DEFAULT_SECTION_GAP_AFTER_MM;
     const fs = b.fontScale != null ? b.fontScale : DEFAULT_BLOCK_FONT_SCALE;
     return `
-        <div class="border rounded p-2 bg-light small mb-2">
-          <div class="form-check form-switch mb-2">
+        <div class="border rounded booklet-layout-compact bg-light small mb-1">
+          <div class="form-check form-switch mb-1">
             <input class="form-check-input" type="checkbox" id="edBlockHidden" ${b.hidden ? 'checked' : ''}>
             <label class="form-check-label" for="edBlockHidden">Hidden in preview / PDF</label>
           </div>
@@ -1568,13 +1640,16 @@
     const push = () => {
       if (hid) b.hidden = !!hid.checked;
       if (showGap && gapEl) {
-        b.sectionGapAfterMm = Math.min(
-          30,
-          Math.max(0, parseInt(gapEl.value, 10) || DEFAULT_SECTION_GAP_AFTER_MM)
-        );
+        const g = parseInt(gapEl.value, 10);
+        b.sectionGapAfterMm = Number.isFinite(g)
+          ? Math.min(30, Math.max(0, g))
+          : DEFAULT_SECTION_GAP_AFTER_MM;
       }
       if (showFont && fsEl) {
-        b.fontScale = Math.min(1.5, Math.max(0.75, parseFloat(fsEl.value) || 1));
+        const f = parseFloat(fsEl.value);
+        b.fontScale = Number.isFinite(f)
+          ? Math.min(1.5, Math.max(0.75, f))
+          : DEFAULT_BLOCK_FONT_SCALE;
       }
       scheduleAutosave();
       renderPreview();
@@ -1692,24 +1767,25 @@
     if (!panel) return;
     const b = state.blocks.find((x) => x.id === selectedBlockId);
     if (!b) {
-      panel.innerHTML = '<p class="text-muted">Select a section or add one.</p>';
+      panel.innerHTML =
+        '<p class="text-muted small mb-0" title="Choose a section in the list above, or use Add section.">Select a section or add one.</p>';
       return;
     }
     if (b.type === 'page_break') {
       panel.innerHTML =
         editorLayoutPanelHtml(b, false, false) +
-        '<p class="small text-muted">This forces the next section onto a new page in the preview and PDF.</p>';
+        '<p class="small text-muted mb-0" title="The following section will begin on a new page in the on-screen preview and in the downloaded PDF.">Starts a new page after the previous section.</p>';
       wireEditorSectionLayout(panel, b, false, false);
       return;
     }
     if (b.type === 'rubric') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, true)}
-        <label class="form-label small mb-1">Title <span class="text-muted">(optional)</span></label>
+        <label class="form-label small mb-1" title="Optional bold line above the rubric body.">Title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
-        <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-2" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
-        <p class="small text-muted mb-1">Bold, italic, underline, alignment, and text colour (preview + PDF).</p>
+        <label class="form-label small mb-1" title="Optional italic line, right-aligned under the title.">Source reference <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
+        <label class="form-label small mb-0" title="Bold, italic, underline, alignment, and text colour are reflected in the preview and PDF.">Rubric text</label>
         <div class="booklet-rich-toolbar rubric-tb">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
@@ -1753,11 +1829,11 @@
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, true)}
-        <label class="form-label small mb-1">Section title <span class="text-muted">(optional)</span></label>
+        <label class="form-label small mb-1" title="Optional bold heading above both columns.">Section title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left above both columns">
-        <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-2" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. John 3:16">
-        <label class="form-label small mb-1">Original</label>
+        <label class="form-label small mb-1" title="Optional italic reference, right-aligned.">Source reference <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-1" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. John 3:16">
+        <label class="form-label small mb-0" title="Primary column; formatting applies in preview and PDF.">Original</label>
         <div class="booklet-rich-toolbar read-tb-orig">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
@@ -1774,7 +1850,7 @@
           </div>
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
-        <label class="form-label small mb-1">Translation <span class="text-muted">(parallel columns when this has text)</span></label>
+        <label class="form-label small mb-0" title="When this field has text, the preview uses two parallel columns (original and translation) with the split and spacing you set below.">Translation <span class="text-muted">(parallel when filled)</span></label>
         <div class="booklet-rich-toolbar read-tb-trans">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
@@ -1835,7 +1911,11 @@
         b.parallelLeftPct = parseInt(rng.value, 10) || 50;
         if (rv) rv.textContent = b.parallelLeftPct + '%';
         b.parallelBorder = !!chk.checked;
-        b.parallelGapMm = Math.min(20, Math.max(0, parseInt(ig.value, 10) || 4));
+        let ggm = parseInt(ig.value, 10);
+        if (!Number.isFinite(ggm)) {
+          ggm = b.parallelGapMm != null ? b.parallelGapMm : 4;
+        }
+        b.parallelGapMm = Math.min(20, Math.max(0, ggm));
         scheduleAutosave();
         renderPreview();
       };
@@ -1846,9 +1926,8 @@
     } else if (b.type === 'image') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1">Section list name</label>
-        <input type="text" class="form-control form-control-sm mb-2" id="edImgLabel" value="${escapeAttr(b.label || '')}" placeholder="e.g. Cover, Map — not shown in booklet">
-        <p class="small text-muted mb-2">Shown only in the left-hand section list. Stored as base64 in the project file.</p>
+        <label class="form-label small mb-1" title="Shown only in the left section list, not on booklet pages. The image is stored as base64 inside the project JSON.">Section list name</label>
+        <input type="text" class="form-control form-control-sm mb-1" id="edImgLabel" value="${escapeAttr(b.label || '')}" placeholder="e.g. Cover, Map — not shown in booklet">
         <button type="button" class="btn btn-sm btn-outline-primary" id="edReplaceImg">Replace image</button>
       `;
       const li = panel.querySelector('#edImgLabel');
@@ -1862,11 +1941,11 @@
     } else if (b.type === 'edition_pdf') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1">Search Polyphony editions</label>
+        <label class="form-label small mb-1" title="Search the Polyphony catalogue for an edition PDF, or paste any PDF URL in the field below.">Search editions</label>
         <input type="search" class="form-control form-control-sm mb-1" id="edEditionSearch" placeholder="Work title, composer…" autocomplete="off">
-        <div id="edEditionResults" class="booklet-edition-results mb-2 d-none list-group list-group-flush"></div>
-        <p class="small text-muted mb-1">Or paste a PDF URL (any host):</p>
-        <input type="url" class="form-control form-control-sm mb-2" id="edUrl" value="${escapeAttr(b.url || '')}" placeholder="https://… or site-relative path">
+        <div id="edEditionResults" class="booklet-edition-results mb-1 d-none list-group list-group-flush"></div>
+        <label class="form-label small mb-0" title="Any reachable PDF URL or a path on this site.">PDF URL</label>
+        <input type="url" class="form-control form-control-sm mb-1" id="edUrl" value="${escapeAttr(b.url || '')}" placeholder="https://… or site-relative path">
         <label class="form-label small mb-1">From page (1-based)</label>
         <input type="number" class="form-control form-control-sm mb-2" id="edPdfFrom" min="1" value="${escapeAttr(String(b.pdfPageFrom != null ? b.pdfPageFrom : 1))}">
         <label class="form-label small mb-1">To page <span class="text-muted">(empty = through last page)</span></label>
@@ -1988,29 +2067,92 @@
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const csc = String(b.chantStaffColor || '').trim();
       const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
+      const clang = b.chantLyricLanguage === 'english' ? 'english' : 'latin';
+      const ctf = normalizeChantTextFontKey(b.chantTextFont);
+      const chantFontOpts = [
+        ['crimson', 'Crimson Text'],
+        ['times', 'Times New Roman'],
+        ['palatino', 'Palatino'],
+        ['garamond', 'Garamond-style'],
+        ['georgia', 'Georgia'],
+      ]
+        .map(function (kv) {
+          return (
+            '<option value="' +
+            escapeAttr(kv[0]) +
+            '"' +
+            (kv[0] === ctf ? ' selected' : '') +
+            '>' +
+            escapeHtml(kv[1]) +
+            '</option>'
+          );
+        })
+        .join('');
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <p class="small text-muted mb-2">Paste full GABC (including header lines ending with <code>%%</code> if you use them). For complex Mass propers, build them in
-        <a href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben’s propers tool</a> and copy the GABC from there.</p>
-        <textarea class="form-control form-control-sm font-monospace" rows="10" id="edGabc">${escapeHtml(b.gabc || '')}</textarea>
-        ${b.legacyHash ? '<p class="small text-warning mt-2">Old saved hash (not used for preview): <code class="small">' + escapeHtml(String(b.legacyHash).slice(0, 80)) + '</code></p>' : ''}
-        <details class="small border rounded px-2 py-2 mt-2 bg-light">
-          <summary class="fw-semibold user-select-none">Rendering options (this section only)</summary>
-          <p class="text-muted mt-2 mb-2" style="font-size:0.78rem;">Exsurge is documented mainly via its <a href="https://github.com/BBloomF/Exsurge" target="_blank" rel="noopener">GitHub repo</a> and TypeScript sources (<code>ChantContext</code>, <code>ChantScore</code>). Commonly tuned fields include <code>staffLineColor</code>, <code>spaceBetweenSystems</code>, lyric spacing via <code>minLyricWordSpacing</code>, neume size from <code>setFont</code>, and <code>textStyles.dropCap</code> / <code>textStyles.annotation</code>.</p>
-          <label class="form-label mb-0" style="font-size:0.78rem;">Neume / staff scale</label>
-          <input type="range" class="form-range mb-1" id="edChantNeume" min="12" max="28" step="0.2" value="${cn}">
-          <label class="form-label mb-0" style="font-size:0.78rem;">Space between systems</label>
-          <input type="range" class="form-range mb-1" id="edChantSysGap" min="0" max="24" step="0.5" value="${cs}">
-          <label class="form-label mb-0" style="font-size:0.78rem;">Lyric tightness</label>
-          <input type="range" class="form-range mb-1" id="edChantTight" min="0.35" max="1.5" step="0.05" value="${ct}">
-          <label class="form-label mb-0" style="font-size:0.78rem;">Extra padding above each staff line (px)</label>
-          <input type="range" class="form-range mb-1" id="edChantPad" min="0" max="20" step="1" value="${cl}">
-          <label class="form-label mb-0" style="font-size:0.78rem;">Drop cap size (× default for this neume scale)</label>
-          <input type="range" class="form-range mb-1" id="edChantDropCap" min="0.5" max="1.6" step="0.05" value="${cd}">
-          <label class="form-label mb-0" style="font-size:0.78rem;">Staff line colour</label>
+        <label class="form-label small mb-0" for="edGabc" title="Full GABC including the %% header block. For Mass propers, build in Ben’s propers tool (toolbar → Advanced) and paste here.">GABC</label>
+        <textarea class="form-control form-control-sm font-monospace mt-1" rows="8" id="edGabc">${escapeHtml(b.gabc || '')}</textarea>
+        ${
+          b.legacyHash
+            ? '<p class="small text-warning mb-0 mt-1" title="Legacy field from an older save format; preview uses pasted GABC only.">Old hash (unused): <code class="small">' +
+              escapeHtml(String(b.legacyHash).slice(0, 64)) +
+              '</code>…</p>'
+            : ''
+        }
+        <details class="small border rounded px-2 py-1 mt-1 bg-light">
+          <summary class="fw-semibold user-select-none" title="Exsurge layout engine. GABC initial-style: 0; disables the drop cap when the drop-cap checkbox is on. Original repo linked under Advanced.">Exsurge options (this section)</summary>
+          <div class="mt-2 pb-1">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
+            <label class="form-check-label" for="edChantUseDropCap" title="When off, no drop cap (overrides GABC except initial-style: 0). When on, initial-style: 0 in GABC still removes it.">Drop cap</label>
+          </div>
+          <label class="form-label mb-0" style="font-size:0.74rem" title="Latin vs English syllabification for underlay (Exsurge Language classes).">Lyric language</label>
+          <select id="edChantLyricLang" class="form-select form-select-sm mb-2">
+            <option value="latin"${clang === 'latin' ? ' selected' : ''}>Latin syllabification</option>
+            <option value="english"${clang === 'english' ? ' selected' : ''}>English syllabification</option>
+          </select>
+          <label class="form-label mb-0" style="font-size:0.74rem" title="Font for chant text and neumes in this section (Exsurge setFont).">Text &amp; note font</label>
+          <select id="edChantTextFont" class="form-select form-select-sm mb-2">${chantFontOpts}</select>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Staff / neume size (px scale).">Neume scale</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantNeumeNum" min="12" max="28" step="0.2" value="${(Math.round(cn * 10) / 10).toFixed(1)}">
+            </div>
+            <input type="range" class="form-range mt-0" id="edChantNeume" min="12" max="28" step="0.2" value="${cn}">
+          </div>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Vertical gap between systems (0 is valid).">System gap</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantSysGapNum" min="0" max="24" step="0.5" value="${(Math.round(cs * 10) / 10).toFixed(1)}">
+            </div>
+            <input type="range" class="form-range mt-0" id="edChantSysGap" min="0" max="24" step="0.5" value="${cs}">
+          </div>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Multiplies Exsurge min lyric word spacing (smaller = tighter).">Lyric tightness</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantTightNum" min="0.35" max="1.5" step="0.05" value="${(Math.round(ct * 100) / 100).toFixed(2)}">
+            </div>
+            <input type="range" class="form-range mt-0" id="edChantTight" min="0.35" max="1.5" step="0.05" value="${ct}">
+          </div>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Extra space above each staff line in the preview (0 is valid).">Line pad (px)</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantPadNum" min="0" max="20" step="1" value="${cl}">
+            </div>
+            <input type="range" class="form-range mt-0" id="edChantPad" min="0" max="20" step="1" value="${cl}">
+          </div>
+          <div class="mb-1">
+            <div class="d-flex align-items-center justify-content-between gap-1">
+              <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Relative size of the drop cap when enabled.">Drop cap ×</span>
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantDropCapNum" min="0.5" max="1.6" step="0.05" value="${(Math.round(cd * 100) / 100).toFixed(2)}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
+            </div>
+            <input type="range" class="form-range mt-0" id="edChantDropCap" min="0.5" max="1.6" step="0.05" value="${cd}" ${b.chantUseDropCap === false ? 'disabled' : ''}>
+          </div>
+          <label class="form-label mb-0" style="font-size:0.74rem">Staff colour</label>
           <div class="d-flex align-items-center gap-2 mb-0">
             <input type="color" id="edChantStaff" class="form-control form-control-color" value="${escapeAttr(cscVal)}">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantStaffDef">Use GABC</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantStaffDef" title="Clear override; use staff colour from GABC header if present.">GABC default</button>
+          </div>
           </div>
         </details>
       `;
@@ -2022,36 +2164,101 @@
         renderBlockList();
       });
       wireEditorSectionLayout(panel, b, true, false);
-      const pushChantOpts = () => {
-        b.chantNeumeSize = Math.min(
-          28,
-          Math.max(12, parseFloat(panel.querySelector('#edChantNeume').value) || 19.2)
-        );
-        b.chantSystemGap = Math.min(
-          24,
-          Math.max(0, parseFloat(panel.querySelector('#edChantSysGap').value) || 4)
-        );
-        b.chantLyricTight = Math.min(
-          1.5,
-          Math.max(0.35, parseFloat(panel.querySelector('#edChantTight').value) || 0.7)
-        );
-        b.chantLinePadTop = Math.min(
-          20,
-          Math.max(0, parseFloat(panel.querySelector('#edChantPad').value) || 6)
-        );
-        b.chantDropCapScale = Math.min(
-          1.6,
-          Math.max(0.5, parseFloat(panel.querySelector('#edChantDropCap').value) || 1)
-        );
+      const chkUseDropCap = panel.querySelector('#edChantUseDropCap');
+      const rngDropCap = panel.querySelector('#edChantDropCap');
+      const numDropCap = panel.querySelector('#edChantDropCapNum');
+      chkUseDropCap?.addEventListener('change', function () {
+        b.chantUseDropCap = !!chkUseDropCap.checked;
+        if (rngDropCap) rngDropCap.disabled = !b.chantUseDropCap;
+        if (numDropCap) numDropCap.disabled = !b.chantUseDropCap;
+        if (b.chantUseDropCap && rngDropCap && numDropCap) {
+          const d = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
+          rngDropCap.value = String(d);
+          numDropCap.value = (Math.round(d * 100) / 100).toFixed(2);
+        }
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      panel.querySelector('#edChantLyricLang')?.addEventListener('change', function () {
+        b.chantLyricLanguage =
+          panel.querySelector('#edChantLyricLang').value === 'english' ? 'english' : 'latin';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      panel.querySelector('#edChantTextFont')?.addEventListener('change', function () {
+        b.chantTextFont = normalizeChantTextFontKey(panel.querySelector('#edChantTextFont').value);
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      });
+      const chantApplyFromDom = function () {
+        const fbN = b.chantNeumeSize != null ? b.chantNeumeSize : 19.2;
+        b.chantNeumeSize = parseBoundedNumber(panel.querySelector('#edChantNeume').value, 12, 28, fbN);
+        const fbG = b.chantSystemGap != null ? b.chantSystemGap : 4;
+        b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, 0, 24, fbG);
+        const fbT = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
+        b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.35, 1.5, fbT);
+        const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
+        b.chantLinePadTop = parseBoundedNumber(panel.querySelector('#edChantPad').value, 0, 20, fbP);
+        if (rngDropCap && !rngDropCap.disabled) {
+          const fbD = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
+          b.chantDropCapScale = parseBoundedNumber(rngDropCap.value, 0.5, 1.6, fbD);
+        }
+        panel.querySelector('#edChantNeumeNum').value = (Math.round(b.chantNeumeSize * 10) / 10).toFixed(1);
+        panel.querySelector('#edChantSysGapNum').value = (Math.round(b.chantSystemGap * 10) / 10).toFixed(1);
+        panel.querySelector('#edChantTightNum').value = (Math.round(b.chantLyricTight * 100) / 100).toFixed(2);
+        panel.querySelector('#edChantPadNum').value = String(Math.round(b.chantLinePadTop));
+        if (numDropCap && !numDropCap.disabled) {
+          numDropCap.value = (Math.round(b.chantDropCapScale * 100) / 100).toFixed(2);
+        }
         scheduleAutosave();
         renderPreview();
         renderBlockList();
       };
-      ['#edChantNeume', '#edChantSysGap', '#edChantTight', '#edChantPad', '#edChantDropCap'].forEach(
-        function (sel) {
-          panel.querySelector(sel)?.addEventListener('input', pushChantOpts);
-        }
-      );
+      function wireChantPair(rangeId, numId, min, max, toNumStr) {
+        const rEl = panel.querySelector(rangeId);
+        const nEl = panel.querySelector(numId);
+        if (!rEl || !nEl) return;
+        rEl.addEventListener('input', function () {
+          const prev = parseBoundedNumber(nEl.value, min, max, parseBoundedNumber(rEl.value, min, max, min));
+          const v = parseBoundedNumber(rEl.value, min, max, prev);
+          nEl.value = toNumStr(v);
+          chantApplyFromDom();
+        });
+        nEl.addEventListener('input', function () {
+          const raw = String(nEl.value).trim();
+          if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
+          const n = parseFloat(raw.replace(',', '.'));
+          if (!Number.isFinite(n)) return;
+          const v = Math.min(max, Math.max(min, n));
+          rEl.value = String(v);
+          chantApplyFromDom();
+        });
+        nEl.addEventListener('change', function () {
+          const prev = parseBoundedNumber(rEl.value, min, max, min);
+          const v = parseBoundedNumber(nEl.value, min, max, prev);
+          rEl.value = String(v);
+          nEl.value = toNumStr(v);
+          chantApplyFromDom();
+        });
+      }
+      wireChantPair('#edChantNeume', '#edChantNeumeNum', 12, 28, function (v) {
+        return (Math.round(v * 10) / 10).toFixed(1);
+      });
+      wireChantPair('#edChantSysGap', '#edChantSysGapNum', 0, 24, function (v) {
+        return (Math.round(v * 10) / 10).toFixed(1);
+      });
+      wireChantPair('#edChantTight', '#edChantTightNum', 0.35, 1.5, function (v) {
+        return (Math.round(v * 100) / 100).toFixed(2);
+      });
+      wireChantPair('#edChantPad', '#edChantPadNum', 0, 20, function (v) {
+        return String(Math.round(v));
+      });
+      wireChantPair('#edChantDropCap', '#edChantDropCapNum', 0.5, 1.6, function (v) {
+        return (Math.round(v * 100) / 100).toFixed(2);
+      });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
         b.chantStaffColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
@@ -2110,6 +2317,9 @@
       b.chantLyricTight = 0.7;
       b.chantSystemGap = 4;
       b.chantDropCapScale = 1;
+      b.chantUseDropCap = true;
+      b.chantLyricLanguage = 'latin';
+      b.chantTextFont = 'crimson';
     }
     if (type !== 'page_break') {
       b.hidden = false;
@@ -2175,114 +2385,69 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function sleepPdf(ms) {
-    return new Promise(function (r) {
-      setTimeout(r, ms);
-    });
+  function bookletRootCssVarsInline() {
+    const cs = getComputedStyle(document.documentElement);
+    const names = [
+      '--booklet-margin-mm',
+      '--booklet-font-scale',
+      '--booklet-body-font',
+      '--booklet-rubric-color',
+    ];
+    return names
+      .map(function (n) {
+        const v = cs.getPropertyValue(n).trim();
+        return v ? n + ':' + v + ';' : '';
+      })
+      .join('');
   }
 
   /**
-   * html2canvas often mis-renders Exsurge SVG (clip, fonts, overflow). Rasterize each SVG
-   * to a PNG at export resolution, then let html2canvas capture like normal layout.
+   * Full HTML document for headless Chromium (same CSS variables, stylesheets, and page markup
+   * as the live preview). Chant stays as SVG (vector in PDF).
    */
-  async function rasterizeChantSvgForExport(svg, pixelScale) {
-    const rect = svg.getBoundingClientRect();
-    let cssW = rect.width || svg.clientWidth || 0;
-    let cssH = rect.height || svg.clientHeight || 0;
-    const vb = svg.viewBox && svg.viewBox.baseVal;
-    if (cssW < 4 && vb && vb.width) cssW = vb.width;
-    if (cssH < 4 && vb && vb.height) cssH = vb.height;
-    if (cssW < 4) cssW = parseFloat(svg.getAttribute('width')) || 600;
-    if (cssH < 4) cssH = parseFloat(svg.getAttribute('height')) || 140;
-    let xml = new XMLSerializer().serializeToString(svg);
-    if (!/\sxmlns\s*=/.test(xml)) {
-      xml = xml.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
-    }
-    const wPx = Math.max(64, Math.ceil(cssW * pixelScale));
-    const hPx = Math.max(32, Math.ceil(cssH * pixelScale * 1.2));
-    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    try {
-      await new Promise(function (resolve, reject) {
-        img.onload = resolve;
-        img.onerror = function () {
-          reject(new Error('chant SVG raster failed'));
-        };
-        img.src = url;
-      });
-      const canvas = document.createElement('canvas');
-      canvas.width = wPx;
-      canvas.height = hPx;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, wPx, hPx);
-        ctx.drawImage(img, 0, 0, wPx, hPx);
+  function buildBookletServerPdfHtml(pageElements) {
+    const origin = window.location.origin;
+    const links = [];
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(function (l) {
+      const href = l.getAttribute('href');
+      if (href) {
+        links.push(
+          '<link rel="stylesheet" href="' + escapeAttr(new URL(href, origin).href) + '">'
+        );
       }
-      const dataUrl = canvas.toDataURL('image/png');
-      const out = document.createElement('img');
-      out.src = dataUrl;
-      out.alt = '';
-      out.setAttribute('data-booklet-chant-raster', '1');
-      out.style.cssText = 'display:block;width:100%;height:auto;vertical-align:top;';
-      svg.parentNode.replaceChild(out, svg);
-    } catch (e) {
-      console.warn('Chant SVG export fallback (left as vector)', e);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  async function rasterizeAllChantSvgsInRoot(root, pixelScale) {
-    const list = root.querySelectorAll('.booklet-chant-line svg');
-    const arr = Array.prototype.slice.call(list);
-    for (let i = 0; i < arr.length; i++) {
-      const svg = arr[i];
-      if (svg.parentNode) {
-        await rasterizeChantSvgForExport(svg, pixelScale);
-      }
-    }
-  }
-
-  async function captureBookletPageToCanvas(pageEl) {
-    const host = document.createElement('div');
-    host.setAttribute('aria-hidden', 'true');
-    host.style.cssText =
-      'position:fixed;left:-9999px;top:0;width:auto;height:auto;max-width:none;overflow:visible;pointer-events:none;visibility:hidden;z-index:-9999;';
-    document.body.appendChild(host);
-    try {
-      const clone = pageEl.cloneNode(true);
-      clone.style.margin = '0 auto';
-      const ow = pageEl.offsetWidth;
-      const oh = pageEl.offsetHeight;
-      if (ow) clone.style.width = ow + 'px';
-      if (oh) clone.style.minHeight = oh + 'px';
-      host.appendChild(clone);
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
-      await new Promise(function (r) {
-        requestAnimationFrame(r);
-      });
-      await rasterizeAllChantSvgsInRoot(clone, PDF_HTML2CANVAS_SCALE);
-      await new Promise(function (r) {
-        requestAnimationFrame(r);
-      });
-      return await html2canvas(clone, {
-        scale: PDF_HTML2CANVAS_SCALE,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-      });
-    } finally {
-      host.remove();
-    }
+    });
+    const styles = [];
+    document.querySelectorAll('style').forEach(function (s) {
+      styles.push('<style>' + s.textContent + '</style>');
+    });
+    const varBlock = bookletRootCssVarsInline();
+    const extra =
+      '<style>' +
+      ':root{' +
+      varBlock +
+      '}' +
+      'body.booklet-print-export{background:#fff!important;margin:0!important;padding:0!important;}' +
+      '.booklet-print-export .booklet-page{box-shadow:none!important;margin:0 auto!important;' +
+      'page-break-after:always;break-after:page;}' +
+      '.booklet-print-export .booklet-page:last-child{page-break-after:auto;break-after:auto;}' +
+      '</style>';
+    const bodies = pageElements
+      .map(function (p) {
+        return p.outerHTML;
+      })
+      .join('\n');
+    return (
+      '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<base href="' +
+      escapeAttr(origin + '/') +
+      '">' +
+      links.join('') +
+      styles.join('') +
+      extra +
+      '</head><body class="booklet-print-export">' +
+      bodies +
+      '</body></html>'
+    );
   }
 
   function loadJsonFile(file) {
@@ -2318,10 +2483,6 @@
       alert('Add content before downloading a PDF.');
       return;
     }
-    if (typeof html2canvas === 'undefined' || typeof PDFLib === 'undefined') {
-      alert('PDF libraries failed to load.');
-      return;
-    }
 
     const btn = document.getElementById('btnDownloadPdf');
     const oldText = btn ? btn.innerHTML : '';
@@ -2331,51 +2492,31 @@
     }
 
     try {
-      const pdfDoc = await PDFLib.PDFDocument.create();
-      const pageW =
-        state.settings.pageSize === 'A5' ? PDFLib.PageSizes.A5[0] : PDFLib.PageSizes.A4[0];
-      const pageH =
-        state.settings.pageSize === 'A5' ? PDFLib.PageSizes.A5[1] : PDFLib.PageSizes.A4[1];
-
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) await sleepPdf(PDF_EXPORT_PAGE_DELAY_MS);
-        let canvas;
-        try {
-          canvas = await captureBookletPageToCanvas(pages[i]);
-        } catch (pageErr) {
-          console.error('PDF page ' + (i + 1), pageErr);
-          alert(
-            'PDF export failed while capturing page ' +
-              (i + 1) +
-              '. If this repeats, try fewer pages or close other tabs (export uses a lot of memory).'
-          );
-          throw pageErr;
-        }
-        const pngBlob = await new Promise(function (resolve, reject) {
-          canvas.toBlob(
-            function (blob) {
-              if (blob) resolve(blob);
-              else reject(new Error('toBlob'));
-            },
-            'image/png',
-            1
-          );
-        });
-        const pngBytes = await pngBlob.arrayBuffer();
-        const image = await pdfDoc.embedPng(pngBytes);
-        const page = pdfDoc.addPage([pageW, pageH]);
-        const iw = image.width;
-        const ih = image.height;
-        const s = Math.min(pageW / iw, pageH / ih);
-        const dw = iw * s;
-        const dh = ih * s;
-        const x = (pageW - dw) / 2;
-        const y = (pageH - dh) / 2;
-        page.drawImage(image, { x, y, width: dw, height: dh });
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
       }
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const html = buildBookletServerPdfHtml(pages);
+      const r = await fetch('/api/booklet/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          html,
+          pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
+        }),
+      });
+      if (!r.ok) {
+        let msg = 'PDF export failed.';
+        try {
+          const j = await r.json();
+          if (j && j.error) msg = j.error;
+        } catch (parseErr) {
+          /* ignore */
+        }
+        alert(msg);
+        return;
+      }
+      const blob = await r.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet') + '.pdf';
@@ -2383,7 +2524,7 @@
       URL.revokeObjectURL(a.href);
     } catch (e) {
       console.error(e);
-      alert('PDF export failed.');
+      alert('PDF export failed (network or server error).');
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -2393,11 +2534,11 @@
   }
 
   function bindUi() {
-    document.querySelectorAll('[data-add-type]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        addBlock(btn.getAttribute('data-add-type'));
-      });
+    document.getElementById('bookletSidebar')?.addEventListener('click', function (e) {
+      const t = e.target.closest('[data-add-type]');
+      if (!t) return;
+      e.preventDefault();
+      addBlock(t.getAttribute('data-add-type'));
     });
 
     document.getElementById('selPageSize')?.addEventListener('change', (e) => {

@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
     <style>
         :root {
             --booklet-margin-mm: 16;
@@ -36,7 +37,20 @@
             max-height: calc(100vh - 4.5rem);
             overflow-y: auto;
             z-index: 1010;
-            padding-bottom: 1rem;
+            padding-bottom: 0.5rem;
+        }
+        .booklet-sidebar > h6 {
+            font-size: 0.68rem;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.3rem;
+            margin-top: 0.65rem;
+        }
+        .booklet-sidebar > h6:first-of-type {
+            margin-top: 0;
+        }
+        .booklet-sidebar .booklet-layout-compact {
+            padding: 0.45rem 0.5rem !important;
+            margin-bottom: 0.35rem !important;
         }
         @media (max-width: 991.98px) {
             .booklet-sidebar {
@@ -51,7 +65,7 @@
             border: 1px solid #dee2e6;
             border-radius: 6px;
             padding: 0.2rem 0.45rem 0.2rem 0.35rem;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.28rem;
             background: #fff;
             font-size: 0.8rem;
             line-height: 1.25;
@@ -210,7 +224,7 @@
             color: inherit;
         }
         .booklet-edition-results {
-            max-height: 220px;
+            max-height: 160px;
             overflow-y: auto;
             border: 1px solid #dee2e6;
             border-radius: 6px;
@@ -257,13 +271,6 @@
             max-width: 100%;
             height: auto;
             display: block;
-        }
-        .template-placeholder {
-            background: #f8f9fa;
-            border: 1px dashed #adb5bd;
-            border-radius: 8px;
-            padding: 1rem;
-            color: #6c757d;
         }
         .booklet-scale-inner {
             display: inline-block;
@@ -316,6 +323,17 @@
             flex-shrink: 0;
             overflow: visible;
         }
+        .booklet-scale-outer--empty {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            pointer-events: none;
+        }
+        .booklet-scale-outer--empty .booklet-scale-inner {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden;
+        }
         .booklet-spread-slot .booklet-page {
             margin: 0;
             transform-origin: top left;
@@ -360,9 +378,14 @@
 </head>
 <body>
     <nav class="navbar booklet-navbar py-2 no-print">
-        <div class="container-fluid">
-            <a class="navbar-brand text-white" href="/"><i class="bi bi-arrow-left me-2"></i>Back to database</a>
-            <span class="navbar-text text-white-50 small">Liturgy booklet creator</span>
+        <div class="container-fluid d-flex flex-wrap align-items-center gap-2">
+            <a class="navbar-brand text-white mb-0" href="/"><i class="bi bi-arrow-left me-2"></i>Back to database</a>
+            <span class="navbar-text text-white-50 small mb-0">Liturgy booklet creator</span>
+            <div class="ms-lg-auto">
+                <button type="button" class="btn btn-sm btn-outline-light disabled" id="btnCommunityBooklets" title="Search and load shared booklet JSON projects from other users — coming soon.">
+                    <i class="bi bi-people me-1"></i>Community booklets
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -379,7 +402,7 @@
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
-                <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="High-resolution raster export (~300 DPI). First run may be slow; leave the tab focused."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+                <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Vector-friendly PDF via server Chromium (same print CSS as preview). Requires Node with Puppeteer on the server."><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
                 <div class="vr d-none d-md-block"></div>
                 <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
                     <option value="A4">A4 page</option>
@@ -406,13 +429,9 @@
                 </label>
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Advanced</button>
-                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
-                        <li><a class="dropdown-item" href="/vendor/jgabc/propers.html" target="_blank" rel="noopener">jgabc Mass Propers (this site)</a></li>
-                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s propers (github.io)</a></li>
-                        <li><a class="dropdown-item" href="https://github.com/BBloomF/Exsurge" target="_blank" rel="noopener">Exsurge (chant layout engine) — source &amp; issues</a></li>
-                        <li class="dropdown-header mt-2">Future</li>
-                        <li><span class="dropdown-item-text text-muted">Server Gregorio — <code>PDF_RENDERER_URL</code></span></li>
-                        <li><button type="button" class="btn btn-sm btn-light w-100 mt-1" disabled>Render via server</button></li>
+                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 260px;">
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s Mass propers (jgabc)</a></li>
+                        <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener">Exsurge (original repo)</a></li>
                     </ul>
                 </div>
             </div>
@@ -421,30 +440,30 @@
 
     <div class="container-fluid py-3">
         <div class="row g-3 align-items-lg-stretch">
-            <aside class="col-lg-3 booklet-sidebar no-print">
+            <aside class="col-lg-3 booklet-sidebar no-print" id="bookletSidebar">
                 <h6 class="text-muted text-uppercase small">Add section</h6>
-                <div class="d-grid gap-1 mb-3">
-                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="rubric"><i class="bi bi-type me-1"></i>Rubric</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-1"></i>Reading / prayer</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-1"></i>Chant (paste GABC)</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-1"></i>Image</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-1"></i>Polyphony edition PDF</button>
-                    <button type="button" class="btn btn-sm btn-outline-dark sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-1"></i>Force page break</button>
+                <div class="dropdown mb-2">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-plus-lg me-1"></i>Add section…
+                    </button>
+                    <ul class="dropdown-menu w-100">
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="rubric"><i class="bi bi-type me-2"></i>Rubric</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-2"></i>Reading / prayer</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-2"></i>Chant (GABC)</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-2"></i>Image</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-2"></i>Polyphony edition PDF</button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-2"></i>Force page break</button></li>
+                    </ul>
                 </div>
 
-                <h6 class="text-muted text-uppercase small">Sections in document</h6>
-                <p class="small text-muted">Content flows across pages; only <strong>Force page break</strong> starts a new page unless a section is too tall.</p>
+                <h6 class="text-muted text-uppercase small" title="Content flows across pages. Only “Force page break” starts a new page unless a section is too tall for the remaining space.">Sections</h6>
                 <div id="blockList"></div>
-                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-2" id="btnRemoveBlock" disabled>Remove selected</button>
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-1" id="btnRemoveBlock" disabled>Remove selected</button>
 
-                <h6 class="text-muted text-uppercase small mt-4">Templates</h6>
-                <div class="template-placeholder small">
-                    <i class="bi bi-collection me-1"></i>Browse shared booklets — <strong>coming soon</strong>.
-                </div>
-
-                <h6 class="text-muted text-uppercase small mt-4">Edit section</h6>
+                <h6 class="text-muted text-uppercase small">Edit section</h6>
                 <div id="editorPanel" class="small">
-                    <p class="text-muted">Select a section or add one.</p>
+                    <p class="text-muted small mb-0" title="Pick a section in the list above, or use Add section.">Select a section or add one.</p>
                 </div>
             </aside>
             <main class="col-lg-9 booklet-main-preview">
@@ -464,8 +483,6 @@
     <script src="/vendor/jgabc/util.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="/modules/liturgy-booklet/booklet-app.js"></script>
 </body>
 </html>
