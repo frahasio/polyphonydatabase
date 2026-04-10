@@ -1538,16 +1538,118 @@
 
   function measureElHeight(el, widthPx) {
     const mount = document.getElementById('bookletMeasureMount');
+    if (!mount) {
+      const c = el.cloneNode(true);
+      c.style.visibility = 'hidden';
+      c.style.position = 'absolute';
+      document.body.appendChild(c);
+      const h = c.offsetHeight;
+      c.remove();
+      return h || 1;
+    }
     mount.innerHTML = '';
-    mount.style.width = widthPx + 'px';
     mount.style.visibility = 'hidden';
     mount.style.position = 'absolute';
     mount.style.left = '-9999px';
+    mount.style.top = '0';
+    mount.style.width = 'auto';
+    mount.style.height = 'auto';
+    mount.style.overflow = 'visible';
+    const shell = document.createElement('div');
+    shell.className = 'page-inner-flow';
+    shell.style.width = widthPx + 'px';
+    shell.style.maxWidth = widthPx + 'px';
+    shell.style.boxSizing = 'border-box';
+    const bodyShell = document.createElement('div');
+    bodyShell.className = 'booklet-page-body';
+    bodyShell.style.width = '100%';
+    bodyShell.style.boxSizing = 'border-box';
     const clone = el.cloneNode(true);
-    mount.appendChild(clone);
+    bodyShell.appendChild(clone);
+    shell.appendChild(bodyShell);
+    mount.appendChild(shell);
     const h = clone.offsetHeight;
     mount.innerHTML = '';
+    mount.style.width = '1px';
+    mount.style.height = '1px';
+    mount.style.overflow = 'hidden';
     return h || 1;
+  }
+
+  function stripBookletExportFooters(pageDivs) {
+    (pageDivs || []).forEach(function (page) {
+      page.querySelectorAll('.booklet-export-footer').forEach(function (f) {
+        f.remove();
+      });
+    });
+  }
+
+  /**
+   * After real layout, move overflow from each .booklet-page-body to the top of the next page.
+   * Fixes packFlow underestimates (measure vs rendered fonts, SVG, subpixels).
+   */
+  function reflowBookletPagesUntilNoOverflow(pageDivs, sizeStr, sinkEl) {
+    const EPS = 4;
+    let iterations = 0;
+    const MAX_ITER = 80000;
+
+    function ensurePageAt(idx) {
+      while (pageDivs.length <= idx) {
+        const page = document.createElement('div');
+        page.className = 'booklet-page';
+        page.dataset.size = sizeStr;
+        const inner = document.createElement('div');
+        inner.className = 'page-inner-flow';
+        const body = document.createElement('div');
+        body.className = 'booklet-page-body';
+        inner.appendChild(body);
+        page.appendChild(inner);
+        pageDivs.push(page);
+        sinkEl.appendChild(page);
+      }
+    }
+
+    let pi = 0;
+    while (pi < pageDivs.length && iterations < MAX_ITER) {
+      const page = pageDivs[pi];
+      const body = page.querySelector('.booklet-page-body');
+      if (!body) {
+        pi++;
+        continue;
+      }
+      const over = body.scrollHeight - body.clientHeight;
+      if (over <= EPS) {
+        pi++;
+        continue;
+      }
+      const last = body.lastElementChild;
+      if (!last) {
+        pi++;
+        continue;
+      }
+      if (body.childElementCount === 1 && last.offsetHeight > body.clientHeight + EPS) {
+        pi++;
+        continue;
+      }
+      body.removeChild(last);
+      ensurePageAt(pi + 1);
+      const nextBody = pageDivs[pi + 1].querySelector('.booklet-page-body');
+      if (nextBody) {
+        nextBody.insertBefore(last, nextBody.firstChild);
+      }
+      iterations++;
+    }
+  }
+
+  function trimTrailingEmptyBookletPages(pageDivs) {
+    while (pageDivs.length > 1) {
+      const last = pageDivs[pageDivs.length - 1];
+      const body = last.querySelector('.booklet-page-body');
+      const hasFlow = body && body.childElementCount > 0;
+      if (hasFlow) break;
+      last.remove();
+      pageDivs.pop();
+    }
   }
 
   function buildStaticBodyChunkEl(b, kind, bodyFrag, includeHeading) {
@@ -2143,7 +2245,41 @@
       return;
     }
 
+    const sink = document.createElement('div');
+    sink.className = 'booklet-reflow-sink no-print';
+    sink.setAttribute('aria-hidden', 'true');
+    sink.style.cssText =
+      'position:fixed;left:-120vw;top:0;width:auto;height:auto;overflow:visible;opacity:0;pointer-events:none;z-index:-9999;';
+    document.body.appendChild(sink);
+    pageDivs.forEach(function (p) {
+      sink.appendChild(p);
+    });
+
+    await new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
+    if (document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (myTok !== previewToken) {
+      document.body.removeChild(sink);
+      return;
+    }
+
     appendCreditsFooterToLastPage(pageDivs);
+    reflowBookletPagesUntilNoOverflow(pageDivs, size, sink);
+    stripBookletExportFooters(pageDivs);
+    appendCreditsFooterToLastPage(pageDivs);
+    trimTrailingEmptyBookletPages(pageDivs);
+
+    document.body.removeChild(sink);
+
     exportPageElements = pageDivs;
 
     const display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
