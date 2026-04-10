@@ -1519,7 +1519,7 @@
         continue;
       }
       var gapAfter = blockSectionGapAfterMm(b);
-      var splittable = (b.type === 'rubric' || (b.type === 'reading' && !translationHasContent(b.translation)));
+      var splittable = (b.type === 'rubric' || b.type === 'reading');
       if (b.type === 'chant_gabc') {
         var lines = renderChantGabcToLines(b.gabc || '', w, b);
         for (var li = 0; li < lines.length; li++) {
