@@ -818,6 +818,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
             compositionId = existingComposition.rows[0].id;
             groupId = existingComposition.rows[0].group_id;
             
+            await client.query(`UPDATE compositions SET tone_connector = $1 WHERE id = $2`, [toneConnector, compositionId]);
+            
             if (!groupId) {
               // Create group for existing composition
               const newGroupResult = await client.query(`
@@ -997,6 +999,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         // Use existing composition
         compositionId = existingComposition.rows[0].id;
         groupId = existingComposition.rows[0].group_id;
+        
+        await client.query(`UPDATE compositions SET tone_connector = $1 WHERE id = $2`, [toneConnector, compositionId]);
         
         if (!groupId) {
                                 // Create group for existing composition
