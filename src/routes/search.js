@@ -222,17 +222,24 @@ router.get('/groups', async (req, res) => {
       
       // Build search conditions for all variations using punctuation-tolerant comparison
       const titleConditions = searchVariations.map((variation) => {
-        const condition = `(
-          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]{}/-', '') ILIKE $${paramIndex} OR
+        const p = paramIndex;
+        queryParams.push(`%${variation}%`);
+        paramIndex++;
+        return `(
+          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]{}/-', '') ILIKE $${p} OR
           EXISTS (
             SELECT 1 FROM compositions c2
             JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]{}/-', '') ILIKE $${paramIndex}
+            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]{}/-', '') ILIKE $${p}
+          ) OR
+          EXISTS (
+            SELECT 1 FROM compositions c2
+            CROSS JOIN LATERAL unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS cid
+            JOIN composers comp ON comp.id = cid AND comp.id != 23
+            WHERE c2.group_id = g.id
+            AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]{}/-', '') ILIKE $${p}
           )
         )`;
-        queryParams.push(`%${variation}%`);
-        paramIndex++;
-        return condition;
       });
       
       whereConditions.push(`(${titleConditions.join(' OR ')})`);

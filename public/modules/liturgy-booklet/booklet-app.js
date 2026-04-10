@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 5;
-  const STORAGE_KEY = 'liturgyBooklet_autosave_v5';
+  const SCHEMA_VERSION = 6;
+  const STORAGE_KEY = 'liturgyBooklet_autosave_v6';
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -28,6 +28,11 @@
       previewDisplay: 'scroll',
       fontFamilyKey: 'georgia',
       rubricColor: '#8b1538',
+      chantNeumeSize: 19.2,
+      chantStaffColor: '',
+      chantLinePadTop: 6,
+      chantLyricTight: 0.7,
+      chantSystemGap: 4,
     },
     blocks: [],
   };
@@ -41,6 +46,7 @@
   /** @type {{ left: number, right: number }[]} */
   let bookletSpreadViews = [];
   let bookletWheelAccum = 0;
+  let lastBookletSpreadPageCount = -1;
   /** @type {AbortController | null} */
   let editionSearchAbort = null;
 
@@ -129,12 +135,31 @@
     return r.json();
   }
 
+  function formatEditionSearchMeta(g) {
+    const parts = [];
+    if (g.composer_display) parts.push(String(g.composer_display));
+    const tone = g.tone;
+    if (tone != null) {
+      const ts = Array.isArray(tone) ? tone.filter(Boolean).join(', ') : String(tone);
+      if (ts) parts.push('Tone(s): ' + ts);
+    }
+    const fn = g.function_names;
+    if (Array.isArray(fn) && fn.length) {
+      parts.push(
+        'Type: ' + fn.slice(0, 5).join('; ') + (fn.length > 5 ? '…' : '')
+      );
+    }
+    if (g.even_odd) parts.push('Even/odd: ' + String(g.even_odd));
+    return parts.join(' · ');
+  }
+
   function flattenEditionSearchRows(data) {
     const rows = [];
     const groups = data.groups || [];
     groups.forEach(function (g) {
       const eds = g.editions;
       if (!eds || !Array.isArray(eds)) return;
+      const meta = formatEditionSearchMeta(g);
       eds.forEach(function (e) {
         if (!e || !e.file_url) return;
         rows.push({
@@ -142,6 +167,7 @@
           editorName: e.editor_name || 'Unknown editor',
           voicing: e.voicing != null ? String(e.voicing) : '',
           fileUrl: e.file_url,
+          metaLine: meta,
         });
       });
     });
@@ -310,6 +336,64 @@
     ed.addEventListener('blur', onChange);
   }
 
+  function makeBookletChantContext() {
+    const s = state.settings || {};
+    var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
+    ctxt.condenseLineAmount = 1;
+    ctxt.setGlyphScaling(1 / 16);
+    const neumePx = Math.min(28, Math.max(12, Number(s.chantNeumeSize) || 19.2));
+    ctxt.setFont("'Crimson Text', serif", neumePx / 0.9);
+    ctxt.spaceBetweenSystems = Math.min(24, Math.max(0, Number(s.chantSystemGap) || 4));
+    ctxt.textStyles.dropCap.size = Math.round((neumePx / 19.2) * 64);
+    ctxt.textStyles.annotation.size = Math.round((neumePx / 19.2) * 12.8);
+    const tight = Math.min(1.5, Math.max(0.35, Number(s.chantLyricTight) || 0.7));
+    ctxt.minLyricWordSpacing *= tight;
+    ctxt.accidentalSpaceMultiplier = 1.5;
+    ctxt.specialCharProperties['font-family'] = "'Versiculum'";
+    ctxt.specialCharProperties['font-variant'] = 'normal';
+    ctxt.specialCharProperties['font-weight'] = '400';
+    var defaultSpecialCharText = ctxt.specialCharText;
+    ctxt.specialCharText = function (char) {
+      return defaultSpecialCharText(char).toLowerCase();
+    };
+    ctxt.setRubricColor('#c62828');
+    const sc = String(s.chantStaffColor || '').trim();
+    if (sc && /^#[0-9a-f]{3,8}$/i.test(sc)) {
+      ctxt.staffLineColor = sc;
+    }
+    return ctxt;
+  }
+
+  function appendSectionHeading(wrap, b) {
+    if (b.type !== 'rubric' && b.type !== 'reading') return;
+    const t = String(b.sectionTitle || '').trim();
+    const sref = String(b.sectionSourceRef || '').trim();
+    if (!t && !sref) return;
+    if (!t && sref) {
+      const solo = document.createElement('div');
+      solo.className = 'fst-italic text-muted small mb-1 booklet-section-heading-source';
+      solo.style.textAlign = 'right';
+      solo.textContent = sref;
+      wrap.appendChild(solo);
+      return;
+    }
+    const row = document.createElement('div');
+    row.className =
+      'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap mb-1';
+    const left = document.createElement('div');
+    left.className = 'fw-bold booklet-section-heading-title';
+    left.textContent = t;
+    row.appendChild(left);
+    if (sref) {
+      const right = document.createElement('div');
+      right.className = 'fst-italic text-muted small booklet-section-heading-source';
+      right.style.textAlign = 'right';
+      right.textContent = sref;
+      row.appendChild(right);
+    }
+    wrap.appendChild(row);
+  }
+
   function migrateProject(parsed) {
     if (!parsed || typeof parsed !== 'object') return null;
     const v = parsed.schemaVersion || 1;
@@ -325,6 +409,11 @@
           : 'georgia';
       const rc = parsed.settings.rubricColor || '#8b1538';
       parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
+      parsed.settings.chantNeumeSize = parsed.settings.chantNeumeSize ?? 19.2;
+      parsed.settings.chantStaffColor = parsed.settings.chantStaffColor || '';
+      parsed.settings.chantLinePadTop = parsed.settings.chantLinePadTop ?? 6;
+      parsed.settings.chantLyricTight = parsed.settings.chantLyricTight ?? 0.7;
+      parsed.settings.chantSystemGap = parsed.settings.chantSystemGap ?? 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'image' && b.label === undefined) b.label = '';
         if (b.type === 'reading') {
@@ -332,16 +421,27 @@
           if (b.parallelLeftPct == null) b.parallelLeftPct = 50;
           if (b.parallelBorder === undefined) b.parallelBorder = false;
           if (b.parallelGapMm == null) b.parallelGapMm = 4;
+          if (b.sectionTitle === undefined) b.sectionTitle = '';
+          if (b.sectionSourceRef === undefined) b.sectionSourceRef = '';
+        }
+        if (b.type === 'rubric') {
+          if (b.sectionTitle === undefined) b.sectionTitle = '';
+          if (b.sectionSourceRef === undefined) b.sectionSourceRef = '';
         }
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return b;
       });
       return parsed;
     }
-    if (v === 4) {
+    if (v === 5) {
       parsed.schemaVersion = SCHEMA_VERSION;
       parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
       parsed.settings = parsed.settings || {};
+      parsed.settings.chantNeumeSize = 19.2;
+      parsed.settings.chantStaffColor = '';
+      parsed.settings.chantLinePadTop = 6;
+      parsed.settings.chantLyricTight = 0.7;
+      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
           return {
@@ -350,7 +450,45 @@
             parallelLeftPct: b.parallelLeftPct != null ? b.parallelLeftPct : 50,
             parallelBorder: !!b.parallelBorder,
             parallelGapMm: b.parallelGapMm != null ? b.parallelGapMm : 4,
+            sectionTitle: b.sectionTitle != null ? b.sectionTitle : '',
+            sectionSourceRef: b.sectionSourceRef != null ? b.sectionSourceRef : '',
           };
+        }
+        if (b.type === 'rubric') {
+          return {
+            ...b,
+            sectionTitle: b.sectionTitle != null ? b.sectionTitle : '',
+            sectionSourceRef: b.sectionSourceRef != null ? b.sectionSourceRef : '',
+          };
+        }
+        if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
+        return { ...b };
+      });
+      return parsed;
+    }
+    if (v === 4) {
+      parsed.schemaVersion = SCHEMA_VERSION;
+      parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
+      parsed.settings = parsed.settings || {};
+      parsed.settings.chantNeumeSize = 19.2;
+      parsed.settings.chantStaffColor = '';
+      parsed.settings.chantLinePadTop = 6;
+      parsed.settings.chantLyricTight = 0.7;
+      parsed.settings.chantSystemGap = 4;
+      parsed.blocks = (parsed.blocks || []).map((b) => {
+        if (b.type === 'reading') {
+          return {
+            ...b,
+            translation: b.translation != null ? b.translation : '',
+            parallelLeftPct: b.parallelLeftPct != null ? b.parallelLeftPct : 50,
+            parallelBorder: !!b.parallelBorder,
+            parallelGapMm: b.parallelGapMm != null ? b.parallelGapMm : 4,
+            sectionTitle: '',
+            sectionSourceRef: '',
+          };
+        }
+        if (b.type === 'rubric') {
+          return { ...b, sectionTitle: '', sectionSourceRef: '' };
         }
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
@@ -363,6 +501,11 @@
       parsed.settings = parsed.settings || {};
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
+      parsed.settings.chantNeumeSize = 19.2;
+      parsed.settings.chantStaffColor = '';
+      parsed.settings.chantLinePadTop = 6;
+      parsed.settings.chantLyricTight = 0.7;
+      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
           return {
@@ -371,7 +514,12 @@
             parallelLeftPct: b.parallelLeftPct != null ? b.parallelLeftPct : 50,
             parallelBorder: !!b.parallelBorder,
             parallelGapMm: b.parallelGapMm != null ? b.parallelGapMm : 4,
+            sectionTitle: '',
+            sectionSourceRef: '',
           };
+        }
+        if (b.type === 'rubric') {
+          return { ...b, sectionTitle: '', sectionSourceRef: '' };
         }
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock(b);
         return { ...b };
@@ -385,6 +533,11 @@
       parsed.settings.previewDisplay = 'scroll';
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
+      parsed.settings.chantNeumeSize = 19.2;
+      parsed.settings.chantStaffColor = '';
+      parsed.settings.chantLinePadTop = 6;
+      parsed.settings.chantLyricTight = 0.7;
+      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'image' && b.label === undefined) {
           return { ...b, label: '' };
@@ -396,7 +549,12 @@
             parallelLeftPct: 50,
             parallelBorder: false,
             parallelGapMm: 4,
+            sectionTitle: '',
+            sectionSourceRef: '',
           };
+        }
+        if (b.type === 'rubric') {
+          return { ...b, sectionTitle: '', sectionSourceRef: '' };
         }
         if (b.type === 'edition_pdf') return normalizeEditionPdfBlock({ ...b, type: 'edition_pdf' });
         return { ...b };
@@ -411,6 +569,11 @@
       parsed.settings.previewDisplay = 'scroll';
       parsed.settings.fontFamilyKey = 'georgia';
       parsed.settings.rubricColor = '#8b1538';
+      parsed.settings.chantNeumeSize = 19.2;
+      parsed.settings.chantStaffColor = '';
+      parsed.settings.chantLinePadTop = 6;
+      parsed.settings.chantLyricTight = 0.7;
+      parsed.settings.chantSystemGap = 4;
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'jgabc_propers') {
           return {
@@ -442,7 +605,12 @@
             parallelLeftPct: 50,
             parallelBorder: false,
             parallelGapMm: 4,
+            sectionTitle: '',
+            sectionSourceRef: '',
           };
+        }
+        if (b.type === 'rubric') {
+          return { ...b, sectionTitle: '', sectionSourceRef: '' };
         }
         return { ...b };
       });
@@ -466,6 +634,16 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
+        const v5old = localStorage.getItem('liturgyBooklet_autosave_v5');
+        if (v5old && !localStorage.getItem(STORAGE_KEY)) {
+          const m = migrateProject(JSON.parse(v5old));
+          if (m) {
+            state = m;
+            applyCssVars();
+            localStorage.removeItem('liturgyBooklet_autosave_v5');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          }
+        }
         const v4 = localStorage.getItem('liturgyBooklet_autosave_v4');
         if (v4 && !localStorage.getItem(STORAGE_KEY)) {
           const m = migrateProject(JSON.parse(v4));
@@ -477,7 +655,7 @@
           }
         }
         const v3 = localStorage.getItem('liturgyBooklet_autosave_v3');
-        if (v3) {
+        if (v3 && !localStorage.getItem(STORAGE_KEY)) {
           const m = migrateProject(JSON.parse(v3));
           if (m) {
             state = m;
@@ -527,6 +705,11 @@
     const sf = document.getElementById('selBookletFont');
     const rc = document.getElementById('inpRubricColor');
     const pt = document.getElementById('inpProjectTitle');
+    const cn = document.getElementById('rngChantNeume');
+    const cl = document.getElementById('rngChantLinePad');
+    const ct = document.getElementById('rngChantLyricTight');
+    const cs = document.getElementById('rngChantSystemGap');
+    const csc = document.getElementById('inpChantStaffColor');
     if (sz) sz.value = state.settings.pageSize;
     if (m) m.value = String(state.settings.marginMm);
     if (fs) fs.value = String(state.settings.fontScale);
@@ -535,6 +718,14 @@
     if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
     if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
+    if (cn) cn.value = String(state.settings.chantNeumeSize ?? 19.2);
+    if (cl) cl.value = String(state.settings.chantLinePadTop ?? 6);
+    if (ct) ct.value = String(state.settings.chantLyricTight ?? 0.7);
+    if (cs) cs.value = String(state.settings.chantSystemGap ?? 4);
+    if (csc) {
+      const sc = String(state.settings.chantStaffColor || '').trim();
+      csc.value = /^#[0-9a-f]{6}$/i.test(sc) ? sc : '#000000';
+    }
   }
 
   function gabcToExsurge(gabc) {
@@ -564,9 +755,10 @@
     try {
       const gabc = gabcToExsurge(String(gabcRaw));
       const header = getHeader(gabcRaw);
-      const ctxt = makeExsurgeChantContext();
+      const ctxt = makeBookletChantContext();
       const staffColor = header.staffLineColor || (header.cValues && header.cValues.staffLineColor);
-      if (staffColor) ctxt.staffLineColor = staffColor;
+      const overrideStaff = String(state.settings.chantStaffColor || '').trim();
+      if (!overrideStaff && staffColor) ctxt.staffLineColor = staffColor;
       const mappings = exsurge.Gabc.createMappingsFromSource(ctxt, gabc);
       const initialStyle = header['initial-style'] !== '0' && header['initial-style'] !== 0;
       const score = new exsurge.ChantScore(ctxt, mappings, initialStyle);
@@ -596,9 +788,14 @@
       const temp = document.createElement('div');
       temp.innerHTML = html;
       const lines = [];
+      const padTop = Math.min(20, Math.max(0, Number(state.settings.chantLinePadTop) || 6));
       temp.querySelectorAll('svg').forEach(function (svg) {
+        svg.setAttribute('overflow', 'visible');
+        svg.style.overflow = 'visible';
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
+        line.style.paddingTop = padTop + 'px';
+        line.style.overflow = 'visible';
         line.appendChild(svg);
         lines.push(line);
       });
@@ -641,7 +838,9 @@
       ensurePdfWorker();
       const absUrl = resolvePdfUrl(b.url);
       if (!absUrl) throw new Error('No PDF URL');
-      const pdf = await pdfjsLib.getDocument({ url: absUrl, withCredentials: false }).promise;
+      const proxyUrl =
+        '/api/booklet/pdf-proxy?url=' + encodeURIComponent(absUrl);
+      const pdf = await pdfjsLib.getDocument({ url: proxyUrl, withCredentials: true }).promise;
       const last =
         to != null && !isNaN(to) ? Math.min(to, pdf.numPages) : pdf.numPages;
       const first = Math.min(from, pdf.numPages);
@@ -671,7 +870,7 @@
       const d = document.createElement('div');
       d.className = 'text-warning small booklet-section';
       d.innerHTML =
-        'Could not load PDF (often blocked by CORS if the file is on another domain). ' +
+        'Could not load PDF via the site proxy (you must be signed in). For external URLs the server fetches the file for you. ' +
         '<em>' +
         escapeHtml(e.message || String(e)) +
         '</em>';
@@ -683,12 +882,14 @@
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
     if (b.type === 'rubric') {
+      appendSectionHeading(wrap, b);
       const p = document.createElement('div');
       p.className = 'rubric booklet-richtext';
       p.appendChild(sanitizeToFragment(b.text || ''));
       wrap.appendChild(p);
     } else if (b.type === 'reading') {
       if (translationHasContent(b.translation)) {
+        appendSectionHeading(wrap, b);
         const leftPct = Math.min(80, Math.max(20, parseInt(b.parallelLeftPct, 10) || 50));
         const rightPct = 100 - leftPct;
         const gapMm = Math.min(20, Math.max(0, parseInt(b.parallelGapMm, 10) || 4));
@@ -709,7 +910,6 @@
         tdR.style.paddingTop = '0';
         tdR.style.paddingBottom = '0';
         if (b.parallelBorder) {
-          table.style.border = '1px solid #6c757d';
           tdL.style.borderRight = '1px solid #adb5bd';
         }
         const innerL = document.createElement('div');
@@ -725,6 +925,7 @@
         table.appendChild(tr);
         wrap.appendChild(table);
       } else {
+        appendSectionHeading(wrap, b);
         const p = document.createElement('div');
         p.className = 'reading booklet-richtext';
         p.appendChild(sanitizeToFragment(b.text || ''));
@@ -876,28 +1077,30 @@
   }
 
   function scaleBookletSpread(host) {
-    const vp = host.querySelector('.booklet-spread-viewport');
-    if (!vp) return;
-    const inners = host.querySelectorAll('.booklet-scale-inner');
-    if (inners.length !== 2) return;
-    let totalW = 0;
-    let maxH = 0;
-    const gap = 6;
-    inners.forEach((inner) => {
-      const pg = inner.querySelector('.booklet-page');
-      if (!pg) return;
-      const r = pg.getBoundingClientRect();
-      totalW += r.width;
-      maxH = Math.max(maxH, r.height);
-    });
-    totalW += gap;
-    if (totalW <= 0 || maxH <= 0) return;
-    const sw = vp.clientWidth / totalW;
-    const sh = vp.clientHeight / maxH;
-    const sc = Math.min(sw, sh, 1);
-    inners.forEach((inner) => {
+    const slots = host.querySelectorAll('.booklet-spread-slot');
+    if (slots.length !== 2) return;
+    const slotW = slots[0].clientWidth;
+    const slotH = slots[0].clientHeight;
+    if (slotW <= 0 || slotH <= 0) return;
+    slots.forEach(function (slot) {
+      const outer = slot.querySelector('.booklet-scale-outer');
+      const inner = outer && outer.querySelector('.booklet-scale-inner');
+      const pg = inner && inner.querySelector('.booklet-page');
+      if (!outer || !inner || !pg) return;
+      inner.style.transform = '';
+      inner.style.width = '';
+      inner.style.height = '';
+      outer.style.width = '';
+      outer.style.height = '';
+      const nw = pg.offsetWidth || 1;
+      const nh = pg.offsetHeight || 1;
+      const sc = Math.min(slotW / nw, slotH / nh, 1);
+      inner.style.width = nw + 'px';
+      inner.style.height = nh + 'px';
       inner.style.transform = 'scale(' + sc + ')';
-      inner.style.transformOrigin = 'center center';
+      inner.style.transformOrigin = 'top left';
+      outer.style.width = nw * sc + 'px';
+      outer.style.height = nh * sc + 'px';
     });
   }
 
@@ -910,14 +1113,20 @@
     const n = pageDivs.length;
     leftSlot.innerHTML = '';
     rightSlot.innerHTML = '';
+    const lo = document.createElement('div');
+    lo.className = 'booklet-scale-outer';
     const li = document.createElement('div');
     li.className = 'booklet-scale-inner';
     li.appendChild(cloneBookletSide(pageDivs, n, v.left));
+    lo.appendChild(li);
+    leftSlot.appendChild(lo);
+    const ro = document.createElement('div');
+    ro.className = 'booklet-scale-outer';
     const ri = document.createElement('div');
     ri.className = 'booklet-scale-inner';
     ri.appendChild(cloneBookletSide(pageDivs, n, v.right));
-    leftSlot.appendChild(li);
-    rightSlot.appendChild(ri);
+    ro.appendChild(ri);
+    rightSlot.appendChild(ro);
     if (label) {
       label.textContent =
         'Sheet ' + (index + 1) + ' / ' + views.length + ' (print order; padded to ' + Math.ceil(n / 4) * 4 + ' pp.)';
@@ -931,6 +1140,10 @@
 
   function mountBookletSpreadUi(root, pageDivs) {
     const n = pageDivs.length;
+    if (n !== lastBookletSpreadPageCount) {
+      bookletSpreadIndex = 0;
+      lastBookletSpreadPageCount = n;
+    }
     bookletSpreadViews = buildBookletSpreadViews(n);
     if (bookletSpreadIndex >= bookletSpreadViews.length) {
       bookletSpreadIndex = Math.max(0, bookletSpreadViews.length - 1);
@@ -970,54 +1183,64 @@
     host.appendChild(vp);
     root.appendChild(host);
 
+    function syncNavButtons() {
+      btnPrev.disabled = bookletSpreadIndex <= 0;
+      btnNext.disabled = bookletSpreadIndex >= bookletSpreadViews.length - 1;
+    }
+
     function goPrev() {
-      if (bookletSpreadIndex <= 0) bookletSpreadIndex = bookletSpreadViews.length - 1;
-      else bookletSpreadIndex--;
+      if (bookletSpreadIndex <= 0) return;
+      bookletSpreadIndex--;
       updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+      syncNavButtons();
     }
     function goNext() {
-      if (bookletSpreadIndex >= bookletSpreadViews.length - 1) bookletSpreadIndex = 0;
-      else bookletSpreadIndex++;
+      if (bookletSpreadIndex >= bookletSpreadViews.length - 1) return;
+      bookletSpreadIndex++;
       updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+      syncNavButtons();
     }
     btnPrev.addEventListener('click', goPrev);
     btnNext.addEventListener('click', goNext);
 
+    host._bookletWheelLock = false;
     bookletWheelAccum = 0;
     vp.addEventListener(
       'wheel',
       function (e) {
         if (state.settings.previewDisplay !== 'booklet') return;
         e.preventDefault();
+        if (host._bookletWheelLock) return;
         bookletWheelAccum += e.deltaY;
-        if (bookletWheelAccum > 50) {
+        if (bookletWheelAccum > 90) {
           bookletWheelAccum = 0;
+          host._bookletWheelLock = true;
           goNext();
-        } else if (bookletWheelAccum < -50) {
+          setTimeout(function () {
+            host._bookletWheelLock = false;
+          }, 500);
+        } else if (bookletWheelAccum < -90) {
           bookletWheelAccum = 0;
+          host._bookletWheelLock = true;
           goPrev();
+          setTimeout(function () {
+            host._bookletWheelLock = false;
+          }, 500);
         }
       },
       { passive: false }
     );
 
-    let ro;
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(function () {
-        scaleBookletSpread(host);
-      });
-      ro.observe(vp);
-    }
     window.addEventListener('resize', onWinResize);
     function onWinResize() {
       scaleBookletSpread(host);
     }
     host._bookletCleanup = function () {
       window.removeEventListener('resize', onWinResize);
-      if (ro) ro.disconnect();
     };
 
     updateBookletSpreadDisplay(host, pageDivs, bookletSpreadViews, bookletSpreadIndex);
+    syncNavButtons();
   }
 
   async function renderPreview() {
@@ -1218,6 +1441,10 @@
     }
     if (b.type === 'rubric') {
       panel.innerHTML = `
+        <label class="form-label small mb-1">Title <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
+        <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-2" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
         <p class="small text-muted mb-1">Bold, italic, underline, and text colour (preview + PDF).</p>
         <div class="booklet-rich-toolbar rubric-tb">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
@@ -1237,6 +1464,17 @@
       `;
       const ed = panel.querySelector('#edRichRubric');
       ed.innerHTML = initialRichHtmlForEditor(b.text);
+      const st = panel.querySelector('#edRubricSecTitle');
+      const ss = panel.querySelector('#edRubricSecSource');
+      const pushMeta = () => {
+        b.sectionTitle = st ? st.value : '';
+        b.sectionSourceRef = ss ? ss.value : '';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      st.addEventListener('input', pushMeta);
+      ss.addEventListener('input', pushMeta);
       const push = () => {
         b.text = ed.innerHTML;
         scheduleAutosave();
@@ -1248,6 +1486,10 @@
       const split = b.parallelLeftPct != null ? b.parallelLeftPct : 50;
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
       panel.innerHTML = `
+        <label class="form-label small mb-1">Section title <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-1" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left above both columns">
+        <label class="form-label small mb-1">Source reference <span class="text-muted">(optional)</span></label>
+        <input type="text" class="form-control form-control-sm mb-2" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. John 3:16">
         <label class="form-label small mb-1">Original</label>
         <div class="booklet-rich-toolbar read-tb-orig">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
@@ -1286,7 +1528,7 @@
           <div class="d-flex justify-content-between"><span>20%</span><span id="readSplitVal">${split}%</span><span>80%</span></div>
           <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" id="chkReadBorder" ${b.parallelBorder ? 'checked' : ''}>
-            <label class="form-check-label" for="chkReadBorder">Border between columns</label>
+            <label class="form-check-label" for="chkReadBorder">Vertical line between columns only</label>
           </div>
           <label class="form-label small mb-0 mt-2">Space between columns (mm)</label>
           <input type="number" class="form-control form-control-sm" id="inpReadGap" min="0" max="20" value="${gap}">
@@ -1294,8 +1536,19 @@
       `;
       const edO = panel.querySelector('#edReadOrig');
       const edT = panel.querySelector('#edReadTrans');
+      const rst = panel.querySelector('#edReadSecTitle');
+      const rss = panel.querySelector('#edReadSecSource');
       edO.innerHTML = initialRichHtmlForEditor(b.text);
       edT.innerHTML = initialRichHtmlForEditor(b.translation);
+      const pushMetaRead = () => {
+        b.sectionTitle = rst ? rst.value : '';
+        b.sectionSourceRef = rss ? rss.value : '';
+        scheduleAutosave();
+        renderPreview();
+        renderBlockList();
+      };
+      rst.addEventListener('input', pushMetaRead);
+      rss.addEventListener('input', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
@@ -1429,9 +1682,17 @@
               rows.forEach(function (row) {
                 const item = document.createElement('button');
                 item.type = 'button';
-                item.className = 'list-group-item list-group-item-action text-start';
+                item.className = 'list-group-item list-group-item-action text-start py-2';
+                const ln1 = document.createElement('div');
                 const vo = row.voicing ? ' · ' + row.voicing : '';
-                item.textContent = row.groupTitle + ' — ' + row.editorName + vo;
+                ln1.textContent = row.groupTitle + ' — ' + row.editorName + vo;
+                item.appendChild(ln1);
+                if (row.metaLine) {
+                  const ln2 = document.createElement('div');
+                  ln2.className = 'text-muted small mt-1';
+                  ln2.textContent = row.metaLine;
+                  item.appendChild(ln2);
+                }
                 item.addEventListener('click', function () {
                   applyCatalogueEditionPick(row);
                 });
@@ -1467,13 +1728,19 @@
 
   function addBlock(type) {
     const b = { id: uid(), type };
-    if (type === 'rubric') b.text = '';
+    if (type === 'rubric') {
+      b.text = '';
+      b.sectionTitle = '';
+      b.sectionSourceRef = '';
+    }
     if (type === 'reading') {
       b.text = '';
       b.translation = '';
       b.parallelLeftPct = 50;
       b.parallelBorder = false;
       b.parallelGapMm = 4;
+      b.sectionTitle = '';
+      b.sectionSourceRef = '';
     }
     if (type === 'image') {
       b.mime = 'image/png';
@@ -1701,6 +1968,43 @@
       const v = e.target.value;
       state.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
       applyCssVars();
+      scheduleAutosave();
+      renderPreview();
+    });
+
+    document.getElementById('rngChantNeume')?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.settings.chantNeumeSize = Number.isFinite(v) ? Math.min(28, Math.max(12, v)) : 19.2;
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('rngChantLinePad')?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.settings.chantLinePadTop = Number.isFinite(v) ? Math.min(20, Math.max(0, v)) : 6;
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('rngChantLyricTight')?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.settings.chantLyricTight = Number.isFinite(v) ? Math.min(1.5, Math.max(0.35, v)) : 0.7;
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('rngChantSystemGap')?.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.settings.chantSystemGap = Number.isFinite(v) ? Math.min(24, Math.max(0, v)) : 4;
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('btnChantStaffDefault')?.addEventListener('click', () => {
+      state.settings.chantStaffColor = '';
+      syncControlsFromState();
+      scheduleAutosave();
+      renderPreview();
+    });
+    document.getElementById('inpChantStaffColor')?.addEventListener('input', (e) => {
+      const v = e.target.value;
+      state.settings.chantStaffColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '';
       scheduleAutosave();
       renderPreview();
     });

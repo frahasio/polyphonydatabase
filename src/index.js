@@ -12,6 +12,7 @@ import scribesRouter from './routes/scribes.js';
 import functionsRouter from './routes/functions.js';
 import authRouter from './routes/auth.js';
 import searchRouter from './routes/search.js';
+import bookletApiRouter from './routes/booklet.js';
 import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
 import path from 'path';
@@ -66,6 +67,9 @@ app.get('/', (req, res) => {
 
 // Public API routes for search
 app.use('/api/search', searchRouter);
+
+// Booklet helpers (authenticated)
+app.use('/api/booklet', bookletApiRouter);
 
 // ADMIN ROUTES (authentication required)
 // Admin login pages (no auth required)

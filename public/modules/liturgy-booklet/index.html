@@ -239,17 +239,26 @@
             touch-action: none;
         }
         .booklet-spread-slot {
-            flex: 1 1 50%;
-            max-width: 50%;
+            flex: 1 1 0;
+            width: 50%;
+            max-width: calc(50% - 0.175rem);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             min-width: 0;
             max-height: 100%;
+            padding-top: 2px;
+            box-sizing: border-box;
+            overflow: visible;
+        }
+        .booklet-scale-outer {
+            position: relative;
+            flex-shrink: 0;
+            overflow: visible;
         }
         .booklet-spread-slot .booklet-page {
             margin: 0;
-            transform-origin: center center;
+            transform-origin: top left;
             box-shadow: 0 2px 16px rgba(0,0,0,0.1);
         }
         #bookletPageStore {
@@ -386,6 +395,26 @@
                 <div class="template-placeholder small">
                     <i class="bi bi-collection me-1"></i>Browse shared booklets — <strong>coming soon</strong>.
                 </div>
+
+                <details class="mt-3 small border rounded px-2 py-2 bg-white">
+                    <summary class="fw-semibold cursor-pointer user-select-none">Chant rendering (Exsurge)</summary>
+                    <p class="text-muted mt-2 mb-2" style="font-size: 0.78rem;">
+                        Neume size scales lyrics, drop cap, and annotations. Staff colour defaults to the GABC header unless you override. Exsurge does not expose full font/colour theming like a desktop editor; spacing below matches what the layout engine uses.
+                    </p>
+                    <label class="form-label mb-0" style="font-size: 0.78rem;">Neume / staff scale</label>
+                    <input type="range" id="rngChantNeume" class="form-range mb-2" min="12" max="28" step="0.2" value="19.2">
+                    <label class="form-label mb-0" style="font-size: 0.78rem;">Space between systems (vertical)</label>
+                    <input type="range" id="rngChantSystemGap" class="form-range mb-2" min="0" max="24" step="0.5" value="4">
+                    <label class="form-label mb-0" style="font-size: 0.78rem;">Lyric tightness</label>
+                    <input type="range" id="rngChantLyricTight" class="form-range mb-2" min="0.35" max="1.5" step="0.05" value="0.7" title="Lower = tighter word spacing under neumes">
+                    <label class="form-label mb-0" style="font-size: 0.78rem;">Extra padding above each staff line (px)</label>
+                    <input type="range" id="rngChantLinePad" class="form-range mb-2" min="0" max="20" step="1" value="6" title="Helps when the top of a staff is clipped">
+                    <label class="form-label mb-0" style="font-size: 0.78rem;">Staff line colour</label>
+                    <div class="d-flex align-items-center gap-2 mb-0">
+                        <input type="color" id="inpChantStaffColor" value="#000000" class="form-control form-control-color" title="Override GABC staff colour">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnChantStaffDefault">Use GABC</button>
+                    </div>
+                </details>
 
                 <h6 class="text-muted text-uppercase small mt-4">Edit section</h6>
                 <div id="editorPanel" class="small">
