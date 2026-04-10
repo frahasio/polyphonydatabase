@@ -20,24 +20,17 @@ try {
     `);
     console.log('Dependent objects:', JSON.stringify(deps.rows));
 
-    // Also find any views that reference the compositions table at all
-    const allViews = await pool.query(`
-      SELECT c.relname AS view_name, pg_get_viewdef(c.oid, true) AS definition
-      FROM pg_class c
-      JOIN pg_depend d ON c.oid = d.objid
-      JOIN pg_class t ON d.refobjid = t.oid
-      WHERE c.relkind = 'v'
-        AND t.relname = 'compositions'
-      GROUP BY c.relname, c.oid
-    `);
-    console.log('All views referencing compositions:', allViews.rows.map(r => r.view_name));
+    // Save definitions and drop dependent objects
+    const savedDefs = [];
+    for (const dep of deps.rows) {
+      const defResult = await pool.query(`SELECT pg_get_viewdef($1::regclass, true) AS def`, [dep.view_name]);
+      savedDefs.push({ name: dep.view_name, kind: dep.relkind, def: defResult.rows[0]?.def });
 
-    // Save and drop all dependent views
-    const viewDefs = {};
-    for (const v of allViews.rows) {
-      viewDefs[v.view_name] = v.definition;
-      await pool.query(`DROP VIEW IF EXISTS "${v.view_name}" CASCADE`);
-      console.log(`Dropped view: ${v.view_name}`);
+      const dropCmd = dep.relkind === 'm'
+        ? `DROP MATERIALIZED VIEW IF EXISTS "${dep.view_name}" CASCADE`
+        : `DROP VIEW IF EXISTS "${dep.view_name}" CASCADE`;
+      await pool.query(dropCmd);
+      console.log(`Dropped ${dep.relkind === 'm' ? 'materialized view' : 'view'}: ${dep.view_name}`);
     }
 
     // Apply the migration
@@ -45,13 +38,16 @@ try {
     await pool.query(`ALTER TABLE compositions ALTER COLUMN tone TYPE text[] USING CASE WHEN tone IS NOT NULL THEN ARRAY[tone] ELSE NULL END`);
     console.log('Migration applied successfully.');
 
-    // Recreate views
-    for (const [name, def] of Object.entries(viewDefs)) {
+    // Attempt to recreate dropped objects
+    for (const obj of savedDefs) {
       try {
-        await pool.query(`CREATE OR REPLACE VIEW "${name}" AS ${def}`);
-        console.log(`Recreated view: ${name}`);
+        const createCmd = obj.kind === 'm'
+          ? `CREATE MATERIALIZED VIEW "${obj.name}" AS ${obj.def}`
+          : `CREATE OR REPLACE VIEW "${obj.name}" AS ${obj.def}`;
+        await pool.query(createCmd);
+        console.log(`Recreated: ${obj.name}`);
       } catch (e) {
-        console.error(`WARN: Could not recreate view ${name}: ${e.message}`);
+        console.log(`NOTE: Did not recreate ${obj.name} (${e.message}). This view is not used by the application.`);
       }
     }
   } else {
