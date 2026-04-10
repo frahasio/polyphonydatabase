@@ -8,6 +8,8 @@
   const DEFAULT_BLOCK_FONT_SCALE = 1;
   /** Extra vertical room when packing pages (measurement vs rendered chant lines). */
   const BOOKLET_PAGE_PACK_SLACK_PX = 14;
+  /** Last page appends a credits footer; reserve this height so packing leaves room (px @ 96dpi). */
+  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 48;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -115,14 +117,10 @@
     const last = pageDivs[pageDivs.length - 1];
     const inner = last.querySelector('.page-inner-flow');
     if (!inner) return;
-    inner.style.display = 'flex';
-    inner.style.flexDirection = 'column';
-    inner.style.minHeight = '100%';
     const old = inner.querySelector('.booklet-export-footer');
     if (old) old.remove();
     const footer = document.createElement('div');
     footer.className = 'booklet-export-footer';
-    footer.style.marginTop = 'auto';
     footer.style.paddingTop = '0.4rem';
     footer.style.fontSize = '7.5pt';
     footer.style.lineHeight = '1.35';
@@ -223,6 +221,14 @@
     const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
     const m = getBookletMarginMm();
     return Math.max(120, mmToPx(pageH - 2 * m));
+  }
+
+  /** Max height used when splitting rich text / packing flow items (includes slack, excludes footer strip). */
+  function getPackMaxBodyHeightPx() {
+    return Math.max(
+      100,
+      getMaxPageBodyHeightPx() + BOOKLET_PAGE_PACK_SLACK_PX - BOOKLET_PAGE_FOOTER_RESERVE_PX
+    );
   }
 
   function escapeHtml(s) {
@@ -1279,7 +1285,7 @@
       const first = Math.min(from, pdf.numPages);
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
-      const maxBodyPx = getMaxPageBodyHeightPx();
+      const maxBodyPx = getPackMaxBodyHeightPx();
       const marginPx = mmToPx(getBookletMarginMm());
       const bleedWidthPx = widthPx + 2 * marginPx;
       for (let pNum = first; pNum <= last; pNum++) {
@@ -1695,7 +1701,7 @@
   }
 
   function chunkStaticRichTextToElements(b, kind, widthPx) {
-    const maxH = getMaxPageBodyHeightPx();
+    const maxH = getPackMaxBodyHeightPx();
     const rawNodes = [];
     const source = sanitizeToFragment(b.text || '');
     while (source.firstChild) {
@@ -1747,7 +1753,7 @@
 
   function packFlow(items) {
     const widthPx = getContentWidthPx();
-    const maxH = getMaxPageBodyHeightPx() + BOOKLET_PAGE_PACK_SLACK_PX;
+    const maxH = getPackMaxBodyHeightPx();
     const defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     const gapLine = 3;
     const pages = [];
@@ -2121,7 +2127,10 @@
       page.dataset.size = size;
       const inner = document.createElement('div');
       inner.className = 'page-inner-flow';
-      elements.forEach((el) => inner.appendChild(el));
+      const body = document.createElement('div');
+      body.className = 'booklet-page-body';
+      elements.forEach((el) => body.appendChild(el));
+      inner.appendChild(body);
       page.appendChild(inner);
       return page;
     });
