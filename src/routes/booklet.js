@@ -74,12 +74,31 @@ router.post('/pdf', requireAuth, async (req, res) => {
     let mod;
     try {
       mod = await import('puppeteer');
-      launch = mod.launch;
     } catch (impErr) {
-      console.error('booklet pdf: puppeteer import failed', impErr);
+      console.error('booklet pdf: puppeteer ESM import failed', impErr);
+      try {
+        const { createRequire } = await import('module');
+        const require = createRequire(import.meta.url);
+        mod = require('puppeteer');
+      } catch (reqErr) {
+        console.error('booklet pdf: puppeteer require() failed', reqErr);
+        return res.status(503).json({
+          error:
+            'PDF engine unavailable: the puppeteer package failed to load on this server. ' +
+            'Confirm `npm install` ran on deploy and see README “Liturgy booklet PDF export”.',
+        });
+      }
+    }
+    launch =
+      typeof mod.launch === 'function'
+        ? mod.launch.bind(mod)
+        : mod.default && typeof mod.default.launch === 'function'
+          ? mod.default.launch.bind(mod.default)
+          : null;
+    if (!launch) {
+      console.error('booklet pdf: puppeteer has no launch()');
       return res.status(503).json({
-        error:
-          'PDF engine unavailable. Run npm install on the server (Puppeteer bundles Chromium).',
+        error: 'PDF engine misconfigured: puppeteer module loaded but launch() is missing.',
       });
     }
 
@@ -87,7 +106,14 @@ router.post('/pdf', requireAuth, async (req, res) => {
 
     const launchOpts = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-background-networking',
+      ],
     };
     if (chromePath) {
       launchOpts.executablePath = chromePath;
@@ -97,13 +123,17 @@ router.post('/pdf', requireAuth, async (req, res) => {
       browser = await launch(launchOpts);
     } catch (launchErr) {
       console.error('booklet pdf: puppeteer launch failed', launchErr);
+      const hint =
+        process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN
+          ? 'Check that PUPPETEER_EXECUTABLE_PATH / GOOGLE_CHROME_BIN points to a real binary on this host.'
+          : 'Set PUPPETEER_EXECUTABLE_PATH (or GOOGLE_CHROME_BIN) to system Chrome/Chromium, or rely on Puppeteer’s downloaded browser after a successful postinstall.';
       return res.status(503).json({
         error:
-          'Chrome/Chromium is not available for PDF export. On Heroku: add the ' +
-          '"Google Chrome" buildpack (heroku-buildpack-google-chrome), deploy, then run ' +
-          'heroku config:set PUPPETEER_EXECUTABLE_PATH=/app/.apt/usr/bin/google-chrome-stable ' +
-          'and PUPPETEER_SKIP_DOWNLOAD=true (or set GOOGLE_CHROME_BIN to that path). ' +
-          'Alternatively ensure Puppeteer’s downloaded browser exists in the slug (see build logs for postinstall).',
+          'Chrome/Chromium could not be started for PDF export. ' +
+          hint +
+          ' See README section “Liturgy booklet PDF export (server)”. ' +
+          'Server log: ' +
+          String(launchErr && launchErr.message ? launchErr.message : launchErr),
       });
     }
     const page = await browser.newPage();

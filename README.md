@@ -102,6 +102,34 @@ The application uses a comprehensive PostgreSQL schema designed for musical sour
 
 For detailed schema information, see `SCHEMA_REFERENCE.md`.
 
+## Liturgy booklet PDF export (server)
+
+The booklet **Download PDF** button calls `POST /api/booklet/pdf` (signed-in users). The server renders HTML with **Puppeteer** and **headless Chrome/Chromium**. A **503** response almost always means the host cannot load Puppeteer or cannot start a browser—not a bug in the booklet editor.
+
+### Local development
+
+Run `npm install`. The `postinstall` script runs `npx puppeteer browsers install chrome` so a Chromium build is available to Puppeteer.
+
+### Production (e.g. Heroku)
+
+1. **Install a real Chrome/Chromium on the dyno** (Puppeteer’s downloaded browser is easy to lose or block on slim images). Typical approach: add a **Google Chrome** / **Chrome for Testing** [Heroku buildpack](https://elements.heroku.com/buildpacks) or an **apt** buildpack that installs `google-chrome-stable` or `chromium`.
+2. **Point Puppeteer at that binary**, for example:
+   - `PUPPETEER_EXECUTABLE_PATH=/app/.apt/usr/bin/google-chrome-stable`  
+   (exact path depends on the buildpack; use `heroku run ls /app/.apt/usr/bin/` or similar to confirm.)
+   - Alternatively set `GOOGLE_CHROME_BIN` to the same path (this app checks both).
+3. **Optional (saves slug size):** set `PUPPETEER_SKIP_DOWNLOAD=true` before install so npm does not also download Chromium if you only use the system binary.
+4. Redeploy and watch logs when triggering PDF export. Messages like `puppeteer import failed` vs `puppeteer launch failed` tell you whether the problem is **missing npm module** vs **missing/broken Chrome**.
+
+### Quick sanity check on the server
+
+After deploy, from the project root:
+
+```bash
+node -e "import('puppeteer').then(async m => { const b = await m.launch({ headless: true, args: ['--no-sandbox','--disable-setuid-sandbox'], executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined }); await b.close(); console.log('puppeteer ok'); })"
+```
+
+If that throws, fix Node/Puppeteer/Chrome on the host before expecting the booklet PDF route to work.
+
 ## API Documentation
 
 The application provides a RESTful API for programmatic access:
