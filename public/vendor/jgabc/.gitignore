@@ -1,0 +1,25 @@
+.c9revisions
+node_modules
+web-app-jgabc.zip
+Hmissa
+*.sublime-workspace
+*.sublime-project
+roman-liturgy
+Psalms-RGP
+gr1961
+platforms
+plugins
+res
+icon.png
+douay-rheims/src
+MR1962
+key.properties
+.npmignore
+package-lock.json
+build.json
+show-diffs.sh
+.tags
+appid-secret.key
+open-new-release.sh
+pac.bak*
+psalms and canticles/ps*

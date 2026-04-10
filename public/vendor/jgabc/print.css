@@ -1,0 +1,10 @@
+﻿.caeciliae {
+  font-family: 'CaeciliaeStaffless-Print';
+  font-size:48px;
+}
+.hide-print{
+  display:none;
+}
+body{
+  max-width:8in;
+}

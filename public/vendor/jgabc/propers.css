@@ -1,0 +1,372 @@
+html {
+  overflow-x: hidden;
+}
+svg.bg-blur {
+  height: 0;
+  width: 0;
+}
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  top: -1px;
+  padding-top: 4px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  z-index: 1;
+}
+.link {
+  cursor: pointer;
+}
+label {
+  font-weight: 400;
+}
+select[disabled] {
+  color: #8c8c8c;
+}
+a:not([href]),
+a:not([href]):hover {
+  color: #000;
+  text-decoration: none;
+}
+.ol {
+  text-decoration: overline;
+}
+button.remove-modifications {
+  display: none;
+}
+[part].modified button.remove-modifications {
+  display: inline;
+}
+textarea {
+  padding:0;
+  width:100%;
+  min-height:100px;
+  box-sizing: border-box;
+  display: none;
+}
+.asperges-verses,
+.chant-preview {
+  display: none;
+}
+[part].showing-chant .asperges-verses,
+[part].showing-chant .chant-preview{
+  display: block;
+}
+[part] .verses-ad-libitum,
+[part] .verses-ad-libitum-custom,
+[part] .verses-ad-libitum-default {
+  display: none;
+}
+[part].showing-verses-ad-libitum-default div.verses-ad-libitum,
+[part].showing-verses-ad-libitum-custom div.verses-ad-libitum {
+  display: block;
+}
+[part].showing-verses-ad-libitum-default span.verses-ad-libitum-default,
+[part].showing-verses-ad-libitum-custom span.verses-ad-libitum-custom {
+  display: inline;
+}
+.verses.litany {
+  display: inline-block;
+}
+.verses.litany .response {
+  float: right;
+}
+.commentary,
+.verses,
+.asperges-verses {
+  font-size: 120%;
+  font-family: 'Crimson Text';
+}
+.verses .rubric {
+  font-size: inherit;
+  white-space: nowrap;
+  padding-left: 10pt;
+}
+.verses.litany .rubric {
+  white-space: normal;
+  padding-left: 0;
+  text-align: justify;
+}
+.red {
+  color: #d00!important;
+}
+.asperges-verses .versiculum {
+  font-size: 120%;
+  color: #d00!important;
+  line-height: 0;
+}
+.asperges-verses .rubric {
+  font-size: inherit;
+  font-style: italic;
+  color: #d00!important;
+}
+.chant-title {
+  text-align: center;
+  font-size: 110%;
+  font-weight: bold;
+  font-family: 'Crimson Text';
+  text-transform: uppercase;
+  margin: 0.75em 0 0;
+  line-height: 1;
+}
+div[part] > div.block:first-child {
+  background: white;
+  position: -webkit-sticky;
+  position: sticky;
+  top: -1px;
+  padding: 1px 0 0;
+}
+text.aboveLinesText {
+  fill: #d00!important;
+}
+.commentary {
+  text-align: right;
+  font-style: italic;
+  line-height: 1;
+  color: #d00;
+  margin-top: 0.5em;
+}
+.rubric {
+  font-family: 'Crimson Text';
+  font-size: 120%;
+  font-style: italic;
+  color: #d00!important;
+  margin: 0.5em 0 0.25em;
+}
+.ChantNotationElement .rubric {
+  font-family: unset;
+  font-size: unset;
+  font-style: unset;
+  margin: unset;
+}
+.chant-title + *,
+.rubric.after {
+  margin-top: 0!important;
+}
+.rubric .quote {
+  font-style: normal;
+  color: #000!important;
+}
+.rubric .bracket {
+  font-style: normal;
+}
+.sticky .preview-container {
+  padding-bottom: 0;
+}
+svg.ChantScore {
+  display: block;
+}
+.chant-parent{
+  width:100%;
+}
+.chant-preview>svg.ChantScore {
+  width: 100%;
+  page-break-inside: avoid;
+}
+select.sel-style{
+  margin:1px 0 0;
+}
+select {
+  max-width: 100%;
+}
+label.sel-label{
+  margin-top:2px;
+}
+.right {
+  float:right;
+}
+.block {
+  clear: both;
+}
+.block.right {
+  float: none;
+}
+@media screen {
+  div[part].show-gabc .preview-container {
+    padding: 4px 0;
+  }
+  .show-gabc div.block {
+    display: inline-block;
+    width: 50%;
+    box-sizing: border-box;
+    padding-right: 2px;
+  }
+  .show-gabc div.block.right {
+    padding-left: 2px;
+    padding-right: 0;
+    float: right;
+  }
+  .show-gabc textarea {
+    display: inline;
+  }
+  div[part].show-gabc {
+    border:0;
+  }
+  .show-gabc .chant-parent {
+    border:1px solid #aaa;
+    padding: 0 4px;
+    min-height:119px;
+  }
+}
+div[part] {
+  margin-top: 4px;
+  clear: both;
+}
+.hide-chant .chant-preview {
+  display: none!important;
+}
+.centered-heading {
+  font-weight: 600;
+  text-align: center;
+}
+.psalm-editor {
+  border: 1px solid #ccc;
+  padding: 6px;
+  border-radius: 4px;
+  font-family: 'Crimson Text', serif;
+  font-size: 120%;
+}
+text.annotation {
+  font-weight: 600;
+}
+div.chant-context {
+  display: inline-block;
+  z-index: 1;
+}
+[part] use[source-index],
+[part] text[source-index] {
+  cursor: pointer;
+}
+button.toggle-mediant {
+  color: #d00!important;
+}
+button.toggle-mediant::before {
+  content: '\a0';
+}
+button.toggle-mediant[state="new-verse"]::before {
+  content: 'v';
+  font-family: versiculum;
+  font-size: 120%;
+  line-height: 0;
+  top: -2px;
+}
+button.toggle-mediant[state="mediant"]::before {
+  content: '*';
+}
+button.toggle-mediant[state="flex"]::before {
+  content: '†';
+  top: -2px;
+}
+.cordova-only {
+  display: none;
+}
+syl.prep {
+  font-style: italic;
+}
+syl.bold {
+  font-weight: bold;
+}
+.toggle-page-break,
+#toggle-all-page-break {
+  color: #B6B6B6;
+}
+.toggle-page-break.has-page-break-before,
+#toggle-all-page-break.has-page-break-before {
+  color: #333;
+}
+#toggle-all-page-break.mixed {
+  color: #777;
+}
+#toggle-all-page-break {
+  cursor: pointer;
+}
+.glyphicon.glyphicon-blank {
+  width: 1em;
+}
+
+.lectio-reference {
+  color: #d00!important;
+  font-family: 'Crimson Text';
+  font-size: 14pt;
+  font-style: italic;
+  margin-right: 0.5em;
+}
+
+.lectio-text {
+  display: flex;
+  margin: 0 -12pt;
+}
+.lectio-text > * {
+  flex: 0 1 auto;
+  margin: 0 12pt;
+  text-align: justify;
+}
+
+@media(max-width: 524px) {
+  .lectio-text {
+    flex-wrap: wrap;
+    margin: -9pt 0;
+  }
+  .lectio-text > * {
+    margin: 9pt 0;
+  }
+}
+
+@media(min-width: 624px) {
+  .commentary,
+  .verses,
+  .asperges-verses {
+    font-size: 3.16vw; /* 19.2 / ((624 - 16) * 0.01) */
+  }
+  .show-gabc .commentary,
+  .show-gabc .verses,
+  .show-gabc .asperges-verses {
+    font-size: 1.58vw; /* 3.16 / 2 */
+  }
+  select {
+    font-size: 1.505vw; /* 1.58 / 1.05 */
+  }
+}
+@media(min-width: 1262px) {
+  body {
+    max-width: 1258px;
+    margin: auto;
+    overflow-x: visible;
+  }
+  .commentary,
+  .verses,
+  .asperges-verses {
+    font-size: 39.9px; /* (1262 * 3.16 / 100) */
+  }
+  select {
+    font-size: 19px; /* (1262 * 3.16 / 210) */
+  }
+}
+@media print {
+  .commentary,
+  .verses,
+  .extra-verses,
+  .asperges-verses,
+  div.lectio {
+    max-width: 624px;
+    font-size: 19.2px;
+    margin: auto;
+  }
+  .commentary {
+    display: none;
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+  div.lectio select {
+    display: none!important;
+  }
+  div[part] {
+    margin-top: 0;
+  }
+  div[part].showing-chant {
+    margin-top: 4px;
+  }
+  div[part].showing-chant.page-break-before:not(.first-showing-chant) .chant-preview {
+    page-break-before: always;
+  }
+}

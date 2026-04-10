@@ -50,6 +50,11 @@ app.get('/favicon.ico', (req, res) => res.status(204).send());
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
+// Liturgy booklet (authenticated users only; must be before static catch-all)
+app.get('/booklet', requireAuthWeb, (req, res) => {
+  res.sendFile('modules/liturgy-booklet/index.html', { root: 'public' });
+});
+
 // Serve static files
 app.use(express.static('public'));
 

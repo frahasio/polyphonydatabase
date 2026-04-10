@@ -1,0 +1,654 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-24502736-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-24502736-2');
+</script>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mass Propers</title>
+  <link rel="gabc-index" href="gabc-files.html" type="text/html" />
+  <link rel="icon" href="icon/clear-main.png" type="image/png" />
+  <link rel="stylesheet" type="text/css" href="css/smoothness/jquery-ui-1.10.3.custom.min.css" />
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="style.css" />
+  <link rel="stylesheet" type="text/css" href="propers.css" />
+  <!-- <link href="https://fonts.googleapis.com/css?family=Crimson+Text:400,400i,700,700i&text=:;,()[]?.%22'%E2%80%A0*QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmáéíóúýäëæǽœœ%CC%81/1234567890-" rel="stylesheet"> -->
+  <script src="jquery.min.js" type="text/javascript"></script>
+  <script src="jquery.autosize-min.js"></script>
+  <script src="jquery-ui-1.10.3.custom.min.js" type="text/javascript"></script>
+  <script src="js/Tone.min.js"></script>
+  <script src="js/tones.js"></script>
+  <script src="util.js"></script>
+  <script src="psalmtone.js"></script>
+  <script src="moment.min.js"></script>
+  <script src="moment.easter.js"></script>
+  <script src="propersdata.js"></script>
+  <script src="lectiones.js"></script>
+  <script src="ordinarydata.js"></script>
+  <script src="miscChants.js"></script>
+  <script src="propersdatanovus.js"></script>
+  <script src="verseRef.js"></script>
+  <script src="propers.js"></script>
+  <script src="exsurge.min.js"></script>
+  <!-- <script type="text/javascript">window.require = s => s.replace(/^url\?[^!]*\!/,'');</script>
+  <script type="module">
+    import * as exsurge from '../exsurge/src/index.js';
+    window.exsurge = exsurge;
+  </script> -->
+  <script src="incipits.js"></script>
+  <script src="jquery.hypher.js"></script>
+  <script src="patterns/la-hypher.js"></script>
+  <script src="patterns/en-us.js"></script>
+  <script src="patterns/fr-FR.js"></script>
+</head>
+<body class='sans' style="padding:8px;">
+  <form id="pdfForm" target="_blank" method="get" action="https://www.sourceandsummit.com/editor/legacy/">
+    <!--<input type='hidden' name='pdf' value='1'/>-->
+    <input type='hidden' name='crop' value='0'/>
+  </form>
+  <form id="pdfFormDirect" target="_blank" method="post" action="https://www.sourceandsummit.com/editor/legacy/process.php">
+    <input type="hidden" id="pdff_gabc" name="gabc[]"/>
+    <input type="hidden" id="pdff_width" name="width" value="7.5"/>
+    <input type="hidden" id="pdff_height" name="height" value="11"/>
+    <input type="hidden" id="pdff_croppdf" name="croppdf" value="false"/>
+    <input type="hidden" id="pdff_spacing" value="vichi" name="spacing"/>
+    <input type="hidden" id="pdff_font" value="GaramondPremierPro" name="font"/>
+    <input type="hidden" id="pdff_fontsize" value="20" name="fontsize"/>
+    <input type="hidden" id="pdff_fmt" name="fmt" value="pdf"/>
+  </form>
+  <div style="width:100%;margin-bottom:5px" class='hide-print ss-border-bottom'>
+    <ul class="nav nav-pills" style="display: inline-block;">
+      <li role="presentation"><a href="transcriber.html">GABC Transcription Tool</a></li>
+      <li role="presentation"><a href="psalmtone.html">Psalm Tone Tool</a></li>
+      <li role="presentation"><a href="readings.html">Readings Tool</a></li>
+      <li role="presentation" class="active"><a href="propers.html">Propers Tool</a></li>
+      <li role="presentation"><a href="faq.html">(About)</a></li>
+    </ul>
+    <div style="float:right;margin-left:8px" class="btn-group hide-cordova" role="group">
+      <a class='btn btn-xs btn-primary' href='#' id='lnkPdfDirect'>PDF</a>
+      <a class='btn btn-xs btn-default' href='#' id='lnkPdf'>Further PDF options</a>
+    </div>
+    <div class="right hide-cordova" style="clear: both; float: right!important; margin-top: 6px">
+      <div class="btn-group open-on-hover">
+        <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown">
+          Include in PDF <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-right" id="dropdown-menu-include">
+          <li><a href='#' id='removeSolesmes'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Solesmes Markings</span></a></li>
+          <li class="centered-heading" style="padding: 0 20px;">Propers<span id="toggle-all-page-break" class='pull-right glyphicon glyphicon-file'></span></li>
+          <li class="disabled"><a href='#' id='includeIntroitus'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Introitus</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled multiple-graduales-0"><a href='#' id='includeGraduale'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Graduale</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled"><a href='#' id='includeTractus'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Tractus</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled"><a href='#' id='includeAlleluia'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Alleluia</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled"><a href='#' id='includeSequentia'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Sequentia</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled"><a href='#' id='includeOffertorium'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Offertorium</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled"><a href='#' id='includeCommunio'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Communio</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="centered-heading ordinary">Ordinary</li>
+          <li class="disabled ordinary"><a href='#' id='includeAsperges'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Asperges</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeKyrie'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Kyrie</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeGloria'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Gloria</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeCredo'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Credo</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includePreface'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Preface</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeSanctus'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Sanctus</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeAgnus'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Agnus</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeIte'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Ite</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="centered-heading ordinary">Ad libitum Chants</li>
+          <li class="disabled ordinary"><a href='#' id='includeCustom1'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Ad libitum</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeCustom2'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Ad libitum</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeCustom3'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Ad libitum</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+          <li class="disabled ordinary"><a href='#' id='includeCustom4'><span class='glyphicon glyphicon-check'></span> <span class='lbl'>Ad libitum</span><span class='pull-right toggle-page-break glyphicon glyphicon-file'></span></a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="right hide-cordova" style="margin-top: 6px;margin-right: 6px;float: right!important;">
+      <div class="btn-group open-on-hover">
+        <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown">
+          <span class="lbl lbl-paper-size">Letter</span> Paper <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-right dropdown-paper-size">
+          <li><a href="#" paper="letter"><span class='glyphicon glyphicon-ok'></span> <span class="lbl">Letter</span></a></li>
+          <li><a href="#" paper="letter-booklet"><span class='glyphicon'></span> <span class="lbl">Letter Booklet</span></a></li>
+          <li><a href="#" paper="a4"><span class='glyphicon'></span> <span class="lbl">A4</span></a></li>
+          <li><a href="#" paper="a4-booklet"><span class='glyphicon'></span> <span class="lbl">A4 booklet</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <a style="float:right;margin-top: 6px;margin-right: 6px" class="btn btn-sm btn-primary ss-only" href="#" id="shareUrl"><span class='glyphicon glyphicon-share'></span> Share Current Settings</a>
+  </div>
+  <div class='hide-print'>
+    <label for="btnCalendar">Calendar:&nbsp;<button id='btnCalendar' class='btn btn-default active' value='traditional' type='button'>Traditional</button></label>
+    <div><button class="hidden btn btn-danger" style="margin: 6px 0" id="btnClearSelections"><span class='glyphicon glyphicon-remove'></span> Clear Selections</button></div>
+    <div><select id="selSunday" class="small-screen"></select></div>
+    <div><select id="selSundayNovus" class="small-screen" style='display:none'></select></div>
+    <div><select id="selSaint" class="small-screen"></select></div>
+    <div><select id="selMass" class="small-screen"></select></div>
+    <div><select id="selTempus" class="small-screen" style='display:none;'></select></div>
+    <div><select id="selYearNovus" class="small-screen" style='display:none;'></select></div>
+  </div>
+  <div class='hide-print' style="margin-top: 14px">
+    <div class="block">
+      <select id="selOrdinary" class='sel-mass small-screen' style="margin: none!important">
+      </select>
+    </div>
+  </div>
+  <hr class='hide-print block'>
+  <div class='right hide-print' style="margin-top: -16px; margin-bottom: 16px">
+    <select id="selStyle" class='sel-style small-screen'><option value='full'>Full Propers</option><option disabled value='mixed'>Mixed Propers</option><option value='psalm-tone'>Psalm Toned Propers</option></select>
+  </div>
+  <div id='divCustom' part='custom' custom-chant>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblCustom" for="txtCustom"><a target="_blank">Ad libitum</a></label>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selCustom'></select>
+        </span>
+      </div>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="custom-preview-container" class='preview-container'>
+          <div id="custom-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divAsperges' part='asperges' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblAsperges" for="txtAsperges"><a target="_blank"><span tempus='pasch'>Vidi aquam</span><span tempus='-pasch'>Asperges</span></a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selAsperges'></select>
+        </span>
+      </div>
+      <textarea id="txtAsperges" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="asperges-preview-container" class='preview-container'>
+          <div id="asperges-preview" class='chant-preview'></div>
+            <div class="asperges-verses">
+              <div><span class='versiculum'>v</span> Osténde nobis, Dómine, misericórdiam tuam<span tempus='pasch'>, Allelúia</span>.</div>
+              <div><span class='versiculum'>r</span> Et salutáre tuum da nobis<span tempus='pasch'>, Allelúia</span>.</div>
+              <div><span class='versiculum'>v</span> Dómine exáudi oratiónem meam.</div>
+              <div><span class='versiculum'>r</span> Et clamor meus ad te véniat.</div>
+              <div><span class='versiculum'>v</span> Dóminus vobíscum.</div>
+              <div><span class='versiculum'>r</span> Et cum spíritu tuo.</div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divExtraChants' style="display: none;">
+    <div class="hide-print"><a href='' class='showHide'><span class='showHide'>Show</span> Extra Chants</a></div>
+    <div id='extra-chants'></div>
+  </div>
+  <div id='divIntroitus' part='introitus' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblIntroitus" for="txtIntroitus"><a target="_blank">Introitus</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomIntroitus" placeholder="Introitus Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options introitus' id='introitusOptions'>
+        <label for='selOptionsIntroitus'>&mdash; Pick One: </label>
+        <select id='selOptionsIntroitus'></select>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label for="selToneIntroitus" class='sel-label'>Mode</label>
+          <select id="selToneIntroitus" class='sel-style tones'></select>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleIntroitus" class='sel-style'>
+            <option value='full'>Full Introit</option>
+            <option value='full-gloria'>Full w/Gloria Patri</option>
+            <option value='psalm-tone'>Psalm Toned</option>
+          </select>
+        </span>
+      </div>
+      <textarea id="txtIntroitus" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="introitus-preview-container" class='preview-container'>
+          <div id="introitus-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+    <div class='extra-verses'>
+      <label class='hide-print'><input type="checkbox" class="cbVersesAdLibitum"> Verses ad libitum:</label>
+      <span class="verses-ad-libitum-default rubric hide-print"></span>
+      <span class="verses-ad-libitum-custom hide-print"><label>Psalm <select class='sel-psalms'></select></label> <input type="text" class="txtPsalmVerses" placeholder="Verses"></span>
+      <div id="introitusVerses-preview" class="verses verses-ad-libitum chant-preview"></div>
+    </div>
+  </div>
+  <div id='divKyrie' part='kyrie' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblKyrie" for="txtKyrie"><a target="_blank">Kyrie</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selKyrie'></select>
+        </span>
+      </div>
+      <textarea id="txtKyrie" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="kyrie-preview-container" class='preview-container'>
+          <div id="kyrie-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divGloria' part='gloria' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblGloria" for="txtGloria"><a target="_blank">Gloria</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selGloria'></select>
+        </span>
+      </div>
+      <textarea id="txtGloria" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="gloria-preview-container" class='preview-container'>
+          <div id="gloria-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divLectio' class='lectio' style='display:none'>
+    <div><span class='lectio-reference'></span><select class="selectShowLectionem"> <option value="">(Hidden)</option> <option value="latin">Latin</option> <option value="english">English</option> <option value="latin,english">English and Latin</option> <option value="french">French</option> <option value="latin,french">French and Latin</option> <option value="portuguese">Portuguese</option> <option value="latin,portuguese">Portuguese and Latin</option> </select></div>
+    <div class='lectio-text'>
+      <div class='lectio-latin'></div>
+      <div class='lectio-english'></div>
+      <div class='lectio-french'></div>
+      <div class='lectio-portuguese'></div>
+    </div>
+  </div>
+  <div id='divGraduale' part='graduale' class='multiple-graduales-0' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblGraduale" for="txtGraduale"><a target="_blank">Graduale</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomGraduale" placeholder="Graduale Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options graduale' id='gradualeOptions'>
+        <label>&mdash; Pick One: 
+        <select id='selOptionsGraduale'></select></label>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label class='sel-label'>Mode
+          <select id="selToneGraduale" class='sel-style tones'></select></label>
+          <select id="selToneEndingGraduale" class='sel-style endings graduale'></select>
+          <input id='cbSolemnGraduale' type='checkbox' class='cbSolemn graduale' title='Check this box to use the solemn psalm tone.'>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleGraduale" class='sel-style'>
+            <option value='full'>Full Gradual</option>
+            <option value='psalm-tone'>Psalm Toned</option>
+          </select>
+        </span>
+      </div>
+      <textarea id="txtGraduale" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="graduale-preview-container" class='preview-container'>
+          <div id="graduale-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divLectioAnteTractu' class='lectio lectio-before-tract' style='display:none'>
+    <div><span class='lectio-reference'></span><select class="selectShowLectionem"> <option value="">(Hidden)</option> <option value="latin">Latin</option> <option value="english">English</option> <option value="latin,english">English and Latin</option> <option value="french">French</option> <option value="latin,french">French and Latin</option> <option value="portuguese">Portuguese</option> <option value="latin,portuguese">Portuguese and Latin</option> </select></div>
+    <div class='lectio-text'>
+      <div class='lectio-latin'></div>
+      <div class='lectio-english'></div>
+      <div class='lectio-french'></div>
+      <div class='lectio-portuguese'></div>
+    </div>
+  </div>
+  <div id='divTractus' part='tractus' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblTractus" for="txtTractus"><a target="_blank">Tractus</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomTractus" placeholder="Tractus Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options tractus' id='tractusOptions'>
+        <label for='selOptionsTractus'>&mdash; Pick One: </label>
+        <select id='selOptionsTractus'></select>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label for="selToneTractus" class='sel-label'>Mode</label>
+          <select id="selToneTractus" class='sel-style tones'></select>
+          <select id="selToneEndingTractus" class='sel-style endings tractus'></select>
+          <input id='cbSolemnTractus' type='checkbox' class='cbSolemn tractus' title='Check this box to use the solemn psalm tone.'>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleTractus" class='sel-style'><option value='full'>Full Tract</option><option value='psalm-tone'>Psalm Toned</option></select>
+        </span>
+      </div>
+      <textarea id="txtTractus" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="tractus-preview-container" class='preview-container'>
+          <div id="tractus-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divAlleluia' part='alleluia' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblAlleluia" for="txtAlleluia"><a target="_blank">Alleluia</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomAlleluia" placeholder="Alleluia Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options alleluia' id='alleluiaOptions'>
+        <label for='selOptionsAlleluia'>&mdash; Pick One: </label>
+        <select id='selOptionsAlleluia'></select>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label for="selToneAlleluia" class='sel-label'>Mode</label>
+          <select id="selToneAlleluia" class='sel-style tones'></select>
+          <select id="selToneEndingAlleluia" class='sel-style endings alleluia'></select>
+          <input id='cbSolemnAlleluia' type='checkbox' class='cbSolemn alleluia' title='Check this box to use the solemn psalm tone.'>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleAlleluia" class='sel-style'>
+            <option value='full'>Full Alleluia</option>
+            <option value='psalm-tone'>à la Liber Brevior</option>
+            <option value='psalm-tone-sal'>à la Chants Abrégés</option>
+            <option value='psalm-tone2'>Psalm Toned</option>
+            <option value='psalm-tone1'>Completely Psalm Toned</option>
+          </select>
+        </span>
+      </div>
+      <textarea id="txtAlleluia" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="alleluia-preview-container" class='preview-container'>
+          <div id="alleluia-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divSequentia' part='sequentia' style='display:none;'>
+    <div class='hide-print'>
+      <label class="hide-ss" id="lblSequentia" for="txtSequentia"><a target="_blank">Sequentia</a></label>
+      <a class='toggleShowChantPreview'>(<span class='showHide'>Hide</span> Sequence)</a>
+      <input id="txtCustomSequentia" placeholder="Sequentia Search Text" class="sel-custom" style="display:none"/>
+    </div>
+    <div class='chant-parent'>
+      <div id="sequentia-preview-container" class='preview-container'>
+        <div id="sequentia-preview" class='chant-preview'></div>
+      </div>
+    </div>
+  </div>
+  <div id='divEvangelium' class='lectio' style='display:none'>
+    <div><span class='lectio-reference'></span><select class="selectShowLectionem"> <option value="">(Hidden)</option> <option value="latin">Latin</option> <option value="english">English</option> <option value="latin,english">English and Latin</option> <option value="french">French</option> <option value="latin,french">French and Latin</option> <option value="portuguese">Portuguese</option> <option value="latin,portuguese">Portuguese and Latin</option> </select></div>
+    <div class='lectio-text'>
+      <div class='lectio-latin'></div>
+      <div class='lectio-english'></div>
+      <div class='lectio-french'></div>
+      <div class='lectio-portuguese'></div>
+    </div>
+  </div>
+  <div id='divCredo' part='credo' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblCredo" for="txtCredo"><a target="_blank">Credo</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selCredo'></select>
+        </span>
+      </div>
+      <textarea id="txtCredo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="credo-preview-container" class='preview-container'>
+          <div id="credo-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divOffertorium' part='offertorium' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblOffertorium" for="txtOffertorium"><a target="_blank">Offertorium</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomOffertorium" placeholder="Offertorium Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options offertorium' id='offertoriumOptions'>
+        <label for='selOptionsOffertorium'>&mdash; Pick One: </label>
+        <select id='selOptionsOffertorium'></select>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label for="selToneOffertorium" class='sel-label'>Mode</label>
+          <select id="selToneOffertorium" class='sel-style tones'></select>
+          <select id="selToneEndingOffertorium" class='sel-style endings offertorium'></select>
+          <input id='cbSolemnOffertorium' type='checkbox' class='cbSolemn offertorium' title='Check this box to use the solemn psalm tone.'>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleOffertorium" class='sel-style'><option value='full'>Full Offertory</option><option value='psalm-tone'>Psalm Toned</option></select>
+        </span>
+      </div>
+    <textarea id="txtOffertorium" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="offertorium-preview-container" class='preview-container'>
+          <div id="offertorium-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divPreface' part='preface' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblPreface" for="txtPreface"><a target="_blank">Preface</a></label>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selPreface'></select>
+        </span>
+      </div>
+      <textarea id="txtPreface" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="preface-preview-container" class='preview-container'>
+          <div id="preface-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divSanctus' part='sanctus' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblSanctus" for="txtSanctus"><a target="_blank">Sanctus</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selSanctus'></select>
+        </span>
+      </div>
+      <textarea id="txtSanctus" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="sanctus-preview-container" class='preview-container'>
+          <div id="sanctus-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divAgnus' part='agnus' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblAgnus" for="txtAgnus"><a target="_blank">Agnus</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selAgnus'></select>
+        </span>
+      </div>
+      <textarea id="txtAgnus" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="agnus-preview-container" class='preview-container'>
+          <div id="agnus-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='divCommunio' part='communio' style='display:none;'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblCommunio" for="txtCommunio"><a target="_blank">Communio</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <input id="txtCustomCommunio" placeholder="Communio Search Text" class="sel-custom" style="display:none"/>
+      <span class='novus-options communio' id='communioOptions'>
+        <label for='selOptionsCommunio'>&mdash; Pick One: </label>
+        <select id='selOptionsCommunio'></select>
+      </span>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+          <label for="selToneCommunio" class='sel-label'>Mode</label>
+          <select id="selToneCommunio" class='sel-style tones'></select>
+          <select id="selToneEndingCommunio" class='sel-style endings communio'></select>
+          <input id='cbSolemnCommunio' type='checkbox' class='cbSolemn communio' title='Check this box to use the solemn psalm tone.'>
+        </span>
+        <span class='child-main'>
+          <select id="selStyleCommunio" class='sel-style'><option value='full'>Full Communion</option><option value='psalm-tone'>Psalm Toned</option></select>
+        </span>
+      </div>
+      <textarea id="txtCommunio" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="communio-preview-container" class='preview-container'>
+          <div id="communio-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+    <div class='extra-verses'>
+      <label class='hide-print'><input type="checkbox" class="cbVersesAdLibitum"> Verses ad libitum:</label>
+      <span class="verses-ad-libitum-default rubric hide-print"></span>
+      <span class="verses-ad-libitum-custom hide-print"><label>Psalm <select class='sel-psalms'></select></label> <input type="text" class="txtPsalmVerses" placeholder="Verses"></span>
+      <div id="communioVerses-preview" class="verses verses-ad-libitum chant-preview"></div>
+    </div>
+  </div>
+  <div id='divIte' part='ite' class='ordinary'>
+    <div class='block hide-print'>
+      <label class="hide-ss" id="lblIte" for="txtIte"><a target="_blank">Ite</a></label>
+      <a class='toggleShowGabc hide-ss'>(<span class='showHide'>Show</span> Text Editor)</a>
+      <div class='flex right'>
+        <span class='child-other'>
+          <button class='btn btn-xs btn-default remove-modifications'>Remove Modifications</button>
+        </span>
+        <span class='child-main'>
+          <select id='selIte'></select>
+        </span>
+      </div>
+      <textarea id="txtIte" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+    <div class='block right'>
+      <div class='chant-parent'>
+        <div id="ite-preview-container" class='preview-container'>
+          <div id="ite-preview" class='chant-preview'></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id='mandatory-extra-chants'></div>
+  <div class='lyric-font' style='font-size: 1px; visibility: hidden;' >I<span class='b'>I<span class='i'>I</span></span><span class='i'>I</span></div>
+  <svg class="bg-blur">
+  <defs>
+    <filter id="text-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5 5" result="glow"/>
+      <feFlood flood-color="#337ab7" result="COLOR" />
+      <feComposite in="COLOR" in2="glow" operator="in" result="glow-color" />
+      <feMerge>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="note-glow" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5 5" result="glow"/>
+      <feFlood flood-color="#337ab7" result="COLOR" />
+      <feComposite in="COLOR" in2="glow" operator="in" result="glow-color" />
+      <feMerge>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="porrectus-left" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#0061b5"/>
+      <stop offset="150%" stop-color="rgba(0,0,0,0.4)"/>
+    </linearGradient>
+    <linearGradient id="porrectus-right" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="-50%" stop-color="rgba(0,0,0,0.4)"/>
+      <stop offset="100%"   stop-color="#0061b5"/>
+    </linearGradient>
+    <!-- <filter id="porrectus-glow-left" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5 5" result="glow" width="10%" x="-8%"/>
+      <feFlood flood-color="#337ab7" result="COLOR" x="0" y="0" width="50%" height="100%"/>
+      <feComposite in="COLOR" in2="glow" operator="in" result="glow-color" />
+      <feMerge>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="porrectus-glow-right" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5 5" result="glow" width="10%" x="2%"/>
+      <feFlood flood-color="#337ab7" result="COLOR" x="0" y="0" width="50%" height="100%"/>
+      <feComposite in="COLOR" in2="glow" operator="in" result="glow-color" />
+      <feMerge>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="glow-color"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter> -->
+  </defs>
+  </svg>
+</body>
+</html>

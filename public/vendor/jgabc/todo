@@ -1,0 +1,69 @@
+Something needs to be done for psalm toning the alleluia verse on the Feast of the Assumption.  The psalm tone needs to be shifted down a fourth (or rather the alleluia up a fourth with the clef shifted and flats added)
+so that the psalm tone starts on the same tone the alleluia starts and ends on
+(see p [102] in the liber brevior)
+
+
+Get rid of autosize, at least in certain circumstances, to save time when resizing
+Get rid of forced relayout caused by checking element.width() from within layoutChant.  I think checking document.width should be better (I can't use window.innerWidth because of the case when laying out chant for printing...)
+
+Litanies:
+Saints
+
+
+Improve speed
+Move all the major selections (above the hr) to a landing page?
+
+https://github.com/bramstein/fontfaceobserver/
+
+option to psalm tone only some verses of the tract
+option to psalm tone only the verse of the gradual
+re-write psalmtoning algorithm to be clearer
+add links to gregorianbooks?
+
+
+
+
+Introit Tone 6 is the most strange, because it has a 3 syllable intonation for the termination, and this needs to be cut if the termination isn't long enough.
+The intonation of the termination of tone 6 changes based on the accentuation:
+  If the 2nd syllable is accented, it begins h hj (see 1012, 1200, 1924 of liber.pdf)
+  If the 3rd syllable is accented, it begins f gh hj (see 658, 1171, 1264 of liber.pdf) as I have written below.
+  If the 4th syllable is accented, it begins f gh h hj (see 506 of liber.pdf)
+
+{"1":{"clef":"c4","mediant":"f gh hr 'hj hr hr 'hg gh..","termination":"gf gh hr hjh g f fr 'fff d."},
+"2":{"clef":"f3","mediant":"e fe eh hr hg hi i 'hi hr h.","termination":"hf fh hr i hf h ge fgf."},
+"3":{"clef":"c4","mediant":"g hj jr 'k jr jr 'ih~ jjj","termination":"ig hj jr j/ji hg h i gh.."},
+"4":{"clef":"c4","mediant":"hg gh hr hg gi i 'hi hr h.","termination":"hg gh hr gf gh 'g gr e."},
+"5":{"clef":"c3","mediant":"d f hr i 'i hr h.","termination":"f hr 'i gr 'h fr f."},
+"6":{"clef":"c4","mediant":"fg gf gh hr g 'ixi hr 'g fr f.","termination":"f gh hj g fr g fd f g f."},
+"7":{"clef":"c3","mediant":"ehg hi ir 'ik jr jr 'ji ij..","termination":"ig hi ir i!jwk i h hr 'hhh fe.."},
+"8":{"clef":"c4","mediant":"g hg gj jr ji jk k 'jk jr j.","termination":"jh hj jr j/ji gh ji 'h hr g."}}
+
+find unaccented words and add accent:
+(?<=\s)([BCDFGHJ-NP-TVWXZbcdfghj-np-tvwxz]*[aeiouy][BCDFGHJ-NP-TVWXZbcdfghj-np-tvwxz\.,;:!?]*\([^\)]*\)){3,}(?=\s)
+
+
+Holy Cross Weather Blessing: (May 3—Sept 14)
+
+V. A fúlgure, grádine et tempestáte.
+R. Líbera nos, Dómine Jesu Christe.
+
+V. Osténde nobis, Dómine, misericórdiam tuam.
+R. Et salutáre tuum da nobis.
+
+V. Dómine exáudi oratiónem meam.
+R. Et clamor meus ad te véniat.
+
+V. Dóminus vobíscum.
+R. Et cum spíritu tuo.
+
+Orémus.  Quaesumus, omnípotens Deus, ut, intercessióne Sanctae Dei Genetrícis Maríae, sanctórum Angelórum, Patriarchárum, Prophetárum, Apostolórum, Mártyrum, Confessórum, Vírginum, Viduárum, et ómnium Sanctórum tuórum, contínuum nobis praestes subsídium, tranquíllam auram permíttas, atque contra fúlgura et tempestátes désuper nobis indígnis tuam salútem effúndas de caelis, et géneri húmano semper aemulas, déxtera poténtiae tuae, aéreas cónteras potestátes.  Per eúndem Christum Dóminum nostrum.
+R. Amen.
+
+V. Sit nomen Dómini benedíctum.
+R. Ex hoc nunc et usque in saeculum.
+
+V. Adjutórium nostrum in nómine Dómini.
+R. Qui fecit caelum et terram.
+
+Benedíctio Dei omnipoténtis, Patris + et Fílii, et Spíritus Sancti, descéndat super vos, locum istum et fructus terrae et máneat semper.
+R. Amen.

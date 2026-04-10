@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liturgy booklet — Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        :root {
+            --booklet-margin-mm: 15;
+            --booklet-font-scale: 1;
+        }
+        body {
+            background: #e9ecef;
+            min-height: 100vh;
+        }
+        .booklet-navbar {
+            background: linear-gradient(135deg, #8b1538 0%, #6d1029 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .booklet-toolbar {
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+        }
+        .block-list-item {
+            cursor: pointer;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.35rem;
+            background: #fff;
+            font-size: 0.9rem;
+        }
+        .block-list-item:hover { background: #f8f9fa; }
+        .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
+        #previewPages {
+            padding-bottom: 3rem;
+        }
+        .booklet-page {
+            background: #fff;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+            margin: 1.25rem auto;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .booklet-page[data-size="A4"] {
+            width: 210mm;
+            min-height: 297mm;
+            padding: calc(var(--booklet-margin-mm) * 1mm);
+        }
+        .booklet-page[data-size="A5"] {
+            width: 148mm;
+            min-height: 210mm;
+            padding: calc(var(--booklet-margin-mm) * 1mm);
+        }
+        .booklet-page .page-inner {
+            font-size: calc(11pt * var(--booklet-font-scale));
+            line-height: 1.45;
+        }
+        .booklet-page .rubric {
+            color: #8b1538;
+            font-style: italic;
+            margin-bottom: 0.75rem;
+        }
+        .booklet-page .reading {
+            margin-bottom: 0.75rem;
+            white-space: pre-wrap;
+        }
+        .booklet-page .edition-frame {
+            width: 100%;
+            min-height: 70vh;
+            border: 1px solid #ccc;
+        }
+        .booklet-page .jgabc-frame {
+            width: 100%;
+            min-height: 480px;
+            border: 1px solid #dee2e6;
+        }
+        .booklet-page img.user-img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0.5rem 0;
+        }
+        .template-placeholder {
+            background: #f8f9fa;
+            border: 1px dashed #adb5bd;
+            border-radius: 8px;
+            padding: 1rem;
+            color: #6c757d;
+        }
+        @media print {
+            .booklet-toolbar, .booklet-sidebar, .booklet-navbar, .no-print { display: none !important; }
+            .booklet-page { box-shadow: none; margin: 0; page-break-after: always; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar booklet-navbar py-2 no-print">
+        <div class="container-fluid">
+            <a class="navbar-brand text-white" href="/"><i class="bi bi-arrow-left me-2"></i>Back to database</a>
+            <span class="navbar-text text-white-50 small">Liturgy booklet creator</span>
+        </div>
+    </nav>
+
+    <div class="booklet-toolbar py-2 px-3 no-print">
+        <div class="container-fluid">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-primary" id="btnSaveProject" title="Download project JSON"><i class="bi bi-download me-1"></i>Save project</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
+                </div>
+                <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-success" id="btnDownloadPdf"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+                    <button type="button" class="btn btn-outline-secondary" id="btnPrint"><i class="bi bi-printer me-1"></i>Print</button>
+                </div>
+                <div class="vr d-none d-md-block"></div>
+                <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
+                    <option value="A4">A4 page</option>
+                    <option value="A5">A5 page</option>
+                </select>
+                <label class="small mb-0 d-flex align-items-center gap-1">
+                    Margin (mm)
+                    <input type="number" id="inpMargin" class="form-control form-control-sm" style="width: 4rem" min="5" max="40" value="15">
+                </label>
+                <label class="small mb-0 d-flex align-items-center gap-1">
+                    Text size
+                    <input type="range" id="rngFontScale" min="0.75" max="1.5" step="0.05" value="1" style="width: 6rem">
+                </label>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Add section</button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" id="addRubric">Rubric</a></li>
+                        <li><a class="dropdown-item" href="#" id="addReading">Reading / prayer (text)</a></li>
+                        <li><a class="dropdown-item" href="#" id="addImage">Image (from file)</a></li>
+                        <li><a class="dropdown-item" href="#" id="addEdition">Polyphony edition (PDF URL)</a></li>
+                        <li><a class="dropdown-item" href="#" id="addJgabc">Mass propers (jgabc tool)</a></li>
+                    </ul>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Advanced</button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
+                        <li class="dropdown-header">Source &amp; Summit (jgabc PDF)</li>
+                        <li><a class="dropdown-item" href="/vendor/jgabc/propers.html" target="_blank" rel="noopener">Open Mass Propers in new tab</a></li>
+                        <li class="dropdown-header mt-2">Future</li>
+                        <li><span class="dropdown-item-text text-muted">Server Gregorio renderer (WeeklyBooklets2) — set <code>PDF_RENDERER_URL</code> when available.</span></li>
+                        <li><button type="button" class="btn btn-sm btn-light w-100 mt-1" disabled>Render via server</button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid py-3">
+        <div class="row g-3">
+            <aside class="col-lg-3 booklet-sidebar no-print">
+                <h6 class="text-muted text-uppercase small">Sections</h6>
+                <p class="small text-muted">Click a section to edit. Each section prints as its own page in the PDF (simple layout).</p>
+                <div id="blockList"></div>
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 mt-2" id="btnRemoveBlock" disabled>Remove selected</button>
+
+                <h6 class="text-muted text-uppercase small mt-4">Templates</h6>
+                <div class="template-placeholder small">
+                    <i class="bi bi-collection me-1"></i>Browse shared booklets (e.g. “SATTB Easter Vigil”) — <strong>coming soon</strong>.
+                </div>
+
+                <h6 class="text-muted text-uppercase small mt-4">Edit section</h6>
+                <div id="editorPanel" class="small">
+                    <p class="text-muted">Select a section or add one.</p>
+                </div>
+            </aside>
+            <main class="col-lg-9">
+                <p class="small text-muted no-print mb-2"><strong>Preview</strong> — what you see is what is captured for PDF (one image per page below).</p>
+                <div id="previewPages"></div>
+            </main>
+        </div>
+    </div>
+
+    <input type="file" id="fileImagePick" accept="image/*" class="d-none">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="/modules/liturgy-booklet/booklet-app.js"></script>
+</body>
+</html>
