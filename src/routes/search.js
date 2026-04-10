@@ -776,14 +776,29 @@ router.get('/groups', async (req, res) => {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
+    // Subquery to get a numeric sort key from the first tone of a group's composition
+    const toneSortExpr = isArray
+      ? `(SELECT CASE c.tone[1]
+            WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3 WHEN '4' THEN 4
+            WHEN '5' THEN 5 WHEN '6' THEN 6 WHEN '7' THEN 7 WHEN '8' THEN 8
+            WHEN '9' THEN 9 WHEN '10' THEN 10 WHEN '11' THEN 11 WHEN '12' THEN 12
+            WHEN 'mix' THEN 13 WHEN 'per' THEN 14 WHEN 'pro' THEN 15 ELSE 99 END
+          FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL LIMIT 1)`
+      : `(SELECT CASE c.tone
+            WHEN '1' THEN 1 WHEN '2' THEN 2 WHEN '3' THEN 3 WHEN '4' THEN 4
+            WHEN '5' THEN 5 WHEN '6' THEN 6 WHEN '7' THEN 7 WHEN '8' THEN 8
+            WHEN '9' THEN 9 WHEN '10' THEN 10 WHEN '11' THEN 11 WHEN '12' THEN 12
+            WHEN 'mix' THEN 13 WHEN 'per' THEN 14 WHEN 'pro' THEN 15 ELSE 99 END
+          FROM compositions c WHERE c.group_id = g.id AND c.tone IS NOT NULL LIMIT 1)`;
+
     // Build ORDER BY clause based on sort parameter
     let orderByClause = '';
     switch (sort) {
       case 'title':
-        orderByClause = 'ORDER BY g.display_title';
+        orderByClause = `ORDER BY g.display_title, ${toneSortExpr} NULLS LAST`;
         break;
       case 'title_desc':
-        orderByClause = 'ORDER BY g.display_title DESC';
+        orderByClause = `ORDER BY g.display_title DESC, ${toneSortExpr} DESC NULLS LAST`;
         break;
       case 'function':
         orderByClause = `ORDER BY (
