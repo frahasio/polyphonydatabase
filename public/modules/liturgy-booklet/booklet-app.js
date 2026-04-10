@@ -1645,18 +1645,12 @@
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
-      } else {
+      } else if (curY > 0 && (pageHPx - curY - gap) >= 40) {
         // #region agent log
         _branch = 'SPLIT';
         // #endregion
-        var remaining = pageHPx - curY;
-        if (curY > 0) remaining -= gap;
-        if (remaining < 30) {
-          flushPage();
-          remaining = pageHPx;
-        } else if (curY > 0) {
-          curY += gap;
-        }
+        var remaining = pageHPx - curY - gap;
+        curY += gap;
 
         var offset = 0;
         var totalH = h;
@@ -1678,6 +1672,13 @@
           flushPage();
           isFirst = false;
         }
+      } else {
+        // #region agent log
+        _branch = 'splittable-newpage';
+        // #endregion
+        if (curPageEls.length) flushPage();
+        curPageEls.push(el);
+        curY = h;
       }
 
       // #region agent log
