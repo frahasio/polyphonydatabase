@@ -6,7 +6,7 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  const BOOKLET_PAGE_PACK_SLACK_PX = 2;
+  const BOOKLET_PAGE_PACK_SLACK_PX = 40;
   const BOOKLET_PAGE_FOOTER_RESERVE_PX = 28;
 
   const BOOKLET_FONT_STACKS = {
@@ -1774,6 +1774,25 @@
       if (nextBody) nextBody.insertBefore(last, nextBody.firstChild);
       iterations++;
     }
+
+    for (var bi = 0; bi < pageDivs.length - 1 && iterations < MAX_ITER; bi++) {
+      var curBody = pageDivs[bi].querySelector('.booklet-page-body');
+      if (!curBody) continue;
+      var nxtBody = pageDivs[bi + 1].querySelector('.booklet-page-body');
+      if (!nxtBody) continue;
+      while (nxtBody.firstElementChild && iterations < MAX_ITER) {
+        var candidate = nxtBody.firstElementChild;
+        var candidateH = candidate.offsetHeight;
+        var curSpace = curBody.clientHeight - curBody.scrollHeight;
+        if (curSpace < candidateH + EPS) break;
+        curBody.appendChild(candidate);
+        if (curBody.scrollHeight > curBody.clientHeight + EPS) {
+          nxtBody.insertBefore(candidate, nxtBody.firstChild);
+          break;
+        }
+        iterations++;
+      }
+    }
   }
 
   function trimTrailingEmptyBookletPages(pageDivs) {
@@ -1862,21 +1881,23 @@
   }
 
   function scaleBookletSpread(host) {
-    const slots = host.querySelectorAll('.booklet-spread-slot');
+    var slots = host.querySelectorAll('.booklet-spread-slot');
     if (slots.length !== 2) return;
+    var retries = host._spreadScaleRetries || 0;
     var slotW = slots[0].clientWidth;
     var slotH = slots[0].clientHeight;
-    if (slotW <= 10 || slotH <= 10) {
-      setTimeout(function () { scaleBookletSpread(host); }, 200);
+    if ((slotW <= 10 || slotH <= 10) && retries < 8) {
+      host._spreadScaleRetries = retries + 1;
+      setTimeout(function () { scaleBookletSpread(host); }, 250);
       return;
     }
-    const outers = [];
-    const inners = [];
-    const pgs = [];
+    var outers = [];
+    var inners = [];
+    var pgs = [];
     slots.forEach(function (slot) {
-      const outer = slot.querySelector('.booklet-scale-outer');
-      const inner = outer && outer.querySelector('.booklet-scale-inner');
-      const pg = inner && inner.querySelector('.booklet-page');
+      var outer = slot.querySelector('.booklet-scale-outer');
+      var inner = outer && outer.querySelector('.booklet-scale-inner');
+      var pg = inner && inner.querySelector('.booklet-page');
       outers.push(outer);
       inners.push(inner);
       pgs.push(pg);
@@ -1889,12 +1910,19 @@
         outer.style.minHeight = '';
       }
     });
-    const has0 = !!pgs[0];
-    const has1 = !!pgs[1];
+    var has0 = !!pgs[0];
+    var has1 = !!pgs[1];
     if (!has0 && !has1) return;
-    const box0 = has0 ? spreadPageNaturalSize(pgs[0]) : { w: 1, h: 1 };
-    const box1 = has1 ? spreadPageNaturalSize(pgs[1]) : { w: 1, h: 1 };
-    let sc = 1;
+    var box0 = has0 ? spreadPageNaturalSize(pgs[0]) : { w: 1, h: 1 };
+    var box1 = has1 ? spreadPageNaturalSize(pgs[1]) : { w: 1, h: 1 };
+    var anyTiny = (has0 && (box0.w < 100 || box0.h < 100)) || (has1 && (box1.w < 100 || box1.h < 100));
+    if (anyTiny && retries < 8) {
+      host._spreadScaleRetries = retries + 1;
+      setTimeout(function () { scaleBookletSpread(host); }, 300);
+      return;
+    }
+    host._spreadScaleRetries = 0;
+    var sc = 1;
     if (has0 && has1) {
       sc = Math.min(
         slotW / box0.w,
