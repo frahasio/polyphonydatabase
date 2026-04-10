@@ -42,8 +42,8 @@
             box-sizing: border-box;
         }
         .booklet-pane-list {
-            flex: 0 0 190px;
-            min-width: 150px;
+            flex: 0 0 240px;
+            min-width: 180px;
             border-right: 1px solid #dee2e6;
             z-index: 1010;
         }
@@ -128,14 +128,14 @@
             white-space: nowrap;
         }
         .booklet-block-actions {
-            display: flex;
-            gap: 0.2rem;
-            margin-top: 0.1rem;
-            margin-bottom: 0.25rem;
+            flex-shrink: 0;
+            display: inline-flex;
+            gap: 0.15rem;
+            margin-left: auto;
         }
         .booklet-block-actions .btn {
-            padding: 0.05rem 0.25rem;
-            font-size: 0.6rem;
+            padding: 0.05rem 0.2rem;
+            font-size: 0.55rem;
             line-height: 1;
         }
         .sidebar-add-btn {
@@ -346,10 +346,7 @@
             background: #f8f9fa;
         }
         .booklet-block-row {
-            margin-bottom: 0.15rem;
-        }
-        .booklet-block-row .block-list-item {
-            margin-bottom: 0;
+            margin-bottom: 0.2rem;
         }
         
         .booklet-page img.user-img {
