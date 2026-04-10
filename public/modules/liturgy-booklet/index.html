@@ -78,6 +78,11 @@
         }
         .block-list-item:hover { background: #f8f9fa; }
         .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
+        .block-list-item.dragging { opacity: 0.35; }
+        .block-list-item.drag-over-top { border-top: 2.5px solid #8b1538; }
+        .block-list-item.drag-over-bottom { border-bottom: 2.5px solid #8b1538; }
+        .block-list-item[draggable="true"] { cursor: grab; }
+        .block-list-item[draggable="true"]:active { cursor: grabbing; }
         .booklet-block-type-badge {
             flex-shrink: 0;
             width: 1.65rem;
@@ -132,8 +137,7 @@
             margin: 1.25rem auto;
             box-sizing: border-box;
             position: relative;
-            overflow-x: clip;
-            overflow-y: hidden;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -157,8 +161,7 @@
             width: 100%;
             display: flex;
             flex-direction: column;
-            overflow-x: visible;
-            overflow-y: hidden;
+            overflow: hidden;
             font-family: var(--booklet-body-font);
             font-size: calc(11pt * var(--booklet-font-scale));
             line-height: 1.45;
@@ -166,8 +169,7 @@
         .booklet-page-body {
             flex: 1 1 auto;
             min-height: 0;
-            overflow-x: visible;
-            overflow-y: hidden;
+            overflow: hidden;
         }
         .booklet-export-footer {
             flex-shrink: 0;
@@ -196,7 +198,6 @@
             margin-bottom: 0.35rem;
         }
         .booklet-richtext {
-            text-align: start;
             white-space: normal;
             word-wrap: break-word;
         }
@@ -233,6 +234,15 @@
         .booklet-reading-parallel td {
             vertical-align: top;
             text-align: start;
+        }
+        .booklet-rich-color-pick {
+            width: 2rem;
+            height: 1.75rem;
+            padding: 1px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            vertical-align: middle;
         }
         .booklet-rich-ed {
             min-height: 5rem;
@@ -273,10 +283,8 @@
             height: auto;
         }
         .booklet-pdf-bleed {
-            margin-left: calc(-1 * var(--booklet-margin-mm) * 1mm);
-            margin-right: calc(-1 * var(--booklet-margin-mm) * 1mm);
-            width: calc(100% + 2 * var(--booklet-margin-mm) * 1mm);
-            max-width: none;
+            width: 100%;
+            max-width: 100%;
         }
         .booklet-watermark {
             margin-top: auto;
@@ -319,18 +327,7 @@
             margin-bottom: 0;
             min-width: 0;
         }
-        .booklet-block-move {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            flex-shrink: 0;
-            justify-content: center;
-        }
-        .booklet-block-move .btn {
-            padding: 0.05rem 0.2rem;
-            line-height: 1;
-            font-size: 0.65rem;
-        }
+        
         .booklet-page img.user-img {
             max-width: 100%;
             height: auto;
@@ -420,17 +417,17 @@
         .booklet-spread-viewport {
             flex: 1 1 auto;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: center;
             gap: 0.35rem;
             width: 100%;
             max-width: 100%;
             min-height: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-            padding: 0.5rem 0.15rem;
+            max-height: 100%;
+            overflow: hidden;
+            padding: 0.15rem;
             box-sizing: border-box;
-            touch-action: pan-y;
+            touch-action: none;
         }
         .booklet-spread-slot {
             flex: 1 1 0;
@@ -603,8 +600,8 @@
                         <i class="bi bi-plus-lg me-1"></i>Add section…
                     </button>
                     <ul class="dropdown-menu w-100">
-                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="rubric"><i class="bi bi-type me-2"></i>Rubric</button></li>
-                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-2"></i>Reading / prayer</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="rubric"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" class="me-2" style="vertical-align:-0.15em"><circle cx="8" cy="2.5" r="1.7"/><path d="M8 5C7.2 5 6.5 5.4 6 6L3.5 4.2a.6.6 0 1 0-.7 1L5.5 7.5 4.2 12.5a.65.65 0 0 0 1.2.4L8 9.5l2.6 3.4a.65.65 0 0 0 1.2-.4L10.5 7.5l2.7-2.3a.6.6 0 1 0-.7-1L10 6c-.5-.6-1.2-1-2-1z"/></svg>Rubric</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-2"></i>Text</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="title"><i class="bi bi-text-center me-2"></i>Title rule</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-2"></i>Chant (GABC)</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-2"></i>Image</button></li>

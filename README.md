@@ -110,7 +110,22 @@ The booklet **Download PDF** button calls `POST /api/booklet/pdf` (signed-in use
 
 Run `npm install`. The `postinstall` script runs `npx puppeteer browsers install chrome` so a Chromium build is available to Puppeteer.
 
-### Production (e.g. Heroku)
+### Production (Heroku)
+
+Puppeteer's bundled Chrome needs system libraries (libatk, libnss3, libgbm, etc.) that are not on the default Heroku slug. An `Aptfile` in the repo root lists the required packages. Add the apt buildpack before the Node buildpack and redeploy:
+
+```bash
+heroku buildpacks:add --index 1 heroku-community/apt
+```
+
+If the apt buildpack approach does not work, try the Google Chrome buildpack instead:
+
+```bash
+heroku buildpacks:add --index 1 heroku/google-chrome
+heroku config:set PUPPETEER_EXECUTABLE_PATH=/app/.apt/usr/bin/google-chrome-stable
+```
+
+The previous instructions below are kept for reference:
 
 1. **Install a real Chrome/Chromium on the dyno** (Puppeteer’s downloaded browser is easy to lose or block on slim images). Typical approach: add a **Google Chrome** / **Chrome for Testing** [Heroku buildpack](https://elements.heroku.com/buildpacks) or an **apt** buildpack that installs `google-chrome-stable` or `chromium`.
 2. **Point Puppeteer at that binary**, for example:

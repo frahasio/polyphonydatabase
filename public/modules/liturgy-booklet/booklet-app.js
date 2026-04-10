@@ -6,8 +6,8 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
-  const BOOKLET_PAGE_PACK_SLACK_PX = 14;
-  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 48;
+  const BOOKLET_PAGE_PACK_SLACK_PX = 2;
+  const BOOKLET_PAGE_FOOTER_RESERVE_PX = 28;
 
   const BOOKLET_FONT_STACKS = {
     georgia: 'Georgia, "Times New Roman", Times, serif',
@@ -281,7 +281,8 @@
     }
     const ta = st.match(/text-align\s*:\s*([^;]+)/i);
     if (ta) {
-      const v = ta[1].trim().toLowerCase();
+      var v = ta[1].trim().toLowerCase();
+      if (/^-webkit-/.test(v)) v = v.replace(/^-webkit-/, '');
       if (/^(left|center|right|justify|start|end)$/.test(v)) {
         parts.push('text-align:' + v);
       }
@@ -456,10 +457,15 @@
   function blockTypeMeta(b) {
     const t = b.type;
     if (t === 'rubric') {
-      return { icon: 'bi-chat-square-text', color: '#8b1538', label: 'Rubric' };
+      return {
+        icon: '',
+        color: '#8b1538',
+        label: 'Rubric',
+        svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><circle cx="8" cy="2.5" r="1.7"/><path d="M8 5C7.2 5 6.5 5.4 6 6L3.5 4.2a.6.6 0 1 0-.7 1L5.5 7.5 4.2 12.5a.65.65 0 0 0 1.2.4L8 9.5l2.6 3.4a.65.65 0 0 0 1.2-.4L10.5 7.5l2.7-2.3a.6.6 0 1 0-.7-1L10 6c-.5-.6-1.2-1-2-1z"/></svg>'
+      };
     }
     if (t === 'reading') {
-      return { icon: 'bi-text-paragraph', color: '#0d6efd', label: 'Reading / prayer' };
+      return { icon: 'bi-text-paragraph', color: '#0d6efd', label: 'Text' };
     }
     if (t === 'chant_gabc') {
       return { icon: 'bi-music-note-beamed', color: '#6f42c1', label: 'Chant (GABC)' };
@@ -497,7 +503,7 @@
       if (st) parts.push(st);
       if (o) parts.push(o);
       if (translationHasContent(b.translation) && tr) parts.push('(' + tr + ')');
-      return parts.length ? parts.join(' · ') : 'Empty reading';
+      return parts.length ? parts.join(' · ') : 'Empty text';
     }
     if (b.type === 'edition_pdf') {
       const tit = String(b.title || '').trim();
@@ -568,7 +574,7 @@
     toolbarRoot.addEventListener(
       'mousedown',
       function (e) {
-        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select]')) return;
+        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], .booklet-rich-color-pick')) return;
         e.preventDefault();
         const sel = window.getSelection();
         if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
@@ -604,10 +610,7 @@
           } catch (e1) {
             /* ignore */
           }
-          if (cmd === 'foreColor') {
-            const c = btn.getAttribute('data-color');
-            if (c) document.execCommand('foreColor', false, c);
-          } else if (
+          if (
             cmd === 'justifyLeft' ||
             cmd === 'justifyCenter' ||
             cmd === 'justifyRight' ||
@@ -633,6 +636,17 @@
         fontSel.value = '';
       });
     }
+    var colorPick = toolbarRoot.querySelector('.booklet-rich-color-pick');
+    if (colorPick) {
+      colorPick.addEventListener('input', function () {
+        restoreSelection();
+        try {
+          document.execCommand('styleWithCSS', false, true);
+          document.execCommand('foreColor', false, colorPick.value);
+        } catch (e) { /* ignore */ }
+        onChange();
+      });
+    }
     ed.addEventListener('input', onChange);
     ed.addEventListener('blur', onChange);
   }
@@ -641,17 +655,18 @@
     const b = chantBlock || {};
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
-    const glyphMult = Math.min(2.5, Math.max(0.3, Number(b.chantGlyphScale) || 1.3));
+    const glyphMult = Math.min(2.5, Math.max(0.3, Number(b.chantGlyphScale) || 1.4));
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
-    const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 21));
+    const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 23));
     const tfk = normalizeChantTextFontKey(b.chantTextFont);
     ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
-    const gapUi = Math.min(12, Math.max(0, Number(b.chantSystemGap) || 2));
-    ctxt.spaceBetweenSystems = Math.min(24, gapUi * 2);
+    const gapRaw = b.chantSystemGap != null ? Number(b.chantSystemGap) : 0;
+    const gapUi = Math.min(8, Math.max(-8, Number.isFinite(gapRaw) ? gapRaw : 0));
+    ctxt.spaceBetweenSystems = Math.max(0, (gapUi + 8) * 1.5);
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 12.8);
-    const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.4));
+    const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.1));
     ctxt.minLyricWordSpacing *= tight;
     if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
       ctxt.defaultLanguage = new exsurge.English();
@@ -777,33 +792,35 @@
         o.chantNeumeSize =
           o.chantNeumeSize != null
             ? Math.min(36, Math.max(10, Number(o.chantNeumeSize)))
-            : Math.min(36, Math.max(10, Number(cd.chantNeumeSize) || 21));
+            : Math.min(36, Math.max(10, Number(cd.chantNeumeSize) || 23));
         o.chantGlyphScale =
           o.chantGlyphScale != null
             ? Math.min(2.5, Math.max(0.3, Number(o.chantGlyphScale)))
-            : 1.3;
+            : 1.4;
         o.chantStaffColor = o.chantStaffColor != null ? String(o.chantStaffColor) : cd.chantStaffColor || '';
         o.chantLinePadTop =
           o.chantLinePadTop != null
-            ? Math.min(20, Math.max(0, Number(o.chantLinePadTop)))
-            : Math.min(20, Math.max(0, Number(cd.chantLinePadTop) || 0.5));
+            ? Math.min(10, Math.max(-10, Number(o.chantLinePadTop)))
+            : cd.chantLinePadTop != null
+              ? Math.min(10, Math.max(-10, Number(cd.chantLinePadTop)))
+              : 0;
         o.chantLyricTight =
           o.chantLyricTight != null
             ? Math.min(2.0, Math.max(0.2, Number(o.chantLyricTight)))
-            : Math.min(2.0, Math.max(0.2, Number(cd.chantLyricTight) || 1.4));
+            : Math.min(2.0, Math.max(0.2, Number(cd.chantLyricTight) || 1.1));
         let gapRaw =
           o.chantSystemGap != null
             ? Number(o.chantSystemGap)
             : cd.chantSystemGap != null
               ? Number(cd.chantSystemGap)
-              : 0.1;
+              : 0;
         if (!Number.isFinite(gapRaw)) {
-          gapRaw = 2;
+          gapRaw = 0;
         }
         if (migrateChantGapToV8Ui) {
-          gapRaw = Math.min(12, Math.max(0, gapRaw / 2));
+          gapRaw = Math.min(8, Math.max(-8, gapRaw / 2));
         } else {
-          gapRaw = Math.min(12, Math.max(0, gapRaw));
+          gapRaw = Math.min(8, Math.max(-8, gapRaw));
         }
         o.chantSystemGap = gapRaw;
         o.chantDropCapScale =
@@ -1230,7 +1247,7 @@
       const temp = document.createElement('div');
       temp.innerHTML = html;
       const lines = [];
-      const padTop = Math.min(20, Math.max(0, Number(cb.chantLinePadTop) || 6));
+      const padTop = Math.min(10, Math.max(-10, cb.chantLinePadTop != null ? Number(cb.chantLinePadTop) : 0));
       temp.querySelectorAll('svg').forEach(function (svg) {
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
@@ -1289,12 +1306,10 @@
       if (first > pdf.numPages || first > last) throw new Error('Invalid page range');
       const out = [];
       const maxBodyPx = getMaxPageBodyHeightPx();
-      const marginPx = mmToPx(getBookletMarginMm());
-      const bleedWidthPx = widthPx + 2 * marginPx;
       for (let pNum = first; pNum <= last; pNum++) {
         const page = await pdf.getPage(pNum);
         const base = page.getViewport({ scale: 1 });
-        const scale = bleedWidthPx / base.width;
+        const scale = widthPx / base.width;
         const vp = page.getViewport({ scale });
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -1831,20 +1846,20 @@
     if (!has0 && !has1) return;
     const box0 = has0 ? spreadPageNaturalSize(pgs[0]) : { w: 1, h: 1 };
     const box1 = has1 ? spreadPageNaturalSize(pgs[1]) : { w: 1, h: 1 };
-    const MIN_SPREAD_SCALE = 0.45;
     let sc = 1;
     if (has0 && has1) {
       sc = Math.min(
         slotW / box0.w,
+        slotH / box0.h,
         slotW / box1.w,
+        slotH / box1.h,
         1
       );
     } else if (has0) {
-      sc = Math.min(slotW / box0.w, 1);
+      sc = Math.min(slotW / box0.w, slotH / box0.h, 1);
     } else {
-      sc = Math.min(slotW / box1.w, 1);
+      sc = Math.min(slotW / box1.w, slotH / box1.h, 1);
     }
-    sc = Math.max(sc, MIN_SPREAD_SCALE);
     const scaledH = [];
     scaledH[0] = has0 ? box0.h * sc : 0;
     scaledH[1] = has1 ? box1.h * sc : 0;
@@ -2139,6 +2154,10 @@
           </select>`;
   }
 
+  function richColorPickerHtml() {
+    return '<input type="color" class="booklet-rich-color-pick mb-1" value="#212529" title="Text colour">';
+  }
+
   function richListToolbarHtml() {
     return `
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
@@ -2152,10 +2171,6 @@
     const fs = b.fontScale != null ? b.fontScale : DEFAULT_BLOCK_FONT_SCALE;
     return `
         <div class="border rounded booklet-layout-compact bg-light small mb-1">
-          <div class="form-check form-switch mb-1">
-            <input class="form-check-input" type="checkbox" id="edBlockHidden" ${b.hidden ? 'checked' : ''}>
-            <label class="form-check-label" for="edBlockHidden">Hidden in preview / PDF</label>
-          </div>
           ${
             showGap
               ? `<label class="form-label small mb-0" title="Extra vertical space after this block. Negative values tighten the gap (e.g. when chant SVG leaves excess whitespace).">Space after this section (mm)</label>
@@ -2172,11 +2187,9 @@
   }
 
   function wireEditorSectionLayout(panel, b, showGap, showFont) {
-    const hid = panel.querySelector('#edBlockHidden');
     const gapEl = panel.querySelector('#edBlockGap');
     const fsEl = panel.querySelector('#edBlockFontScale');
     const push = () => {
-      if (hid) b.hidden = !!hid.checked;
       if (showGap && gapEl) {
         const g = parseFloat(String(gapEl.value).trim().replace(',', '.'));
         b.sectionGapAfterMm = Number.isFinite(g)
@@ -2193,7 +2206,6 @@
       scheduleRenderPreview();
       renderBlockList();
     };
-    hid?.addEventListener('change', push);
     gapEl?.addEventListener('input', push);
     fsEl?.addEventListener('input', push);
   }
@@ -2222,14 +2234,14 @@
       const meta = blockTypeMeta(b);
       const line = blockListLinePreview(b);
 
-      const vis = document.createElement('button');
+      var vis = document.createElement('button');
       vis.type = 'button';
       vis.className = 'btn btn-outline-secondary';
       vis.title = b.hidden ? 'Show in booklet' : 'Hide from booklet';
       vis.innerHTML = b.hidden
         ? '<i class="bi bi-eye-slash" aria-hidden="true"></i>'
         : '<i class="bi bi-eye" aria-hidden="true"></i>';
-      vis.addEventListener('click', (ev) => {
+      vis.addEventListener('click', function (ev) {
         ev.stopPropagation();
         b.hidden = !b.hidden;
         scheduleAutosave();
@@ -2237,65 +2249,102 @@
         scheduleRenderPreview();
       });
 
-      const moves = document.createElement('div');
-      moves.className = 'booklet-block-move';
-      const btnUp = document.createElement('button');
-      btnUp.type = 'button';
-      btnUp.className = 'btn btn-outline-secondary';
-      btnUp.title = 'Move up';
-      btnUp.innerHTML = '<i class="bi bi-chevron-up" aria-hidden="true"></i>';
-      btnUp.disabled = idx === 0;
-      const btnDown = document.createElement('button');
-      btnDown.type = 'button';
-      btnDown.className = 'btn btn-outline-secondary';
-      btnDown.title = 'Move down';
-      btnDown.innerHTML = '<i class="bi bi-chevron-down" aria-hidden="true"></i>';
-      btnDown.disabled = idx === state.blocks.length - 1;
-      btnUp.addEventListener('click', (ev) => {
+      var dup = document.createElement('button');
+      dup.type = 'button';
+      dup.className = 'btn btn-outline-secondary';
+      dup.title = 'Duplicate section';
+      dup.innerHTML = '<i class="bi bi-copy" aria-hidden="true"></i>';
+      dup.addEventListener('click', function (ev) {
         ev.stopPropagation();
-        moveBlock(b.id, -1);
+        duplicateBlock(b.id);
       });
-      btnDown.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        moveBlock(b.id, 1);
-      });
-      moves.appendChild(btnUp);
-      moves.appendChild(btnDown);
 
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.className =
         'block-list-item' +
         (b.id === selectedBlockId ? ' active' : '') +
         (b.hidden ? ' opacity-50' : '');
       div.dataset.id = b.id;
-      div.title = meta.label + ' — ' + line;
+      div.dataset.blockId = b.id;
+      div.draggable = true;
+      div.title = meta.label + ' \u2014 ' + line;
       div.setAttribute('aria-label', meta.label + ': ' + line);
 
-      const badge = document.createElement('span');
+      div.addEventListener('dragstart', function (ev) {
+        ev.dataTransfer.setData('text/plain', b.id);
+        ev.dataTransfer.effectAllowed = 'move';
+        div.classList.add('dragging');
+      });
+      div.addEventListener('dragend', function () {
+        div.classList.remove('dragging');
+        el.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(function (d) {
+          d.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+      });
+
+      var badge = document.createElement('span');
       badge.className = 'booklet-block-type-badge';
       badge.style.backgroundColor = meta.color;
       badge.title = meta.label;
       badge.setAttribute('aria-hidden', 'true');
-      const ic = document.createElement('i');
-      ic.className = 'bi ' + meta.icon;
-      badge.appendChild(ic);
+      if (meta.svgIcon) {
+        badge.innerHTML = meta.svgIcon;
+      } else {
+        var ic = document.createElement('i');
+        ic.className = 'bi ' + meta.icon;
+        badge.appendChild(ic);
+      }
 
-      const textEl = document.createElement('span');
+      var textEl = document.createElement('span');
       textEl.className = 'booklet-block-preview-text';
       textEl.textContent = line;
 
       div.appendChild(badge);
       div.appendChild(textEl);
-      div.addEventListener('click', () => {
+      div.addEventListener('click', function () {
         selectedBlockId = b.id;
         renderBlockList();
         renderEditor();
       });
       row.appendChild(vis);
-      row.appendChild(moves);
+      row.appendChild(dup);
       row.appendChild(div);
       el.appendChild(row);
     });
+
+    el.addEventListener('dragover', function (ev) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      var items = el.querySelectorAll('.block-list-item');
+      items.forEach(function (d) { d.classList.remove('drag-over-top', 'drag-over-bottom'); });
+      var target = ev.target.closest('.block-list-item');
+      if (!target || target.classList.contains('dragging')) return;
+      var rect = target.getBoundingClientRect();
+      var midY = rect.top + rect.height / 2;
+      if (ev.clientY < midY) target.classList.add('drag-over-top');
+      else target.classList.add('drag-over-bottom');
+    });
+    el.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      var draggedId = ev.dataTransfer.getData('text/plain');
+      var target = ev.target.closest('.block-list-item');
+      if (!target) return;
+      var targetId = target.dataset.blockId;
+      if (!draggedId || !targetId || draggedId === targetId) return;
+      var fromIdx = state.blocks.findIndex(function (x) { return x.id === draggedId; });
+      var toIdx = state.blocks.findIndex(function (x) { return x.id === targetId; });
+      if (fromIdx < 0 || toIdx < 0) return;
+      var rect = target.getBoundingClientRect();
+      var midY = rect.top + rect.height / 2;
+      if (ev.clientY >= midY) toIdx = Math.min(toIdx + 1, state.blocks.length);
+      var moved = state.blocks.splice(fromIdx, 1)[0];
+      if (fromIdx < toIdx) toIdx--;
+      state.blocks.splice(toIdx, 0, moved);
+      scheduleAutosave();
+      renderBlockList();
+      scheduleRenderPreview();
+    });
+
     const rm = document.getElementById('btnRemoveBlock');
     if (rm) rm.disabled = !selectedBlockId;
   }
@@ -2393,13 +2442,7 @@
           ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
-          </div>
+          ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed" contenteditable="true" id="edRichRubric"></div>
       `;
@@ -2443,13 +2486,7 @@
           ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
-          </div>
+          ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
         <label class="form-label small mb-0" title="When this field has text, the preview uses two parallel columns (original and translation) with the split and spacing you set below.">Translation <span class="text-muted">(parallel when filled)</span></label>
@@ -2462,13 +2499,7 @@
           ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#212529" title="Black" style="color:#212529">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#8b1538" title="Burgundy" style="color:#8b1538">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#0d6efd" title="Blue" style="color:#0d6efd">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#198754" title="Green" style="color:#198754">A</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="foreColor" data-color="#6f42c1" title="Purple" style="color:#6f42c1">A</button>
-          </div>
+          ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadTrans"></div>
         <div id="readParallelOpts" class="border rounded p-2 bg-light small">
@@ -2760,9 +2791,9 @@
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Space between chant systems; 0–12 here maps to Exsurge 0–24 (finer steps at the low end).">System gap</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantSysGapNum" min="0" max="12" step="0.1" value="${(Math.round(cs * 10) / 10).toFixed(1)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantSysGapNum" min="-8" max="8" step="0.1" value="${(Math.round(cs * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantSysGap" min="0" max="12" step="0.1" value="${cs}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantSysGap" min="-8" max="8" step="0.1" value="${cs}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
@@ -2774,9 +2805,9 @@
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
               <span class="text-truncate" style="font-size:0.74rem;max-width:58%" title="Extra space above each staff line in the preview (0 is valid).">Line pad (px)</span>
-              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantPadNum" min="0" max="20" step="0.1" value="${(Math.round(cl * 10) / 10).toFixed(1)}">
+              <input type="number" class="form-control form-control-sm" style="width:4.35rem" id="edChantPadNum" min="-10" max="10" step="0.1" value="${(Math.round(cl * 10) / 10).toFixed(1)}">
             </div>
-            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantPad" min="0" max="20" step="0.1" value="${cl}">
+            <input type="range" class="form-range booklet-chant-range mt-0" id="edChantPad" min="-10" max="10" step="0.1" value="${cl}">
           </div>
           <div class="mb-1">
             <div class="d-flex align-items-center justify-content-between gap-1">
@@ -2841,11 +2872,11 @@
         const fbGlyph = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
         b.chantGlyphScale = parseBoundedNumber(panel.querySelector('#edChantGlyph').value, 0.3, 2.5, fbGlyph);
         const fbG = b.chantSystemGap != null ? b.chantSystemGap : 2;
-        b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, 0, 12, fbG);
+        b.chantSystemGap = parseBoundedNumber(panel.querySelector('#edChantSysGap').value, -8, 8, fbG);
         const fbT = b.chantLyricTight != null ? b.chantLyricTight : 0.7;
         b.chantLyricTight = parseBoundedNumber(panel.querySelector('#edChantTight').value, 0.2, 2.0, fbT);
         const fbP = b.chantLinePadTop != null ? b.chantLinePadTop : 6;
-        b.chantLinePadTop = parseBoundedNumber(panel.querySelector('#edChantPad').value, 0, 20, fbP);
+        b.chantLinePadTop = parseBoundedNumber(panel.querySelector('#edChantPad').value, -10, 10, fbP);
         if (rngDropCap && !rngDropCap.disabled) {
           const fbD = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
           b.chantDropCapScale = parseBoundedNumber(rngDropCap.value, 0.5, 1.6, fbD);
@@ -2898,13 +2929,13 @@
       wireChantPair('#edChantGlyph', '#edChantGlyphNum', 0.3, 2.5, function (v) {
         return (Math.round(v * 100) / 100).toFixed(2);
       });
-      wireChantPair('#edChantSysGap', '#edChantSysGapNum', 0, 12, function (v) {
+      wireChantPair('#edChantSysGap', '#edChantSysGapNum', -8, 8, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantTight', '#edChantTightNum', 0.2, 2.0, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
-      wireChantPair('#edChantPad', '#edChantPadNum', 0, 20, function (v) {
+      wireChantPair('#edChantPad', '#edChantPadNum', -10, 10, function (v) {
         return (Math.round(v * 10) / 10).toFixed(1);
       });
       wireChantPair('#edChantDropCap', '#edChantDropCapNum', 0.5, 1.6, function (v) {
@@ -2985,12 +3016,12 @@
     }
     if (type === 'chant_gabc') {
       b.gabc = '';
-      b.chantNeumeSize = 21;
-      b.chantGlyphScale = 1.3;
+      b.chantNeumeSize = 23;
+      b.chantGlyphScale = 1.4;
       b.chantStaffColor = '';
-      b.chantLinePadTop = 0.5;
-      b.chantLyricTight = 1.4;
-      b.chantSystemGap = 0.1;
+      b.chantLinePadTop = 0;
+      b.chantLyricTight = 1.1;
+      b.chantSystemGap = 0;
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
@@ -3042,6 +3073,19 @@
     input.click();
   }
 
+  function duplicateBlock(blockId) {
+    var idx = state.blocks.findIndex(function (x) { return x.id === blockId; });
+    if (idx < 0) return;
+    var clone = JSON.parse(JSON.stringify(state.blocks[idx]));
+    clone.id = uid();
+    state.blocks.splice(idx + 1, 0, clone);
+    selectedBlockId = clone.id;
+    scheduleAutosave();
+    renderBlockList();
+    renderEditor();
+    scheduleRenderPreview();
+  }
+
   function removeSelectedBlock() {
     if (!selectedBlockId) return;
     state.blocks = state.blocks.filter((x) => x.id !== selectedBlockId);
@@ -3052,11 +3096,30 @@
     scheduleRenderPreview();
   }
 
-  function downloadJson() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
+  async function downloadJson() {
+    var json = JSON.stringify(state, null, 2);
+    var filename = safeFilenameBase(state.projectTitle, 'liturgy-booklet-project') + '.json';
+    if (window.showSaveFilePicker) {
+      try {
+        var handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'Booklet project',
+            accept: { 'application/json': ['.json'] }
+          }]
+        });
+        var writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+    var blob = new Blob([json], { type: 'application/json' });
+    var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet-project') + '.json';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
   }
