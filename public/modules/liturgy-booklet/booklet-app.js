@@ -11,31 +11,90 @@
   const LINE_H_PX = 23.2;
   var BOOKLET_FOOTER_RESERVE_PX = 30;
 
-  const BOOKLET_FONT_STACKS = {
-    georgia: 'Georgia, "Times New Roman", Times, serif',
-    times: '"Times New Roman", Times, Georgia, serif',
-    palatino: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif',
-    garamond: '"Palatino Linotype", Palatino, Garamond, "Times New Roman", serif',
-    arial: 'Arial, Helvetica, sans-serif',
-    verdana: 'Verdana, Geneva, Tahoma, sans-serif',
-    trebuchet: '"Trebuchet MS", Helvetica, Arial, sans-serif',
-    tahoma: 'Tahoma, Geneva, Verdana, sans-serif',
-    courier: '"Courier New", Courier, monospace',
+  /**
+   * Curated Google Fonts for the booklet body & title typeface picker.
+   * Each key is the Google Fonts family name (used as the stored value and CSS
+   * family name).  `category` provides the generic CSS fallback.
+   */
+  const BOOKLET_FONTS = {
+    'Crimson Text':        'serif',
+    'EB Garamond':         'serif',
+    'Cormorant Garamond':  'serif',
+    'Lora':                'serif',
+    'Libre Baskerville':   'serif',
+    'Merriweather':        'serif',
+    'Spectral':            'serif',
+    'Source Serif 4':      'serif',
+    'Noto Serif':          'serif',
+    'Alegreya':            'serif',
+    'Cardo':               'serif',
+    'Gentium Plus':        'serif',
+    'Playfair Display':    'serif',
+    'Old Standard TT':     'serif',
+    'Gelasio':             'serif',
+    'Tinos':               'serif',
+    'Open Sans':           'sans-serif',
+    'Lato':                'sans-serif',
+    'Inter':               'sans-serif',
+    'Roboto':              'sans-serif',
+    'Noto Sans':           'sans-serif',
+    'Arimo':               'sans-serif',
+    'Fira Sans':           'sans-serif',
+    'Montserrat':          'sans-serif',
+    'Courier Prime':       'monospace',
+    'Cousine':             'monospace',
+    'Source Code Pro':     'monospace',
   };
 
-  const CHANT_TEXT_FONT_KEYS = ['crimson', 'times', 'palatino', 'garamond', 'georgia'];
-  const CHANT_TEXT_FONT_STACKS = {
-    crimson: "'Crimson Text', serif",
-    times: "'Times New Roman', Times, serif",
-    palatino: '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
-    garamond: '"Palatino Linotype", Palatino, Garamond, "Times New Roman", serif',
-    georgia: 'Georgia, "Times New Roman", Times, serif',
+  const BOOKLET_DEFAULT_FONT = 'Crimson Text';
+
+  /** Derive the BOOKLET_FONT_STACKS lookup from BOOKLET_FONTS. */
+  const BOOKLET_FONT_STACKS = {};
+  Object.keys(BOOKLET_FONTS).forEach(function (f) {
+    BOOKLET_FONT_STACKS[f] = "'" + f + "', " + BOOKLET_FONTS[f];
+  });
+
+  /** Map pre-v9 system-font keys → Google Font equivalents. */
+  const LEGACY_FONT_KEY_MAP = {
+    georgia:   'Gelasio',
+    times:     'Tinos',
+    palatino:  'Lora',
+    garamond:  'EB Garamond',
+    arial:     'Arimo',
+    verdana:   'Open Sans',
+    trebuchet: 'Fira Sans',
+    tahoma:    'Noto Sans',
+    courier:   'Cousine',
   };
 
-  function normalizeChantTextFontKey(k) {
-    const s = String(k || '').toLowerCase();
-    return CHANT_TEXT_FONT_KEYS.indexOf(s) >= 0 ? s : 'crimson';
+  /** Resolve a legacy system-font key to a Google Font family name. */
+  function migrateFontKey(key) {
+    if (BOOKLET_FONT_STACKS[key] != null) return key;
+    return LEGACY_FONT_KEY_MAP[key] || BOOKLET_DEFAULT_FONT;
   }
+
+  /** Get the CSS font-family stack for a given family name. */
+  function fontStackFor(family) {
+    return BOOKLET_FONT_STACKS[family] || "'" + family + "', serif";
+  }
+
+  /**
+   * Dynamically inject a Google Fonts <link> into the page <head>.
+   * No-ops if the font is already loaded.
+   */
+  function loadGoogleFont(family) {
+    if (!family) return;
+    var id = 'booklet-gfont-' + family.replace(/\s+/g, '-').toLowerCase();
+    if (document.getElementById(id)) return;
+    var link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' +
+      encodeURIComponent(family) + ':ital,wght@0,400;0,600;0,700;1,400;1,700&display=swap';
+    document.head.appendChild(link);
+  }
+
+  const CHANT_TEXT_FONT = "'Crimson Text', serif";
 
   function parseBoundedNumber(raw, min, max, fallback) {
     const n = parseFloat(String(raw).trim().replace(',', '.'));
@@ -59,7 +118,7 @@
       marginTolerancePx: MARGIN_TOLERANCE_PX,
       minOrphanLines: 3,
       previewDisplay: 'scroll',
-      fontFamilyKey: 'georgia',
+      fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
     },
     blocks: [],
@@ -307,11 +366,9 @@
     root.style.setProperty('--booklet-margin-top-mm', String(getBookletMarginTopMm()));
     root.style.setProperty('--booklet-margin-bottom-mm', String(getBookletMarginBottomMm()));
     root.style.setProperty('--booklet-font-scale', '1');
-    const fk = state.settings.fontFamilyKey || 'georgia';
-    root.style.setProperty(
-      '--booklet-body-font',
-      BOOKLET_FONT_STACKS[fk] || BOOKLET_FONT_STACKS.georgia
-    );
+    const fk = state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
+    loadGoogleFont(fk);
+    root.style.setProperty('--booklet-body-font', fontStackFor(fk));
     const rc = state.settings.rubricColor || '#8b1538';
     root.style.setProperty('--booklet-rubric-color', /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538');
   }
@@ -784,8 +841,7 @@
     const glyphMult = Math.min(2.5, Math.max(0.3, Number(b.chantGlyphScale) || 1.4));
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
     const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 23));
-    const tfk = normalizeChantTextFontKey(b.chantTextFont);
-    ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
+    ctxt.setFont(CHANT_TEXT_FONT, lyricPx / 0.9);
     ctxt.spaceBetweenSystems = 1.5;
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
@@ -822,10 +878,13 @@
     const t = String(b.sectionTitle || '').trim();
     const sref = String(b.sectionSourceRef || '').trim();
     if (!t && !sref) return;
+    var titlePt = (b.titleFontSizePt || 11) + 'pt';
+    var srcPt = (b.sourceFontSizePt || 9) + 'pt';
     if (!t && sref) {
       const solo = document.createElement('div');
-      solo.className = 'fst-italic text-muted small mb-1 booklet-section-heading-source';
+      solo.className = 'fst-italic text-muted mb-1 booklet-section-heading-source';
       solo.style.textAlign = 'right';
+      solo.style.fontSize = srcPt;
       solo.textContent = sref;
       wrap.appendChild(solo);
       return;
@@ -835,12 +894,14 @@
       'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap mb-1';
     const left = document.createElement('div');
     left.className = 'fw-bold booklet-section-heading-title';
+    left.style.fontSize = titlePt;
     left.textContent = t;
     row.appendChild(left);
     if (sref) {
       const right = document.createElement('div');
-      right.className = 'fst-italic text-muted small booklet-section-heading-source';
+      right.className = 'fst-italic text-muted booklet-section-heading-source';
       right.style.textAlign = 'right';
+      right.style.fontSize = srcPt;
       right.textContent = sref;
       row.appendChild(right);
     }
@@ -917,6 +978,13 @@
         } else {
           o.fontScale = Math.min(1.5, Math.max(0.75, Number(o.fontScale)));
         }
+        if (o.bodyFontSizePt == null) o.bodyFontSizePt = 11;
+        if (o.lineHeightPt == null) o.lineHeightPt = 16;
+        if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
+        if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
+      }
+      if (o.type === 'reading') {
+        if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
       }
       if (o.type === 'chant_gabc') {
         const cd = chantD || {};
@@ -960,7 +1028,7 @@
             : Math.min(1.6, Math.max(0.5, Number(cd.chantDropCapScale) || 1));
         if (o.chantUseDropCap === undefined) o.chantUseDropCap = true;
         if (o.chantLyricLanguage !== 'english') o.chantLyricLanguage = 'latin';
-        o.chantTextFont = normalizeChantTextFontKey(o.chantTextFont || 'crimson');
+        o.chantTextFont = 'crimson';
         if (o.chantRubricColor === undefined) o.chantRubricColor = '';
         else {
           const cr = String(o.chantRubricColor).trim();
@@ -992,8 +1060,9 @@
       }
       if (o.type === 'title') {
         if (o.text === undefined) o.text = '';
-        o.titleFontKey =
-          BOOKLET_FONT_STACKS[o.titleFontKey] != null ? o.titleFontKey : '';
+        o.titleFontKey = o.titleFontKey
+          ? (BOOKLET_FONT_STACKS[o.titleFontKey] != null ? o.titleFontKey : migrateFontKey(o.titleFontKey))
+          : '';
         const tc = String(o.titleTextColor || '#212529').trim();
         o.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
         const lc = String(o.titleLineColor || '#adb5bd').trim();
@@ -1015,10 +1084,7 @@
     stripLegacyBookletSettings(parsed.settings);
     parsed.settings.previewDisplay =
       parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
-    parsed.settings.fontFamilyKey =
-      BOOKLET_FONT_STACKS[parsed.settings.fontFamilyKey] != null
-        ? parsed.settings.fontFamilyKey
-        : 'georgia';
+    parsed.settings.fontFamilyKey = migrateFontKey(parsed.settings.fontFamilyKey);
     const rc = parsed.settings.rubricColor || '#8b1538';
     parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
     const mg = Number(parsed.settings.marginMm);
@@ -1100,7 +1166,7 @@
     if (v === 3) {
       parsed.projectTitle = '';
       parsed.settings = parsed.settings || {};
-      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.fontFamilyKey = BOOKLET_DEFAULT_FONT;
       parsed.settings.rubricColor = '#8b1538';
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'reading') {
@@ -1126,7 +1192,7 @@
       parsed.projectTitle = '';
       parsed.settings = parsed.settings || {};
       parsed.settings.previewDisplay = 'scroll';
-      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.fontFamilyKey = BOOKLET_DEFAULT_FONT;
       parsed.settings.rubricColor = '#8b1538';
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'image' && b.label === undefined) {
@@ -1156,7 +1222,7 @@
       parsed.settings = parsed.settings || {};
       parsed.settings.sectionGapMm = parsed.settings.sectionGapMm ?? 8;
       parsed.settings.previewDisplay = 'scroll';
-      parsed.settings.fontFamilyKey = 'georgia';
+      parsed.settings.fontFamilyKey = BOOKLET_DEFAULT_FONT;
       parsed.settings.rubricColor = '#8b1538';
       parsed.blocks = (parsed.blocks || []).map((b) => {
         if (b.type === 'jgabc_propers') {
@@ -1305,7 +1371,7 @@
     const sf = document.getElementById('selBookletFont');
     const pt = document.getElementById('inpProjectTitle');
     if (sz) sz.value = state.settings.pageSize;
-    if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
+    if (sf) sf.value = state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
     var syncNum = function (id, key, fallback) {
       var el = document.getElementById(id);
@@ -1502,17 +1568,17 @@
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
     wrap.dataset.blockId = b.id;
-    if (b.type === 'rubric' || b.type === 'reading') {
-      wrap.style.fontSize = 'calc(11pt * ' + DEFAULT_BLOCK_FONT_SCALE + ')';
-    }
     if (b.type === 'rubric') {
       appendSectionHeading(wrap, b);
       const p = document.createElement('div');
       p.className = 'rubric booklet-richtext';
       p.style.color = b.rubricColor || '#8b1538';
+      p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
+      p.style.lineHeight = (b.lineHeightPt || 16) + 'pt';
       p.appendChild(sanitizeToFragment(b.text || ''));
       wrap.appendChild(p);
     } else if (b.type === 'reading') {
+      var _lhPt = (b.lineHeightPt || 16) + 'pt';
       if (translationHasContent(b.translation)) {
         appendSectionHeading(wrap, b);
         const leftPct = Math.min(80, Math.max(20, parseInt(b.parallelLeftPct, 10) || 50));
@@ -1539,42 +1605,14 @@
         }
         const innerL = document.createElement('div');
         innerL.className = 'booklet-richtext reading';
+        innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
+        innerL.style.lineHeight = _lhPt;
         innerL.appendChild(sanitizeToFragment(b.text || ''));
         const innerR = document.createElement('div');
         innerR.className = 'booklet-richtext reading';
+        innerR.style.fontSize = (b.translationFontSizePt || 11) + 'pt';
+        innerR.style.lineHeight = _lhPt;
         innerR.appendChild(sanitizeToFragment(b.translation || ''));
-        var _mount = document.getElementById('bookletMeasureMount');
-        if (_mount) {
-          _mount.innerHTML = '';
-          _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
-          var _ctx = ensureMeasurePageContext(_mount, 600);
-          _ctx.body.innerHTML = '';
-          var _wrapClone = document.createElement('div');
-          _wrapClone.className = 'booklet-section';
-          _wrapClone.style.fontSize = wrap.style.fontSize;
-          var _tmpL = innerL.cloneNode(true);
-          var _tmpR = innerR.cloneNode(true);
-          _wrapClone.appendChild(_tmpL);
-          _wrapClone.appendChild(_tmpR);
-          _ctx.body.appendChild(_wrapClone);
-          _mount.appendChild(_ctx.page);
-          var _baseFs = parseFloat(getComputedStyle(_wrapClone).fontSize) || 14;
-          var _maxFs = _baseFs;
-          var _styled = _wrapClone.querySelectorAll('[style]');
-          for (var _si = 0; _si < _styled.length; _si++) {
-            var _sf = parseFloat(getComputedStyle(_styled[_si]).fontSize);
-            if (_sf > _maxFs) _maxFs = _sf;
-          }
-          var _flowEl = _ctx.page.querySelector('.page-inner-flow');
-          var _flowCs = getComputedStyle(_flowEl);
-          var _lhRatio = (parseFloat(_flowCs.lineHeight) / (parseFloat(_flowCs.fontSize) || 16)) || 1.45;
-          var _maxLh = Math.max(Math.round(_maxFs * _lhRatio * 100) / 100, 20);
-          _mount.removeChild(_ctx.page);
-          _ctx.body.innerHTML = '';
-          _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
-          innerL.style.lineHeight = _maxLh + 'px';
-          innerR.style.lineHeight = _maxLh + 'px';
-        }
         tdL.appendChild(innerL);
         tdR.appendChild(innerR);
         tr.appendChild(tdL);
@@ -1585,6 +1623,8 @@
         appendSectionHeading(wrap, b);
         const p = document.createElement('div');
         p.className = 'reading booklet-richtext';
+        p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
+        p.style.lineHeight = _lhPt;
         p.appendChild(sanitizeToFragment(b.text || ''));
         wrap.appendChild(p);
       }
@@ -1626,13 +1666,11 @@
       const textEl = document.createElement('span');
       textEl.className = 'booklet-title-rule-text';
       textEl.textContent = String(b.text || '').trim();
-      const fk =
-        b.titleFontKey && BOOKLET_FONT_STACKS[b.titleFontKey] != null
+      const fk = (b.titleFontKey && BOOKLET_FONT_STACKS[b.titleFontKey] != null)
           ? b.titleFontKey
-          : null;
-      const fontStack =
-        BOOKLET_FONT_STACKS[fk || state.settings.fontFamilyKey] || BOOKLET_FONT_STACKS.georgia;
-      textEl.style.fontFamily = fontStack;
+          : (state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT);
+      loadGoogleFont(fk);
+      textEl.style.fontFamily = fontStackFor(fk);
       const tc = String(b.titleTextColor || '').trim();
       textEl.style.color = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
       const lc = String(b.titleLineColor || '').trim();
@@ -2463,7 +2501,6 @@
       markLayoutStale();
       renderBlockList();
     };
-    gapEl?.addEventListener('input', push);
     fsEl?.addEventListener('input', push);
   }
 
@@ -2722,7 +2759,7 @@
         '<option value=""' +
         (tfk === '' ? ' selected' : '') +
         '>Same as booklet body</option>' +
-        Object.keys(BOOKLET_FONT_STACKS)
+        Object.keys(BOOKLET_FONTS)
           .map(function (k) {
             return (
               '<option value="' +
@@ -2730,7 +2767,7 @@
               '"' +
               (tfk === k ? ' selected' : '') +
               '>' +
-              escapeHtml(k.charAt(0).toUpperCase() + k.slice(1)) +
+              escapeHtml(k) +
               '</option>'
             );
           })
@@ -2779,20 +2816,33 @@
     if (b.type === 'rubric') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1" title="Optional bold line above the rubric body.">Title <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
-        <label class="form-label small mb-1" title="Optional italic line, right-aligned under the title.">Source reference <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
+        <div class="row g-1 mb-1">
+          <div class="col"><label class="form-label small mb-0">Title <span class="text-muted">(opt.)</span></label>
+            <input type="text" class="form-control form-control-sm" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold heading"></div>
+          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
+            <input type="number" class="form-control form-control-sm" id="edRubricTitleSize" min="6" max="36" step="0.5" value="${b.titleFontSizePt || 11}"></div>
+        </div>
+        <div class="row g-1 mb-1">
+          <div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>
+            <input type="text" class="form-control form-control-sm" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right"></div>
+          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
+            <input type="number" class="form-control form-control-sm" id="edRubricSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
+        </div>
         <label class="form-label small mb-1">Rubric colour</label>
         <input type="color" id="edRubricColor" class="form-control form-control-color mb-1" value="${escapeAttr(b.rubricColor || '#8b1538')}">
-        <label class="form-label small mb-0" title="Bold, italic, underline, size, lists, alignment, and colour are reflected in the preview and PDF.">Rubric text</label>
+        <div class="row g-1 mb-1">
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
+            <input type="number" class="form-control form-control-sm" id="edRubricBodySize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}"></div>
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Leading pt</label>
+            <input type="number" class="form-control form-control-sm" id="edRubricLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></div>
+        </div>
+        <label class="form-label small mb-0">Rubric text</label>
         <div class="booklet-rich-toolbar rubric-tb d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
-          ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           ${richColorPickerHtml()}
@@ -2806,12 +2856,24 @@
       const pushMeta = () => {
         b.sectionTitle = st ? st.value : '';
         b.sectionSourceRef = ss ? ss.value : '';
+        var ts = parseFloat(panel.querySelector('#edRubricTitleSize').value);
+        b.titleFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
+        var srs = parseFloat(panel.querySelector('#edRubricSourceSize').value);
+        b.sourceFontSizePt = Number.isFinite(srs) ? Math.min(36, Math.max(6, srs)) : 9;
+        var bs = parseFloat(panel.querySelector('#edRubricBodySize').value);
+        b.bodyFontSizePt = Number.isFinite(bs) ? Math.min(36, Math.max(6, bs)) : 11;
+        var lh = parseFloat(panel.querySelector('#edRubricLineHeight').value);
+        b.lineHeightPt = Number.isFinite(lh) ? Math.min(50, Math.max(6, lh)) : 16;
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
       };
       st.addEventListener('input', pushMeta);
       ss.addEventListener('input', pushMeta);
+      panel.querySelector('#edRubricTitleSize').addEventListener('input', pushMeta);
+      panel.querySelector('#edRubricSourceSize').addEventListener('input', pushMeta);
+      panel.querySelector('#edRubricBodySize').addEventListener('input', pushMeta);
+      panel.querySelector('#edRubricLineHeight').addEventListener('input', pushMeta);
       var rcInp = panel.querySelector('#edRubricColor');
       if (rcInp) rcInp.addEventListener('input', function () {
         var v = rcInp.value;
@@ -2832,31 +2894,49 @@
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1" title="Optional bold heading above both columns.">Section title <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-1" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left above both columns">
-        <label class="form-label small mb-1" title="Optional italic reference, right-aligned.">Source reference <span class="text-muted">(optional)</span></label>
-        <input type="text" class="form-control form-control-sm mb-1" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. John 3:16">
-        <label class="form-label small mb-0" title="Primary column; formatting applies in preview and PDF.">Original</label>
+        <div class="row g-1 mb-1">
+          <div class="col"><label class="form-label small mb-0">Section title <span class="text-muted">(opt.)</span></label>
+            <input type="text" class="form-control form-control-sm" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold heading"></div>
+          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
+            <input type="number" class="form-control form-control-sm" id="edReadTitleSize" min="6" max="36" step="0.5" value="${b.titleFontSizePt || 11}"></div>
+        </div>
+        <div class="row g-1 mb-1">
+          <div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>
+            <input type="text" class="form-control form-control-sm" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right"></div>
+          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
+            <input type="number" class="form-control form-control-sm" id="edReadSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
+        </div>
+        <div class="row g-1 mb-1">
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Leading pt</label>
+            <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></div>
+        </div>
+        <div class="row g-1 mb-0">
+          <div class="col"><label class="form-label small mb-0">Original</label></div>
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
+            <input type="number" class="form-control form-control-sm" id="edReadOrigSize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}"></div>
+        </div>
         <div class="booklet-rich-toolbar read-tb-orig d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
-          ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
-        <label class="form-label small mb-0" title="When this field has text, the preview uses two parallel columns (original and translation) with the split and spacing you set below.">Translation <span class="text-muted">(parallel when filled)</span></label>
+        <div class="row g-1 mb-0">
+          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(parallel when filled)</span></label></div>
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
+            <input type="number" class="form-control form-control-sm" id="edReadTransSize" min="6" max="36" step="0.5" value="${b.translationFontSizePt || 11}"></div>
+        </div>
         <div class="booklet-rich-toolbar read-tb-trans d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
-          ${richFontSizeSelectHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
           ${richColorPickerHtml()}
@@ -2883,12 +2963,27 @@
       const pushMetaRead = () => {
         b.sectionTitle = rst ? rst.value : '';
         b.sectionSourceRef = rss ? rss.value : '';
+        var ts = parseFloat(panel.querySelector('#edReadTitleSize').value);
+        b.titleFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
+        var srs = parseFloat(panel.querySelector('#edReadSourceSize').value);
+        b.sourceFontSizePt = Number.isFinite(srs) ? Math.min(36, Math.max(6, srs)) : 9;
+        var lh = parseFloat(panel.querySelector('#edReadLineHeight').value);
+        b.lineHeightPt = Number.isFinite(lh) ? Math.min(50, Math.max(6, lh)) : 16;
+        var os = parseFloat(panel.querySelector('#edReadOrigSize').value);
+        b.bodyFontSizePt = Number.isFinite(os) ? Math.min(36, Math.max(6, os)) : 11;
+        var trs = parseFloat(panel.querySelector('#edReadTransSize').value);
+        b.translationFontSizePt = Number.isFinite(trs) ? Math.min(36, Math.max(6, trs)) : 11;
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
       };
       rst.addEventListener('input', pushMetaRead);
       rss.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadTitleSize').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadSourceSize').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadLineHeight').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadOrigSize').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
@@ -3088,26 +3183,6 @@
       const crc = String(b.chantRubricColor || '').trim();
       const crcVal = /^#[0-9a-f]{6}$/i.test(crc) ? crc : '#000000';
       const clang = b.chantLyricLanguage === 'english' ? 'english' : 'latin';
-      const ctf = normalizeChantTextFontKey(b.chantTextFont);
-      const chantFontOpts = [
-        ['crimson', 'Crimson Text'],
-        ['times', 'Times New Roman'],
-        ['palatino', 'Palatino'],
-        ['garamond', 'Garamond-style'],
-        ['georgia', 'Georgia'],
-      ]
-        .map(function (kv) {
-          return (
-            '<option value="' +
-            escapeAttr(kv[0]) +
-            '"' +
-            (kv[0] === ctf ? ' selected' : '') +
-            '>' +
-            escapeHtml(kv[1]) +
-            '</option>'
-          );
-        })
-        .join('');
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-0" for="edGabc" title="Full GABC including the %% header block. For Mass propers, build in Ben’s propers tool (toolbar → Advanced) and paste here.">GABC</label>
@@ -3138,8 +3213,6 @@
             <option value="latin"${clang === 'latin' ? ' selected' : ''}>Latin syllabification</option>
             <option value="english"${clang === 'english' ? ' selected' : ''}>English syllabification</option>
           </select>
-          <label class="form-label mb-0" style="font-size:0.74rem">Lyric font</label>
-          <select id="edChantTextFont" class="form-select form-select-sm mb-2">${chantFontOpts}</select>
           <label class="form-label mb-0" style="font-size:0.74rem">Staff colour</label>
           <div class="d-flex align-items-center gap-2 mb-1">
             <input type="color" id="edChantStaff" class="form-control form-control-color" value="${escapeAttr(cscVal)}">
@@ -3171,12 +3244,6 @@
       panel.querySelector('#edChantLyricLang')?.addEventListener('change', function () {
         b.chantLyricLanguage =
           panel.querySelector('#edChantLyricLang').value === 'english' ? 'english' : 'latin';
-        scheduleAutosave();
-        markLayoutStale();
-        renderBlockList();
-      });
-      panel.querySelector('#edChantTextFont')?.addEventListener('change', function () {
-        b.chantTextFont = normalizeChantTextFontKey(panel.querySelector('#edChantTextFont').value);
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -3236,6 +3303,10 @@
       b.sectionTitle = '';
       b.sectionSourceRef = '';
       b.rubricColor = '#8b1538';
+      b.bodyFontSizePt = 11;
+      b.lineHeightPt = 16;
+      b.titleFontSizePt = 11;
+      b.sourceFontSizePt = 9;
     }
     if (type === 'reading') {
       b.text = '';
@@ -3245,6 +3316,11 @@
       b.parallelGapMm = 4;
       b.sectionTitle = '';
       b.sectionSourceRef = '';
+      b.bodyFontSizePt = 11;
+      b.translationFontSizePt = 11;
+      b.lineHeightPt = 16;
+      b.titleFontSizePt = 11;
+      b.sourceFontSizePt = 9;
     }
     if (type === 'image') {
       b.mime = 'image/png';
@@ -3407,8 +3483,9 @@
   }
 
   /**
-   * Full HTML document for headless Chromium (same CSS variables, stylesheets, and page markup
-   * as the live preview). Chant stays as SVG (vector in PDF).
+   * Full HTML document for headless Chromium. Google Font <link> tags injected
+   * by loadGoogleFont() are automatically picked up, so preview and PDF use
+   * the exact same typefaces — no system-font dependency on the server.
    */
   function buildBookletServerPdfHtml(pageElements) {
     const origin = window.location.origin;
@@ -3594,8 +3671,8 @@
       scheduleAutosave();
     });
     document.getElementById('selBookletFont')?.addEventListener('change', (e) => {
-      const k = e.target.value;
-      state.settings.fontFamilyKey = BOOKLET_FONT_STACKS[k] != null ? k : 'georgia';
+      const k = e.target.value.trim();
+      state.settings.fontFamilyKey = k || BOOKLET_DEFAULT_FONT;
       applyCssVars();
       scheduleAutosave();
       markLayoutStale();
