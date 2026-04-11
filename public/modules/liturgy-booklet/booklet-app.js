@@ -439,6 +439,21 @@
         parts.push('text-align-last:' + vl);
       }
     }
+    const ff = st.match(/font-family\s*:\s*([^;]+)/i);
+    if (ff) {
+      var rawFF = ff[1].trim();
+      var familyName = rawFF.replace(/^['"]|['"]$/g, '').replace(/,.*$/, '').trim();
+      if (BOOKLET_FONT_STACKS[familyName] != null) {
+        parts.push('font-family:' + fontStackFor(familyName));
+      }
+    }
+    const fv = st.match(/font-variant\s*:\s*([^;]+)/i);
+    if (fv) {
+      var vv = fv[1].trim().toLowerCase();
+      if (/^(normal|small-caps)$/.test(vv)) {
+        parts.push('font-variant:' + vv);
+      }
+    }
     return parts.join(';');
   }
 
@@ -461,9 +476,32 @@
       }
     }
 
+    var liturgicalRe = /\\V\.|\\R\.|\\A\.|\\[+]|℣|℟|✠/g;
+    var liturgicalMap = {
+      '\\V.': 'v', '\\R.': 'r', '\\A.': 'a', '\\+': '+',
+      '\u2123': 'v', '\u211F': 'r', '\u2720': '+'
+    };
+    function expandLiturgical(text) {
+      if (!liturgicalRe.test(text)) return document.createTextNode(text);
+      liturgicalRe.lastIndex = 0;
+      var frag = document.createDocumentFragment();
+      var last = 0;
+      var m;
+      while ((m = liturgicalRe.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var sp = document.createElement('span');
+        sp.className = 'versiculum';
+        sp.textContent = liturgicalMap[m[0]] || m[0];
+        frag.appendChild(sp);
+        last = liturgicalRe.lastIndex;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      return frag;
+    }
+
     function walk(node) {
       if (node.nodeType === Node.TEXT_NODE) {
-        return document.createTextNode(node.textContent);
+        return expandLiturgical(node.textContent);
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return null;
       const tag = node.tagName.toLowerCase();
@@ -501,6 +539,13 @@
         return el;
       }
       if (tag === 'span') {
+        var cls = (node.getAttribute('class') || '').trim();
+        if (cls === 'versiculum') {
+          const el = document.createElement('span');
+          el.className = 'versiculum';
+          appendChildren(el, node);
+          return el;
+        }
         const el = document.createElement('span');
         const safe = sanitizeRichInlineStyle(node.getAttribute('style') || '');
         if (safe) {
@@ -582,6 +627,10 @@
     return escapeHtml(text)
       .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
       .replace(/_([^_]+)_/g, '<em>$1</em>')
+      .replace(/\\V\./g, '<span class="versiculum">v</span>')
+      .replace(/\\R\./g, '<span class="versiculum">r</span>')
+      .replace(/\\A\./g, '<span class="versiculum">a</span>')
+      .replace(/\\[+]/g, '<span class="versiculum">+</span>')
       .replace(/\n/g, '<br>');
   }
 
@@ -738,12 +787,68 @@
     onChange();
   }
 
+  function applyRichFontFamily(ed, familyKey, onChange) {
+    ed.focus();
+    try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) { onChange(); return; }
+    if (familyKey) loadGoogleFont(familyKey);
+    const span = document.createElement('span');
+    span.style.fontFamily = familyKey ? fontStackFor(familyKey) : 'inherit';
+    try {
+      range.surroundContents(span);
+    } catch (err) {
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+      range.setStartAfter(span);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    onChange();
+  }
+
+  function toggleRichSmallCaps(ed, onChange) {
+    ed.focus();
+    try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed) { onChange(); return; }
+
+    var ancestor = range.commonAncestorContainer;
+    if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentElement;
+    var existing = ancestor && ancestor.closest && ancestor.closest('span[style*="font-variant"]');
+    if (existing && existing !== ed && ed.contains(existing)) {
+      existing.style.fontVariant = '';
+      if (!existing.getAttribute('style')?.trim()) existing.removeAttribute('style');
+    } else {
+      const span = document.createElement('span');
+      span.style.fontVariant = 'small-caps';
+      try {
+        range.surroundContents(span);
+      } catch (err) {
+        const contents = range.extractContents();
+        span.appendChild(contents);
+        range.insertNode(span);
+        range.setStartAfter(span);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+    onChange();
+  }
+
   function bindRichToolbar(toolbarRoot, ed, onChange) {
     let savedRange = null;
     toolbarRoot.addEventListener(
       'mousedown',
       function (e) {
-        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], .booklet-rich-color-pick')) return;
+        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], [data-rich-family-select], [data-rich-insert], [data-rich-insert-text], .booklet-rich-color-pick')) return;
         if (e.target.closest('select')) return;
         const sel = window.getSelection();
         if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
@@ -802,6 +907,8 @@
               while (ed.firstChild) wrapper.appendChild(ed.firstChild);
               ed.appendChild(wrapper);
             }
+          } else if (cmd === 'smallCaps') {
+            toggleRichSmallCaps(ed, function () {});
           } else if (cmd) {
             document.execCommand(cmd, false, null);
           }
@@ -821,6 +928,16 @@
         fontSel.value = '';
       });
     }
+    const familySel = toolbarRoot.querySelector('[data-rich-family-select]');
+    if (familySel) {
+      familySel.addEventListener('change', function () {
+        const v = familySel.value;
+        if (v === '') return;
+        restoreSelection();
+        applyRichFontFamily(ed, v === 'inherit' ? '' : v, onChange);
+        familySel.value = '';
+      });
+    }
     var colorPick = toolbarRoot.querySelector('.booklet-rich-color-pick');
     if (colorPick) {
       colorPick.addEventListener('input', function () {
@@ -832,6 +949,26 @@
         onChange();
       });
     }
+    toolbarRoot.querySelectorAll('[data-rich-insert]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        restoreSelection();
+        var glyph = btn.getAttribute('data-rich-insert');
+        try {
+          document.execCommand('insertHTML', false, '<span class="versiculum">' + glyph + '</span>');
+        } catch (_) {}
+        onChange();
+      });
+    });
+    toolbarRoot.querySelectorAll('[data-rich-insert-text]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        restoreSelection();
+        var txt = btn.getAttribute('data-rich-insert-text');
+        try {
+          document.execCommand('insertText', false, txt);
+        } catch (_) {}
+        onChange();
+      });
+    });
     ed.addEventListener('input', onChange);
     ed.addEventListener('blur', onChange);
   }
@@ -1664,6 +1801,13 @@
     }
   }
 
+  function loadInlineGoogleFonts(root) {
+    root.querySelectorAll('span[style*="font-family"]').forEach(function (el) {
+      var m = el.style.fontFamily.match(/^['"]?([^'",]+)/);
+      if (m && BOOKLET_FONT_STACKS[m[1].trim()] != null) loadGoogleFont(m[1].trim());
+    });
+  }
+
   function buildStaticSectionEl(b) {
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
@@ -1709,6 +1853,7 @@
         }
         const innerL = document.createElement('div');
         innerL.className = 'booklet-richtext reading';
+        innerL.lang = 'la';
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
         innerL.appendChild(sanitizeToFragment(b.text || ''));
@@ -1794,6 +1939,7 @@
     } else {
       wrap.textContent = 'Unknown block: ' + b.type;
     }
+    loadInlineGoogleFonts(wrap);
     return wrap;
   }
 
@@ -1832,10 +1978,12 @@
           chantFullW = w;
         }
         var lines = renderChantGabcToLines(b.gabc || '', chantW, b, chantFullW);
+        var chantStaffInterval = 100 * (1 / 16) * (Number(b.chantGlyphScale) || 1.4);
+        var chantVGapPx = chantStaffInterval * 0.5 * (Number(b.chantVertSpacing) || 1.0);
         for (var li = 0; li < lines.length; li++) {
           lines[li].dataset.blockId = b.id;
           var isLast = li === lines.length - 1;
-          out.push({ t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0, internalGapPx: li > 0 ? 3 : 0 });
+          out.push({ t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0, internalGapPx: li > 0 ? chantVGapPx : 0 });
         }
         continue;
       }
@@ -2545,6 +2693,15 @@
     if (selectedBlockId) {
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
+
+    if (window.Hyphenopoly && window.Hyphenopoly.hyphenators &&
+        window.Hyphenopoly.hyphenators.HTML) {
+      window.Hyphenopoly.hyphenators.HTML.then(function (hyphenateHTML) {
+        pageDivs.forEach(function (p) {
+          try { hyphenateHTML(p, '.booklet-richtext'); } catch (_) {}
+        });
+      }).catch(function () {});
+    }
   }
 
   function switchDisplayMode() {
@@ -2591,6 +2748,49 @@
             <option value="16pt">16 pt</option>
             <option value="18pt">18 pt</option>
           </select>`;
+  }
+
+  function richFontFamilySelectHtml() {
+    var opts = '<option value="" selected>Font\u2026</option><option value="inherit">Default</option>';
+    var groups = { Serif: [], 'Sans-serif': [], Monospace: [] };
+    Object.keys(BOOKLET_FONTS).forEach(function (f) {
+      var cat = BOOKLET_FONTS[f];
+      var label = cat === 'serif' ? 'Serif' : cat === 'sans-serif' ? 'Sans-serif' : 'Monospace';
+      groups[label].push(f);
+    });
+    Object.keys(groups).forEach(function (label) {
+      if (!groups[label].length) return;
+      opts += '<optgroup label="' + label + '">';
+      groups[label].forEach(function (f) {
+        opts += '<option value="' + f + '">' + f + '</option>';
+      });
+      opts += '</optgroup>';
+    });
+    return '<select class="form-select form-select-sm mb-1 align-middle" data-rich-family-select style="max-width:9.5rem" title="Font family (selection)" aria-label="Font family">' + opts + '</select>';
+  }
+
+  function richSmallCapsButtonHtml() {
+    return '<button type="button" class="btn btn-sm btn-light border py-0 px-2 mb-1" data-rich-cmd="smallCaps" title="Small caps" aria-label="Small caps" style="font-variant:small-caps;font-size:0.72rem;line-height:1.5">Sc</button>';
+  }
+
+  function richLiturgicalToolbarHtml() {
+    return `
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="v" title="Versicle &#x2123; &mdash; or type \\V. in text" aria-label="Versicle">v</button>
+            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="r" title="Response &#x211F; &mdash; or type \\R. in text" aria-label="Response">r</button>
+            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="a" title="Antiphon / barred A &mdash; or type \\A. in text" aria-label="Antiphon">a</button>
+            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="+" title="Cross &#x2720; &mdash; or type \\+ in text" aria-label="Cross">+</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u2020" title="Dagger / obelus &dagger;" aria-label="Dagger">\u2020</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="*" title="Asterisk (psalm pause)" aria-label="Asterisk">*</button>
+          </div>
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group" title="Latin ligatures &amp; accented forms (best with Gentium Plus, Cardo, or EB Garamond)">
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00E6" title="&aelig; (ae ligature)" aria-label="ae ligature">\u00E6</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153" title="&oelig; (oe ligature)" aria-label="oe ligature">\u0153</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u01FD" title="&aelig; with acute (\u01FD) &mdash; needs Gentium Plus, Cardo, or EB Garamond" aria-label="ae acute">\u01FD</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153\u0301" title="&oelig; with acute (\u0153+\u0301) &mdash; needs Gentium Plus or Cardo" aria-label="oe acute">\u0153\u0301</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00C6" title="&AElig; (AE ligature)" aria-label="AE ligature">\u00C6</button>
+            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0152" title="&OElig; (OE ligature)" aria-label="OE ligature">\u0152</button>
+          </div>`;
   }
 
   function richColorPickerHtml() {
@@ -2934,7 +3134,10 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richSmallCapsButtonHtml()}
           ${richAlignToolbarHtml()}
+          ${richLiturgicalToolbarHtml()}
+          ${richFontFamilySelectHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed" contenteditable="true" id="edRichRubric"></div>
       `;
@@ -2998,8 +3201,11 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richSmallCapsButtonHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
+          ${richLiturgicalToolbarHtml()}
+          ${richFontFamilySelectHtml()}
           ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
@@ -3014,8 +3220,11 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
+          ${richSmallCapsButtonHtml()}
           ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
+          ${richLiturgicalToolbarHtml()}
+          ${richFontFamilySelectHtml()}
           ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadTrans"></div>

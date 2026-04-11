@@ -9,6 +9,36 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/vendor/jgabc/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/Hyphenopoly_Loader.min.js"></script>
+    <script>
+    Hyphenopoly.config({
+        require: {
+            "la": "FORCEHYPHENOPOLY",
+            "en-us": "supercalifragilisticexpialidocious"
+        },
+        paths: {
+            patterndir: "https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/patterns/",
+            maindir: "https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/"
+        },
+        setup: {
+            defaultLanguage: "en-us",
+            keepAlive: true,
+            hide: "none",
+            safeCopy: true,
+            selectors: {
+                ".booklet-richtext": {
+                    minWordLength: 6,
+                    leftmin: 3,
+                    rightmin: 2,
+                    orphanControl: 2
+                }
+            }
+        },
+        handleEvent: {
+            error: function (e) { e.preventDefault(); }
+        }
+    });
+    </script>
     <style>
         :root {
             --booklet-margin-left-mm: 16;
@@ -374,6 +404,22 @@
         .booklet-richtext {
             white-space: normal;
             word-wrap: break-word;
+            -webkit-hyphens: auto;
+            hyphens: auto;
+            -webkit-hyphenate-limit-chars: 6 3 2;
+            hyphenate-limit-chars: 6 3 2;
+        }
+        .booklet-richtext[lang="la"] {
+            -webkit-hyphens: manual;
+            hyphens: manual;
+        }
+        .booklet-richtext .versiculum,
+        .booklet-rich-ed .versiculum,
+        .booklet-page .versiculum {
+            font-family: 'Versiculum', serif;
+            font-variant: normal;
+            font-style: normal;
+            font-weight: normal;
         }
         .booklet-richtext p {
             margin: 0;
@@ -435,6 +481,12 @@
             border-radius: 4px;
             cursor: pointer;
             vertical-align: middle;
+        }
+        button.versiculum {
+            font-family: 'Versiculum', serif !important;
+            font-variant: normal !important;
+            font-style: normal !important;
+            font-size: 0.85rem !important;
         }
         .booklet-rich-ed {
             min-height: 5rem;
