@@ -52,7 +52,8 @@
       marginMm: DEFAULT_BOOKLET_MARGIN_MM,
       marginTopMm: DEFAULT_BOOKLET_MARGIN_MM,
       marginBottomMm: DEFAULT_BOOKLET_MARGIN_MM,
-      marginSideMm: DEFAULT_BOOKLET_MARGIN_MM,
+      marginLeftMm: DEFAULT_BOOKLET_MARGIN_MM,
+      marginRightMm: DEFAULT_BOOKLET_MARGIN_MM,
       sectionGapMm: DEFAULT_SECTION_GAP_AFTER_MM,
       gapTolerancePx: GAP_FLEX_PX,
       marginTolerancePx: MARGIN_TOLERANCE_PX,
@@ -242,8 +243,11 @@
     return (mm * 96) / 25.4;
   }
 
-  function getBookletMarginMm() {
-    return getSetting('marginSideMm', DEFAULT_BOOKLET_MARGIN_MM);
+  function getBookletMarginLeftMm() {
+    return getSetting('marginLeftMm', DEFAULT_BOOKLET_MARGIN_MM);
+  }
+  function getBookletMarginRightMm() {
+    return getSetting('marginRightMm', DEFAULT_BOOKLET_MARGIN_MM);
   }
   function getBookletMarginTopMm() {
     return getSetting('marginTopMm', DEFAULT_BOOKLET_MARGIN_MM);
@@ -254,7 +258,8 @@
 
   function applyCssVars() {
     const root = document.documentElement;
-    root.style.setProperty('--booklet-margin-mm', String(getBookletMarginMm()));
+    root.style.setProperty('--booklet-margin-left-mm', String(getBookletMarginLeftMm()));
+    root.style.setProperty('--booklet-margin-right-mm', String(getBookletMarginRightMm()));
     root.style.setProperty('--booklet-margin-top-mm', String(getBookletMarginTopMm()));
     root.style.setProperty('--booklet-margin-bottom-mm', String(getBookletMarginBottomMm()));
     root.style.setProperty('--booklet-font-scale', '1');
@@ -269,8 +274,9 @@
 
   function getContentWidthPx() {
     const pageW = state.settings.pageSize === 'A5' ? 148 : 210;
-    const m = getBookletMarginMm();
-    return Math.max(200, mmToPx(pageW - 2 * m));
+    const ml = getBookletMarginLeftMm();
+    const mr = getBookletMarginRightMm();
+    return Math.max(200, mmToPx(pageW - ml - mr));
   }
 
   function getMaxPageBodyHeightPx() {
@@ -1261,7 +1267,8 @@
     };
     syncNum('inpMarginTop', 'marginTopMm', DEFAULT_BOOKLET_MARGIN_MM);
     syncNum('inpMarginBottom', 'marginBottomMm', DEFAULT_BOOKLET_MARGIN_MM);
-    syncNum('inpMarginSide', 'marginSideMm', DEFAULT_BOOKLET_MARGIN_MM);
+    syncNum('inpMarginLeft', 'marginLeftMm', DEFAULT_BOOKLET_MARGIN_MM);
+    syncNum('inpMarginRight', 'marginRightMm', DEFAULT_BOOKLET_MARGIN_MM);
     syncNum('inpSectionGap', 'sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
@@ -3315,7 +3322,8 @@
   function bookletRootCssVarsInline() {
     const cs = getComputedStyle(document.documentElement);
     const names = [
-      '--booklet-margin-mm',
+      '--booklet-margin-left-mm',
+      '--booklet-margin-right-mm',
       '--booklet-font-scale',
       '--booklet-body-font',
       '--booklet-rubric-color',
@@ -3537,7 +3545,8 @@
     }
     bindLayoutSetting('inpMarginTop', 'marginTopMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
     bindLayoutSetting('inpMarginBottom', 'marginBottomMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
-    bindLayoutSetting('inpMarginSide', 'marginSideMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
+    bindLayoutSetting('inpMarginLeft', 'marginLeftMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
+    bindLayoutSetting('inpMarginRight', 'marginRightMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
     bindLayoutSetting('inpSectionGap', 'sectionGapMm', 0, 40, DEFAULT_SECTION_GAP_AFTER_MM);
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
     bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);

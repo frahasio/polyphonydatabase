@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
     <style>
         :root {
-            --booklet-margin-mm: 16;
+            --booklet-margin-left-mm: 16;
+            --booklet-margin-right-mm: 16;
             --booklet-margin-top-mm: 16;
             --booklet-margin-bottom-mm: 16;
             --booklet-font-scale: 1;
@@ -292,14 +293,14 @@
             height: 297mm;
             min-height: 297mm;
             max-height: 297mm;
-            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm);
+            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-right-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm) calc(var(--booklet-margin-left-mm) * 1mm);
         }
         .booklet-page[data-size="A5"] {
             width: 148mm;
             height: 210mm;
             min-height: 210mm;
             max-height: 210mm;
-            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm);
+            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-right-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm) calc(var(--booklet-margin-left-mm) * 1mm);
         }
         .booklet-page > .page-inner-flow {
             flex: 1 1 auto;
@@ -758,8 +759,12 @@
                         <input type="number" id="inpMarginBottom" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
                     </label>
                     <label class="d-flex flex-column gap-0">
-                        <span>Side margins (mm)</span>
-                        <input type="number" id="inpMarginSide" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
+                        <span>Left margin (mm)</span>
+                        <input type="number" id="inpMarginLeft" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Right margin (mm)</span>
+                        <input type="number" id="inpMarginRight" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
                     </label>
                     <div class="vr"></div>
                     <label class="d-flex flex-column gap-0">
