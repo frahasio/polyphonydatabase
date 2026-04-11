@@ -143,12 +143,14 @@
   let editionSearchAbort = null;
   let renderPreviewTimer = null;
   let layoutStale = false;
+  let autoRefresh = true;
 
   function markLayoutStale() {
     layoutStale = true;
     var btn = document.getElementById('btnRefreshLayout');
     if (btn) btn.classList.add('btn-warning');
     if (btn) btn.classList.remove('btn-primary');
+    if (autoRefresh) scheduleRenderPreview();
   }
 
   function markLayoutFresh() {
@@ -852,6 +854,10 @@
     const dropCapScale = Number(b.chantDropCapScale) || 1;
     if (dropCapScale !== 1) {
       ctxt.textStyles.dropCap.size = Math.round(ctxt.textStyles.dropCap.size * dropCapScale);
+      ctxt.textStyles.dropCap.padding = 1 * dropCapScale;
+    }
+    if (ctxt.dropCapTextSize !== undefined) {
+      ctxt.dropCapTextSize = ctxt.textStyles.dropCap.size;
     }
     const annotSizeAdj = Number(b.chantAnnotationSizeAdj) || 0;
     if (annotSizeAdj !== 0) {
@@ -1464,6 +1470,7 @@
       temp.innerHTML = html;
       const lines = [];
       var annotYAdj = Number(cb.chantAnnotationYAdj) || 0;
+      var vSpacingGapPx = ctxt.staffInterval * 1.5 * (Number(cb.chantVertSpacing) || 1.0);
 
       var hasTranslation = fullWidthPx && translationHasContent(cb.chantTranslation);
       var transLines = hasTranslation ? splitTranslationLines(cb.chantTranslation) : [];
@@ -1487,6 +1494,7 @@
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.overflow = 'visible';
+        line.style.marginBottom = vSpacingGapPx + 'px';
 
         if (hasTranslation) {
           var transHtml = '';
@@ -1624,6 +1632,10 @@
       p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
       p.style.lineHeight = (b.lineHeightPt || 16) + 'pt';
       p.appendChild(sanitizeToFragment(b.text || ''));
+      p.querySelectorAll('span[style]').forEach(function (s) {
+        s.style.removeProperty('color');
+        if (!s.getAttribute('style')?.trim()) s.removeAttribute('style');
+      });
       wrap.appendChild(p);
     } else if (b.type === 'reading') {
       var _lhPt = (b.lineHeightPt || 16) + 'pt';
@@ -3230,13 +3242,13 @@
         <div class="small border rounded px-2 py-1 mt-1 bg-light">
           <div class="mt-1 pb-1">
           <div class="mb-2" style="font-size:0.72rem">
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantNeumeSize" step="1" value="${cn}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantGlyphScale" step="0.05" value="${cg}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Horiz. spacing</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantHorizSpacing" step="0.05" value="${chs}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Vert. spacing</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantVertSpacing" step="0.05" value="${cvs}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantDropCapScale" step="0.05" value="${cd}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. size adj.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. vert. pos.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Lyric size</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantNeumeSize">${cn}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantNeumeSize" min="8" max="40" step="1" value="${cn}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantGlyphScale">${cg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Horiz. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantHorizSpacing">${chs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantHorizSpacing" min="0.5" max="2.0" step="0.05" value="${chs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Vert. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantVertSpacing">${cvs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Drop cap scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantDropCapScale">${cd}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantDropCapScale" min="0.3" max="2.0" step="0.05" value="${cd}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. size adj.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. vert. pos.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
           </div>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
@@ -3301,7 +3313,8 @@
       });
       panel.querySelectorAll('[data-chant-num]').forEach(function (inp) {
         var prop = inp.dataset.chantNum;
-        inp.addEventListener('change', function () {
+        var valSpan = panel.querySelector('[data-chant-val="' + prop + '"]');
+        var handler = function () {
           var v = parseFloat(inp.value);
           if (Number.isFinite(v)) {
             var mn = parseFloat(inp.min), mx = parseFloat(inp.max);
@@ -3309,11 +3322,14 @@
             if (Number.isFinite(mx)) v = Math.min(mx, v);
             b[prop] = v;
             inp.value = b[prop];
+            if (valSpan) valSpan.textContent = b[prop];
           }
           scheduleAutosave();
           markLayoutStale();
           renderBlockList();
-        });
+        };
+        inp.addEventListener('input', handler);
+        inp.addEventListener('change', handler);
       });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
@@ -3807,6 +3823,9 @@
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
     document.getElementById('btnRefreshLayout')?.addEventListener('click', () => {
       scheduleRenderPreview();
+    });
+    document.getElementById('chkAutoRefresh')?.addEventListener('change', function () {
+      autoRefresh = !!this.checked;
     });
     document.getElementById('chkDebugLayout')?.addEventListener('change', function () {
       var pp = document.getElementById('previewPages');
