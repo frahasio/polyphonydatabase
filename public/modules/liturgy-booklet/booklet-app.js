@@ -1574,7 +1574,7 @@
   function createClippedView(el, fromPx, toPx, widthPx, clipClass) {
     var container = document.createElement('div');
     container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
-    container.style.width = widthPx + 'px';
+    container.style.width = '100%';
     container.style.height = (toPx - fromPx) + 'px';
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
@@ -1582,7 +1582,7 @@
     var clone = el.cloneNode(true);
     clone.style.position = 'relative';
     clone.style.top = (-fromPx) + 'px';
-    clone.style.width = widthPx + 'px';
+    clone.style.width = '100%';
     clone.style.pointerEvents = 'none';
     if (el.dataset && el.dataset.blockId) container.dataset.blockId = el.dataset.blockId;
     container.appendChild(clone);
@@ -1682,7 +1682,12 @@
       }
 
       // #region agent log
-      console.log('[DEBUG paginateFlow] item', i, { t: item.t, splittable: item.splittable, h: Math.round(h), gap: Math.round(gap), curY: Math.round(curY), pageHPx: Math.round(pageHPx), branch: _branch, class: el && el.className ? el.className.slice(0, 50) : '' });
+      var _preview = (el && el.textContent ? el.textContent.slice(0, 60).replace(/\s+/g, ' ').trim() : '');
+      var _blockId = (el && el.dataset && el.dataset.blockId) || '';
+      var _blockObj = _blockId ? state.blocks.find(function(x){return x.id===_blockId;}) : null;
+      var _blockType = _blockObj ? _blockObj.type : '';
+      var _blockTitle = _blockObj ? (_blockObj.sectionTitle || _blockObj.text || _blockObj.gabc || '').slice(0, 40).replace(/\s+/g, ' ').trim() : '';
+      console.log('[DEBUG paginateFlow] item', i, _branch, '|', _blockType, '|', _blockTitle || _preview, { splittable: item.splittable, h: Math.round(h), gap: Math.round(gap), curY: Math.round(curY), remaining: Math.round(pageHPx - curY) });
       // #endregion
 
       if (item.gapMm != null) pendingGapMm = item.gapMm;
