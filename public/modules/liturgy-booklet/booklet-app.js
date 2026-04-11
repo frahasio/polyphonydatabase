@@ -1660,6 +1660,9 @@
         while (offset < totalH) {
           var sliceH = isFirst ? remaining : pageHPx;
           if (offset + sliceH >= totalH) {
+            // #region agent log
+            console.log('[DEBUG SPLIT detail] item', i, 'final slice', { offset: Math.round(offset), totalH: Math.round(totalH), sliceH: Math.round(sliceH), clipH: Math.round(totalH - offset) });
+            // #endregion
             var clipEl = createClippedView(el, offset, totalH, widthPx, 'booklet-clip-bottom');
             curPageEls.push(clipEl);
             curY += (totalH - offset);
@@ -1667,6 +1670,10 @@
           }
           var snapH = snapToLineHeight(sliceH, el);
           if (snapH < 20) snapH = sliceH;
+          // #region agent log
+          var _rawLineH = parseFloat(getComputedStyle(el).lineHeight);
+          console.log('[DEBUG SPLIT detail] item', i, 'clip', { offset: Math.round(offset), sliceH: Math.round(sliceH), snapH: Math.round(snapH), rawLineH: _rawLineH, remaining: Math.round(remaining), totalH: Math.round(totalH) });
+          // #endregion
           var clipClass = isFirst ? 'booklet-clip-top' : (offset + snapH >= totalH ? 'booklet-clip-bottom' : 'booklet-clip-mid');
           var clipPart = createClippedView(el, offset, offset + snapH, widthPx, clipClass);
           curPageEls.push(clipPart);
