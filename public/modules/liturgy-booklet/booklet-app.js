@@ -1578,15 +1578,23 @@
   }
 
   function snapToLineHeight(targetPx, el) {
-    var lineH = 23;
+    var lineH = 0;
     try {
       var mount = document.getElementById('bookletMeasureMount');
-      if (mount && mount.lastChild) {
-        var cs = getComputedStyle(mount.lastChild);
-        var lh = parseFloat(cs.lineHeight);
+      if (mount) {
+        mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:600px;overflow:visible;';
+        var probe = document.createElement('div');
+        probe.className = 'page-inner-flow';
+        probe.style.width = '600px';
+        probe.innerHTML = '<span>Xg</span>';
+        mount.appendChild(probe);
+        var lh = parseFloat(getComputedStyle(probe).lineHeight);
         if (lh && Number.isFinite(lh) && lh >= 8) lineH = lh;
+        mount.innerHTML = '';
+        mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
       }
     } catch (e) { /* ignore */ }
+    if (!lineH || lineH < 8) lineH = 23.2;
     var snapped = Math.floor(targetPx / lineH) * lineH;
     return snapped > 0 ? snapped : targetPx;
   }
@@ -2056,12 +2064,7 @@
         if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
       }
       if (allPdf) p.classList.add('booklet-page--pdf-full');
-      var firstEl = body.firstElementChild;
-      if (firstEl && firstEl.classList.contains('booklet-chant-line')) {
-        firstEl.style.paddingTop = '12px';
-      } else if (firstEl && firstEl.classList.contains('booklet-clip-container')) {
-        firstEl.style.paddingTop = '12px';
-      }
+      
     });
 
     appendCreditsFooterToLastPage(pageDivs);
@@ -2078,6 +2081,19 @@
     if (selectedBlockId) {
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
+    // #region agent log
+    setTimeout(function () {
+      pageDivs.forEach(function (p, pi) {
+        var body = p.querySelector('.booklet-page-body');
+        if (!body) return;
+        var totalChildH = 0;
+        for (var ci = 0; ci < body.children.length; ci++) {
+          totalChildH += body.children[ci].offsetHeight;
+        }
+        console.log('[DEBUG page-actual] page', pi, { childCount: body.children.length, totalChildH: Math.round(totalChildH), bodyScrollH: body.scrollHeight, bodyClientH: body.clientHeight, bodyOffsetH: body.offsetHeight });
+      });
+    }, 500);
+    // #endregion
   }
 
   function richAlignToolbarHtml() {
