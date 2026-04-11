@@ -133,11 +133,36 @@
 
   function scrollPreviewToBlock(blockId) {
     if (!blockId) return;
-    var root = document.getElementById('previewPages');
-    if (!root) return;
-    var target = root.querySelector('[data-block-id="' + blockId + '"]');
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var display = state.settings.previewDisplay;
+    if (display === 'booklet') {
+      var pageIdx = -1;
+      for (var i = 0; i < exportPageElements.length; i++) {
+        if (exportPageElements[i].querySelector('[data-block-id="' + blockId + '"]')) {
+          pageIdx = i;
+          break;
+        }
+      }
+      if (pageIdx < 0) return;
+      for (var s = 0; s < bookletSpreadViews.length; s++) {
+        var v = bookletSpreadViews[s];
+        if (v.left === pageIdx || v.right === pageIdx) {
+          bookletSpreadIndex = s;
+          var host = document.querySelector('.booklet-spread-host');
+          if (host) {
+            updateBookletSpreadDisplay(host, exportPageElements, bookletSpreadViews, s);
+            scaleBookletSpread(host);
+            if (host._syncNav) host._syncNav();
+          }
+          break;
+        }
+      }
+    } else {
+      var root = document.getElementById('previewPages');
+      if (!root) return;
+      var target = root.querySelector('[data-block-id="' + blockId + '"]');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   }
 
@@ -1533,9 +1558,17 @@
           _wrapClone.appendChild(_tmpR);
           _ctx.body.appendChild(_wrapClone);
           _mount.appendChild(_ctx.page);
-          var _lhL = parseFloat(getComputedStyle(_tmpL).lineHeight) || 0;
-          var _lhR = parseFloat(getComputedStyle(_tmpR).lineHeight) || 0;
-          var _maxLh = Math.max(_lhL, _lhR, 20);
+          var _baseFs = parseFloat(getComputedStyle(_wrapClone).fontSize) || 14;
+          var _maxFs = _baseFs;
+          var _styled = _wrapClone.querySelectorAll('[style]');
+          for (var _si = 0; _si < _styled.length; _si++) {
+            var _sf = parseFloat(getComputedStyle(_styled[_si]).fontSize);
+            if (_sf > _maxFs) _maxFs = _sf;
+          }
+          var _flowEl = _ctx.page.querySelector('.page-inner-flow');
+          var _flowCs = getComputedStyle(_flowEl);
+          var _lhRatio = (parseFloat(_flowCs.lineHeight) / (parseFloat(_flowCs.fontSize) || 16)) || 1.45;
+          var _maxLh = Math.max(Math.round(_maxFs * _lhRatio * 100) / 100, 20);
           _mount.removeChild(_ctx.page);
           _ctx.body.innerHTML = '';
           _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
@@ -1802,8 +1835,8 @@
         delta = nf > 0 ? Math.min(gapFlexPx, (pageHPx - ideal) / nf) : 0;
       }
       var adjusted = calcContent(delta);
-      var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - adjusted) / 2);
-      pushPage(curEls, buildAdjGaps(delta), padAdj, padAdj);
+      var padBot = Math.max(-marginTolPx, pageHPx - adjusted);
+      pushPage(curEls, buildAdjGaps(delta), 0, padBot);
     }
 
     function flushPage() {
@@ -1870,8 +1903,8 @@
         var sliceH = snap.h;
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
         var clip = createClippedView(el, offset, offset + sliceH, w, cls);
-        var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - sliceH) / 2);
-        pushPage([clip], [0], padAdj, padAdj);
+        var padBot = Math.max(-marginTolPx, pageHPx - sliceH);
+        pushPage([clip], [0], 0, padBot);
         offset += sliceH;
       }
     }
@@ -1955,8 +1988,8 @@
             adjGaps.push(best.gAdj);
             var els = curEls.slice();
             els.push(clipTop);
-            var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - best.total) / 2);
-            pushPage(els, adjGaps, padAdj, padAdj);
+            var padBot = Math.max(-marginTolPx, pageHPx - best.total);
+            pushPage(els, adjGaps, 0, padBot);
 
             curEls = [];
             curHeights = [];
@@ -2190,6 +2223,7 @@
       btnPrev.disabled = bookletSpreadIndex <= 0;
       btnNext.disabled = bookletSpreadIndex >= bookletSpreadViews.length - 1;
     }
+    host._syncNav = syncNavButtons;
 
     function goPrev() {
       if (bookletSpreadIndex <= 0) return;
