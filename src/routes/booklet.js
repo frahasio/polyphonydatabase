@@ -174,7 +174,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
     }
     const page = await browser.newPage();
     await page.emulateMediaType('print');
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     await page.evaluate(function () {
       return new Promise(function (resolve) {
         if (document.fonts && document.fonts.ready) {

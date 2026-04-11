@@ -97,6 +97,25 @@
     var btn = document.getElementById('btnRefreshLayout');
     if (btn) btn.classList.remove('btn-warning');
     if (btn) btn.classList.add('btn-primary');
+    clearPreviewHiddenOverlays();
+  }
+
+  function syncPreviewHiddenOverlays() {
+    var root = document.getElementById('previewPages');
+    if (!root) return;
+    var hiddenIds = {};
+    state.blocks.forEach(function (b) { if (b.hidden) hiddenIds[b.id] = true; });
+    root.querySelectorAll('[data-block-id]').forEach(function (el) {
+      el.classList.toggle('booklet-preview-hidden', !!hiddenIds[el.dataset.blockId]);
+    });
+  }
+
+  function clearPreviewHiddenOverlays() {
+    var root = document.getElementById('previewPages');
+    if (!root) return;
+    root.querySelectorAll('.booklet-preview-hidden').forEach(function (el) {
+      el.classList.remove('booklet-preview-hidden');
+    });
   }
 
   function scheduleRenderPreview() {
@@ -540,7 +559,10 @@
       return { icon: 'bi-file-earmark-pdf', color: '#c41230', label: 'Edition PDF' };
     }
     if (t === 'page_break') {
-      return { icon: 'bi-file-earmark-break', color: '#6c757d', label: 'Page break' };
+      return { icon: '', color: '', label: 'Page break', noIcon: true, itemBg: '#e9ecef' };
+    }
+    if (t === 'spacer') {
+      return { icon: '', color: '', label: 'Spacer', noIcon: true, itemBg: '#f0f4f8' };
     }
     if (t === 'jgabc_propers') {
       return { icon: 'bi-music-note', color: '#fd7e14', label: 'Propers (legacy)' };
@@ -2331,7 +2353,6 @@
     var store = document.getElementById('bookletPageStore');
     if (!root) return;
     if (!exportPageElements || !exportPageElements.length) {
-      scheduleRenderPreview();
       return;
     }
     var prevHost = root.querySelector('.booklet-spread-host');
@@ -2405,7 +2426,7 @@
           : DEFAULT_BLOCK_FONT_SCALE;
       }
       scheduleAutosave();
-      scheduleRenderPreview();
+      markLayoutStale();
       renderBlockList();
     };
     gapEl?.addEventListener('input', push);
@@ -2422,7 +2443,7 @@
     state.blocks[j] = t;
     scheduleAutosave();
     renderBlockList();
-    scheduleRenderPreview();
+    markLayoutStale();
   }
 
   var INSERT_MENU_ITEMS = [
@@ -2511,18 +2532,30 @@
         });
       });
 
-      var badge = document.createElement('span');
-      badge.className = 'booklet-block-type-badge';
-      badge.style.backgroundColor = meta.color;
-      badge.title = meta.label;
-      badge.setAttribute('aria-hidden', 'true');
-      var ic = document.createElement('i');
-      ic.className = 'bi ' + meta.icon;
-      badge.appendChild(ic);
+      if (meta.noIcon) {
+        div.style.background = meta.itemBg || '#e9ecef';
+        div.style.justifyContent = 'center';
+        div.style.fontStyle = 'italic';
+        div.style.color = '#6c757d';
+        div.style.fontSize = '0.65rem';
+        div.style.borderStyle = 'dashed';
+      }
+
+      var badge = null;
+      if (!meta.noIcon) {
+        badge = document.createElement('span');
+        badge.className = 'booklet-block-type-badge';
+        badge.style.backgroundColor = meta.color;
+        badge.title = meta.label;
+        badge.setAttribute('aria-hidden', 'true');
+        var ic = document.createElement('i');
+        ic.className = 'bi ' + meta.icon;
+        badge.appendChild(ic);
+      }
 
       var textEl = document.createElement('span');
       textEl.className = 'booklet-block-preview-text';
-      textEl.textContent = line;
+      textEl.textContent = meta.noIcon ? ('— ' + line + ' —') : line;
 
       var actions = document.createElement('span');
       actions.className = 'booklet-block-actions';
@@ -2536,7 +2569,8 @@
         b.hidden = !b.hidden;
         scheduleAutosave();
         renderBlockList();
-        scheduleRenderPreview();
+        markLayoutStale();
+        syncPreviewHiddenOverlays();
       });
       var dup = document.createElement('button');
       dup.type = 'button';
@@ -2559,13 +2593,13 @@
         scheduleAutosave();
         renderBlockList();
         renderEditor();
-        scheduleRenderPreview();
+        markLayoutStale();
       });
       actions.appendChild(vis);
       actions.appendChild(dup);
       actions.appendChild(rm);
 
-      div.appendChild(badge);
+      if (badge) div.appendChild(badge);
       div.appendChild(textEl);
       div.appendChild(actions);
       div.addEventListener('click', function () {
@@ -2614,7 +2648,7 @@
       state.blocks.splice(toIdx, 0, moved);
       scheduleAutosave();
       renderBlockList();
-      scheduleRenderPreview();
+      markLayoutStale();
     });
 
   }
@@ -2643,7 +2677,7 @@
       if (inp) inp.addEventListener('change', function () {
         b.heightMm = parseBoundedNumber(inp.value, 1, 100, 10);
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       return;
@@ -2698,7 +2732,7 @@
         const lc = panel.querySelector('#edTitleLineCol').value;
         b.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       panel.querySelector('#edTitleText').addEventListener('input', syncTitle);
@@ -2739,7 +2773,7 @@
         b.sectionTitle = st ? st.value : '';
         b.sectionSourceRef = ss ? ss.value : '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       st.addEventListener('input', pushMeta);
@@ -2749,13 +2783,13 @@
         var v = rcInp.value;
         b.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
       });
       wireEditorSectionLayout(panel, b, true, false);
       const push = () => {
         b.text = ed.innerHTML;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       bindRichToolbar(panel.querySelector('.rubric-tb'), ed, push);
@@ -2816,7 +2850,7 @@
         b.sectionTitle = rst ? rst.value : '';
         b.sectionSourceRef = rss ? rss.value : '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       rst.addEventListener('input', pushMetaRead);
@@ -2825,7 +2859,7 @@
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       bindRichToolbar(panel.querySelector('.read-tb-orig'), edO, push);
@@ -2844,7 +2878,7 @@
         }
         b.parallelGapMm = Math.min(20, Math.max(0, ggm));
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
       };
       rng.addEventListener('input', syncParallel);
       chk.addEventListener('change', syncParallel);
@@ -2879,7 +2913,7 @@
         b.imageWidthPx = Number.isFinite(w) ? Math.min(4000, Math.max(0, w)) : 0;
         b.imageAlign = panel.querySelector('#edImgAlign').value;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       panel.querySelector('#edImgWidth').addEventListener('input', syncImgLayout);
@@ -2923,7 +2957,7 @@
         resultsEl.innerHTML = '';
         searchInp.value = '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       }
 
@@ -2942,7 +2976,7 @@
         const toNum = tv === '' ? null : parseInt(tv, 10);
         b.pdfPageTo = toNum != null && !isNaN(toNum) ? toNum : null;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       };
       u.addEventListener('input', onChange);
@@ -3089,7 +3123,7 @@
       ta.addEventListener('input', () => {
         b.gabc = ta.value;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       wireEditorSectionLayout(panel, b, true, false);
@@ -3097,20 +3131,20 @@
       chkUseDropCap?.addEventListener('change', function () {
         b.chantUseDropCap = !!chkUseDropCap.checked;
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelector('#edChantLyricLang')?.addEventListener('change', function () {
         b.chantLyricLanguage =
           panel.querySelector('#edChantLyricLang').value === 'english' ? 'english' : 'latin';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelector('#edChantTextFont')?.addEventListener('change', function () {
         b.chantTextFont = normalizeChantTextFontKey(panel.querySelector('#edChantTextFont').value);
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelectorAll('[data-chant-num]').forEach(function (inp) {
@@ -3123,7 +3157,7 @@
             inp.value = b[prop];
           }
           scheduleAutosave();
-          scheduleRenderPreview();
+          markLayoutStale();
           renderBlockList();
         });
       });
@@ -3131,20 +3165,20 @@
         const cv = panel.querySelector('#edChantStaff').value;
         b.chantStaffColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelector('#edChantStaffDef')?.addEventListener('click', () => {
         b.chantStaffColor = '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelector('#edChantRubric')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantRubric').value;
         b.chantRubricColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
       panel.querySelector('#edChantRubricDef')?.addEventListener('click', () => {
@@ -3152,7 +3186,7 @@
         const inp = panel.querySelector('#edChantRubric');
         if (inp) inp.value = '#000000';
         scheduleAutosave();
-        scheduleRenderPreview();
+        markLayoutStale();
         renderBlockList();
       });
     } else if (b.type === 'jgabc_propers') {
@@ -3237,7 +3271,7 @@
     scheduleAutosave();
     renderBlockList();
     renderEditor();
-    scheduleRenderPreview();
+    markLayoutStale();
   }
 
   function pickImageForBlock(blockId) {
@@ -3257,7 +3291,7 @@
             b.mime = m[1];
             b.dataBase64 = m[2];
             scheduleAutosave();
-            scheduleRenderPreview();
+            markLayoutStale();
             renderBlockList();
             renderEditor();
           }
@@ -3278,7 +3312,7 @@
     scheduleAutosave();
     renderBlockList();
     renderEditor();
-    scheduleRenderPreview();
+    markLayoutStale();
   }
 
   function removeSelectedBlock() {
@@ -3288,7 +3322,7 @@
     scheduleAutosave();
     renderBlockList();
     renderEditor();
-    scheduleRenderPreview();
+    markLayoutStale();
   }
 
   async function downloadJson() {
@@ -3324,6 +3358,8 @@
     const names = [
       '--booklet-margin-left-mm',
       '--booklet-margin-right-mm',
+      '--booklet-margin-top-mm',
+      '--booklet-margin-bottom-mm',
       '--booklet-font-scale',
       '--booklet-body-font',
       '--booklet-rubric-color',
@@ -3528,7 +3564,7 @@
       state.settings.fontFamilyKey = BOOKLET_FONT_STACKS[k] != null ? k : 'georgia';
       applyCssVars();
       scheduleAutosave();
-      scheduleRenderPreview();
+      markLayoutStale();
     });
     
     function bindLayoutSetting(id, key, min, max, fallback) {

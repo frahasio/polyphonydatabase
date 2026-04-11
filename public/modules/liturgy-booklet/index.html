@@ -159,6 +159,7 @@
             opacity: 0;
             transition: opacity 0.15s;
             position: relative;
+            z-index: 2;
         }
         .booklet-insert-zone:hover { opacity: 1; }
         .booklet-insert-line {
@@ -330,6 +331,11 @@
         }
         .booklet-section {
             margin-bottom: 0;
+        }
+        .booklet-preview-hidden {
+            opacity: 0.25;
+            pointer-events: none;
+            transition: opacity 0.2s;
         }
         .booklet-image-frame {
             break-inside: avoid;
