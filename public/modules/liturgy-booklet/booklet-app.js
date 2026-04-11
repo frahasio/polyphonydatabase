@@ -2386,11 +2386,63 @@
     scheduleRenderPreview();
   }
 
+  var INSERT_MENU_ITEMS = [
+    { type: 'rubric', icon: 'bi-person-arms-up', label: 'Rubric' },
+    { type: 'reading', icon: 'bi-text-paragraph', label: 'Text' },
+    { type: 'title', icon: 'bi-text-center', label: 'Title rule' },
+    { type: 'chant_gabc', icon: 'bi-music-note-beamed', label: 'Chant (GABC)' },
+    { type: 'image', icon: 'bi-image', label: 'Image' },
+    { type: 'edition_pdf', icon: 'bi-file-earmark-pdf', label: 'Polyphony edition PDF' },
+    { type: 'page_break', icon: 'bi-file-earmark-break', label: 'Force page break' },
+    { type: 'spacer', icon: 'bi-arrows-expand', label: 'Vertical spacer' },
+  ];
+
+  function createInsertZone(insertIdx) {
+    var zone = document.createElement('div');
+    zone.className = 'booklet-insert-zone';
+    var line = document.createElement('div');
+    line.className = 'booklet-insert-line';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'booklet-insert-btn';
+    btn.innerHTML = '<i class="bi bi-plus-circle"></i>';
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var existing = document.querySelector('.booklet-insert-menu');
+      if (existing) existing.remove();
+      var menu = document.createElement('div');
+      menu.className = 'booklet-insert-menu';
+      INSERT_MENU_ITEMS.forEach(function (item) {
+        var mb = document.createElement('button');
+        mb.type = 'button';
+        mb.innerHTML = '<i class="bi ' + item.icon + ' me-2"></i>' + item.label;
+        mb.addEventListener('click', function () {
+          menu.remove();
+          addBlock(item.type, insertIdx);
+        });
+        menu.appendChild(mb);
+      });
+      zone.appendChild(menu);
+      setTimeout(function () {
+        document.addEventListener('click', function dismiss() {
+          menu.remove();
+          document.removeEventListener('click', dismiss);
+        }, { once: true });
+      }, 0);
+    });
+    line.appendChild(btn);
+    zone.appendChild(line);
+    return zone;
+  }
+
   function renderBlockList() {
     const el = document.getElementById('blockList');
     if (!el) return;
     el.innerHTML = '';
+    var topDropdown = document.querySelector('#bookletSidebar > .dropdown');
+    if (topDropdown) topDropdown.style.display = state.blocks.length ? 'none' : '';
     state.blocks.forEach((b, idx) => {
+      el.appendChild(createInsertZone(idx));
       const row = document.createElement('div');
       row.className = 'booklet-block-row';
 
@@ -2479,6 +2531,8 @@
       div.appendChild(actions);
       div.addEventListener('click', function () {
         selectedBlockId = b.id;
+        var edP = document.getElementById('bookletEditorPane');
+        if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
         renderBlockList();
         renderEditor();
         setTimeout(function () { scrollPreviewToBlock(b.id); }, 100);
@@ -2487,6 +2541,9 @@
 
       el.appendChild(row);
     });
+    if (state.blocks.length) {
+      el.appendChild(createInsertZone(state.blocks.length));
+    }
 
     el.addEventListener('dragover', function (ev) {
       ev.preventDefault();
@@ -2949,12 +3006,12 @@
         <div class="small border rounded px-2 py-1 mt-1 bg-light">
           <div class="mt-1 pb-1">
           <div class="mb-2" style="font-size:0.72rem">
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><div class="btn-group btn-group-sm" data-chant-prop="chantNeumeSize" data-s="21" data-m="23" data-l="25"></div></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><div class="btn-group btn-group-sm" data-chant-prop="chantGlyphScale" data-s="1.26" data-m="1.4" data-l="1.54"></div></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>System gap</span><div class="btn-group btn-group-sm" data-chant-prop="chantSystemGap" data-s="0" data-m="1" data-l="2"></div></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Tightness</span><div class="btn-group btn-group-sm" data-chant-prop="chantLyricTight" data-s="1.2" data-m="1.1" data-l="1.0"></div></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Line pad</span><div class="btn-group btn-group-sm" data-chant-prop="chantLinePadTop" data-s="0" data-m="2" data-l="4"></div></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><div class="btn-group btn-group-sm" data-chant-prop="chantDropCapScale" data-s="0.9" data-m="1.0" data-l="1.1"></div></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantNeumeSize" min="10" max="36" step="1" value="${cn}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantGlyphScale" min="0.3" max="2.5" step="0.05" value="${cg}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>System gap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantSystemGap" min="-8" max="8" step="0.5" value="${cs}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Tightness</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLyricTight" min="0.2" max="2.0" step="0.1" value="${ct}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Line pad</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLinePadTop" min="-10" max="10" step="1" value="${cl}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantDropCapScale" min="0.5" max="1.6" step="0.05" value="${cd}"></div>
           </div>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
@@ -3008,38 +3065,19 @@
         scheduleRenderPreview();
         renderBlockList();
       });
-      panel.querySelectorAll('[data-chant-prop]').forEach(function (grp) {
-        var prop = grp.dataset.chantProp;
-        var vals = { s: parseFloat(grp.dataset.s), m: parseFloat(grp.dataset.m), l: parseFloat(grp.dataset.l) };
-        var cur = b[prop] != null ? Number(b[prop]) : vals.m;
-        ['s', 'm', 'l'].forEach(function (key) {
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.textContent = key.toUpperCase();
-          var isActive = Math.abs(cur - vals[key]) <= Math.abs(cur - vals.s) && Math.abs(cur - vals[key]) <= Math.abs(cur - vals.m) && Math.abs(cur - vals[key]) <= Math.abs(cur - vals.l);
-          btn.className = 'btn ' + (isActive ? 'btn-primary' : 'btn-outline-secondary');
-          btn.style.fontSize = '0.6rem';
-          btn.style.padding = '0.1rem 0.35rem';
-          btn.addEventListener('click', function () {
-            b[prop] = vals[key];
-            grp.querySelectorAll('.btn').forEach(function (b2) { b2.className = 'btn btn-outline-secondary'; b2.style.fontSize = '0.6rem'; b2.style.padding = '0.1rem 0.35rem'; });
-            btn.className = 'btn btn-primary';
-            btn.style.fontSize = '0.6rem';
-            btn.style.padding = '0.1rem 0.35rem';
-            scheduleAutosave();
-            scheduleRenderPreview();
-            renderBlockList();
-          });
-          grp.appendChild(btn);
+      panel.querySelectorAll('[data-chant-num]').forEach(function (inp) {
+        var prop = inp.dataset.chantNum;
+        inp.addEventListener('change', function () {
+          var v = parseFloat(inp.value);
+          if (Number.isFinite(v)) {
+            var mn = parseFloat(inp.min), mx = parseFloat(inp.max);
+            b[prop] = Math.min(mx, Math.max(mn, v));
+            inp.value = b[prop];
+          }
+          scheduleAutosave();
+          scheduleRenderPreview();
+          renderBlockList();
         });
-        var closest = 'm';
-        var minDist = Math.abs(cur - vals.m);
-        if (Math.abs(cur - vals.s) < minDist) { closest = 's'; minDist = Math.abs(cur - vals.s); }
-        if (Math.abs(cur - vals.l) < minDist) { closest = 'l'; }
-        var btns = grp.querySelectorAll('.btn');
-        btns.forEach(function (b2) { b2.className = 'btn btn-outline-secondary'; b2.style.fontSize = '0.6rem'; b2.style.padding = '0.1rem 0.35rem'; });
-        var idx = closest === 's' ? 0 : closest === 'l' ? 2 : 1;
-        if (btns[idx]) { btns[idx].className = 'btn btn-primary'; btns[idx].style.fontSize = '0.6rem'; btns[idx].style.padding = '0.1rem 0.35rem'; }
       });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
@@ -3075,7 +3113,7 @@
     }
   }
 
-  function addBlock(type) {
+  function addBlock(type, insertIndex) {
     const b = { id: uid(), type };
     if (type === 'rubric') {
       b.text = '';
@@ -3139,8 +3177,14 @@
     if (type === 'rubric' || type === 'reading') {
       b.fontScale = DEFAULT_BLOCK_FONT_SCALE;
     }
-    state.blocks.push(b);
+    if (insertIndex != null && insertIndex >= 0 && insertIndex <= state.blocks.length) {
+      state.blocks.splice(insertIndex, 0, b);
+    } else {
+      state.blocks.push(b);
+    }
     selectedBlockId = b.id;
+    var edP = document.getElementById('bookletEditorPane');
+    if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
     scheduleAutosave();
     renderBlockList();
     renderEditor();
@@ -3518,7 +3562,18 @@
       });
     }
     setupPaneCollapse('btnCollapseList', 'bookletSidebar', 'booklet-pane-list--collapsed', 'left');
-    setupPaneCollapse('btnCollapseEditor', 'bookletEditorPane', 'booklet-pane-editor--collapsed', 'right');
+
+    var closeEdBtn = document.getElementById('btnCloseEditor');
+    var edPane = document.getElementById('bookletEditorPane');
+    if (closeEdBtn && edPane) {
+      closeEdBtn.addEventListener('click', function () {
+        edPane.classList.add('booklet-pane-editor--collapsed');
+        selectedBlockId = null;
+        renderBlockList();
+        var host = document.querySelector('.booklet-spread-host');
+        if (host) setTimeout(function () { scaleBookletSpread(host); }, 100);
+      });
+    }
   }
 
   loadAutosave();

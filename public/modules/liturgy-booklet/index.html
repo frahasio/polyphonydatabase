@@ -150,6 +150,60 @@
             overflow: hidden;
         }
         .block-list-item:hover { background: #f8f9fa; }
+        .booklet-insert-zone {
+            height: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s;
+            position: relative;
+        }
+        .booklet-insert-zone:hover { opacity: 1; }
+        .booklet-insert-line {
+            width: 100%;
+            height: 1px;
+            background: #8b1538;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .booklet-insert-btn {
+            position: absolute;
+            border: none;
+            background: #fff;
+            color: #8b1538;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+        }
+        .booklet-insert-btn:hover { color: #6d1029; }
+        .booklet-insert-menu {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            padding: 0.25rem 0;
+            min-width: 200px;
+            font-size: 0.8rem;
+        }
+        .booklet-insert-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: none;
+            padding: 0.3rem 0.75rem;
+            cursor: pointer;
+        }
+        .booklet-insert-menu button:hover { background: #f8f9fa; }
         .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
         .block-list-item.dragging { opacity: 0.35; }
         .block-list-item.drag-over-top { border-top: 2.5px solid #8b1538; }
@@ -746,7 +800,7 @@
             <div id="blockList"></div>
         </div>
         <div class="booklet-pane booklet-pane-editor no-print" id="bookletEditorPane">
-            <button type="button" class="booklet-pane-collapse-btn btn btn-sm btn-outline-secondary" id="btnCollapseEditor" title="Collapse editor"><i class="bi bi-chevron-bar-right"></i></button>
+            <button type="button" class="booklet-pane-collapse-btn btn btn-sm btn-outline-secondary" id="btnCloseEditor" title="Close editor"><i class="bi bi-x-lg"></i></button>
             <div id="editorPanel" class="small">
                 <p class="text-muted small mb-0">Select a section or add one.</p>
             </div>
