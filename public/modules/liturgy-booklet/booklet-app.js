@@ -283,7 +283,7 @@
     const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
     const mt = getBookletMarginTopMm();
     const mb = getBookletMarginBottomMm();
-    return Math.max(120, mmToPx(pageH - mt - mb));
+    return Math.max(120, mmToPx(pageH - mt - mb) - 2);
   }
 
   
@@ -739,8 +739,7 @@
     const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 23));
     const tfk = normalizeChantTextFontKey(b.chantTextFont);
     ctxt.setFont(CHANT_TEXT_FONT_STACKS[tfk], lyricPx / 0.9);
-    var gapRaw = b.chantSystemGap != null ? Number(b.chantSystemGap) : 1;
-    ctxt.spaceBetweenSystems = Math.max(0, (Number.isFinite(gapRaw) ? gapRaw : 1) * 3);
+    ctxt.spaceBetweenSystems = 1.5;
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
     ctxt.textStyles.annotation.size = Math.round(lyricPx / 0.9 - 2);
@@ -1343,34 +1342,20 @@
       temp.innerHTML = html;
       const lines = [];
       var padTop = Math.max(0, cb.chantLinePadTop != null ? Number(cb.chantLinePadTop) : 2);
-      var CHANT_VB_SHIFT = 20;
+      var gapRaw = cb.chantSystemGap != null ? Number(cb.chantSystemGap) : 0;
+      var gapPx = Math.max(0, gapRaw * 2);
       temp.querySelectorAll('svg').forEach(function (svg, svgIdx) {
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
-        var vb = svg.getAttribute('viewBox');
-        if (vb) {
-          var parts = vb.split(/[\s,]+/).map(Number);
-          if (parts.length === 4 && parts.every(Number.isFinite)) {
-            var skipShift = svgIdx === 0 && initialStyle;
-            if (!skipShift) {
-              parts[1] -= CHANT_VB_SHIFT;
-            }
-            svg.setAttribute('viewBox', parts.join(' '));
-          }
-        }
         svg.querySelectorAll('text.annotation').forEach(function (ann) {
           var cy = parseFloat(ann.getAttribute('y'));
           if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6) + '');
         });
-        var didShift = vb && !(svgIdx === 0 && initialStyle);
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.paddingTop = padTop + 'px';
-        if (didShift) {
-          line.style.clipPath = 'inset(-100px -10px 0 -10px)';
-        } else {
-          line.style.overflow = 'visible';
-        }
+        line.style.marginBottom = gapPx + 'px';
+        line.style.overflow = 'visible';
         line.appendChild(svg);
         lines.push(line);
       });
@@ -1471,8 +1456,7 @@
     wrap.className = 'booklet-section';
     wrap.dataset.blockId = b.id;
     if (b.type === 'rubric' || b.type === 'reading') {
-      const fs = Math.min(1.5, Math.max(0.75, Number(b.fontScale) || DEFAULT_BLOCK_FONT_SCALE));
-      wrap.style.fontSize = 'calc(11pt * ' + fs + ')';
+      wrap.style.fontSize = 'calc(11pt * ' + DEFAULT_BLOCK_FONT_SCALE + ')';
     }
     if (b.type === 'rubric') {
       appendSectionHeading(wrap, b);
@@ -1514,13 +1498,24 @@
         innerR.appendChild(sanitizeToFragment(b.translation || ''));
         var _mount = document.getElementById('bookletMeasureMount');
         if (_mount) {
-          _mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:600px;overflow:visible;';
-          var _tmpL = innerL.cloneNode(true); var _tmpR = innerR.cloneNode(true);
-          _mount.appendChild(_tmpL); _mount.appendChild(_tmpR);
+          _mount.innerHTML = '';
+          _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
+          var _ctx = ensureMeasurePageContext(_mount, 600);
+          _ctx.body.innerHTML = '';
+          var _wrapClone = document.createElement('div');
+          _wrapClone.className = 'booklet-section';
+          _wrapClone.style.fontSize = wrap.style.fontSize;
+          var _tmpL = innerL.cloneNode(true);
+          var _tmpR = innerR.cloneNode(true);
+          _wrapClone.appendChild(_tmpL);
+          _wrapClone.appendChild(_tmpR);
+          _ctx.body.appendChild(_wrapClone);
+          _mount.appendChild(_ctx.page);
           var _lhL = parseFloat(getComputedStyle(_tmpL).lineHeight) || 0;
           var _lhR = parseFloat(getComputedStyle(_tmpR).lineHeight) || 0;
           var _maxLh = Math.max(_lhL, _lhR, 20);
-          _mount.innerHTML = '';
+          _mount.removeChild(_ctx.page);
+          _ctx.body.innerHTML = '';
           _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
           innerL.style.lineHeight = _maxLh + 'px';
           innerR.style.lineHeight = _maxLh + 'px';
@@ -1681,7 +1676,7 @@
       var c = el.cloneNode(true);
       c.style.cssText = 'visibility:hidden;position:absolute;width:' + widthPx + 'px;';
       document.body.appendChild(c);
-      var h = c.offsetHeight;
+      var h = c.getBoundingClientRect().height;
       c.remove();
       return h || 1;
     }
@@ -1692,7 +1687,7 @@
     var clone = el.cloneNode(true);
     ctx.body.appendChild(clone);
     mount.appendChild(ctx.page);
-    var h = clone.offsetHeight;
+    var h = clone.getBoundingClientRect().height;
     mount.removeChild(ctx.page);
     ctx.body.innerHTML = '';
     mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
@@ -1732,7 +1727,7 @@
     return container;
   }
 
-  function paginateFlow(flowItems, widthPx, pageHPx) {
+  function paginateFlow(flowItems, widthPx, pageHPx, lastPageReservePx) {
     var pages = [];
     var curEls = [];
     var curHeights = [];
@@ -1825,9 +1820,11 @@
       var header = 0;
       var footer = 0;
       if (richtext) {
-        header = richtext.offsetTop;
-        var cloneH = clone.offsetHeight;
-        var rtBottom = richtext.offsetTop + richtext.offsetHeight;
+        var richRect = richtext.getBoundingClientRect();
+        var cloneRect = clone.getBoundingClientRect();
+        header = richRect.top - cloneRect.top;
+        var cloneH = cloneRect.height;
+        var rtBottom = header + richRect.height;
         footer = Math.max(0, cloneH - rtBottom);
       }
       mount.removeChild(ctx.page);
@@ -1970,7 +1967,10 @@
       else pendingGapMm = defaultGapMm;
     }
 
-    if (curEls.length) flushPage();
+    if (curEls.length) {
+      if (lastPageReservePx > 0) pageHPx -= lastPageReservePx;
+      flushPage();
+    }
     return pages;
   }
 
@@ -2267,7 +2267,7 @@
     var pageHPx = getMaxPageBodyHeightPx();
     var marginTopPx = mmToPx(getBookletMarginTopMm());
     var marginBotPx = mmToPx(getBookletMarginBottomMm());
-    var pageResults = paginateFlow(flow, widthPx, pageHPx);
+    var pageResults = paginateFlow(flow, widthPx, pageHPx, BOOKLET_FOOTER_RESERVE_PX);
 
     var pageDivs = pageResults.map(function (pg) {
       var page = document.createElement('div');
@@ -2444,7 +2444,7 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'booklet-insert-btn';
-    btn.innerHTML = '<i class="bi bi-plus-circle"></i>';
+    btn.innerHTML = '<i class="bi bi-plus-circle-fill"></i>';
     btn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var existing = document.querySelector('.booklet-insert-menu');
@@ -2710,7 +2710,7 @@
     }
     if (b.type === 'rubric') {
       panel.innerHTML = `
-        ${editorLayoutPanelHtml(b, true, true)}
+        ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-1" title="Optional bold line above the rubric body.">Title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
         <label class="form-label small mb-1" title="Optional italic line, right-aligned under the title.">Source reference <span class="text-muted">(optional)</span></label>
@@ -2751,7 +2751,7 @@
         scheduleAutosave();
         scheduleRenderPreview();
       });
-      wireEditorSectionLayout(panel, b, true, true);
+      wireEditorSectionLayout(panel, b, true, false);
       const push = () => {
         b.text = ed.innerHTML;
         scheduleAutosave();
@@ -2763,7 +2763,7 @@
       const split = b.parallelLeftPct != null ? b.parallelLeftPct : 50;
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
       panel.innerHTML = `
-        ${editorLayoutPanelHtml(b, true, true)}
+        ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-1" title="Optional bold heading above both columns.">Section title <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edReadSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left above both columns">
         <label class="form-label small mb-1" title="Optional italic reference, right-aligned.">Source reference <span class="text-muted">(optional)</span></label>
@@ -2849,7 +2849,7 @@
       rng.addEventListener('input', syncParallel);
       chk.addEventListener('change', syncParallel);
       ig.addEventListener('input', syncParallel);
-      wireEditorSectionLayout(panel, b, true, true);
+      wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'image') {
       const iw = b.imageWidthPx != null ? Math.round(Number(b.imageWidthPx)) : 0;
       const ia = b.imageAlign === 'left' || b.imageAlign === 'right' ? b.imageAlign : 'center';
