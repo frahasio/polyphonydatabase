@@ -6,6 +6,9 @@
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
+  const GAP_FLEX_PX = 4;
+  const MARGIN_TOLERANCE_PX = 10;
+  const LINE_H_PX = 23.2;
   var BOOKLET_FOOTER_RESERVE_PX = 30;
 
   const BOOKLET_FONT_STACKS = {
@@ -1607,17 +1610,108 @@
 
   function paginateFlow(flowItems, widthPx, pageHPx) {
     var pages = [];
-    var curPageEls = [];
-    var curY = 0;
+    var curEls = [];
+    var curHeights = [];
+    var curGaps = [];
+    var curGapFlex = [];
     var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     var pendingGapMm = defaultGapMm;
 
+    function numFlexGaps() {
+      var n = 0;
+      for (var j = 0; j < curGapFlex.length; j++) if (curGapFlex[j]) n++;
+      return n;
+    }
+
+    function calcContent(delta) {
+      var t = 0;
+      for (var j = 0; j < curHeights.length; j++) {
+        t += (curGapFlex[j] ? Math.max(0, curGaps[j] + delta) : curGaps[j]) + curHeights[j];
+      }
+      return t;
+    }
+
+    function buildAdjGaps(delta) {
+      var out = [];
+      for (var j = 0; j < curGaps.length; j++) {
+        out.push(curGapFlex[j] ? Math.max(0, curGaps[j] + delta) : curGaps[j]);
+      }
+      return out;
+    }
+
+    function pushPage(els, gaps, padTop, padBot) {
+      pages.push({
+        elements: els,
+        adjustedGaps: gaps,
+        padTopAdjust: Math.round(padTop * 10) / 10,
+        padBottomAdjust: Math.round(padBot * 10) / 10
+      });
+    }
+
+    function finalizePage() {
+      if (!curEls.length) return;
+      var ideal = calcContent(0);
+      var nf = numFlexGaps();
+      var delta = 0;
+      if (ideal > pageHPx) {
+        delta = nf > 0 ? -Math.min(GAP_FLEX_PX, (ideal - pageHPx) / nf) : 0;
+      } else if (ideal < pageHPx) {
+        delta = nf > 0 ? Math.min(GAP_FLEX_PX, (pageHPx - ideal) / nf) : 0;
+      }
+      var adjusted = calcContent(delta);
+      var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - adjusted) / 2);
+      pushPage(curEls, buildAdjGaps(delta), padAdj, padAdj);
+    }
 
     function flushPage() {
-      if (curPageEls.length) pages.push(curPageEls);
-      curPageEls = [];
-      curY = 0;
+      finalizePage();
+      curEls = [];
+      curHeights = [];
+      curGaps = [];
+      curGapFlex = [];
       pendingGapMm = defaultGapMm;
+    }
+
+    function bestLineSnap(avail, maxAvail) {
+      if (avail < LINE_H_PX) return { h: avail, borrow: 0 };
+      var fn = Math.floor(avail / LINE_H_PX);
+      var ch = (fn + 1) * LINE_H_PX;
+      var fh = fn * LINE_H_PX;
+      if (ch <= maxAvail) return { h: ch, borrow: Math.max(0, ch - avail) };
+      if (fh > 0) return { h: fh, borrow: 0 };
+      return { h: avail, borrow: 0 };
+    }
+
+    function splitContinuation(el, totalH, startOffset, w) {
+      var offset = startOffset;
+      while (offset < totalH) {
+        var rem = totalH - offset;
+        var snap = bestLineSnap(pageHPx, pageHPx + MARGIN_TOLERANCE_PX);
+        if (rem <= snap.h) {
+          curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom')];
+          curHeights = [rem];
+          curGaps = [0];
+          curGapFlex = [false];
+          break;
+        }
+        var sliceH = snap.h;
+        var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
+        var clip = createClippedView(el, offset, offset + sliceH, w, cls);
+        var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - sliceH) / 2);
+        pushPage([clip], [0], padAdj, padAdj);
+        offset += sliceH;
+      }
+    }
+
+    function placeOnNewPage(el, h, splittable, w) {
+      if (h <= pageHPx + MARGIN_TOLERANCE_PX || !splittable) {
+        curEls = [el];
+        curHeights = [h];
+        curGaps = [0];
+        curGapFlex = [false];
+      } else {
+        splitContinuation(el, h, 0, w);
+      }
     }
 
     for (var i = 0; i < flowItems.length; i++) {
@@ -1626,72 +1720,102 @@
 
       var el = item.el;
       var h = measureInContext(el, widthPx);
-      var gap = 0;
-      if (curY > 0) {
+      var gap = 0, gapFlex = false;
+
+      if (curEls.length > 0) {
         if (item.internalGapPx != null && item.internalGapPx >= 0) {
           gap = item.internalGapPx;
         } else {
           gap = mmToPx(pendingGapMm);
+          gapFlex = true;
         }
       }
 
-      if (item.forceBreakBefore && curPageEls.length) {
+      if (item.forceBreakBefore && curEls.length) {
         flushPage();
         gap = 0;
+        gapFlex = false;
       }
 
+      var minGap = gapFlex ? Math.max(0, gap - GAP_FLEX_PX) : gap;
+      var minTotal = calcContent(-GAP_FLEX_PX) + minGap + h;
 
-      var TOLERANCE = Math.round(pageHPx * 0.04);
-      var squeezedGap = gap;
-      if (curY + gap + h > pageHPx + TOLERANCE && curY + h <= pageHPx + TOLERANCE && gap > 0) {
-        squeezedGap = Math.max(0, pageHPx + TOLERANCE - curY - h);
+      if (minTotal <= pageHPx + MARGIN_TOLERANCE_PX) {
+        curEls.push(el);
+        curHeights.push(h);
+        curGaps.push(gap);
+        curGapFlex.push(gapFlex);
       }
+      else if (item.splittable && curEls.length > 0) {
+        var minAbove = calcContent(-GAP_FLEX_PX) + minGap;
+        var maxRemaining = pageHPx + MARGIN_TOLERANCE_PX - minAbove;
 
-      if (curY + squeezedGap + h <= pageHPx + TOLERANCE) {
-        if (curY > 0) curY += squeezedGap;
-        curPageEls.push(el);
-        curY += h;
-      } else if (!item.splittable) {
-        if (curPageEls.length) flushPage();
-        curPageEls.push(el);
-        curY = h;
-      } else if (curY > 0 && (pageHPx - curY - gap) >= 60) {
-        var remaining = pageHPx - curY - gap;
-        curY += gap;
+        if (maxRemaining >= 60) {
+          var deltas = [-GAP_FLEX_PX, 0, GAP_FLEX_PX];
+          var best = null;
 
-        var offset = 0;
-        var totalH = h;
-        var isFirst = true;
-        while (offset < totalH) {
-          var sliceH = isFirst ? remaining : pageHPx;
-          if (offset + sliceH >= totalH) {
-            var clipEl = createClippedView(el, offset, totalH, widthPx, 'booklet-clip-bottom');
-            curPageEls.push(clipEl);
-            curY += (totalH - offset);
-            break;
+          for (var d = 0; d < deltas.length; d++) {
+            var dt = deltas[d];
+            var above = calcContent(dt) + (gapFlex ? Math.max(0, gap + dt) : gap);
+            var avail = pageHPx - above;
+            var maxA = pageHPx + MARGIN_TOLERANCE_PX - above;
+            if (maxA < 20) continue;
+
+            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA));
+            if (snap.h < 20) continue;
+            var splitH = Math.min(snap.h, h);
+            var total = above + splitH;
+            var absPad = Math.abs(pageHPx - total);
+
+            if (!best || absPad < best.absPad) {
+              best = {
+                dt: dt, splitH: splitH, total: total, absPad: absPad,
+                gAdj: gapFlex ? Math.max(0, gap + dt) : gap
+              };
+            }
           }
-          var snapH = snapToLineHeight(sliceH, el);
-          if (snapH < 20) snapH = sliceH;
-          var clipClass = isFirst ? 'booklet-clip-top' : (offset + snapH >= totalH ? 'booklet-clip-bottom' : 'booklet-clip-mid');
-          var clipPart = createClippedView(el, offset, offset + snapH, widthPx, clipClass);
-          curPageEls.push(clipPart);
-          offset += snapH;
-          flushPage();
-          isFirst = false;
-        }
-      } else {
-        if (curPageEls.length) flushPage();
-        curPageEls.push(el);
-        curY = h;
-      }
 
+          if (best && best.splitH >= 20) {
+            var clipTop = createClippedView(el, 0, best.splitH, widthPx, 'booklet-clip-top');
+            var adjGaps = buildAdjGaps(best.dt);
+            adjGaps.push(best.gAdj);
+            var els = curEls.slice();
+            els.push(clipTop);
+            var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - best.total) / 2);
+            pushPage(els, adjGaps, padAdj, padAdj);
+
+            curEls = [];
+            curHeights = [];
+            curGaps = [];
+            curGapFlex = [];
+            pendingGapMm = defaultGapMm;
+
+            if (best.splitH < h) {
+              splitContinuation(el, h, best.splitH, widthPx);
+            }
+          } else {
+            flushPage();
+            placeOnNewPage(el, h, true, widthPx);
+          }
+        } else {
+          flushPage();
+          placeOnNewPage(el, h, true, widthPx);
+        }
+      }
+      else if (item.splittable) {
+        if (curEls.length) flushPage();
+        placeOnNewPage(el, h, true, widthPx);
+      }
+      else {
+        if (curEls.length) flushPage();
+        placeOnNewPage(el, h, false, widthPx);
+      }
 
       if (item.gapMm != null) pendingGapMm = item.gapMm;
       else pendingGapMm = defaultGapMm;
     }
-    if (curPageEls.length) pages.push(curPageEls);
 
-
+    if (curEls.length) flushPage();
     return pages;
   }
 
@@ -1984,17 +2108,26 @@
 
     var widthPx = getContentWidthPx();
     var pageHPx = getMaxPageBodyHeightPx();
-    var pageGroups = paginateFlow(flow, widthPx, pageHPx);
+    var marginPx = mmToPx(getBookletMarginMm());
+    var pageResults = paginateFlow(flow, widthPx, pageHPx);
 
-    var pageDivs = pageGroups.map(function (elements) {
+    var pageDivs = pageResults.map(function (pg) {
       var page = document.createElement('div');
       page.className = 'booklet-page';
       page.dataset.size = size;
+      if (pg.padTopAdjust || pg.padBottomAdjust) {
+        page.style.paddingTop = (marginPx + (pg.padTopAdjust || 0)) + 'px';
+        page.style.paddingBottom = (marginPx + (pg.padBottomAdjust || 0)) + 'px';
+      }
       var inner = document.createElement('div');
       inner.className = 'page-inner-flow';
       var body = document.createElement('div');
       body.className = 'booklet-page-body';
-      elements.forEach(function (el) { body.appendChild(el); });
+      pg.elements.forEach(function (el, idx) {
+        el.style.marginTop = (pg.adjustedGaps[idx] || 0) + 'px';
+        el.style.marginBottom = '0';
+        body.appendChild(el);
+      });
       inner.appendChild(body);
       page.appendChild(inner);
       return page;

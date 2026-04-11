@@ -2286,8 +2286,11 @@
             if (!tone) return '';
             const arr = Array.isArray(tone) ? tone : [tone];
             if (arr.length === 0) return '';
-            const joiner = (connector === 'vel') ? ' vel ' : ' et ';
-            return arr.map(t => toneMapping[t] || t).join(joiner) + ' toni';
+            const mapped = arr.map(t => toneMapping[t] || t);
+            const conj = (connector === 'vel') ? 'vel' : 'et';
+            if (mapped.length === 1) return mapped[0] + ' toni';
+            if (mapped.length === 2) return mapped[0] + ` ${conj} ` + mapped[1] + ' toni';
+            return mapped.slice(0, -1).join(', ') + `, ${conj} ` + mapped[mapped.length - 1] + ' toni';
         }
             
             const evenOddMapping = {
