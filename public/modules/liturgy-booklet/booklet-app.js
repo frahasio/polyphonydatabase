@@ -3023,6 +3023,7 @@
       div.appendChild(textEl);
       div.appendChild(actions);
       div.addEventListener('mousedown', function (e) {
+        if (e.target.closest('.booklet-block-actions')) return;
         e.preventDefault();
         selectedBlockId = b.id;
         var edP = document.getElementById('bookletEditorPane');
