@@ -447,6 +447,27 @@
         parts.push('font-family:' + fontStackFor(familyName));
       }
     }
+    const fw = st.match(/font-weight\s*:\s*([^;]+)/i);
+    if (fw) {
+      var vw = fw[1].trim().toLowerCase();
+      if (/^(normal|bold|[1-9]00)$/.test(vw)) {
+        parts.push('font-weight:' + vw);
+      }
+    }
+    const fs = st.match(/font-style\s*:\s*([^;]+)/i);
+    if (fs) {
+      var vs = fs[1].trim().toLowerCase();
+      if (/^(normal|italic|oblique)$/.test(vs)) {
+        parts.push('font-style:' + vs);
+      }
+    }
+    const td = st.match(/text-decoration(?:-line)?\s*:\s*([^;]+)/i);
+    if (td) {
+      var vd = td[1].trim().toLowerCase();
+      if (/^(none|underline|line-through|overline)$/.test(vd)) {
+        parts.push('text-decoration:' + vd);
+      }
+    }
     const fv = st.match(/font-variant\s*:\s*([^;]+)/i);
     if (fv) {
       var vv = fv[1].trim().toLowerCase();
@@ -859,14 +880,11 @@
       saveEdSelection();
     });
 
-    toolbarRoot.addEventListener(
-      'mousedown',
-      function (e) {
-        if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], [data-rich-family-select], [data-rich-insert], [data-rich-insert-text], .booklet-rich-color-pick')) return;
-        e.preventDefault();
-      },
-      false
-    );
+    toolbarRoot.addEventListener('mousedown', function (e) {
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' ||
+          e.target.closest('select')) return;
+      e.preventDefault();
+    }, false);
 
     function restoreSelection() {
       ed.focus();
@@ -2754,47 +2772,41 @@
       fontOpts += '</optgroup>';
     });
     return '<div class="booklet-rich-toolbar ' + tbClass + '">' +
-      '<div class="d-flex flex-wrap align-items-center gap-1">' +
-        '<div class="btn-group btn-group-sm mb-1" role="group">' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="smallCaps" title="Small caps" style="font-variant:small-caps;font-size:0.72rem;line-height:1.5">Sc</button>' +
+      '<div class="d-flex flex-wrap align-items-center" style="gap:2px 6px">' +
+        '<div class="btn-group btn-group-sm" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="italic" title="Italic"><em>I</em></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="underline" title="Underline"><u>U</u></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="smallCaps" title="Small caps" style="font-variant:small-caps;font-size:0.68rem;line-height:1.5">Sc</button>' +
         '</div>' +
-        '<div class="btn-group btn-group-sm mb-1" role="group">' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left"><i class="bi bi-text-left"></i></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre"><i class="bi bi-text-center"></i></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right"><i class="bi bi-text-right"></i></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify"><i class="bi bi-justify"></i></button>' +
+        '<div class="btn-group btn-group-sm" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="justifyLeft" title="Align left"><i class="bi bi-text-left"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="justifyCenter" title="Centre"><i class="bi bi-text-center"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="justifyRight" title="Align right"><i class="bi bi-text-right"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="justifyFull" title="Justify"><i class="bi bi-justify"></i></button>' +
         '</div>' +
-        '<div class="btn-group btn-group-sm mb-1" role="group">' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertOrderedList" title="Numbered list"><i class="bi bi-list-ol"></i></button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul"></i></button>' +
+        '<div class="btn-group btn-group-sm" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="insertOrderedList" title="Numbered list"><i class="bi bi-list-ol"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul"></i></button>' +
         '</div>' +
       '</div>' +
-      '<div class="d-flex flex-wrap align-items-center gap-1">' +
-        '<select class="form-select form-select-sm mb-1" data-rich-family-select style="max-width:9rem;font-size:0.7rem" title="Font family">' + fontOpts + '</select>' +
-        '<select class="form-select form-select-sm mb-1" data-rich-font-select style="max-width:5.5rem;font-size:0.7rem" title="Font size">' +
-          '<option value="" selected>Size\u2026</option><option value="inherit">Default</option>' +
-          '<option value="9pt">9pt</option><option value="10pt">10pt</option><option value="11pt">11pt</option>' +
-          '<option value="12pt">12pt</option><option value="13pt">13pt</option><option value="14pt">14pt</option>' +
-          '<option value="16pt">16pt</option><option value="18pt">18pt</option>' +
-        '</select>' +
-        '<input type="color" class="booklet-rich-color-pick mb-1" value="#212529" title="Text colour">' +
-        '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 mb-1" style="font-size:0.65rem;line-height:1.4" data-toggle-special="' + uid + '" title="Special characters">' +
-          '<i class="bi bi-chevron-right" style="font-size:0.55rem"></i> \u266D' +
+      '<div class="d-flex flex-wrap align-items-center" style="gap:2px 4px">' +
+        '<select class="form-select form-select-sm" data-rich-family-select style="max-width:8.5rem;font-size:0.68rem;padding:1px 18px 1px 4px;height:1.55rem" title="Font family">' + fontOpts + '</select>' +
+        '<input type="color" class="booklet-rich-color-pick" value="#212529" title="Text colour" style="width:1.55rem;height:1.55rem;padding:1px;border-radius:3px">' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.6rem;line-height:1.3;height:1.55rem" data-toggle-special="' + uid + '" title="Special characters">' +
+          '<i class="bi bi-chevron-right" style="font-size:0.5rem"></i> \u266D' +
         '</button>' +
       '</div>' +
-      '<div class="d-none flex-wrap align-items-center gap-1" id="' + uid + '">' +
-        '<div class="btn-group btn-group-sm mb-1" role="group">' +
-          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="v" title="Versicle (\\V.)">v</button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="r" title="Response (\\R.)">r</button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="a" title="Antiphon (\\A.)">a</button>' +
-          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="+" title="Cross (\\+)">+</button>' +
+      '<div class="d-none flex-wrap align-items-center" style="gap:2px 4px" id="' + uid + '">' +
+        '<div class="btn-group btn-group-sm" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="v" title="Versicle (\\V.)">v</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="r" title="Response (\\R.)">r</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="a" title="Antiphon (\\A.)">a</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="+" title="Cross (\\+)">+</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u2020" title="Dagger">\u2020</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="*" title="Asterisk">*</button>' +
         '</div>' +
-        '<div class="btn-group btn-group-sm mb-1" role="group" title="Latin ligatures (best with Gentium Plus, Cardo, or EB Garamond)">' +
+        '<div class="btn-group btn-group-sm" role="group" title="Latin ligatures (best with Gentium Plus, Cardo, or EB Garamond)">' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00E6" title="ae ligature">\u00E6</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153" title="oe ligature">\u0153</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u01FD" title="ae with acute">\u01FD</button>' +
