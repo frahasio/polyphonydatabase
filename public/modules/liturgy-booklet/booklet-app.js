@@ -737,7 +737,7 @@
     ctxt.spaceBetweenSystems = Math.max(0, (Number.isFinite(gapRaw) ? gapRaw : 1) * 3);
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
-    ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 9);
+    ctxt.textStyles.annotation.size = Math.round(lyricPx / 0.9 - 2);
     ctxt.annotationTextSize = ctxt.textStyles.annotation.size;
     const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.1));
     ctxt.minLyricWordSpacing *= tight;
@@ -1251,11 +1251,9 @@
   function syncControlsFromState() {
     const sz = document.getElementById('selPageSize');
     const sf = document.getElementById('selBookletFont');
-    const rc = document.getElementById('inpRubricColor');
     const pt = document.getElementById('inpProjectTitle');
     if (sz) sz.value = state.settings.pageSize;
     if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
-    if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
     var syncNum = function (id, key, fallback) {
       var el = document.getElementById(id);
@@ -1354,7 +1352,6 @@
           }
         }
         svg.querySelectorAll('text.annotation').forEach(function (ann) {
-          ann.setAttribute('font-weight', 'bold');
           var cy = parseFloat(ann.getAttribute('y'));
           if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6) + '');
         });
@@ -1474,6 +1471,7 @@
       appendSectionHeading(wrap, b);
       const p = document.createElement('div');
       p.className = 'rubric booklet-richtext';
+      p.style.color = b.rubricColor || '#8b1538';
       p.appendChild(sanitizeToFragment(b.text || ''));
       wrap.appendChild(p);
     } else if (b.type === 'reading') {
@@ -1649,6 +1647,27 @@
     return out;
   }
 
+  function ensureMeasurePageContext(mount, widthPx) {
+    var ctx = mount._pageCtx;
+    if (!ctx) {
+      var page = document.createElement('div');
+      page.className = 'booklet-page';
+      page.dataset.size = state.settings.pageSize || 'A4';
+      page.style.cssText = 'position:static;width:auto;height:auto;min-height:0;max-height:none;margin:0;padding:0;box-shadow:none;overflow:visible;';
+      var inner = document.createElement('div');
+      inner.className = 'page-inner-flow';
+      var body = document.createElement('div');
+      body.className = 'booklet-page-body';
+      inner.appendChild(body);
+      page.appendChild(inner);
+      ctx = { page: page, body: body };
+      mount._pageCtx = ctx;
+    }
+    ctx.page.dataset.size = state.settings.pageSize || 'A4';
+    ctx.body.style.width = widthPx + 'px';
+    return ctx;
+  }
+
   function measureInContext(el, widthPx) {
     var mount = document.getElementById('bookletMeasureMount');
     if (!mount) {
@@ -1660,11 +1679,15 @@
       return h || 1;
     }
     mount.innerHTML = '';
-    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + widthPx + 'px;overflow:visible;';
+    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
+    var ctx = ensureMeasurePageContext(mount, widthPx);
+    ctx.body.innerHTML = '';
     var clone = el.cloneNode(true);
-    mount.appendChild(clone);
+    ctx.body.appendChild(clone);
+    mount.appendChild(ctx.page);
     var h = clone.offsetHeight;
-    mount.innerHTML = '';
+    mount.removeChild(ctx.page);
+    ctx.body.innerHTML = '';
     mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
     return h || 1;
   }
@@ -1768,33 +1791,42 @@
       pendingGapMm = defaultGapMm;
     }
 
-    function bestLineSnap(avail, maxAvail, headerOffset) {
+    function bestLineSnap(avail, maxAvail, headerOffset, footerOffset) {
       var off = headerOffset || 0;
-      var textAvail = avail - off;
+      var bot = footerOffset || 0;
+      var textAvail = avail - off - bot;
       if (textAvail < LINE_H_PX) return { h: avail, borrow: 0 };
       var fn = Math.floor(textAvail / LINE_H_PX);
-      var fh = off + fn * LINE_H_PX;
-      var ch = off + (fn + 1) * LINE_H_PX;
+      var fh = off + fn * LINE_H_PX + bot;
+      var ch = off + (fn + 1) * LINE_H_PX + bot;
       if (ch <= maxAvail) return { h: ch, borrow: Math.max(0, ch - avail) };
-      if (fh > off) return { h: fh, borrow: 0 };
+      if (fh > off + bot) return { h: fh, borrow: 0 };
       return { h: avail, borrow: 0 };
     }
 
-    function measureHeaderOffset(el, widthPx) {
+    function measureBlockOffsets(el, widthPx) {
       var mount = document.getElementById('bookletMeasureMount');
-      if (!mount) return 0;
+      if (!mount) return { header: 0, footer: 0 };
       mount.innerHTML = '';
-      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + widthPx + 'px;overflow:visible;';
+      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
+      var ctx = ensureMeasurePageContext(mount, widthPx);
+      ctx.body.innerHTML = '';
       var clone = el.cloneNode(true);
-      mount.appendChild(clone);
+      ctx.body.appendChild(clone);
+      mount.appendChild(ctx.page);
       var richtext = clone.querySelector('.booklet-richtext');
-      var offset = 0;
+      var header = 0;
+      var footer = 0;
       if (richtext) {
-        offset = richtext.offsetTop;
+        header = richtext.offsetTop;
+        var cloneH = clone.offsetHeight;
+        var rtBottom = richtext.offsetTop + richtext.offsetHeight;
+        footer = Math.max(0, cloneH - rtBottom);
       }
-      mount.innerHTML = '';
+      mount.removeChild(ctx.page);
+      ctx.body.innerHTML = '';
       mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
-      return offset;
+      return { header: header, footer: footer };
     }
 
     function splitContinuation(el, totalH, startOffset, w) {
@@ -1866,7 +1898,7 @@
         var maxRemaining = pageHPx + marginTolPx - minAbove;
 
         if (maxRemaining >= 60) {
-          var hdrOff = measureHeaderOffset(el, widthPx);
+          var offsets = measureBlockOffsets(el, widthPx);
           var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
 
@@ -1877,7 +1909,7 @@
             var maxA = pageHPx + marginTolPx - above;
             if (maxA < 20) continue;
 
-            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), hdrOff);
+            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer);
             if (snap.h < 20) continue;
             var splitH = Math.min(snap.h, h);
             var total = above + splitH;
@@ -2676,6 +2708,8 @@
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold, left-aligned above rubric">
         <label class="form-label small mb-1" title="Optional italic line, right-aligned under the title.">Source reference <span class="text-muted">(optional)</span></label>
         <input type="text" class="form-control form-control-sm mb-1" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right — e.g. rubric source">
+        <label class="form-label small mb-1">Rubric colour</label>
+        <input type="color" id="edRubricColor" class="form-control form-control-color mb-1" value="${escapeAttr(b.rubricColor || '#8b1538')}">
         <label class="form-label small mb-0" title="Bold, italic, underline, size, lists, alignment, and colour are reflected in the preview and PDF.">Rubric text</label>
         <div class="booklet-rich-toolbar rubric-tb d-flex flex-wrap align-items-center gap-1">
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
@@ -2703,6 +2737,13 @@
       };
       st.addEventListener('input', pushMeta);
       ss.addEventListener('input', pushMeta);
+      var rcInp = panel.querySelector('#edRubricColor');
+      if (rcInp) rcInp.addEventListener('input', function () {
+        var v = rcInp.value;
+        b.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
+        scheduleAutosave();
+        scheduleRenderPreview();
+      });
       wireEditorSectionLayout(panel, b, true, true);
       const push = () => {
         b.text = ed.innerHTML;
@@ -3119,6 +3160,7 @@
       b.text = '';
       b.sectionTitle = '';
       b.sectionSourceRef = '';
+      b.rubricColor = '#8b1538';
     }
     if (type === 'reading') {
       b.text = '';
@@ -3480,13 +3522,7 @@
       scheduleAutosave();
       scheduleRenderPreview();
     });
-    document.getElementById('inpRubricColor')?.addEventListener('input', (e) => {
-      const v = e.target.value;
-      state.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '#8b1538';
-      applyCssVars();
-      scheduleAutosave();
-      scheduleRenderPreview();
-    });
+    
     function bindLayoutSetting(id, key, min, max, fallback) {
       var el = document.getElementById(id);
       if (!el) return;

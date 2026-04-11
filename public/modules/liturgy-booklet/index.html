@@ -351,6 +351,9 @@
             white-space: normal;
             word-wrap: break-word;
         }
+        .booklet-richtext p {
+            margin: 0;
+        }
         .booklet-richtext u {
             text-underline-offset: 2px;
         }
@@ -703,37 +706,17 @@
                 <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Export as PDF via the server"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
                 <button type="button" class="btn btn-primary btn-sm" id="btnRefreshLayout" title="Recalculate page layout"><i class="bi bi-arrow-clockwise me-1"></i>Refresh layout</button>
                 <div class="vr d-none d-md-block"></div>
-                <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
-                    <option value="A4">A4 page</option>
-                    <option value="A5">A5 page</option>
-                </select>
                 <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#layoutSettingsPanel" title="Layout settings"><i class="bi bi-sliders me-1"></i>Layout</button>
                 <div class="btn-group btn-group-sm" id="btnGroupPreviewDisplay">
                     <button type="button" class="btn btn-outline-secondary active" data-view="scroll" title="Scroll pages"><i class="bi bi-file-text me-1"></i>Pages</button>
                     <button type="button" class="btn btn-outline-secondary" data-view="booklet" title="Facing pages"><i class="bi bi-book me-1"></i>Spreads</button>
                 </div>
-                <select id="selBookletFont" class="form-select form-select-sm" style="width: auto;" title="Body text font">
-                    <option value="georgia">Georgia</option>
-                    <option value="times">Times New Roman</option>
-                    <option value="palatino">Palatino</option>
-                    <option value="garamond">Garamond-style</option>
-                    <option value="arial">Arial</option>
-                    <option value="verdana">Verdana</option>
-                    <option value="trebuchet">Trebuchet MS</option>
-                    <option value="tahoma">Tahoma</option>
-                    <option value="courier">Courier New</option>
-                </select>
-                <label class="small mb-0 d-flex align-items-center gap-1" title="Rubric colour">
-                    Rubric
-                    <input type="color" id="inpRubricColor" value="#8b1538" style="width:2rem;height:1.75rem;padding:0;border:0;">
-                </label>
+                
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Advanced</button>
-                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 260px;">
-                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener">Ben Bloomfield’s Mass propers (jgabc)</a></li>
-                        <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener">Exsurge (original repo)</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li class="px-2"><div class="form-check"><input class="form-check-input" type="checkbox" id="chkDebugLayout"><label class="form-check-label" for="chkDebugLayout">Debug layout borders</label></div></li>
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Useful tools</button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Ben Bloomfield's Mass propers (jgabc)</a></li>
+                        <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Exsurge chant renderer (GitHub)</a></li>
                     </ul>
                 </div>
             </div>
@@ -744,6 +727,28 @@
         <div class="bg-light border-bottom px-3 py-2">
             <div class="container-fluid">
                 <div class="d-flex flex-wrap align-items-end gap-3 small">
+                    <label class="d-flex flex-column gap-0">
+                        <span>Page size</span>
+                        <select id="selPageSize" class="form-select form-select-sm" style="width:auto">
+                            <option value="A4">A4</option>
+                            <option value="A5">A5</option>
+                        </select>
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Body font</span>
+                        <select id="selBookletFont" class="form-select form-select-sm" style="width:auto">
+                            <option value="georgia">Georgia</option>
+                            <option value="times">Times New Roman</option>
+                            <option value="palatino">Palatino</option>
+                            <option value="garamond">Garamond-style</option>
+                            <option value="arial">Arial</option>
+                            <option value="verdana">Verdana</option>
+                            <option value="trebuchet">Trebuchet MS</option>
+                            <option value="tahoma">Tahoma</option>
+                            <option value="courier">Courier New</option>
+                        </select>
+                    </label>
+                    <div class="vr"></div>
                     <label class="d-flex flex-column gap-0">
                         <span>Top margin (mm)</span>
                         <input type="number" id="inpMarginTop" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
@@ -773,7 +778,12 @@
                         <span>Min orphan lines</span>
                         <input type="number" id="inpOrphanLines" class="form-control form-control-sm" style="width:4.5rem" min="1" max="10" step="1" value="3">
                     </label>
-                </div>
+                    <div class="vr"></div>
+                    <div class="form-check d-flex align-items-end mb-0">
+                        <input class="form-check-input" type="checkbox" id="chkDebugLayout">
+                        <label class="form-check-label small ms-1" for="chkDebugLayout">Debug borders</label>
+                    </div>
+                    </div>
             </div>
         </div>
     </div>
