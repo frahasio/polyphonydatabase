@@ -1578,23 +1578,11 @@
   }
 
   function snapToLineHeight(targetPx, el) {
-    var lineH = 0;
-    try {
-      var mount = document.getElementById('bookletMeasureMount');
-      if (mount) {
-        mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:600px;overflow:visible;';
-        var probe = document.createElement('div');
-        probe.className = 'page-inner-flow';
-        probe.style.width = '600px';
-        probe.innerHTML = '<span>Xg</span>';
-        mount.appendChild(probe);
-        var lh = parseFloat(getComputedStyle(probe).lineHeight);
-        if (lh && Number.isFinite(lh) && lh >= 8) lineH = lh;
-        mount.innerHTML = '';
-        mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
-      }
-    } catch (e) { /* ignore */ }
-    if (!lineH || lineH < 8) lineH = 23.2;
+    var lineH = 23.2;
+    if (el && el.style && el.style.fontSize) {
+      var fs = parseFloat(el.style.fontSize);
+      if (fs && Number.isFinite(fs) && fs >= 6) lineH = fs * 1.45;
+    }
     var snapped = Math.floor(targetPx / lineH) * lineH;
     return snapped > 0 ? snapped : targetPx;
   }
@@ -1624,9 +1612,6 @@
     var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
     var pendingGapMm = defaultGapMm;
 
-    // #region agent log
-    console.log('[DEBUG paginateFlow] entry:', { itemCount: flowItems.length, widthPx: Math.round(widthPx), pageHPx: Math.round(pageHPx), tolerance: Math.round(pageHPx * 0.08), effectiveMax: Math.round(pageHPx + pageHPx * 0.08) });
-    // #endregion
 
     function flushPage() {
       if (curPageEls.length) pages.push(curPageEls);
@@ -1655,11 +1640,8 @@
         gap = 0;
       }
 
-      // #region agent log
-      var _branch = 'none';
-      // #endregion
 
-      var TOLERANCE = Math.round(pageHPx * 0.08);
+      var TOLERANCE = Math.round(pageHPx * 0.04);
       var squeezedGap = gap;
       if (curY + gap + h > pageHPx + TOLERANCE && curY + h <= pageHPx + TOLERANCE && gap > 0) {
         squeezedGap = Math.max(0, pageHPx + TOLERANCE - curY - h);
@@ -1669,20 +1651,11 @@
         if (curY > 0) curY += squeezedGap;
         curPageEls.push(el);
         curY += h;
-        // #region agent log
-        _branch = 'fits';
-        // #endregion
       } else if (!item.splittable) {
-        // #region agent log
-        _branch = 'atomic-newpage';
-        // #endregion
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
       } else if (curY > 0 && (pageHPx - curY - gap) >= 60) {
-        // #region agent log
-        _branch = 'SPLIT';
-        // #endregion
         var remaining = pageHPx - curY - gap;
         curY += gap;
 
@@ -1692,9 +1665,6 @@
         while (offset < totalH) {
           var sliceH = isFirst ? remaining : pageHPx;
           if (offset + sliceH >= totalH) {
-            // #region agent log
-            console.log('[DEBUG SPLIT detail] item', i, 'final slice', { offset: Math.round(offset), totalH: Math.round(totalH), sliceH: Math.round(sliceH), clipH: Math.round(totalH - offset) });
-            // #endregion
             var clipEl = createClippedView(el, offset, totalH, widthPx, 'booklet-clip-bottom');
             curPageEls.push(clipEl);
             curY += (totalH - offset);
@@ -1702,10 +1672,6 @@
           }
           var snapH = snapToLineHeight(sliceH, el);
           if (snapH < 20) snapH = sliceH;
-          // #region agent log
-          var _rawLineH = parseFloat(getComputedStyle(el).lineHeight);
-          console.log('[DEBUG SPLIT detail] item', i, 'clip', { offset: Math.round(offset), sliceH: Math.round(sliceH), snapH: Math.round(snapH), rawLineH: _rawLineH, remaining: Math.round(remaining), totalH: Math.round(totalH) });
-          // #endregion
           var clipClass = isFirst ? 'booklet-clip-top' : (offset + snapH >= totalH ? 'booklet-clip-bottom' : 'booklet-clip-mid');
           var clipPart = createClippedView(el, offset, offset + snapH, widthPx, clipClass);
           curPageEls.push(clipPart);
@@ -1714,31 +1680,17 @@
           isFirst = false;
         }
       } else {
-        // #region agent log
-        _branch = 'splittable-newpage';
-        // #endregion
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
       }
 
-      // #region agent log
-      var _preview = (el && el.textContent ? el.textContent.slice(0, 60).replace(/\s+/g, ' ').trim() : '');
-      var _blockId = (el && el.dataset && el.dataset.blockId) || '';
-      var _blockObj = _blockId ? state.blocks.find(function(x){return x.id===_blockId;}) : null;
-      var _blockType = _blockObj ? _blockObj.type : '';
-      var _blockTitle = _blockObj ? (_blockObj.sectionTitle || _blockObj.text || _blockObj.gabc || '').slice(0, 40).replace(/\s+/g, ' ').trim() : '';
-      console.log('[DEBUG paginateFlow] item', i, _branch, '|', _blockType, '|', _blockTitle || _preview, { splittable: item.splittable, h: Math.round(h), gap: Math.round(gap), curY: Math.round(curY), remaining: Math.round(pageHPx - curY) });
-      // #endregion
 
       if (item.gapMm != null) pendingGapMm = item.gapMm;
       else pendingGapMm = defaultGapMm;
     }
     if (curPageEls.length) pages.push(curPageEls);
 
-    // #region agent log
-    console.log('[DEBUG paginateFlow] done:', { totalPages: pages.length, totalItems: flowItems.length });
-    // #endregion
 
     return pages;
   }
@@ -2081,19 +2033,6 @@
     if (selectedBlockId) {
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
-    // #region agent log
-    setTimeout(function () {
-      pageDivs.forEach(function (p, pi) {
-        var body = p.querySelector('.booklet-page-body');
-        if (!body) return;
-        var totalChildH = 0;
-        for (var ci = 0; ci < body.children.length; ci++) {
-          totalChildH += body.children[ci].offsetHeight;
-        }
-        console.log('[DEBUG page-actual] page', pi, { childCount: body.children.length, totalChildH: Math.round(totalChildH), bodyScrollH: body.scrollHeight, bodyClientH: body.clientHeight, bodyOffsetH: body.offsetHeight });
-      });
-    }, 500);
-    // #endregion
   }
 
   function richAlignToolbarHtml() {
