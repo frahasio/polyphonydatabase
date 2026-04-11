@@ -3022,9 +3022,8 @@
       if (badge) div.appendChild(badge);
       div.appendChild(textEl);
       div.appendChild(actions);
-      div.addEventListener('mousedown', function (e) {
+      div.addEventListener('click', function (e) {
         if (e.target.closest('.booklet-block-actions')) return;
-        e.preventDefault();
         selectedBlockId = b.id;
         var edP = document.getElementById('bookletEditorPane');
         if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
