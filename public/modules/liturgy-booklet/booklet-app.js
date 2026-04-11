@@ -50,12 +50,24 @@
     settings: {
       pageSize: 'A4',
       marginMm: DEFAULT_BOOKLET_MARGIN_MM,
+      marginTopMm: DEFAULT_BOOKLET_MARGIN_MM,
+      marginBottomMm: DEFAULT_BOOKLET_MARGIN_MM,
+      marginSideMm: DEFAULT_BOOKLET_MARGIN_MM,
+      sectionGapMm: DEFAULT_SECTION_GAP_AFTER_MM,
+      gapTolerancePx: GAP_FLEX_PX,
+      marginTolerancePx: MARGIN_TOLERANCE_PX,
+      minOrphanLines: 3,
       previewDisplay: 'scroll',
       fontFamilyKey: 'georgia',
       rubricColor: '#8b1538',
     },
     blocks: [],
   };
+
+  function getSetting(key, fallback) {
+    var v = state.settings[key];
+    return v != null && Number.isFinite(Number(v)) ? Number(v) : fallback;
+  }
 
   let selectedBlockId = null;
   let autosaveTimer = null;
@@ -70,13 +82,33 @@
   /** @type {AbortController | null} */
   let editionSearchAbort = null;
   let renderPreviewTimer = null;
+  let layoutStale = false;
+
+  function markLayoutStale() {
+    layoutStale = true;
+    var btn = document.getElementById('btnRefreshLayout');
+    if (btn) btn.classList.add('btn-warning');
+    if (btn) btn.classList.remove('btn-primary');
+  }
+
+  function markLayoutFresh() {
+    layoutStale = false;
+    var btn = document.getElementById('btnRefreshLayout');
+    if (btn) btn.classList.remove('btn-warning');
+    if (btn) btn.classList.add('btn-primary');
+  }
 
   function scheduleRenderPreview() {
     if (renderPreviewTimer) clearTimeout(renderPreviewTimer);
     renderPreviewTimer = setTimeout(function () {
       renderPreviewTimer = null;
       renderPreview();
+      markLayoutFresh();
     }, 250);
+  }
+
+  function deferRenderPreview() {
+    markLayoutStale();
   }
 
   function scrollPreviewToBlock(blockId) {
@@ -211,15 +243,20 @@
   }
 
   function getBookletMarginMm() {
-    const mm = Number(state.settings.marginMm);
-    return Number.isFinite(mm)
-      ? Math.min(40, Math.max(6, Math.round(mm)))
-      : DEFAULT_BOOKLET_MARGIN_MM;
+    return getSetting('marginSideMm', DEFAULT_BOOKLET_MARGIN_MM);
+  }
+  function getBookletMarginTopMm() {
+    return getSetting('marginTopMm', DEFAULT_BOOKLET_MARGIN_MM);
+  }
+  function getBookletMarginBottomMm() {
+    return getSetting('marginBottomMm', DEFAULT_BOOKLET_MARGIN_MM);
   }
 
   function applyCssVars() {
     const root = document.documentElement;
     root.style.setProperty('--booklet-margin-mm', String(getBookletMarginMm()));
+    root.style.setProperty('--booklet-margin-top-mm', String(getBookletMarginTopMm()));
+    root.style.setProperty('--booklet-margin-bottom-mm', String(getBookletMarginBottomMm()));
     root.style.setProperty('--booklet-font-scale', '1');
     const fk = state.settings.fontFamilyKey || 'georgia';
     root.style.setProperty(
@@ -238,8 +275,9 @@
 
   function getMaxPageBodyHeightPx() {
     const pageH = state.settings.pageSize === 'A5' ? 210 : 297;
-    const m = getBookletMarginMm();
-    return Math.max(120, mmToPx(pageH - 2 * m));
+    const mt = getBookletMarginTopMm();
+    const mb = getBookletMarginBottomMm();
+    return Math.max(120, mmToPx(pageH - mt - mb));
   }
 
   
@@ -549,6 +587,9 @@
     if (b.type === 'page_break') {
       return 'Page break';
     }
+    if (b.type === 'spacer') {
+      return 'Spacer (' + (b.heightMm || 10) + 'mm)';
+    }
     if (b.type === 'jgabc_propers') {
       return 'Legacy propers — replace with GABC';
     }
@@ -803,6 +844,12 @@
       if (b.type === 'page_break') {
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
+        return o;
+      }
+      if (b.type === 'spacer') {
+        const o = { ...b };
+        if (o.hidden === undefined) o.hidden = false;
+        if (o.heightMm == null) o.heightMm = 10;
         return o;
       }
       const o = { ...b };
@@ -1203,19 +1250,30 @@
 
   function syncControlsFromState() {
     const sz = document.getElementById('selPageSize');
-    const pd = document.getElementById('selPreviewDisplay');
     const sf = document.getElementById('selBookletFont');
     const rc = document.getElementById('inpRubricColor');
     const pt = document.getElementById('inpProjectTitle');
     if (sz) sz.value = state.settings.pageSize;
-    if (pd) pd.value = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
     if (sf) sf.value = BOOKLET_FONT_STACKS[state.settings.fontFamilyKey] ? state.settings.fontFamilyKey : 'georgia';
     if (rc) rc.value = /^#[0-9a-f]{6}$/i.test(state.settings.rubricColor || '') ? state.settings.rubricColor : '#8b1538';
     if (pt) pt.value = state.projectTitle != null ? state.projectTitle : '';
-    const mgInp = document.getElementById('inpBookletMarginMm');
-    if (mgInp) {
-      const m = getBookletMarginMm();
-      mgInp.value = String(m);
+    var syncNum = function (id, key, fallback) {
+      var el = document.getElementById(id);
+      if (el) el.value = String(getSetting(key, fallback));
+    };
+    syncNum('inpMarginTop', 'marginTopMm', DEFAULT_BOOKLET_MARGIN_MM);
+    syncNum('inpMarginBottom', 'marginBottomMm', DEFAULT_BOOKLET_MARGIN_MM);
+    syncNum('inpMarginSide', 'marginSideMm', DEFAULT_BOOKLET_MARGIN_MM);
+    syncNum('inpSectionGap', 'sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
+    syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
+    syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
+    syncNum('inpOrphanLines', 'minOrphanLines', 3);
+    var pdGrp = document.getElementById('btnGroupPreviewDisplay');
+    if (pdGrp) {
+      var cur = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+      pdGrp.querySelectorAll('[data-view]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-view') === cur);
+      });
     }
   }
 
@@ -1296,14 +1354,19 @@
           }
         }
         svg.querySelectorAll('text.annotation').forEach(function (ann) {
-          ann.setAttribute('font-style', 'italic');
+          ann.setAttribute('font-weight', 'bold');
           var cy = parseFloat(ann.getAttribute('y'));
           if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6) + '');
         });
+        var didShift = vb && !(svgIdx === 0 && initialStyle);
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.paddingTop = padTop + 'px';
-        line.style.overflow = 'visible';
+        if (didShift) {
+          line.style.clipPath = 'inset(-100px -10px 0 -10px)';
+        } else {
+          line.style.overflow = 'visible';
+        }
         line.appendChild(svg);
         lines.push(line);
       });
@@ -1538,8 +1601,7 @@
   }
 
   function blockSectionGapAfterMm(b) {
-    const g = Number(b.sectionGapAfterMm);
-    return Number.isFinite(g) ? Math.min(40, Math.max(-40, g)) : DEFAULT_SECTION_GAP_AFTER_MM;
+    return getSetting('sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
   }
 
   async function buildFlowList() {
@@ -1550,6 +1612,15 @@
       if (b.hidden) continue;
       if (b.type === 'page_break') {
         out.push({ t: 'break' });
+        continue;
+      }
+      if (b.type === 'spacer') {
+        var hMm = parseBoundedNumber(b.heightMm, 1, 100, 10);
+        var spacerEl = document.createElement('div');
+        spacerEl.className = 'booklet-spacer';
+        spacerEl.style.height = mmToPx(hMm) + 'px';
+        spacerEl.dataset.blockId = b.id;
+        out.push({ t: 'flow', el: spacerEl, splittable: false, gapMm: 0 });
         continue;
       }
       var gapAfter = blockSectionGapAfterMm(b);
@@ -1637,7 +1708,9 @@
     var curHeights = [];
     var curGaps = [];
     var curGapFlex = [];
-    var defaultGapMm = DEFAULT_SECTION_GAP_AFTER_MM;
+    var gapFlexPx = getSetting('gapTolerancePx', GAP_FLEX_PX);
+    var marginTolPx = getSetting('marginTolerancePx', MARGIN_TOLERANCE_PX);
+    var defaultGapMm = getSetting('sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
     var pendingGapMm = defaultGapMm;
 
     function numFlexGaps() {
@@ -1677,12 +1750,12 @@
       var nf = numFlexGaps();
       var delta = 0;
       if (ideal > pageHPx) {
-        delta = nf > 0 ? -Math.min(GAP_FLEX_PX, (ideal - pageHPx) / nf) : 0;
+        delta = nf > 0 ? -Math.min(gapFlexPx, (ideal - pageHPx) / nf) : 0;
       } else if (ideal < pageHPx) {
-        delta = nf > 0 ? Math.min(GAP_FLEX_PX, (pageHPx - ideal) / nf) : 0;
+        delta = nf > 0 ? Math.min(gapFlexPx, (pageHPx - ideal) / nf) : 0;
       }
       var adjusted = calcContent(delta);
-      var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - adjusted) / 2);
+      var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - adjusted) / 2);
       pushPage(curEls, buildAdjGaps(delta), padAdj, padAdj);
     }
 
@@ -1695,21 +1768,40 @@
       pendingGapMm = defaultGapMm;
     }
 
-    function bestLineSnap(avail, maxAvail) {
-      if (avail < LINE_H_PX) return { h: avail, borrow: 0 };
-      var fn = Math.floor(avail / LINE_H_PX);
-      var ch = (fn + 1) * LINE_H_PX;
-      var fh = fn * LINE_H_PX;
+    function bestLineSnap(avail, maxAvail, headerOffset) {
+      var off = headerOffset || 0;
+      var textAvail = avail - off;
+      if (textAvail < LINE_H_PX) return { h: avail, borrow: 0 };
+      var fn = Math.floor(textAvail / LINE_H_PX);
+      var fh = off + fn * LINE_H_PX;
+      var ch = off + (fn + 1) * LINE_H_PX;
       if (ch <= maxAvail) return { h: ch, borrow: Math.max(0, ch - avail) };
-      if (fh > 0) return { h: fh, borrow: 0 };
+      if (fh > off) return { h: fh, borrow: 0 };
       return { h: avail, borrow: 0 };
+    }
+
+    function measureHeaderOffset(el, widthPx) {
+      var mount = document.getElementById('bookletMeasureMount');
+      if (!mount) return 0;
+      mount.innerHTML = '';
+      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + widthPx + 'px;overflow:visible;';
+      var clone = el.cloneNode(true);
+      mount.appendChild(clone);
+      var richtext = clone.querySelector('.booklet-richtext');
+      var offset = 0;
+      if (richtext) {
+        offset = richtext.offsetTop;
+      }
+      mount.innerHTML = '';
+      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
+      return offset;
     }
 
     function splitContinuation(el, totalH, startOffset, w) {
       var offset = startOffset;
       while (offset < totalH) {
         var rem = totalH - offset;
-        var snap = bestLineSnap(pageHPx, pageHPx + MARGIN_TOLERANCE_PX);
+        var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx);
         if (rem <= snap.h) {
           curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom')];
           curHeights = [rem];
@@ -1720,14 +1812,14 @@
         var sliceH = snap.h;
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
         var clip = createClippedView(el, offset, offset + sliceH, w, cls);
-        var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - sliceH) / 2);
+        var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - sliceH) / 2);
         pushPage([clip], [0], padAdj, padAdj);
         offset += sliceH;
       }
     }
 
     function placeOnNewPage(el, h, splittable, w) {
-      if (h <= pageHPx + MARGIN_TOLERANCE_PX || !splittable) {
+      if (h <= pageHPx + marginTolPx || !splittable) {
         curEls = [el];
         curHeights = [h];
         curGaps = [0];
@@ -1760,31 +1852,32 @@
         gapFlex = false;
       }
 
-      var minGap = gapFlex ? Math.max(0, gap - GAP_FLEX_PX) : gap;
-      var minTotal = calcContent(-GAP_FLEX_PX) + minGap + h;
+      var minGap = gapFlex ? Math.max(0, gap - gapFlexPx) : gap;
+      var minTotal = calcContent(-gapFlexPx) + minGap + h;
 
-      if (minTotal <= pageHPx + MARGIN_TOLERANCE_PX) {
+      if (minTotal <= pageHPx + marginTolPx) {
         curEls.push(el);
         curHeights.push(h);
         curGaps.push(gap);
         curGapFlex.push(gapFlex);
       }
       else if (item.splittable && curEls.length > 0) {
-        var minAbove = calcContent(-GAP_FLEX_PX) + minGap;
-        var maxRemaining = pageHPx + MARGIN_TOLERANCE_PX - minAbove;
+        var minAbove = calcContent(-gapFlexPx) + minGap;
+        var maxRemaining = pageHPx + marginTolPx - minAbove;
 
         if (maxRemaining >= 60) {
-          var deltas = [-GAP_FLEX_PX, 0, GAP_FLEX_PX];
+          var hdrOff = measureHeaderOffset(el, widthPx);
+          var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
 
           for (var d = 0; d < deltas.length; d++) {
             var dt = deltas[d];
             var above = calcContent(dt) + (gapFlex ? Math.max(0, gap + dt) : gap);
             var avail = pageHPx - above;
-            var maxA = pageHPx + MARGIN_TOLERANCE_PX - above;
+            var maxA = pageHPx + marginTolPx - above;
             if (maxA < 20) continue;
 
-            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA));
+            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), hdrOff);
             if (snap.h < 20) continue;
             var splitH = Math.min(snap.h, h);
             var total = above + splitH;
@@ -1804,7 +1897,7 @@
             adjGaps.push(best.gAdj);
             var els = curEls.slice();
             els.push(clipTop);
-            var padAdj = Math.max(-(MARGIN_TOLERANCE_PX / 2), (pageHPx - best.total) / 2);
+            var padAdj = Math.max(-(marginTolPx / 2), (pageHPx - best.total) / 2);
             pushPage(els, adjGaps, padAdj, padAdj);
 
             curEls = [];
@@ -1868,9 +1961,8 @@
     if (slots.length !== 2) return;
     var vp = host.querySelector('.booklet-spread-viewport');
     var vpW = vp ? vp.clientWidth : host.clientWidth;
-    var halfVpW = Math.floor((vpW - 4) / 2);
-    var slotW = Math.min(slots[0].clientWidth, halfVpW);
-    var slotH = slots[0].clientHeight;
+    var slotW = Math.floor((vpW - 4) / 2);
+    var slotH = vp ? vp.clientHeight : slots[0].clientHeight;
     if (slotW <= 100 || slotH <= 100) {
       setTimeout(function () { scaleBookletSpread(host); }, 250);
       return;
@@ -2134,7 +2226,8 @@
 
     var widthPx = getContentWidthPx();
     var pageHPx = getMaxPageBodyHeightPx();
-    var marginPx = mmToPx(getBookletMarginMm());
+    var marginTopPx = mmToPx(getBookletMarginTopMm());
+    var marginBotPx = mmToPx(getBookletMarginBottomMm());
     var pageResults = paginateFlow(flow, widthPx, pageHPx);
 
     var pageDivs = pageResults.map(function (pg) {
@@ -2142,8 +2235,8 @@
       page.className = 'booklet-page';
       page.dataset.size = size;
       if (pg.padTopAdjust || pg.padBottomAdjust) {
-        page.style.paddingTop = (marginPx + (pg.padTopAdjust || 0)) + 'px';
-        page.style.paddingBottom = (marginPx + (pg.padBottomAdjust || 0)) + 'px';
+        page.style.paddingTop = (marginTopPx + (pg.padTopAdjust || 0)) + 'px';
+        page.style.paddingBottom = (marginBotPx + (pg.padBottomAdjust || 0)) + 'px';
       }
       var inner = document.createElement('div');
       inner.className = 'page-inner-flow';
@@ -2194,6 +2287,27 @@
     }
   }
 
+  function switchDisplayMode() {
+    var root = document.getElementById('previewPages');
+    var store = document.getElementById('bookletPageStore');
+    if (!root) return;
+    if (!exportPageElements || !exportPageElements.length) {
+      scheduleRenderPreview();
+      return;
+    }
+    var prevHost = root.querySelector('.booklet-spread-host');
+    if (prevHost && prevHost._bookletCleanup) prevHost._bookletCleanup();
+    root.innerHTML = '';
+    if (store) store.innerHTML = '';
+    var display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+    if (display === 'scroll') {
+      exportPageElements.forEach(function (p) { root.appendChild(p); });
+    } else {
+      exportPageElements.forEach(function (p) { store.appendChild(p); });
+      mountBookletSpreadUi(root, exportPageElements);
+    }
+  }
+
   function richAlignToolbarHtml() {
     return `
           <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
@@ -2233,35 +2347,18 @@
   }
 
   function editorLayoutPanelHtml(b, showGap, showFont) {
-    const gap = b.sectionGapAfterMm != null ? b.sectionGapAfterMm : DEFAULT_SECTION_GAP_AFTER_MM;
     const fs = b.fontScale != null ? b.fontScale : DEFAULT_BLOCK_FONT_SCALE;
+    if (!showFont) return '';
     return `
         <div class="border rounded booklet-layout-compact bg-light small mb-1">
-          ${
-            showGap
-              ? `<label class="form-label small mb-0" title="Extra vertical space after this block. Negative values tighten the gap (e.g. when chant SVG leaves excess whitespace).">Space after this section (mm)</label>
-          <input type="number" class="form-control form-control-sm mb-0" id="edBlockGap" min="-40" max="40" step="1" value="${gap}">`
-              : ''
-          }
-          ${
-            showFont
-              ? `<label class="form-label small mb-0 mt-2">Text size (× body)</label>
-          <input type="range" class="form-range" id="edBlockFontScale" min="0.75" max="1.5" step="0.05" value="${fs}">`
-              : ''
-          }
+          <label class="form-label small mb-0">Text size (&times; body)</label>
+          <input type="range" class="form-range" id="edBlockFontScale" min="0.75" max="1.5" step="0.05" value="${fs}">
         </div>`;
   }
 
   function wireEditorSectionLayout(panel, b, showGap, showFont) {
-    const gapEl = panel.querySelector('#edBlockGap');
     const fsEl = panel.querySelector('#edBlockFontScale');
     const push = () => {
-      if (showGap && gapEl) {
-        const g = parseFloat(String(gapEl.value).trim().replace(',', '.'));
-        b.sectionGapAfterMm = Number.isFinite(g)
-          ? Math.min(40, Math.max(-40, Math.round(g)))
-          : DEFAULT_SECTION_GAP_AFTER_MM;
-      }
       if (showFont && fsEl) {
         const f = parseFloat(fsEl.value);
         b.fontScale = Number.isFinite(f)
@@ -2437,9 +2534,22 @@
     }
     if (b.type === 'page_break') {
       panel.innerHTML =
-        editorLayoutPanelHtml(b, false, false) +
         '<p class="small text-muted mb-0" title="The following section will begin on a new page in the on-screen preview and in the downloaded PDF.">Starts a new page after the previous section.</p>';
-      wireEditorSectionLayout(panel, b, false, false);
+      return;
+    }
+    if (b.type === 'spacer') {
+      var sh = b.heightMm != null ? b.heightMm : 10;
+      panel.innerHTML =
+        '<label class="form-label small mb-1">Spacer height (mm)</label>' +
+        '<input type="number" class="form-control form-control-sm" id="edSpacerHeight" min="1" max="100" step="1" value="' + sh + '">' +
+        '<p class="small text-muted mt-1 mb-0">Unbreakable vertical space.</p>';
+      var inp = panel.querySelector('#edSpacerHeight');
+      if (inp) inp.addEventListener('change', function () {
+        b.heightMm = parseBoundedNumber(inp.value, 1, 100, 10);
+        scheduleAutosave();
+        scheduleRenderPreview();
+        renderBlockList();
+      });
       return;
     }
     if (b.type === 'title') {
@@ -3018,9 +3128,11 @@
       b.chantTextFont = 'crimson';
       b.chantRubricColor = '';
     }
-    if (type !== 'page_break') {
+    if (type === 'spacer') {
+      b.heightMm = 10;
+    }
+    if (type !== 'page_break' && type !== 'spacer') {
       b.hidden = false;
-      b.sectionGapAfterMm = DEFAULT_SECTION_GAP_AFTER_MM;
     } else {
       b.hidden = false;
     }
@@ -3304,10 +3416,14 @@
       scheduleAutosave();
       scheduleRenderPreview();
     });
-    document.getElementById('selPreviewDisplay')?.addEventListener('change', (e) => {
-      state.settings.previewDisplay = e.target.value === 'booklet' ? 'booklet' : 'scroll';
+    document.getElementById('btnGroupPreviewDisplay')?.addEventListener('click', (e) => {
+      var btn = e.target.closest('[data-view]');
+      if (!btn) return;
+      var mode = btn.getAttribute('data-view');
+      state.settings.previewDisplay = mode === 'booklet' ? 'booklet' : 'scroll';
+      syncControlsFromState();
       scheduleAutosave();
-      scheduleRenderPreview();
+      switchDisplayMode();
     });
     document.getElementById('inpProjectTitle')?.addEventListener('input', (e) => {
       state.projectTitle = e.target.value;
@@ -3327,17 +3443,25 @@
       scheduleAutosave();
       scheduleRenderPreview();
     });
-    document.getElementById('inpBookletMarginMm')?.addEventListener('change', (e) => {
-      const inp = e.target;
-      const raw = parseFloat(String(inp.value).trim().replace(',', '.'));
-      state.settings.marginMm = Number.isFinite(raw)
-        ? Math.min(40, Math.max(6, Math.round(raw)))
-        : DEFAULT_BOOKLET_MARGIN_MM;
-      inp.value = String(getBookletMarginMm());
-      applyCssVars();
-      scheduleAutosave();
-      scheduleRenderPreview();
-    });
+    function bindLayoutSetting(id, key, min, max, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', function () {
+        var raw = parseFloat(String(el.value).trim().replace(',', '.'));
+        state.settings[key] = Number.isFinite(raw) ? Math.min(max, Math.max(min, Math.round(raw))) : fallback;
+        el.value = String(state.settings[key]);
+        applyCssVars();
+        scheduleAutosave();
+        markLayoutStale();
+      });
+    }
+    bindLayoutSetting('inpMarginTop', 'marginTopMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
+    bindLayoutSetting('inpMarginBottom', 'marginBottomMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
+    bindLayoutSetting('inpMarginSide', 'marginSideMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
+    bindLayoutSetting('inpSectionGap', 'sectionGapMm', 0, 40, DEFAULT_SECTION_GAP_AFTER_MM);
+    bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
+    bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);
+    bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);
 
     
     document.getElementById('btnSaveProject')?.addEventListener('click', downloadJson);
@@ -3350,6 +3474,9 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
+    document.getElementById('btnRefreshLayout')?.addEventListener('click', () => {
+      scheduleRenderPreview();
+    });
     document.getElementById('chkDebugLayout')?.addEventListener('change', function () {
       var pp = document.getElementById('previewPages');
       if (pp) {

@@ -11,6 +11,8 @@
     <style>
         :root {
             --booklet-margin-mm: 16;
+            --booklet-margin-top-mm: 16;
+            --booklet-margin-bottom-mm: 16;
             --booklet-font-scale: 1;
             --booklet-body-font: Georgia, 'Times New Roman', Times, serif;
             --booklet-rubric-color: #8b1538;
@@ -236,14 +238,14 @@
             height: 297mm;
             min-height: 297mm;
             max-height: 297mm;
-            padding: calc(var(--booklet-margin-mm) * 1mm);
+            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm);
         }
         .booklet-page[data-size="A5"] {
             width: 148mm;
             height: 210mm;
             min-height: 210mm;
             max-height: 210mm;
-            padding: calc(var(--booklet-margin-mm) * 1mm);
+            padding: calc(var(--booklet-margin-top-mm) * 1mm) calc(var(--booklet-margin-mm) * 1mm) calc(var(--booklet-margin-bottom-mm) * 1mm);
         }
         .booklet-page > .page-inner-flow {
             flex: 1 1 auto;
@@ -645,19 +647,17 @@
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
                 <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Export as PDF via the server"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnRefreshLayout" title="Recalculate page layout"><i class="bi bi-arrow-clockwise me-1"></i>Refresh layout</button>
                 <div class="vr d-none d-md-block"></div>
                 <select id="selPageSize" class="form-select form-select-sm" style="width: auto;">
                     <option value="A4">A4 page</option>
                     <option value="A5">A5 page</option>
                 </select>
-                <label class="small mb-0 d-flex align-items-center gap-1" title="Page margin in millimetres (preview padding and text column width). Imported edition PDF pages still use the full page area for the raster.">
-                    Margin (mm)
-                    <input type="number" id="inpBookletMarginMm" class="form-control form-control-sm" style="width:4.25rem" min="6" max="40" step="1" value="16">
-                </label>
-                <select id="selPreviewDisplay" class="form-select form-select-sm" style="width: auto;" title="How the preview is shown on screen">
-                    <option value="scroll">Preview: scroll pages</option>
-                    <option value="booklet">Preview: booklet spreads</option>
-                </select>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#layoutSettingsPanel" title="Layout settings"><i class="bi bi-sliders me-1"></i>Layout</button>
+                <div class="btn-group btn-group-sm" id="btnGroupPreviewDisplay">
+                    <button type="button" class="btn btn-outline-secondary active" data-view="scroll" title="Scroll pages"><i class="bi bi-file-text me-1"></i>Pages</button>
+                    <button type="button" class="btn btn-outline-secondary" data-view="booklet" title="Facing pages"><i class="bi bi-book me-1"></i>Spreads</button>
+                </div>
                 <select id="selBookletFont" class="form-select form-select-sm" style="width: auto;" title="Body text font">
                     <option value="georgia">Georgia</option>
                     <option value="times">Times New Roman</option>
@@ -686,6 +686,44 @@
         </div>
     </div>
 
+    <div class="collapse no-print" id="layoutSettingsPanel">
+        <div class="bg-light border-bottom px-3 py-2">
+            <div class="container-fluid">
+                <div class="d-flex flex-wrap align-items-end gap-3 small">
+                    <label class="d-flex flex-column gap-0">
+                        <span>Top margin (mm)</span>
+                        <input type="number" id="inpMarginTop" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Bottom margin (mm)</span>
+                        <input type="number" id="inpMarginBottom" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Side margins (mm)</span>
+                        <input type="number" id="inpMarginSide" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
+                    </label>
+                    <div class="vr"></div>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Section gap (mm)</span>
+                        <input type="number" id="inpSectionGap" class="form-control form-control-sm" style="width:4.5rem" min="0" max="40" step="1" value="8">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Gap tolerance (px)</span>
+                        <input type="number" id="inpGapTolerance" class="form-control form-control-sm" style="width:4.5rem" min="0" max="20" step="1" value="4">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Margin tolerance (px)</span>
+                        <input type="number" id="inpMarginTolerance" class="form-control form-control-sm" style="width:4.5rem" min="0" max="30" step="1" value="10">
+                    </label>
+                    <label class="d-flex flex-column gap-0">
+                        <span>Min orphan lines</span>
+                        <input type="number" id="inpOrphanLines" class="form-control form-control-sm" style="width:4.5rem" min="1" max="10" step="1" value="3">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="booklet-columns">
         <div class="booklet-pane booklet-pane-list no-print" id="bookletSidebar">
             <button type="button" class="booklet-pane-collapse-btn btn btn-sm btn-outline-secondary" id="btnCollapseList" title="Collapse list"><i class="bi bi-chevron-bar-left"></i></button>
@@ -702,6 +740,7 @@
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-2"></i>Polyphony edition PDF</button></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-2"></i>Force page break</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="spacer"><i class="bi bi-arrows-expand me-2"></i>Vertical spacer</button></li>
                 </ul>
             </div>
             <div id="blockList"></div>
