@@ -1423,6 +1423,19 @@
         const innerR = document.createElement('div');
         innerR.className = 'booklet-richtext reading';
         innerR.appendChild(sanitizeToFragment(b.translation || ''));
+        var _mount = document.getElementById('bookletMeasureMount');
+        if (_mount) {
+          _mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:600px;overflow:visible;';
+          var _tmpL = innerL.cloneNode(true); var _tmpR = innerR.cloneNode(true);
+          _mount.appendChild(_tmpL); _mount.appendChild(_tmpR);
+          var _lhL = parseFloat(getComputedStyle(_tmpL).lineHeight) || 0;
+          var _lhR = parseFloat(getComputedStyle(_tmpR).lineHeight) || 0;
+          var _maxLh = Math.max(_lhL, _lhR, 20);
+          _mount.innerHTML = '';
+          _mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
+          innerL.style.lineHeight = _maxLh + 'px';
+          innerR.style.lineHeight = _maxLh + 'px';
+        }
         tdL.appendChild(innerL);
         tdR.appendChild(innerR);
         tr.appendChild(tdL);
@@ -1604,7 +1617,7 @@
     var pendingGapMm = defaultGapMm;
 
     // #region agent log
-    console.log('[DEBUG paginateFlow] entry:', { itemCount: flowItems.length, widthPx: Math.round(widthPx), pageHPx: Math.round(pageHPx) });
+    console.log('[DEBUG paginateFlow] entry:', { itemCount: flowItems.length, widthPx: Math.round(widthPx), pageHPx: Math.round(pageHPx), tolerance: Math.round(pageHPx * 0.08), effectiveMax: Math.round(pageHPx + pageHPx * 0.08) });
     // #endregion
 
     function flushPage() {
@@ -1638,10 +1651,14 @@
       var _branch = 'none';
       // #endregion
 
-      var TOLERANCE = 50;
+      var TOLERANCE = Math.round(pageHPx * 0.08);
+      var squeezedGap = gap;
+      if (curY + gap + h > pageHPx + TOLERANCE && curY + h <= pageHPx + TOLERANCE && gap > 0) {
+        squeezedGap = Math.max(0, pageHPx + TOLERANCE - curY - h);
+      }
 
-      if (curY + gap + h <= pageHPx + TOLERANCE) {
-        if (curY > 0) curY += gap;
+      if (curY + squeezedGap + h <= pageHPx + TOLERANCE) {
+        if (curY > 0) curY += squeezedGap;
         curPageEls.push(el);
         curY += h;
         // #region agent log
@@ -2006,7 +2023,7 @@
     if (myTok !== previewToken) return;
 
     var widthPx = getContentWidthPx();
-    var pageHPx = getMaxPageBodyHeightPx() - BOOKLET_FOOTER_RESERVE_PX;
+    var pageHPx = getMaxPageBodyHeightPx();
     var pageGroups = paginateFlow(flow, widthPx, pageHPx);
 
     var pageDivs = pageGroups.map(function (elements) {
