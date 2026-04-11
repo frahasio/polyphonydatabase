@@ -1452,11 +1452,11 @@
           if (annotationArray) {
             score.annotation = new exsurge.Annotations(
               ctxt,
-              '%' + annotationArray[0] + '%',
-              '%' + annotationArray[1] + '%'
+              annotationArray[0],
+              annotationArray[1]
             );
           } else if (header.annotation) {
-            score.annotation = new exsurge.Annotations(ctxt, '%' + header.annotation + '%');
+            score.annotation = new exsurge.Annotations(ctxt, header.annotation);
           }
         } catch (annErr) {
           console.warn('Annotation layout skipped', annErr);
@@ -1483,6 +1483,10 @@
         ctShowBorder = !!cb.chantTranslationBorder;
       }
 
+      var offscreen = document.createElement('div');
+      offscreen.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden';
+      document.body.appendChild(offscreen);
+
       var svgs = temp.querySelectorAll('svg');
       svgs.forEach(function (svg, svgIdx) {
         svg.setAttribute('overflow', 'visible');
@@ -1491,6 +1495,22 @@
           var cy = parseFloat(ann.getAttribute('y'));
           if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6 - annotYAdj) + '');
         });
+        offscreen.appendChild(svg);
+        var gEl = svg.querySelector('g.chantLine');
+        if (gEl) {
+          try {
+            var bbox = gEl.getBBox();
+            var margin = 2;
+            var vx = bbox.x - margin;
+            var vy = bbox.y - margin;
+            var vw = bbox.width + margin * 2;
+            var vh = bbox.height + margin * 2;
+            svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
+            svg.setAttribute('width', vw);
+            svg.setAttribute('height', vh);
+          } catch (e) { /* getBBox can fail if SVG is empty */ }
+        }
+        offscreen.removeChild(svg);
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.overflow = 'visible';
@@ -1528,6 +1548,7 @@
         }
         lines.push(line);
       });
+      document.body.removeChild(offscreen);
       if (!lines.length) {
         const fb = document.createElement('div');
         fb.className = 'text-danger small booklet-section';
@@ -2599,6 +2620,7 @@
   function createInsertZone(insertIdx) {
     var zone = document.createElement('div');
     zone.className = 'booklet-insert-zone';
+    zone.dataset.insertIdx = insertIdx;
     var line = document.createElement('div');
     line.className = 'booklet-insert-line';
     var btn = document.createElement('button');
@@ -2663,11 +2685,16 @@
         ev.dataTransfer.setData('text/plain', b.id);
         ev.dataTransfer.effectAllowed = 'move';
         div.classList.add('dragging');
+        el.classList.add('block-list-dragging');
       });
       div.addEventListener('dragend', function () {
         div.classList.remove('dragging');
+        el.classList.remove('block-list-dragging');
         el.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(function (d) {
           d.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        el.querySelectorAll('.booklet-insert-zone.drag-over-zone').forEach(function (d) {
+          d.classList.remove('drag-over-zone');
         });
       });
 
@@ -2695,6 +2722,7 @@
       var textEl = document.createElement('span');
       textEl.className = 'booklet-block-preview-text';
       textEl.textContent = meta.noIcon ? ('— ' + line + ' —') : line;
+      if (b.type === 'title') textEl.style.fontVariant = 'small-caps';
 
       var actions = document.createElement('span');
       actions.className = 'booklet-block-actions';
@@ -2756,39 +2784,6 @@
     if (state.blocks.length) {
       el.appendChild(createInsertZone(state.blocks.length));
     }
-
-    el.addEventListener('dragover', function (ev) {
-      ev.preventDefault();
-      ev.dataTransfer.dropEffect = 'move';
-      var items = el.querySelectorAll('.block-list-item');
-      items.forEach(function (d) { d.classList.remove('drag-over-top', 'drag-over-bottom'); });
-      var target = ev.target.closest('.block-list-item');
-      if (!target || target.classList.contains('dragging')) return;
-      var rect = target.getBoundingClientRect();
-      var midY = rect.top + rect.height / 2;
-      if (ev.clientY < midY) target.classList.add('drag-over-top');
-      else target.classList.add('drag-over-bottom');
-    });
-    el.addEventListener('drop', function (ev) {
-      ev.preventDefault();
-      var draggedId = ev.dataTransfer.getData('text/plain');
-      var target = ev.target.closest('.block-list-item');
-      if (!target) return;
-      var targetId = target.dataset.blockId;
-      if (!draggedId || !targetId || draggedId === targetId) return;
-      var fromIdx = state.blocks.findIndex(function (x) { return x.id === draggedId; });
-      var toIdx = state.blocks.findIndex(function (x) { return x.id === targetId; });
-      if (fromIdx < 0 || toIdx < 0) return;
-      var rect = target.getBoundingClientRect();
-      var midY = rect.top + rect.height / 2;
-      if (ev.clientY >= midY) toIdx = Math.min(toIdx + 1, state.blocks.length);
-      var moved = state.blocks.splice(fromIdx, 1)[0];
-      if (fromIdx < toIdx) toIdx--;
-      state.blocks.splice(toIdx, 0, moved);
-      scheduleAutosave();
-      renderBlockList();
-      markLayoutStale();
-    });
 
   }
 
@@ -3762,6 +3757,71 @@
       e.preventDefault();
       addBlock(t.getAttribute('data-add-type'));
     });
+
+    var blockListEl = document.getElementById('blockList');
+    if (blockListEl) {
+      blockListEl.addEventListener('dragover', function (ev) {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+        var items = blockListEl.querySelectorAll('.block-list-item');
+        items.forEach(function (d) { d.classList.remove('drag-over-top', 'drag-over-bottom'); });
+        blockListEl.querySelectorAll('.booklet-insert-zone.drag-over-zone').forEach(function (d) {
+          d.classList.remove('drag-over-zone');
+        });
+
+        var target = ev.target.closest('.block-list-item');
+        if (target && !target.classList.contains('dragging')) {
+          var rect = target.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          if (ev.clientY < midY) target.classList.add('drag-over-top');
+          else target.classList.add('drag-over-bottom');
+          return;
+        }
+
+        var zone = ev.target.closest('.booklet-insert-zone');
+        if (zone) {
+          zone.classList.add('drag-over-zone');
+        }
+      });
+
+      blockListEl.addEventListener('drop', function (ev) {
+        ev.preventDefault();
+        var draggedId = ev.dataTransfer.getData('text/plain');
+        if (!draggedId) return;
+        var fromIdx = state.blocks.findIndex(function (x) { return x.id === draggedId; });
+        if (fromIdx < 0) return;
+
+        var target = ev.target.closest('.block-list-item');
+        if (target && !target.classList.contains('dragging')) {
+          var targetId = target.dataset.blockId;
+          if (!targetId || draggedId === targetId) return;
+          var toIdx = state.blocks.findIndex(function (x) { return x.id === targetId; });
+          if (toIdx < 0) return;
+          var rect = target.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          if (ev.clientY >= midY) toIdx = Math.min(toIdx + 1, state.blocks.length);
+          var moved = state.blocks.splice(fromIdx, 1)[0];
+          if (fromIdx < toIdx) toIdx--;
+          state.blocks.splice(toIdx, 0, moved);
+          scheduleAutosave();
+          renderBlockList();
+          markLayoutStale();
+          return;
+        }
+
+        var zone = ev.target.closest('.booklet-insert-zone');
+        if (zone) {
+          var toIdx = parseInt(zone.dataset.insertIdx, 10);
+          if (isNaN(toIdx)) return;
+          var moved = state.blocks.splice(fromIdx, 1)[0];
+          if (fromIdx < toIdx) toIdx--;
+          state.blocks.splice(toIdx, 0, moved);
+          scheduleAutosave();
+          renderBlockList();
+          markLayoutStale();
+        }
+      });
+    }
 
     document.getElementById('selPageSize')?.addEventListener('change', (e) => {
       state.settings.pageSize = e.target.value;

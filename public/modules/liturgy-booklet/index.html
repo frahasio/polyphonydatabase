@@ -215,6 +215,16 @@
         .block-list-item.drag-over-bottom { border-bottom: 2.5px solid #8b1538; }
         .block-list-item[draggable="true"] { cursor: grab; }
         .block-list-item[draggable="true"]:active { cursor: grabbing; }
+        .block-list-dragging .booklet-insert-zone {
+            height: 18px;
+            opacity: 0.5;
+        }
+        .booklet-insert-zone.drag-over-zone {
+            opacity: 1;
+        }
+        .booklet-insert-zone.drag-over-zone .booklet-insert-line {
+            height: 2.5px;
+        }
         .booklet-block-type-badge {
             flex-shrink: 0;
             width: 1.2rem;
@@ -351,7 +361,6 @@
         }
         .booklet-page .rubric {
             color: var(--booklet-rubric-color);
-            font-style: italic;
             margin-bottom: 0.35rem;
         }
         .booklet-page .reading {
