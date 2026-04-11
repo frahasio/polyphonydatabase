@@ -421,19 +421,7 @@
         parts.push('color:' + col);
       }
     }
-    const fm = st.match(/font-size\s*:\s*([^;]+)/i);
-    if (fm) {
-      const raw = fm[1].trim();
-      const low = raw.toLowerCase();
-      if (low === 'inherit' || low === 'initial') {
-        parts.push('font-size:' + low);
-      } else if (/^(?:\d+(?:\.\d+)?)(?:pt|px|em|rem|%)$/i.test(raw)) {
-        const num = parseFloat(raw);
-        if (num > 0 && num <= 72) {
-          parts.push('font-size:' + raw);
-        }
-      }
-    }
+    
     const ta = st.match(/text-align\s*:\s*([^;]+)/i);
     if (ta) {
       var v = ta[1].trim().toLowerCase();
@@ -453,7 +441,7 @@
   }
 
   /**
-   * Safe subset for rubric/reading/translation: b, i, u, br, lists, span[style=color|font-size].
+   * Safe subset for rubric/reading/translation: b, i, u, br, lists, span[style=color].
    * @returns {DocumentFragment}
    */
   function sanitizeToFragment(html) {
@@ -581,6 +569,38 @@
     const w = document.createElement('div');
     w.appendChild(sanitizeToFragment(html));
     return (w.textContent || '').trim().length > 0;
+  }
+
+  function splitTranslationLines(html) {
+    if (!html || !String(html).trim()) return [];
+    const w = document.createElement('div');
+    w.appendChild(sanitizeToFragment(html));
+    const lines = [];
+    let cur = document.createElement('span');
+    function flush() {
+      const h = cur.innerHTML.trim();
+      if (h && h !== '<br>') lines.push(h);
+      else if (lines.length > 0 || h) lines.push('');
+      cur = document.createElement('span');
+    }
+    for (let i = 0; i < w.childNodes.length; i++) {
+      const node = w.childNodes[i];
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'br') {
+          flush();
+        } else if (tag === 'p' || tag === 'div') {
+          if (cur.innerHTML.trim()) flush();
+          lines.push(node.innerHTML || '');
+        } else {
+          cur.appendChild(node.cloneNode(true));
+        }
+      } else {
+        cur.appendChild(node.cloneNode(true));
+      }
+    }
+    if (cur.innerHTML.trim()) flush();
+    return lines;
   }
 
   function stripTagsForPreview(html) {
@@ -845,7 +865,8 @@
     ctxt.spaceBetweenSystems = 1.5;
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
-    ctxt.textStyles.annotation.size = Math.round(lyricPx / 0.9 - 2);
+    const annotSizeAdj = Number(b.chantAnnotationSizeAdj) || 0;
+    ctxt.textStyles.annotation.size = Math.max(1, Math.round(lyricPx / 0.9 - 2 + annotSizeAdj));
     ctxt.annotationTextSize = ctxt.textStyles.annotation.size;
     const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.1));
     ctxt.minLyricWordSpacing *= tight;
@@ -1034,6 +1055,15 @@
           const cr = String(o.chantRubricColor).trim();
           o.chantRubricColor = /^#[0-9a-f]{6}$/i.test(cr) ? cr : '';
         }
+        o.chantAnnotationSizeAdj =
+          o.chantAnnotationSizeAdj != null ? (Number(o.chantAnnotationSizeAdj) || 0) : 0;
+        o.chantAnnotationYAdj =
+          o.chantAnnotationYAdj != null ? (Number(o.chantAnnotationYAdj) || 0) : 0;
+        if (o.chantTranslation === undefined) o.chantTranslation = '';
+        if (o.chantTranslationLeftPct == null) o.chantTranslationLeftPct = 60;
+        if (o.chantTranslationGapMm == null) o.chantTranslationGapMm = 4;
+        if (o.chantTranslationBorder === undefined) o.chantTranslationBorder = false;
+        if (o.chantTranslationFontSizePt == null) o.chantTranslationFontSizePt = 11;
       }
       if (o.type === 'reading') {
         if (o.translation === undefined) o.translation = '';
@@ -1410,7 +1440,7 @@
       .replace(/(\([cf][1-4]\)|\s)(\d+\.)(\s\S)/g, '$1^$2^$3');
   }
 
-  function renderChantGabcToLines(gabcRaw, widthPx, chantBlock) {
+  function renderChantGabcToLines(gabcRaw, widthPx, chantBlock, fullWidthPx) {
     if (!gabcRaw || !String(gabcRaw).trim()) {
       const d = document.createElement('div');
       d.className = 'text-muted small booklet-section';
@@ -1457,19 +1487,63 @@
       var padTop = Math.max(0, cb.chantLinePadTop != null ? Number(cb.chantLinePadTop) : 2);
       var gapRaw = cb.chantSystemGap != null ? Number(cb.chantSystemGap) : 0;
       var gapPx = Math.max(0, gapRaw * 2);
-      temp.querySelectorAll('svg').forEach(function (svg, svgIdx) {
+      var annotYAdj = Number(cb.chantAnnotationYAdj) || 0;
+
+      var hasTranslation = fullWidthPx && translationHasContent(cb.chantTranslation);
+      var transLines = hasTranslation ? splitTranslationLines(cb.chantTranslation) : [];
+      var ctLeftPct, ctRightPct, ctHalfGapMm, ctTransFontPt, ctShowBorder;
+      if (hasTranslation) {
+        ctLeftPct = Math.min(80, Math.max(20, parseInt(cb.chantTranslationLeftPct, 10) || 60));
+        ctRightPct = 100 - ctLeftPct;
+        ctHalfGapMm = (Math.min(20, Math.max(0, parseInt(cb.chantTranslationGapMm, 10) || 4))) / 2;
+        ctTransFontPt = cb.chantTranslationFontSizePt || 11;
+        ctShowBorder = !!cb.chantTranslationBorder;
+      }
+
+      var svgs = temp.querySelectorAll('svg');
+      svgs.forEach(function (svg, svgIdx) {
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
         svg.querySelectorAll('text.annotation').forEach(function (ann) {
           var cy = parseFloat(ann.getAttribute('y'));
-          if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6) + '');
+          if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6 - annotYAdj) + '');
         });
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.paddingTop = padTop + 'px';
         line.style.marginBottom = gapPx + 'px';
         line.style.overflow = 'visible';
-        line.appendChild(svg);
+
+        if (hasTranslation) {
+          var transHtml = '';
+          if (svgIdx < svgs.length - 1) {
+            transHtml = transLines[svgIdx] || '';
+          } else {
+            transHtml = transLines.slice(svgIdx).join('<br>');
+          }
+          var table = document.createElement('table');
+          table.className = 'booklet-chant-parallel';
+          var tr = document.createElement('tr');
+          var tdL = document.createElement('td');
+          tdL.style.width = ctLeftPct + '%';
+          tdL.style.paddingRight = ctHalfGapMm + 'mm';
+          if (ctShowBorder) tdL.style.borderRight = '1px solid #adb5bd';
+          tdL.appendChild(svg);
+          var tdR = document.createElement('td');
+          tdR.style.width = ctRightPct + '%';
+          tdR.style.paddingLeft = ctHalfGapMm + 'mm';
+          var transDiv = document.createElement('div');
+          transDiv.className = 'booklet-richtext chant-translation';
+          transDiv.style.fontSize = ctTransFontPt + 'pt';
+          transDiv.appendChild(sanitizeToFragment(transHtml));
+          tdR.appendChild(transDiv);
+          tr.appendChild(tdL);
+          tr.appendChild(tdR);
+          table.appendChild(tr);
+          line.appendChild(table);
+        } else {
+          line.appendChild(svg);
+        }
         lines.push(line);
       });
       if (!lines.length) {
@@ -1719,7 +1793,15 @@
       var gapAfter = blockSectionGapAfterMm(b);
       var splittable = (b.type === 'rubric' || b.type === 'reading');
       if (b.type === 'chant_gabc') {
-        var lines = renderChantGabcToLines(b.gabc || '', w, b);
+        var chantW = w;
+        var chantFullW = null;
+        if (translationHasContent(b.chantTranslation)) {
+          var ctLPct = Math.min(80, Math.max(20, parseInt(b.chantTranslationLeftPct, 10) || 60));
+          var ctGapPx = mmToPx(Math.min(20, Math.max(0, parseInt(b.chantTranslationGapMm, 10) || 4)));
+          chantW = Math.round(w * ctLPct / 100 - ctGapPx / 2);
+          chantFullW = w;
+        }
+        var lines = renderChantGabcToLines(b.gabc || '', chantW, b, chantFullW);
         for (var li = 0; li < lines.length; li++) {
           lines[li].dataset.blockId = b.id;
           var isLast = li === lines.length - 1;
@@ -3178,11 +3260,15 @@
       const ct = b.chantLyricTight != null ? b.chantLyricTight : 1.1;
       const cs = b.chantSystemGap != null ? b.chantSystemGap : 0;
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
+      const cas = b.chantAnnotationSizeAdj != null ? b.chantAnnotationSizeAdj : 0;
+      const cay = b.chantAnnotationYAdj != null ? b.chantAnnotationYAdj : 0;
       const csc = String(b.chantStaffColor || '').trim();
       const cscVal = /^#[0-9a-f]{6}$/i.test(csc) ? csc : '#000000';
       const crc = String(b.chantRubricColor || '').trim();
       const crcVal = /^#[0-9a-f]{6}$/i.test(crc) ? crc : '#000000';
       const clang = b.chantLyricLanguage === 'english' ? 'english' : 'latin';
+      const ctSplit = b.chantTranslationLeftPct != null ? b.chantTranslationLeftPct : 60;
+      const ctGap = b.chantTranslationGapMm != null ? b.chantTranslationGapMm : 4;
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
         <label class="form-label small mb-0" for="edGabc" title="Full GABC including the %% header block. For Mass propers, build in Ben’s propers tool (toolbar → Advanced) and paste here.">GABC</label>
@@ -3203,6 +3289,8 @@
             <div class="d-flex align-items-center justify-content-between mb-1"><span>Tightness</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLyricTight" min="0.2" max="2.0" step="0.1" value="${ct}"></div>
             <div class="d-flex align-items-center justify-content-between mb-1"><span>Line pad</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLinePadTop" min="-10" max="10" step="1" value="${cl}"></div>
             <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantDropCapScale" min="0.5" max="1.6" step="0.05" value="${cd}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. size adj.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. vert. pos.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
           </div>
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="edChantUseDropCap" ${b.chantUseDropCap !== false ? 'checked' : ''}>
@@ -3224,6 +3312,32 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="edChantRubricDef">Black</button>
           </div>
           </div>
+        </div>
+        <div class="row g-1 mb-0 mt-2">
+          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(parallel column, one line per chant system)</span></label></div>
+          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
+            <input type="number" class="form-control form-control-sm" id="edChantTransSize" min="6" max="36" step="0.5" value="${b.chantTranslationFontSizePt || 11}"></div>
+        </div>
+        <div class="booklet-rich-toolbar chant-tb-trans d-flex flex-wrap align-items-center gap-1">
+          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
+            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
+          </div>
+          ${richAlignToolbarHtml()}
+          ${richColorPickerHtml()}
+        </div>
+        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edChantTrans"></div>
+        <div id="chantParallelOpts" class="border rounded p-2 bg-light small">
+          <label class="form-label small mb-1">Column split <span class="text-muted">(chant width %)</span></label>
+          <input type="range" class="form-range" id="rngChantSplit" min="20" max="80" step="1" value="${ctSplit}">
+          <div class="d-flex justify-content-between"><span>20%</span><span id="chantSplitVal">${ctSplit}%</span><span>80%</span></div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="chkChantBorder" ${b.chantTranslationBorder ? 'checked' : ''}>
+            <label class="form-check-label" for="chkChantBorder">Vertical line between columns</label>
+          </div>
+          <label class="form-label small mb-0 mt-2">Space between columns (mm)</label>
+          <input type="number" class="form-control form-control-sm" id="inpChantGap" min="0" max="20" value="${ctGap}">
         </div>
       `;
       const ta = panel.querySelector('#edGabc');
@@ -3254,7 +3368,9 @@
           var v = parseFloat(inp.value);
           if (Number.isFinite(v)) {
             var mn = parseFloat(inp.min), mx = parseFloat(inp.max);
-            b[prop] = Math.min(mx, Math.max(mn, v));
+            if (Number.isFinite(mn)) v = Math.max(mn, v);
+            if (Number.isFinite(mx)) v = Math.min(mx, v);
+            b[prop] = v;
             inp.value = b[prop];
           }
           scheduleAutosave();
@@ -3290,6 +3406,44 @@
         markLayoutStale();
         renderBlockList();
       });
+      const edChantTrans = panel.querySelector('#edChantTrans');
+      if (edChantTrans) {
+        edChantTrans.innerHTML = initialRichHtmlForEditor(b.chantTranslation);
+        const pushChantTrans = () => {
+          b.chantTranslation = edChantTrans.innerHTML;
+          scheduleAutosave();
+          markLayoutStale();
+          renderBlockList();
+        };
+        bindRichToolbar(panel.querySelector('.chant-tb-trans'), edChantTrans, pushChantTrans);
+        panel.querySelector('#edChantTransSize')?.addEventListener('input', () => {
+          var ts = parseFloat(panel.querySelector('#edChantTransSize').value);
+          b.chantTranslationFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
+          scheduleAutosave();
+          markLayoutStale();
+          renderBlockList();
+        });
+        const ctRng = panel.querySelector('#rngChantSplit');
+        const ctRv = panel.querySelector('#chantSplitVal');
+        const ctChk = panel.querySelector('#chkChantBorder');
+        const ctIg = panel.querySelector('#inpChantGap');
+        const syncChantParallel = () => {
+          b.chantTranslationLeftPct = parseInt(ctRng.value, 10) || 60;
+          if (ctRv) ctRv.textContent = b.chantTranslationLeftPct + '%';
+          b.chantTranslationBorder = !!ctChk.checked;
+          let ggm = parseInt(ctIg.value, 10);
+          if (!Number.isFinite(ggm)) {
+            ggm = b.chantTranslationGapMm != null ? b.chantTranslationGapMm : 4;
+          }
+          b.chantTranslationGapMm = Math.min(20, Math.max(0, ggm));
+          scheduleAutosave();
+          markLayoutStale();
+          renderBlockList();
+        };
+        ctRng.addEventListener('input', syncChantParallel);
+        ctChk.addEventListener('change', syncChantParallel);
+        ctIg.addEventListener('input', syncChantParallel);
+      }
     } else if (b.type === 'jgabc_propers') {
       panel.innerHTML =
         '<p class="small text-muted">Replace this block with <strong>Chant (paste GABC)</strong> or reload after migration.</p>';
@@ -3358,6 +3512,13 @@
       b.chantLyricLanguage = 'latin';
       b.chantTextFont = 'crimson';
       b.chantRubricColor = '';
+      b.chantAnnotationSizeAdj = 0;
+      b.chantAnnotationYAdj = 0;
+      b.chantTranslation = '';
+      b.chantTranslationLeftPct = 60;
+      b.chantTranslationGapMm = 4;
+      b.chantTranslationBorder = false;
+      b.chantTranslationFontSizePt = 11;
     }
     if (type === 'spacer') {
       b.heightMm = 10;
