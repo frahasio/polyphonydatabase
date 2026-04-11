@@ -1565,10 +1565,17 @@
   }
 
   function snapToLineHeight(targetPx, el) {
-    var lineH = parseFloat(getComputedStyle(el).lineHeight);
-    if (!lineH || !Number.isFinite(lineH) || lineH < 8) lineH = 20;
+    var lineH = 23;
+    try {
+      var mount = document.getElementById('bookletMeasureMount');
+      if (mount && mount.lastChild) {
+        var cs = getComputedStyle(mount.lastChild);
+        var lh = parseFloat(cs.lineHeight);
+        if (lh && Number.isFinite(lh) && lh >= 8) lineH = lh;
+      }
+    } catch (e) { /* ignore */ }
     var snapped = Math.floor(targetPx / lineH) * lineH;
-    return snapped > 0 ? snapped : lineH;
+    return snapped > 0 ? snapped : targetPx;
   }
 
   function createClippedView(el, fromPx, toPx, widthPx, clipClass) {
@@ -1647,7 +1654,7 @@
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
-      } else if (curY > 0 && (pageHPx - curY - gap) >= 10) {
+      } else if (curY > 0 && (pageHPx - curY - gap) >= 60) {
         // #region agent log
         _branch = 'SPLIT';
         // #endregion
