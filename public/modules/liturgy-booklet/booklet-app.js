@@ -2056,10 +2056,11 @@
         if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
       }
       if (allPdf) p.classList.add('booklet-page--pdf-full');
-      var first = body.firstElementChild;
-      if (first) {
-        var chantEl = first.classList.contains('booklet-chant-line') ? first : first.querySelector('.booklet-chant-line');
-        if (chantEl) chantEl.style.paddingTop = '10px';
+      var firstEl = body.firstElementChild;
+      if (firstEl && firstEl.classList.contains('booklet-chant-line')) {
+        firstEl.style.paddingTop = '12px';
+      } else if (firstEl && firstEl.classList.contains('booklet-clip-container')) {
+        firstEl.style.paddingTop = '12px';
       }
     });
 
