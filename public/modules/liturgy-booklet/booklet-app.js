@@ -845,21 +845,27 @@
 
   function bindRichToolbar(toolbarRoot, ed, onChange) {
     let savedRange = null;
+
+    var saveEdSelection = function () {
+      var sel = window.getSelection();
+      if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
+        try { savedRange = sel.getRangeAt(0).cloneRange(); } catch (_) {}
+      }
+    };
+    ed.addEventListener('keyup', saveEdSelection);
+    ed.addEventListener('mouseup', saveEdSelection);
+    document.addEventListener('selectionchange', function () {
+      if (!document.contains(ed)) return;
+      saveEdSelection();
+    });
+
     toolbarRoot.addEventListener(
       'mousedown',
       function (e) {
         if (!e.target.closest('[data-rich-cmd], [data-rich-font-select], [data-rich-family-select], [data-rich-insert], [data-rich-insert-text], .booklet-rich-color-pick')) return;
-        if (e.target.closest('select')) return;
-        const sel = window.getSelection();
-        if (sel.rangeCount > 0 && ed.contains(sel.anchorNode) && ed.contains(sel.focusNode)) {
-          try {
-            savedRange = sel.getRangeAt(0).cloneRange();
-          } catch (e0) {
-            savedRange = null;
-          }
-        }
+        e.preventDefault();
       },
-      true
+      false
     );
 
     function restoreSelection() {
@@ -967,6 +973,22 @@
           document.execCommand('insertText', false, txt);
         } catch (_) {}
         onChange();
+      });
+    });
+    toolbarRoot.querySelectorAll('[data-toggle-special]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tgt = document.getElementById(btn.getAttribute('data-toggle-special'));
+        if (!tgt) return;
+        var icon = btn.querySelector('i');
+        if (tgt.classList.contains('d-none')) {
+          tgt.classList.remove('d-none');
+          tgt.classList.add('d-flex');
+          if (icon) { icon.classList.remove('bi-chevron-right'); icon.classList.add('bi-chevron-down'); }
+        } else {
+          tgt.classList.add('d-none');
+          tgt.classList.remove('d-flex');
+          if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-right'); }
+        }
       });
     });
     ed.addEventListener('input', onChange);
@@ -1853,7 +1875,6 @@
         }
         const innerL = document.createElement('div');
         innerL.className = 'booklet-richtext reading';
-        innerL.lang = 'la';
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
         innerL.appendChild(sanitizeToFragment(b.text || ''));
@@ -2694,14 +2715,6 @@
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
 
-    if (window.Hyphenopoly && window.Hyphenopoly.hyphenators &&
-        window.Hyphenopoly.hyphenators.HTML) {
-      window.Hyphenopoly.hyphenators.HTML.then(function (hyphenateHTML) {
-        pageDivs.forEach(function (p) {
-          try { hyphenateHTML(p, '.booklet-richtext'); } catch (_) {}
-        });
-      }).catch(function () {});
-    }
   }
 
   function switchDisplayMode() {
@@ -2724,34 +2737,10 @@
     }
   }
 
-  function richAlignToolbarHtml() {
-    return `
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left" aria-label="Align left"><i class="bi bi-text-left" aria-hidden="true"></i></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre" aria-label="Align centre"><i class="bi bi-text-center" aria-hidden="true"></i></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right" aria-label="Align right"><i class="bi bi-text-right" aria-hidden="true"></i></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify" aria-label="Justify"><i class="bi bi-justify" aria-hidden="true"></i></button>
-          </div>`;
-  }
-
-  function richFontSizeSelectHtml() {
-    return `
-          <select class="form-select form-select-sm mb-1 align-middle" data-rich-font-select style="max-width:7.75rem" title="Font size (selection)" aria-label="Font size">
-            <option value="" selected>Size…</option>
-            <option value="inherit">Default</option>
-            <option value="9pt">9 pt</option>
-            <option value="10pt">10 pt</option>
-            <option value="11pt">11 pt</option>
-            <option value="12pt">12 pt</option>
-            <option value="13pt">13 pt</option>
-            <option value="14pt">14 pt</option>
-            <option value="16pt">16 pt</option>
-            <option value="18pt">18 pt</option>
-          </select>`;
-  }
-
-  function richFontFamilySelectHtml() {
-    var opts = '<option value="" selected>Font\u2026</option><option value="inherit">Default</option>';
+  var _richToolbarId = 0;
+  function richToolbarHtml(tbClass) {
+    var uid = 'richSpecial' + (++_richToolbarId);
+    var fontOpts = '<option value="" selected>Font\u2026</option><option value="inherit">Default</option>';
     var groups = { Serif: [], 'Sans-serif': [], Monospace: [] };
     Object.keys(BOOKLET_FONTS).forEach(function (f) {
       var cat = BOOKLET_FONTS[f];
@@ -2760,49 +2749,61 @@
     });
     Object.keys(groups).forEach(function (label) {
       if (!groups[label].length) return;
-      opts += '<optgroup label="' + label + '">';
-      groups[label].forEach(function (f) {
-        opts += '<option value="' + f + '">' + f + '</option>';
-      });
-      opts += '</optgroup>';
+      fontOpts += '<optgroup label="' + label + '">';
+      groups[label].forEach(function (f) { fontOpts += '<option value="' + f + '">' + f + '</option>'; });
+      fontOpts += '</optgroup>';
     });
-    return '<select class="form-select form-select-sm mb-1 align-middle" data-rich-family-select style="max-width:9.5rem" title="Font family (selection)" aria-label="Font family">' + opts + '</select>';
-  }
-
-  function richSmallCapsButtonHtml() {
-    return '<button type="button" class="btn btn-sm btn-light border py-0 px-2 mb-1" data-rich-cmd="smallCaps" title="Small caps" aria-label="Small caps" style="font-variant:small-caps;font-size:0.72rem;line-height:1.5">Sc</button>';
-  }
-
-  function richLiturgicalToolbarHtml() {
-    return `
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="v" title="Versicle &#x2123; &mdash; or type \\V. in text" aria-label="Versicle">v</button>
-            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="r" title="Response &#x211F; &mdash; or type \\R. in text" aria-label="Response">r</button>
-            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="a" title="Antiphon / barred A &mdash; or type \\A. in text" aria-label="Antiphon">a</button>
-            <button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="+" title="Cross &#x2720; &mdash; or type \\+ in text" aria-label="Cross">+</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u2020" title="Dagger / obelus &dagger;" aria-label="Dagger">\u2020</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="*" title="Asterisk (psalm pause)" aria-label="Asterisk">*</button>
-          </div>
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group" title="Latin ligatures &amp; accented forms (best with Gentium Plus, Cardo, or EB Garamond)">
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00E6" title="&aelig; (ae ligature)" aria-label="ae ligature">\u00E6</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153" title="&oelig; (oe ligature)" aria-label="oe ligature">\u0153</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u01FD" title="&aelig; with acute (\u01FD) &mdash; needs Gentium Plus, Cardo, or EB Garamond" aria-label="ae acute">\u01FD</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153\u0301" title="&oelig; with acute (\u0153+\u0301) &mdash; needs Gentium Plus or Cardo" aria-label="oe acute">\u0153\u0301</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00C6" title="&AElig; (AE ligature)" aria-label="AE ligature">\u00C6</button>
-            <button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0152" title="&OElig; (OE ligature)" aria-label="OE ligature">\u0152</button>
-          </div>`;
-  }
-
-  function richColorPickerHtml() {
-    return '<input type="color" class="booklet-rich-color-pick mb-1" value="#212529" title="Text colour">';
-  }
-
-  function richListToolbarHtml() {
-    return `
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertOrderedList" title="Numbered list (hanging indent for verses)"><i class="bi bi-list-ol" aria-hidden="true"></i></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul" aria-hidden="true"></i></button>
-          </div>`;
+    return '<div class="booklet-rich-toolbar ' + tbClass + '">' +
+      '<div class="d-flex flex-wrap align-items-center gap-1">' +
+        '<div class="btn-group btn-group-sm mb-1" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="smallCaps" title="Small caps" style="font-variant:small-caps;font-size:0.72rem;line-height:1.5">Sc</button>' +
+        '</div>' +
+        '<div class="btn-group btn-group-sm mb-1" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyLeft" title="Align left"><i class="bi bi-text-left"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyCenter" title="Centre"><i class="bi bi-text-center"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyRight" title="Align right"><i class="bi bi-text-right"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="justifyFull" title="Justify"><i class="bi bi-justify"></i></button>' +
+        '</div>' +
+        '<div class="btn-group btn-group-sm mb-1" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertOrderedList" title="Numbered list"><i class="bi bi-list-ol"></i></button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul"></i></button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="d-flex flex-wrap align-items-center gap-1">' +
+        '<select class="form-select form-select-sm mb-1" data-rich-family-select style="max-width:9rem;font-size:0.7rem" title="Font family">' + fontOpts + '</select>' +
+        '<select class="form-select form-select-sm mb-1" data-rich-font-select style="max-width:5.5rem;font-size:0.7rem" title="Font size">' +
+          '<option value="" selected>Size\u2026</option><option value="inherit">Default</option>' +
+          '<option value="9pt">9pt</option><option value="10pt">10pt</option><option value="11pt">11pt</option>' +
+          '<option value="12pt">12pt</option><option value="13pt">13pt</option><option value="14pt">14pt</option>' +
+          '<option value="16pt">16pt</option><option value="18pt">18pt</option>' +
+        '</select>' +
+        '<input type="color" class="booklet-rich-color-pick mb-1" value="#212529" title="Text colour">' +
+        '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 mb-1" style="font-size:0.65rem;line-height:1.4" data-toggle-special="' + uid + '" title="Special characters">' +
+          '<i class="bi bi-chevron-right" style="font-size:0.55rem"></i> \u266D' +
+        '</button>' +
+      '</div>' +
+      '<div class="d-none flex-wrap align-items-center gap-1" id="' + uid + '">' +
+        '<div class="btn-group btn-group-sm mb-1" role="group">' +
+          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="v" title="Versicle (\\V.)">v</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="r" title="Response (\\R.)">r</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="a" title="Antiphon (\\A.)">a</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-2 versiculum" data-rich-insert="+" title="Cross (\\+)">+</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u2020" title="Dagger">\u2020</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="*" title="Asterisk">*</button>' +
+        '</div>' +
+        '<div class="btn-group btn-group-sm mb-1" role="group" title="Latin ligatures (best with Gentium Plus, Cardo, or EB Garamond)">' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00E6" title="ae ligature">\u00E6</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153" title="oe ligature">\u0153</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u01FD" title="ae with acute">\u01FD</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0153\u0301" title="oe with acute">\u0153\u0301</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u00C6" title="AE">\u00C6</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u0152" title="OE">\u0152</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
   }
 
   function editorLayoutPanelHtml(b, showGap, showFont) {
@@ -3009,7 +3010,8 @@
       if (badge) div.appendChild(badge);
       div.appendChild(textEl);
       div.appendChild(actions);
-      div.addEventListener('click', function () {
+      div.addEventListener('mousedown', function (e) {
+        e.preventDefault();
         selectedBlockId = b.id;
         var edP = document.getElementById('bookletEditorPane');
         if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
@@ -3119,26 +3121,16 @@
     if (b.type === 'rubric') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1">Rubric colour</label>
-        <input type="color" id="edRubricColor" class="form-control form-control-color mb-1" value="${escapeAttr(b.rubricColor || '#8b1538')}">
-        <div class="row g-1 mb-1">
-          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
-            <input type="number" class="form-control form-control-sm" id="edRubricBodySize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}"></div>
-          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Leading pt</label>
-            <input type="number" class="form-control form-control-sm" id="edRubricLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></div>
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
+          <label class="d-flex flex-column gap-0" style="width:3.25rem"><span class="form-label small mb-0">Colour</span>
+            <input type="color" id="edRubricColor" class="form-control form-control-color form-control-sm" value="${escapeAttr(b.rubricColor || '#8b1538')}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Font pt</span>
+            <input type="number" class="form-control form-control-sm" id="edRubricBodySize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}"></label>
+          <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
+            <input type="number" class="form-control form-control-sm" id="edRubricLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
         </div>
         <label class="form-label small mb-0">Rubric text</label>
-        <div class="booklet-rich-toolbar rubric-tb d-flex flex-wrap align-items-center gap-1">
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
-          </div>
-          ${richSmallCapsButtonHtml()}
-          ${richAlignToolbarHtml()}
-          ${richLiturgicalToolbarHtml()}
-          ${richFontFamilySelectHtml()}
-        </div>
+        ${richToolbarHtml('rubric-tb')}
         <div class="form-control form-control-sm booklet-rich-ed" contenteditable="true" id="edRichRubric"></div>
       `;
       const ed = panel.querySelector('#edRichRubric');
@@ -3186,48 +3178,23 @@
           <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
             <input type="number" class="form-control form-control-sm" id="edReadSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
         </div>
-        <div class="row g-1 mb-1">
-          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Leading pt</label>
-            <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></div>
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
+          <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
+            <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
         </div>
-        <div class="row g-1 mb-0">
-          <div class="col"><label class="form-label small mb-0">Original</label></div>
-          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
-            <input type="number" class="form-control form-control-sm" id="edReadOrigSize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}"></div>
+        <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
+          <label class="ms-auto d-flex align-items-center gap-1"><small class="text-muted">pt</small>
+            <input type="number" class="form-control form-control-sm" id="edReadOrigSize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}" style="width:4rem"></label>
         </div>
-        <div class="booklet-rich-toolbar read-tb-orig d-flex flex-wrap align-items-center gap-1">
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
-          </div>
-          ${richSmallCapsButtonHtml()}
-          ${richListToolbarHtml()}
-          ${richAlignToolbarHtml()}
-          ${richLiturgicalToolbarHtml()}
-          ${richFontFamilySelectHtml()}
-          ${richColorPickerHtml()}
+        ${richToolbarHtml('read-tb-orig')}
+        <div class="form-control form-control-sm booklet-rich-ed mb-1" contenteditable="true" id="edReadOrig"></div>
+        <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Translation</small><small class="text-muted">(parallel when filled)</small>
+          <label class="ms-auto d-flex align-items-center gap-1"><small class="text-muted">pt</small>
+            <input type="number" class="form-control form-control-sm" id="edReadTransSize" min="6" max="36" step="0.5" value="${b.translationFontSizePt || 11}" style="width:4rem"></label>
         </div>
-        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadOrig"></div>
-        <div class="row g-1 mb-0">
-          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(parallel when filled)</span></label></div>
-          <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
-            <input type="number" class="form-control form-control-sm" id="edReadTransSize" min="6" max="36" step="0.5" value="${b.translationFontSizePt || 11}"></div>
-        </div>
-        <div class="booklet-rich-toolbar read-tb-trans d-flex flex-wrap align-items-center gap-1">
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
-          </div>
-          ${richSmallCapsButtonHtml()}
-          ${richListToolbarHtml()}
-          ${richAlignToolbarHtml()}
-          ${richLiturgicalToolbarHtml()}
-          ${richFontFamilySelectHtml()}
-          ${richColorPickerHtml()}
-        </div>
-        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edReadTrans"></div>
+        ${richToolbarHtml('read-tb-trans')}
+        <div class="form-control form-control-sm booklet-rich-ed mb-1" contenteditable="true" id="edReadTrans"></div>
+        <hr class="my-1">
         <div id="readParallelOpts" class="border rounded p-2 bg-light small">
           <label class="form-label small mb-1">Column split <span class="text-muted">(original width %)</span></label>
           <input type="range" class="form-range" id="rngReadSplit" min="20" max="80" step="1" value="${split}">

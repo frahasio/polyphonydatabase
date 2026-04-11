@@ -13,7 +13,6 @@
     <script>
     Hyphenopoly.config({
         require: {
-            "la": "FORCEHYPHENOPOLY",
             "en-us": "supercalifragilisticexpialidocious"
         },
         paths: {
@@ -22,7 +21,6 @@
         },
         setup: {
             defaultLanguage: "en-us",
-            keepAlive: true,
             hide: "none",
             safeCopy: true,
             selectors: {
@@ -408,10 +406,6 @@
             hyphens: auto;
             -webkit-hyphenate-limit-chars: 6 3 2;
             hyphenate-limit-chars: 6 3 2;
-        }
-        .booklet-richtext[lang="la"] {
-            -webkit-hyphens: manual;
-            hyphens: manual;
         }
         .booklet-richtext .versiculum,
         .booklet-rich-ed .versiculum,
