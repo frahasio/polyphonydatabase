@@ -696,7 +696,8 @@
     ctxt.spaceBetweenSystems = Math.max(0, (Number.isFinite(gapRaw) ? gapRaw : 1) * 3);
     const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
     ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
-    ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 12.8);
+    ctxt.textStyles.annotation.size = Math.round((lyricPx / 19.2) * 9);
+    ctxt.annotationTextSize = ctxt.textStyles.annotation.size;
     const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.1));
     ctxt.minLyricWordSpacing *= tight;
     if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
@@ -1279,9 +1280,26 @@
       temp.innerHTML = html;
       const lines = [];
       var padTop = Math.max(0, cb.chantLinePadTop != null ? Number(cb.chantLinePadTop) : 2);
-      temp.querySelectorAll('svg').forEach(function (svg) {
+      var CHANT_VB_SHIFT = 20;
+      temp.querySelectorAll('svg').forEach(function (svg, svgIdx) {
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
+        var vb = svg.getAttribute('viewBox');
+        if (vb) {
+          var parts = vb.split(/[\s,]+/).map(Number);
+          if (parts.length === 4 && parts.every(Number.isFinite)) {
+            var skipShift = svgIdx === 0 && initialStyle;
+            if (!skipShift) {
+              parts[1] -= CHANT_VB_SHIFT;
+            }
+            svg.setAttribute('viewBox', parts.join(' '));
+          }
+        }
+        svg.querySelectorAll('text.annotation').forEach(function (ann) {
+          ann.setAttribute('font-style', 'italic');
+          var cy = parseFloat(ann.getAttribute('y'));
+          if (Number.isFinite(cy)) ann.setAttribute('y', (cy - 6) + '');
+        });
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
         line.style.paddingTop = padTop + 'px';
@@ -1598,6 +1616,11 @@
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
     container.setAttribute('aria-hidden', 'true');
+    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? 1 : 0;
+    var insetBot = (clipClass === 'booklet-clip-top' || clipClass === 'booklet-clip-mid') ? 1 : 0;
+    if (insetTop || insetBot) {
+      container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
+    }
     var clone = el.cloneNode(true);
     clone.style.position = 'relative';
     clone.style.top = (-fromPx) + 'px';
@@ -1843,7 +1866,10 @@
   function scaleBookletSpread(host) {
     var slots = host.querySelectorAll('.booklet-spread-slot');
     if (slots.length !== 2) return;
-    var slotW = slots[0].clientWidth;
+    var vp = host.querySelector('.booklet-spread-viewport');
+    var vpW = vp ? vp.clientWidth : host.clientWidth;
+    var halfVpW = Math.floor((vpW - 4) / 2);
+    var slotW = Math.min(slots[0].clientWidth, halfVpW);
     var slotH = slots[0].clientHeight;
     if (slotW <= 100 || slotH <= 100) {
       setTimeout(function () { scaleBookletSpread(host); }, 250);
@@ -3331,6 +3357,41 @@
         else pp.classList.remove('booklet-debug');
       }
     });
+
+    function setupPaneCollapse(collapseId, paneId, collapsedClass, expandSide) {
+      var btn = document.getElementById(collapseId);
+      var pane = document.getElementById(paneId);
+      if (!btn || !pane) return;
+      var expandBtn = null;
+      btn.addEventListener('click', function () {
+        pane.classList.add(collapsedClass);
+        if (!expandBtn) {
+          expandBtn = document.createElement('button');
+          expandBtn.type = 'button';
+          expandBtn.className = 'booklet-pane-expand-btn';
+          expandBtn.title = 'Expand pane';
+          expandBtn.innerHTML = expandSide === 'left'
+            ? '<i class="bi bi-chevron-bar-right"></i>'
+            : '<i class="bi bi-chevron-bar-left"></i>';
+          expandBtn.addEventListener('click', function () {
+            pane.classList.remove(collapsedClass);
+            expandBtn.remove();
+            var host = document.querySelector('.booklet-spread-host');
+            if (host) setTimeout(function () { scaleBookletSpread(host); }, 100);
+          });
+        }
+        var preview = document.querySelector('.booklet-pane-preview');
+        if (expandSide === 'left' && preview) {
+          preview.insertBefore(expandBtn, preview.firstChild);
+        } else if (preview) {
+          preview.appendChild(expandBtn);
+        }
+        var host = document.querySelector('.booklet-spread-host');
+        if (host) setTimeout(function () { scaleBookletSpread(host); }, 100);
+      });
+    }
+    setupPaneCollapse('btnCollapseList', 'bookletSidebar', 'booklet-pane-list--collapsed', 'left');
+    setupPaneCollapse('btnCollapseEditor', 'bookletEditorPane', 'booklet-pane-editor--collapsed', 'right');
   }
 
   loadAutosave();

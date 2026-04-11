@@ -51,14 +51,60 @@
             flex: 0 0 290px;
             min-width: 200px;
             border-right: 1px solid #dee2e6;
+            position: relative;
+            transition: flex-basis 0.2s, min-width 0.2s, padding 0.2s;
         }
         .booklet-pane-editor .booklet-layout-compact {
             padding: 0.45rem 0.5rem !important;
             margin-bottom: 0.35rem !important;
         }
+        .booklet-pane-editor--collapsed {
+            flex: 0 0 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+        .booklet-pane-list--collapsed {
+            flex: 0 0 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+        .booklet-pane-collapse-btn {
+            position: absolute;
+            top: 0.35rem;
+            right: 0.35rem;
+            z-index: 5;
+            font-size: 0.75rem;
+            padding: 0.15rem 0.35rem;
+            line-height: 1;
+            opacity: 0.6;
+        }
+        .booklet-pane-collapse-btn:hover { opacity: 1; }
+        .booklet-pane-expand-btn {
+            position: absolute;
+            top: 0;
+            width: 1.5rem;
+            height: 100%;
+            z-index: 1015;
+            border: none;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #6c757d;
+            padding: 0;
+        }
+        .booklet-pane-expand-btn:hover { background: #e9ecef; color: #212529; }
         .booklet-pane-preview {
             flex: 1 1 auto;
             min-width: 0;
+            position: relative;
         }
         @media (max-width: 991.98px) {
             .booklet-columns {
@@ -256,7 +302,7 @@
         .booklet-richtext ul,
         .booklet-rich-ed ol,
         .booklet-rich-ed ul {
-            margin: 0.35em 0;
+            margin: 0;
             padding-inline-start: 1.65em;
             list-style-position: outside;
         }
@@ -475,11 +521,10 @@
             width: 50%;
             max-width: calc(50% - 0.175rem);
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: center;
             min-width: 0;
             max-height: 100%;
-            padding-top: 2px;
             box-sizing: border-box;
             overflow: visible;
         }
@@ -643,6 +688,7 @@
 
     <div class="booklet-columns">
         <div class="booklet-pane booklet-pane-list no-print" id="bookletSidebar">
+            <button type="button" class="booklet-pane-collapse-btn btn btn-sm btn-outline-secondary" id="btnCollapseList" title="Collapse list"><i class="bi bi-chevron-bar-left"></i></button>
             <div class="dropdown mb-2">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-plus-lg me-1"></i>Add section…
@@ -661,6 +707,7 @@
             <div id="blockList"></div>
         </div>
         <div class="booklet-pane booklet-pane-editor no-print" id="bookletEditorPane">
+            <button type="button" class="booklet-pane-collapse-btn btn btn-sm btn-outline-secondary" id="btnCollapseEditor" title="Collapse editor"><i class="bi bi-chevron-bar-right"></i></button>
             <div id="editorPanel" class="small">
                 <p class="text-muted small mb-0">Select a section or add one.</p>
             </div>
