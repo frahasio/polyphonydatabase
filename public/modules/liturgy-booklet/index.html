@@ -212,19 +212,23 @@
         .booklet-insert-menu button:hover { background: #f8f9fa; }
         .block-list-item.active { border-color: #8b1538; background: #fff5f7; }
         .block-list-item.dragging { opacity: 0.35; }
-        .block-list-item.drag-over-top { border-top: 2.5px solid #8b1538; }
-        .block-list-item.drag-over-bottom { border-bottom: 2.5px solid #8b1538; }
+        .block-list-item.drag-over-top { border-top: 2.5px solid #198754; }
+        .block-list-item.drag-over-bottom { border-bottom: 2.5px solid #198754; }
         .block-list-item[draggable="true"] { cursor: grab; }
         .block-list-item[draggable="true"]:active { cursor: grabbing; }
         .block-list-dragging .booklet-insert-zone {
             height: 18px;
-            opacity: 0.5;
-        }
-        .booklet-insert-zone.drag-over-zone {
             opacity: 1;
         }
+        .block-list-dragging .booklet-insert-zone .booklet-insert-btn { display: none; }
+        .block-list-dragging .booklet-insert-zone .booklet-insert-line {
+            height: 2px;
+            background: #c3e6cb;
+            border-radius: 1px;
+        }
         .booklet-insert-zone.drag-over-zone .booklet-insert-line {
-            height: 2.5px;
+            height: 3px;
+            background: #198754;
         }
         .booklet-block-type-badge {
             flex-shrink: 0;
@@ -415,7 +419,6 @@
         }
         .booklet-chant-parallel td {
             vertical-align: middle;
-            text-align: start;
             padding: 0;
         }
         .booklet-chant-parallel td svg {

@@ -1049,6 +1049,8 @@
         if (o.chantTranslationGapMm == null) o.chantTranslationGapMm = 4;
         if (o.chantTranslationBorder === undefined) o.chantTranslationBorder = false;
         if (o.chantTranslationFontSizePt == null) o.chantTranslationFontSizePt = 11;
+        if (!o.chantTranslationVAlign) o.chantTranslationVAlign = 'middle';
+        if (!o.chantTranslationTextAlign) o.chantTranslationTextAlign = 'left';
       }
       if (o.type === 'reading') {
         if (o.translation === undefined) o.translation = '';
@@ -1470,17 +1472,19 @@
       temp.innerHTML = html;
       const lines = [];
       var annotYAdj = Number(cb.chantAnnotationYAdj) || 0;
-      var vSpacingGapPx = ctxt.staffInterval * 1.5 * (Number(cb.chantVertSpacing) || 1.0);
+      var vSpacingGapPx = ctxt.staffInterval * 0.5 * (Number(cb.chantVertSpacing) || 1.0);
 
       var hasTranslation = fullWidthPx && translationHasContent(cb.chantTranslation);
       var transLines = hasTranslation ? splitTranslationLines(cb.chantTranslation) : [];
-      var ctLeftPct, ctRightPct, ctHalfGapMm, ctTransFontPt, ctShowBorder;
+      var ctLeftPct, ctRightPct, ctHalfGapMm, ctTransFontPt, ctShowBorder, ctTransVAlign, ctTransTextAlign;
       if (hasTranslation) {
         ctLeftPct = Math.min(80, Math.max(20, parseInt(cb.chantTranslationLeftPct, 10) || 60));
         ctRightPct = 100 - ctLeftPct;
         ctHalfGapMm = (Math.min(20, Math.max(0, parseInt(cb.chantTranslationGapMm, 10) || 4))) / 2;
         ctTransFontPt = cb.chantTranslationFontSizePt || 11;
         ctShowBorder = !!cb.chantTranslationBorder;
+        ctTransVAlign = cb.chantTranslationVAlign || 'middle';
+        ctTransTextAlign = cb.chantTranslationTextAlign || 'left';
       }
 
       var offscreen = document.createElement('div');
@@ -1551,9 +1555,11 @@
           var tdR = document.createElement('td');
           tdR.style.width = ctRightPct + '%';
           tdR.style.paddingLeft = ctHalfGapMm + 'mm';
+          tdR.style.verticalAlign = ctTransVAlign;
           var transDiv = document.createElement('div');
           transDiv.className = 'booklet-richtext chant-translation';
           transDiv.style.fontSize = ctTransFontPt + 'pt';
+          transDiv.style.textAlign = ctTransTextAlign;
           transDiv.innerHTML = renderSimpleMarkup(transHtml);
           tdR.appendChild(transDiv);
           tr.appendChild(tdL);
@@ -1926,6 +1932,18 @@
     return container;
   }
 
+  function getElementLineHeightPx(el) {
+    var rt = el.querySelector('.booklet-richtext');
+    if (rt && rt.style.lineHeight) {
+      var val = parseFloat(rt.style.lineHeight);
+      if (Number.isFinite(val) && val > 0) {
+        if (rt.style.lineHeight.indexOf('pt') >= 0) return val * 96 / 72;
+        return val;
+      }
+    }
+    return LINE_H_PX;
+  }
+
   function paginateFlow(flowItems, widthPx, pageHPx, lastPageReservePx) {
     var pages = [];
     var curEls = [];
@@ -1992,14 +2010,15 @@
       pendingGapMm = defaultGapMm;
     }
 
-    function bestLineSnap(avail, maxAvail, headerOffset, footerOffset) {
+    function bestLineSnap(avail, maxAvail, headerOffset, footerOffset, lineHPx) {
+      var lh = lineHPx || LINE_H_PX;
       var off = headerOffset || 0;
       var bot = footerOffset || 0;
       var textAvail = avail - off - bot;
-      if (textAvail < LINE_H_PX) return { h: avail, borrow: 0 };
-      var fn = Math.floor(textAvail / LINE_H_PX);
-      var fh = off + fn * LINE_H_PX + bot;
-      var ch = off + (fn + 1) * LINE_H_PX + bot;
+      if (textAvail < lh) return { h: avail, borrow: 0 };
+      var fn = Math.floor(textAvail / lh);
+      var fh = off + fn * lh + bot;
+      var ch = off + (fn + 1) * lh + bot;
       if (ch <= maxAvail) return { h: ch, borrow: Math.max(0, ch - avail) };
       if (fh > off + bot) return { h: fh, borrow: 0 };
       return { h: avail, borrow: 0 };
@@ -2033,10 +2052,11 @@
     }
 
     function splitContinuation(el, totalH, startOffset, w) {
+      var elLh = getElementLineHeightPx(el);
       var offset = startOffset;
       while (offset < totalH) {
         var rem = totalH - offset;
-        var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx);
+        var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx, 0, 0, elLh);
         if (rem <= snap.h) {
           curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom')];
           curHeights = [rem];
@@ -2102,6 +2122,7 @@
 
         if (maxRemaining >= 60) {
           var offsets = measureBlockOffsets(el, widthPx);
+          var elLineH = getElementLineHeightPx(el);
           var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
 
@@ -2112,7 +2133,7 @@
             var maxA = pageHPx + marginTolPx - above;
             if (maxA < 20) continue;
 
-            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer);
+            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
             if (snap.h < 20) continue;
             var splitH = Math.min(snap.h, h);
             var total = above + splitH;
@@ -2702,7 +2723,9 @@
         ev.dataTransfer.setData('text/plain', b.id);
         ev.dataTransfer.effectAllowed = 'move';
         div.classList.add('dragging');
-        el.classList.add('block-list-dragging');
+        requestAnimationFrame(function () {
+          el.classList.add('block-list-dragging');
+        });
       });
       div.addEventListener('dragend', function () {
         div.classList.remove('dragging');
@@ -3299,6 +3322,18 @@
           </div>
           <label class="form-label small mb-0 mt-2">Space between columns (mm)</label>
           <input type="number" class="form-control form-control-sm" id="inpChantGap" min="0" max="20" value="${ctGap}">
+          <label class="form-label small mb-0 mt-2">Translation vert. align</label>
+          <select id="selChantTransVAlign" class="form-select form-select-sm">
+            <option value="middle"${(b.chantTranslationVAlign || 'middle') === 'middle' ? ' selected' : ''}>Middle</option>
+            <option value="top"${b.chantTranslationVAlign === 'top' ? ' selected' : ''}>Top</option>
+            <option value="bottom"${b.chantTranslationVAlign === 'bottom' ? ' selected' : ''}>Bottom</option>
+          </select>
+          <label class="form-label small mb-0 mt-2">Translation text align</label>
+          <select id="selChantTransTextAlign" class="form-select form-select-sm">
+            <option value="left"${(b.chantTranslationTextAlign || 'left') === 'left' ? ' selected' : ''}>Left</option>
+            <option value="right"${b.chantTranslationTextAlign === 'right' ? ' selected' : ''}>Right</option>
+            <option value="justify"${b.chantTranslationTextAlign === 'justify' ? ' selected' : ''}>Justify</option>
+          </select>
         </div>
       `;
       const ta = panel.querySelector('#edGabc');
@@ -3406,6 +3441,17 @@
         ctRng.addEventListener('input', syncChantParallel);
         ctChk.addEventListener('change', syncChantParallel);
         ctIg.addEventListener('input', syncChantParallel);
+        const ctVA = panel.querySelector('#selChantTransVAlign');
+        const ctTA = panel.querySelector('#selChantTransTextAlign');
+        const syncTransAlign = () => {
+          b.chantTranslationVAlign = ctVA.value || 'middle';
+          b.chantTranslationTextAlign = ctTA.value || 'left';
+          scheduleAutosave();
+          markLayoutStale();
+          renderBlockList();
+        };
+        ctVA.addEventListener('change', syncTransAlign);
+        ctTA.addEventListener('change', syncTransAlign);
       }
     } else if (b.type === 'jgabc_propers') {
       panel.innerHTML =
@@ -3481,6 +3527,8 @@
       b.chantTranslationGapMm = 4;
       b.chantTranslationBorder = false;
       b.chantTranslationFontSizePt = 11;
+      b.chantTranslationVAlign = 'middle';
+      b.chantTranslationTextAlign = 'left';
     }
     if (type === 'spacer') {
       b.heightMm = 10;
@@ -3780,24 +3828,33 @@
       blockListEl.addEventListener('dragover', function (ev) {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = 'move';
-        var items = blockListEl.querySelectorAll('.block-list-item');
-        items.forEach(function (d) { d.classList.remove('drag-over-top', 'drag-over-bottom'); });
+        blockListEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(function (d) {
+          d.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
         blockListEl.querySelectorAll('.booklet-insert-zone.drag-over-zone').forEach(function (d) {
           d.classList.remove('drag-over-zone');
         });
 
-        var target = ev.target.closest('.block-list-item');
-        if (target && !target.classList.contains('dragging')) {
-          var rect = target.getBoundingClientRect();
-          var midY = rect.top + rect.height / 2;
-          if (ev.clientY < midY) target.classList.add('drag-over-top');
-          else target.classList.add('drag-over-bottom');
-          return;
-        }
-
         var zone = ev.target.closest('.booklet-insert-zone');
         if (zone) {
           zone.classList.add('drag-over-zone');
+          return;
+        }
+
+        var target = ev.target.closest('.block-list-item');
+        if (target && !target.classList.contains('dragging')) {
+          var row = target.closest('.booklet-block-row');
+          if (!row) return;
+          var rect = target.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          var adjacentZone = ev.clientY < midY ? row.previousElementSibling : row.nextElementSibling;
+          if (adjacentZone && adjacentZone.classList.contains('booklet-insert-zone')) {
+            adjacentZone.classList.add('drag-over-zone');
+          } else if (ev.clientY < midY) {
+            target.classList.add('drag-over-top');
+          } else {
+            target.classList.add('drag-over-bottom');
+          }
         }
       });
 
@@ -3808,35 +3865,36 @@
         var fromIdx = state.blocks.findIndex(function (x) { return x.id === draggedId; });
         if (fromIdx < 0) return;
 
-        var target = ev.target.closest('.block-list-item');
-        if (target && !target.classList.contains('dragging')) {
-          var targetId = target.dataset.blockId;
-          if (!targetId || draggedId === targetId) return;
-          var toIdx = state.blocks.findIndex(function (x) { return x.id === targetId; });
-          if (toIdx < 0) return;
-          var rect = target.getBoundingClientRect();
-          var midY = rect.top + rect.height / 2;
-          if (ev.clientY >= midY) toIdx = Math.min(toIdx + 1, state.blocks.length);
-          var moved = state.blocks.splice(fromIdx, 1)[0];
-          if (fromIdx < toIdx) toIdx--;
-          state.blocks.splice(toIdx, 0, moved);
-          scheduleAutosave();
-          renderBlockList();
-          markLayoutStale();
-          return;
-        }
-
+        var toIdx = -1;
         var zone = ev.target.closest('.booklet-insert-zone');
         if (zone) {
-          var toIdx = parseInt(zone.dataset.insertIdx, 10);
-          if (isNaN(toIdx)) return;
-          var moved = state.blocks.splice(fromIdx, 1)[0];
-          if (fromIdx < toIdx) toIdx--;
-          state.blocks.splice(toIdx, 0, moved);
-          scheduleAutosave();
-          renderBlockList();
-          markLayoutStale();
+          toIdx = parseInt(zone.dataset.insertIdx, 10);
+        } else {
+          var target = ev.target.closest('.block-list-item');
+          if (!target || target.classList.contains('dragging')) return;
+          var row = target.closest('.booklet-block-row');
+          if (!row) return;
+          var rect = target.getBoundingClientRect();
+          var midY = rect.top + rect.height / 2;
+          var adjacentZone = ev.clientY < midY ? row.previousElementSibling : row.nextElementSibling;
+          if (adjacentZone && adjacentZone.classList.contains('booklet-insert-zone') && adjacentZone.dataset.insertIdx != null) {
+            toIdx = parseInt(adjacentZone.dataset.insertIdx, 10);
+          } else {
+            var targetId = target.dataset.blockId;
+            if (!targetId || draggedId === targetId) return;
+            toIdx = state.blocks.findIndex(function (x) { return x.id === targetId; });
+            if (toIdx < 0) return;
+            if (ev.clientY >= midY) toIdx = Math.min(toIdx + 1, state.blocks.length);
+          }
         }
+
+        if (isNaN(toIdx) || toIdx < 0) return;
+        var moved = state.blocks.splice(fromIdx, 1)[0];
+        if (fromIdx < toIdx) toIdx--;
+        state.blocks.splice(toIdx, 0, moved);
+        scheduleAutosave();
+        renderBlockList();
+        markLayoutStale();
       });
     }
 
