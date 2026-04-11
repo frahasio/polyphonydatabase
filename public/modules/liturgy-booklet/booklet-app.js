@@ -1631,7 +1631,9 @@
       var _branch = 'none';
       // #endregion
 
-      if (curY + gap + h <= pageHPx) {
+      var TOLERANCE = 50;
+
+      if (curY + gap + h <= pageHPx + TOLERANCE) {
         if (curY > 0) curY += gap;
         curPageEls.push(el);
         curY += h;
@@ -1645,7 +1647,7 @@
         if (curPageEls.length) flushPage();
         curPageEls.push(el);
         curY = h;
-      } else if (curY > 0 && (pageHPx - curY - gap) >= 40) {
+      } else if (curY > 0 && (pageHPx - curY - gap) >= 10) {
         // #region agent log
         _branch = 'SPLIT';
         // #endregion
