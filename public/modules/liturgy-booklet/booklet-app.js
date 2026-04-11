@@ -571,36 +571,16 @@
     return (w.textContent || '').trim().length > 0;
   }
 
-  function splitTranslationLines(html) {
-    if (!html || !String(html).trim()) return [];
-    const w = document.createElement('div');
-    w.appendChild(sanitizeToFragment(html));
-    const lines = [];
-    let cur = document.createElement('span');
-    function flush() {
-      const h = cur.innerHTML.trim();
-      if (h && h !== '<br>') lines.push(h);
-      else if (lines.length > 0 || h) lines.push('');
-      cur = document.createElement('span');
-    }
-    for (let i = 0; i < w.childNodes.length; i++) {
-      const node = w.childNodes[i];
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const tag = node.tagName.toLowerCase();
-        if (tag === 'br') {
-          flush();
-        } else if (tag === 'p' || tag === 'div') {
-          if (cur.innerHTML.trim()) flush();
-          lines.push(node.innerHTML || '');
-        } else {
-          cur.appendChild(node.cloneNode(true));
-        }
-      } else {
-        cur.appendChild(node.cloneNode(true));
-      }
-    }
-    if (cur.innerHTML.trim()) flush();
-    return lines;
+  function splitTranslationLines(text) {
+    if (!text || !String(text).trim()) return [];
+    return String(text).split('\n');
+  }
+
+  function renderSimpleMarkup(text) {
+    return escapeHtml(text)
+      .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+      .replace(/_([^_]+)_/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
   }
 
   function stripTagsForPreview(html) {
@@ -858,18 +838,25 @@
     const b = chantBlock || {};
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
-    const glyphMult = Math.min(2.5, Math.max(0.3, Number(b.chantGlyphScale) || 1.4));
+    const glyphMult = Number(b.chantGlyphScale) || 1.4;
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
-    const lyricPx = Math.min(36, Math.max(10, Number(b.chantNeumeSize) || 23));
+    const lyricPx = Number(b.chantNeumeSize) || 23;
     ctxt.setFont(CHANT_TEXT_FONT, lyricPx / 0.9);
-    ctxt.spaceBetweenSystems = 1.5;
-    const dropCapScale = Math.min(1.6, Math.max(0.5, Number(b.chantDropCapScale) || 1));
-    ctxt.textStyles.dropCap.size = Math.round((lyricPx / 19.2) * 64 * dropCapScale);
+    const hSpacing = Number(b.chantHorizSpacing) || 1.0;
+    ctxt.interSyllabicMultiplier = 2.5 * hSpacing;
+    ctxt.minLyricWordSpacing *= hSpacing;
+    const vSpacing = Number(b.chantVertSpacing) || 1.0;
+    ctxt.spaceBetweenSystems = 1.5 * vSpacing;
+    ctxt.minSpaceAboveStaff = 2 * vSpacing;
+    ctxt.minSpaceBelowStaff = 1 * vSpacing;
+    const dropCapScale = Number(b.chantDropCapScale) || 1;
+    if (dropCapScale !== 1) {
+      ctxt.textStyles.dropCap.size = Math.round(ctxt.textStyles.dropCap.size * dropCapScale);
+    }
     const annotSizeAdj = Number(b.chantAnnotationSizeAdj) || 0;
-    ctxt.textStyles.annotation.size = Math.max(1, Math.round(lyricPx / 0.9 - 2 + annotSizeAdj));
-    ctxt.annotationTextSize = ctxt.textStyles.annotation.size;
-    const tight = Math.min(2.0, Math.max(0.2, Number(b.chantLyricTight) || 1.1));
-    ctxt.minLyricWordSpacing *= tight;
+    if (annotSizeAdj !== 0) {
+      ctxt.textStyles.annotation.size = Math.max(1, Math.round(ctxt.textStyles.annotation.size + annotSizeAdj));
+    }
     if (b.chantLyricLanguage === 'english' && typeof exsurge.English === 'function') {
       ctxt.defaultLanguage = new exsurge.English();
     } else if (typeof exsurge.Latin === 'function') {
@@ -1011,42 +998,34 @@
         const cd = chantD || {};
         o.chantNeumeSize =
           o.chantNeumeSize != null
-            ? Math.min(36, Math.max(10, Number(o.chantNeumeSize)))
-            : Math.min(36, Math.max(10, Number(cd.chantNeumeSize) || 23));
+            ? (Number(o.chantNeumeSize) || 23)
+            : (Number(cd.chantNeumeSize) || 23);
         o.chantGlyphScale =
           o.chantGlyphScale != null
-            ? Math.min(2.5, Math.max(0.3, Number(o.chantGlyphScale)))
+            ? (Number(o.chantGlyphScale) || 1.4)
             : 1.4;
         o.chantStaffColor = o.chantStaffColor != null ? String(o.chantStaffColor) : cd.chantStaffColor || '';
-        o.chantLinePadTop =
-          o.chantLinePadTop != null
-            ? Math.min(10, Math.max(-10, Number(o.chantLinePadTop)))
-            : cd.chantLinePadTop != null
-              ? Math.min(10, Math.max(-10, Number(cd.chantLinePadTop)))
-              : 0;
-        o.chantLyricTight =
-          o.chantLyricTight != null
-            ? Math.min(2.0, Math.max(0.2, Number(o.chantLyricTight)))
-            : Math.min(2.0, Math.max(0.2, Number(cd.chantLyricTight) || 1.1));
-        let gapRaw =
-          o.chantSystemGap != null
-            ? Number(o.chantSystemGap)
-            : cd.chantSystemGap != null
-              ? Number(cd.chantSystemGap)
-              : 0;
-        if (!Number.isFinite(gapRaw)) {
-          gapRaw = 0;
-        }
-        if (migrateChantGapToV8Ui) {
-          gapRaw = Math.min(8, Math.max(-8, gapRaw / 2));
+        if (o.chantHorizSpacing == null) {
+          if (o.chantLyricTight != null) {
+            o.chantHorizSpacing = (Number(o.chantLyricTight) || 1.1) / 1.1;
+          } else {
+            o.chantHorizSpacing = 1.0;
+          }
         } else {
-          gapRaw = Math.min(8, Math.max(-8, gapRaw));
+          o.chantHorizSpacing = Number(o.chantHorizSpacing) || 1.0;
         }
-        o.chantSystemGap = gapRaw;
+        if (o.chantVertSpacing == null) {
+          o.chantVertSpacing = 1.0;
+        } else {
+          o.chantVertSpacing = Number(o.chantVertSpacing) || 1.0;
+        }
+        delete o.chantLyricTight;
+        delete o.chantSystemGap;
+        delete o.chantLinePadTop;
         o.chantDropCapScale =
           o.chantDropCapScale != null
-            ? Math.min(1.6, Math.max(0.5, Number(o.chantDropCapScale)))
-            : Math.min(1.6, Math.max(0.5, Number(cd.chantDropCapScale) || 1));
+            ? (Number(o.chantDropCapScale) || 1)
+            : (Number(cd.chantDropCapScale) || 1);
         if (o.chantUseDropCap === undefined) o.chantUseDropCap = true;
         if (o.chantLyricLanguage !== 'english') o.chantLyricLanguage = 'latin';
         o.chantTextFont = 'crimson';
@@ -1484,9 +1463,6 @@
       const temp = document.createElement('div');
       temp.innerHTML = html;
       const lines = [];
-      var padTop = Math.max(0, cb.chantLinePadTop != null ? Number(cb.chantLinePadTop) : 2);
-      var gapRaw = cb.chantSystemGap != null ? Number(cb.chantSystemGap) : 0;
-      var gapPx = Math.max(0, gapRaw * 2);
       var annotYAdj = Number(cb.chantAnnotationYAdj) || 0;
 
       var hasTranslation = fullWidthPx && translationHasContent(cb.chantTranslation);
@@ -1510,8 +1486,6 @@
         });
         const line = document.createElement('div');
         line.className = 'booklet-chant-line';
-        line.style.paddingTop = padTop + 'px';
-        line.style.marginBottom = gapPx + 'px';
         line.style.overflow = 'visible';
 
         if (hasTranslation) {
@@ -1519,7 +1493,7 @@
           if (svgIdx < svgs.length - 1) {
             transHtml = transLines[svgIdx] || '';
           } else {
-            transHtml = transLines.slice(svgIdx).join('<br>');
+            transHtml = transLines.slice(svgIdx).join('\n');
           }
           var table = document.createElement('table');
           table.className = 'booklet-chant-parallel';
@@ -1535,7 +1509,7 @@
           var transDiv = document.createElement('div');
           transDiv.className = 'booklet-richtext chant-translation';
           transDiv.style.fontSize = ctTransFontPt + 'pt';
-          transDiv.appendChild(sanitizeToFragment(transHtml));
+          transDiv.innerHTML = renderSimpleMarkup(transHtml);
           tdR.appendChild(transDiv);
           tr.appendChild(tdL);
           tr.appendChild(tdR);
@@ -2898,18 +2872,6 @@
     if (b.type === 'rubric') {
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <div class="row g-1 mb-1">
-          <div class="col"><label class="form-label small mb-0">Title <span class="text-muted">(opt.)</span></label>
-            <input type="text" class="form-control form-control-sm" id="edRubricSecTitle" value="${escapeAttr(b.sectionTitle || '')}" placeholder="Bold heading"></div>
-          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
-            <input type="number" class="form-control form-control-sm" id="edRubricTitleSize" min="6" max="36" step="0.5" value="${b.titleFontSizePt || 11}"></div>
-        </div>
-        <div class="row g-1 mb-1">
-          <div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>
-            <input type="text" class="form-control form-control-sm" id="edRubricSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right"></div>
-          <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
-            <input type="number" class="form-control form-control-sm" id="edRubricSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
-        </div>
         <label class="form-label small mb-1">Rubric colour</label>
         <input type="color" id="edRubricColor" class="form-control form-control-color mb-1" value="${escapeAttr(b.rubricColor || '#8b1538')}">
         <div class="row g-1 mb-1">
@@ -2925,23 +2887,13 @@
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
             <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
           </div>
-          ${richListToolbarHtml()}
           ${richAlignToolbarHtml()}
-          ${richColorPickerHtml()}
         </div>
         <div class="form-control form-control-sm booklet-rich-ed" contenteditable="true" id="edRichRubric"></div>
       `;
       const ed = panel.querySelector('#edRichRubric');
       ed.innerHTML = initialRichHtmlForEditor(b.text);
-      const st = panel.querySelector('#edRubricSecTitle');
-      const ss = panel.querySelector('#edRubricSecSource');
       const pushMeta = () => {
-        b.sectionTitle = st ? st.value : '';
-        b.sectionSourceRef = ss ? ss.value : '';
-        var ts = parseFloat(panel.querySelector('#edRubricTitleSize').value);
-        b.titleFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
-        var srs = parseFloat(panel.querySelector('#edRubricSourceSize').value);
-        b.sourceFontSizePt = Number.isFinite(srs) ? Math.min(36, Math.max(6, srs)) : 9;
         var bs = parseFloat(panel.querySelector('#edRubricBodySize').value);
         b.bodyFontSizePt = Number.isFinite(bs) ? Math.min(36, Math.max(6, bs)) : 11;
         var lh = parseFloat(panel.querySelector('#edRubricLineHeight').value);
@@ -2950,10 +2902,6 @@
         markLayoutStale();
         renderBlockList();
       };
-      st.addEventListener('input', pushMeta);
-      ss.addEventListener('input', pushMeta);
-      panel.querySelector('#edRubricTitleSize').addEventListener('input', pushMeta);
-      panel.querySelector('#edRubricSourceSize').addEventListener('input', pushMeta);
       panel.querySelector('#edRubricBodySize').addEventListener('input', pushMeta);
       panel.querySelector('#edRubricLineHeight').addEventListener('input', pushMeta);
       var rcInp = panel.querySelector('#edRubricColor');
@@ -3256,9 +3204,8 @@
     } else if (b.type === 'chant_gabc') {
       const cn = b.chantNeumeSize != null ? b.chantNeumeSize : 23;
       const cg = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
-      const cl = b.chantLinePadTop != null ? b.chantLinePadTop : 0;
-      const ct = b.chantLyricTight != null ? b.chantLyricTight : 1.1;
-      const cs = b.chantSystemGap != null ? b.chantSystemGap : 0;
+      const chs = b.chantHorizSpacing != null ? b.chantHorizSpacing : 1.0;
+      const cvs = b.chantVertSpacing != null ? b.chantVertSpacing : 1.0;
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const cas = b.chantAnnotationSizeAdj != null ? b.chantAnnotationSizeAdj : 0;
       const cay = b.chantAnnotationYAdj != null ? b.chantAnnotationYAdj : 0;
@@ -3283,12 +3230,11 @@
         <div class="small border rounded px-2 py-1 mt-1 bg-light">
           <div class="mt-1 pb-1">
           <div class="mb-2" style="font-size:0.72rem">
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantNeumeSize" min="10" max="36" step="1" value="${cn}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantGlyphScale" min="0.3" max="2.5" step="0.05" value="${cg}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>System gap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantSystemGap" min="-8" max="8" step="0.5" value="${cs}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Tightness</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLyricTight" min="0.2" max="2.0" step="0.1" value="${ct}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Line pad</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantLinePadTop" min="-10" max="10" step="1" value="${cl}"></div>
-            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantDropCapScale" min="0.5" max="1.6" step="0.05" value="${cd}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Lyric size</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantNeumeSize" step="1" value="${cn}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Staff scale</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantGlyphScale" step="0.05" value="${cg}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Horiz. spacing</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantHorizSpacing" step="0.05" value="${chs}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Vert. spacing</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantVertSpacing" step="0.05" value="${cvs}"></div>
+            <div class="d-flex align-items-center justify-content-between mb-1"><span>Drop cap</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantDropCapScale" step="0.05" value="${cd}"></div>
             <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. size adj.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
             <div class="d-flex align-items-center justify-content-between mb-1"><span>Annot. vert. pos.</span><input type="number" class="form-control form-control-sm" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
           </div>
@@ -3314,20 +3260,11 @@
           </div>
         </div>
         <div class="row g-1 mb-0 mt-2">
-          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(parallel column, one line per chant system)</span></label></div>
+          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(one line per chant system; *bold* _italic_)</span></label></div>
           <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
-            <input type="number" class="form-control form-control-sm" id="edChantTransSize" min="6" max="36" step="0.5" value="${b.chantTranslationFontSizePt || 11}"></div>
+            <input type="number" class="form-control form-control-sm" id="edChantTransSize" step="0.5" value="${b.chantTranslationFontSizePt || 11}"></div>
         </div>
-        <div class="booklet-rich-toolbar chant-tb-trans d-flex flex-wrap align-items-center gap-1">
-          <div class="btn-group btn-group-sm flex-wrap mb-1" role="group">
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="italic" title="Italic"><em>I</em></button>
-            <button type="button" class="btn btn-light border py-0 px-2" data-rich-cmd="underline" title="Underline"><u>U</u></button>
-          </div>
-          ${richAlignToolbarHtml()}
-          ${richColorPickerHtml()}
-        </div>
-        <div class="form-control form-control-sm booklet-rich-ed mb-2" contenteditable="true" id="edChantTrans"></div>
+        <textarea class="form-control form-control-sm font-monospace mb-2" rows="4" id="edChantTrans">${escapeHtml(b.chantTranslation || '')}</textarea>
         <div id="chantParallelOpts" class="border rounded p-2 bg-light small">
           <label class="form-label small mb-1">Column split <span class="text-muted">(chant width %)</span></label>
           <input type="range" class="form-range" id="rngChantSplit" min="20" max="80" step="1" value="${ctSplit}">
@@ -3408,17 +3345,15 @@
       });
       const edChantTrans = panel.querySelector('#edChantTrans');
       if (edChantTrans) {
-        edChantTrans.innerHTML = initialRichHtmlForEditor(b.chantTranslation);
-        const pushChantTrans = () => {
-          b.chantTranslation = edChantTrans.innerHTML;
+        edChantTrans.addEventListener('input', () => {
+          b.chantTranslation = edChantTrans.value;
           scheduleAutosave();
           markLayoutStale();
           renderBlockList();
-        };
-        bindRichToolbar(panel.querySelector('.chant-tb-trans'), edChantTrans, pushChantTrans);
+        });
         panel.querySelector('#edChantTransSize')?.addEventListener('input', () => {
           var ts = parseFloat(panel.querySelector('#edChantTransSize').value);
-          b.chantTranslationFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
+          b.chantTranslationFontSizePt = Number.isFinite(ts) ? ts : 11;
           scheduleAutosave();
           markLayoutStale();
           renderBlockList();
@@ -3504,9 +3439,8 @@
       b.chantNeumeSize = 23;
       b.chantGlyphScale = 1.4;
       b.chantStaffColor = '';
-      b.chantLinePadTop = 0;
-      b.chantLyricTight = 1.1;
-      b.chantSystemGap = 0;
+      b.chantHorizSpacing = 1.0;
+      b.chantVertSpacing = 1.0;
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
