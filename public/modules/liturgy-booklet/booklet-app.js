@@ -1498,6 +1498,7 @@
         offscreen.appendChild(svg);
         var gEl = svg.querySelector('g.chantLine');
         if (gEl) {
+          gEl.setAttribute('transform', 'translate(0,0)');
           try {
             var bbox = gEl.getBBox();
             var margin = 2;
@@ -1505,6 +1506,22 @@
             var vy = bbox.y - margin;
             var vw = bbox.width + margin * 2;
             var vh = bbox.height + margin * 2;
+            var dropCapEl = svg.querySelector('text.dropCap');
+            if (dropCapEl) {
+              var lyricEls = svg.querySelectorAll('text.lyric');
+              var maxLyricY = -Infinity;
+              lyricEls.forEach(function (ly) {
+                var lyY = parseFloat(ly.getAttribute('y'));
+                if (Number.isFinite(lyY) && lyY > maxLyricY) maxLyricY = lyY;
+              });
+              if (Number.isFinite(maxLyricY)) {
+                var lyricFontSize = parseFloat(window.getComputedStyle(lyricEls[0]).fontSize) || 17;
+                var trimmedBottom = maxLyricY + lyricFontSize * 0.35;
+                if (trimmedBottom < bbox.y + bbox.height) {
+                  vh = trimmedBottom - vy;
+                }
+              }
+            }
             svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
             svg.setAttribute('width', vw);
             svg.setAttribute('height', vh);
