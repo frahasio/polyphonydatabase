@@ -2117,6 +2117,14 @@
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
     container.setAttribute('aria-hidden', 'true');
+    var isTop = clipClass === 'booklet-clip-top';
+    var isMid = clipClass === 'booklet-clip-mid';
+    var isBot = clipClass === 'booklet-clip-bottom';
+    var insetTop = (isBot || isMid) ? 3 : 0;
+    var insetBot = (isTop || isMid) ? 3 : 0;
+    if (insetTop || insetBot) {
+      container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
+    }
     var clone = el.cloneNode(true);
     clone.style.position = 'relative';
     clone.style.top = (-fromPx) + 'px';

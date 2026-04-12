@@ -193,11 +193,14 @@
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.15s;
+            transition: opacity 0.2s 0.15s;
             position: relative;
             z-index: 2;
         }
-        .booklet-insert-zone:hover { opacity: 1; }
+        .booklet-insert-zone:hover {
+            opacity: 1;
+            transition: opacity 0.1s;
+        }
         .booklet-insert-line {
             width: 100%;
             height: 1px;
