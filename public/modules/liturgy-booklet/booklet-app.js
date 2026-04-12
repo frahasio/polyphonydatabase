@@ -2932,9 +2932,6 @@
     btn.innerHTML = '<i class="bi bi-plus-circle-fill"></i>';
     btn.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      // #region agent log
-      console.log('[DBG] INSERT BTN CLICK', {insertIdx, suppressed: _blockListRenderSuppressed});
-      // #endregion
       var existing = document.querySelector('.booklet-insert-menu');
       if (existing) {
         existing.closest('.booklet-insert-zone')?.classList.remove('menu-open');
@@ -2946,9 +2943,6 @@
       var menu = document.createElement('div');
       menu.className = 'booklet-insert-menu';
       function closeMenu() {
-        // #region agent log
-        console.log('[DBG] closeMenu called', {menuInDom: !!menu.parentNode, stack: new Error().stack?.split('\n').slice(1,4).join(' | ')});
-        // #endregion
         if (menu.parentNode) menu.remove();
         zone.classList.remove('menu-open');
         if (blockList) blockList.classList.remove('insert-zones-suppressed');
@@ -2957,9 +2951,6 @@
       function outsideDismiss(e) {
         var inMenu = menu.contains(e.target);
         var inBtn = btn.contains(e.target);
-        // #region agent log
-        console.log('[DBG] outsideDismiss', {inMenu, inBtn, targetTag: e.target?.tagName, targetClass: e.target?.className});
-        // #endregion
         if (inMenu || inBtn) return;
         closeMenu();
       }
@@ -2980,13 +2971,7 @@
       menu.style.top = (btnRect.bottom + 4) + 'px';
       menu.style.transform = 'none';
       document.body.appendChild(menu);
-      // #region agent log
-      console.log('[DBG] Menu appended to body', {menuInDom: !!menu.parentNode, menuOpen: zone.classList.contains('menu-open')});
-      // #endregion
       setTimeout(function () {
-        // #region agent log
-        console.log('[DBG] setTimeout(0) fired', {menuStillInDom: !!menu.parentNode});
-        // #endregion
         if (!menu.parentNode) {
           closeMenu();
           return;
@@ -3002,9 +2987,6 @@
   var _blockListRenderSuppressed = false;
   var _blockListRenderPending = false;
   function renderBlockList() {
-    // #region agent log
-    if (document.querySelector('.booklet-insert-menu')) console.log('[DBG] renderBlockList while menu open!', {suppressed: _blockListRenderSuppressed, stack: new Error().stack?.split('\n').slice(1,4).join(' | ')});
-    // #endregion
     if (_blockListRenderSuppressed) { _blockListRenderPending = true; return; }
     const el = document.getElementById('blockList');
     if (!el) return;

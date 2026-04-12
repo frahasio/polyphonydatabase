@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { pool } from '../db.js';
+import { pool, ensureUserPermissions } from '../db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 
@@ -80,6 +80,42 @@ export const requireRole = (allowedRoles) => {
       next();
     } catch (error) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+  };
+};
+
+// Middleware to require a specific permission (admins bypass)
+export const requirePermission = (permName) => {
+  const validPerms = ['catalogue', 'booklet_creator', 'import_source'];
+  if (!validPerms.includes(permName)) {
+    throw new Error(`Invalid permission name: ${permName}`);
+  }
+
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      if (req.user.role === 'admin') {
+        return next();
+      }
+
+      await ensureUserPermissions(req.user.id);
+
+      const result = await pool.query(
+        `SELECT ${permName} FROM user_permissions WHERE user_id = $1`,
+        [req.user.id]
+      );
+
+      if (!result.rows.length || !result.rows[0][permName]) {
+        return res.status(403).json({ error: 'You do not have permission to access this feature' });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Permission check error:', error);
+      return res.status(403).json({ error: 'Permission check failed' });
     }
   };
 };

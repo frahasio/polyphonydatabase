@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .perm-switch { cursor: pointer; }
+        .perm-switch.disabled { opacity: 0.6; cursor: default; }
+        .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+    </style>
 </head>
 <body>
     <div class="container-fluid py-4">
@@ -18,20 +23,16 @@
             </div>
         </div>
 
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            This page is under construction. A full permissions matrix will be available here soon, allowing you to control which users have access to the booklet creator, catalogue editing, and other features.
-        </div>
-
         <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">User Permissions Overview</h6>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">User Permissions</h6>
+                <small class="text-muted">Changes are saved immediately</small>
             </div>
-            <div class="card-body">
-                <table class="table table-sm table-hover" id="permissionsTable">
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0" id="permissionsTable">
                     <thead>
                         <tr>
-                            <th>User</th>
+                            <th class="ps-3">User</th>
                             <th>Role</th>
                             <th class="text-center">Catalogue</th>
                             <th class="text-center">Booklet Creator</th>
@@ -50,37 +51,123 @@
         </div>
     </div>
 
+    <div class="toast-container" id="toastContainer"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/admin-layout.js"></script>
     <script>
     (function() {
         'use strict';
+
+        var usersCache = [];
+
+        function showToast(message, type) {
+            var container = document.getElementById('toastContainer');
+            var id = 'toast-' + Date.now();
+            var bgClass = type === 'error' ? 'bg-danger' : 'bg-success';
+            var icon = type === 'error' ? 'bi-exclamation-triangle' : 'bi-check-circle';
+            container.insertAdjacentHTML('beforeend',
+                '<div id="' + id + '" class="toast align-items-center text-white ' + bgClass + ' border-0" role="alert">' +
+                '  <div class="d-flex">' +
+                '    <div class="toast-body"><i class="bi ' + icon + ' me-2"></i>' + message + '</div>' +
+                '    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+                '  </div>' +
+                '</div>'
+            );
+            var toastEl = document.getElementById(id);
+            var toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+            toast.show();
+            toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+        }
+
+        function makeSwitch(userId, perm, checked, disabled) {
+            var switchId = 'perm-' + userId + '-' + perm;
+            var disabledAttr = disabled ? ' disabled' : '';
+            var checkedAttr = checked ? ' checked' : '';
+            var title = disabled ? 'Admins have all permissions' : '';
+            return '<div class="form-check form-switch d-flex justify-content-center mb-0">' +
+                '<input class="form-check-input perm-switch' + (disabled ? ' disabled' : '') + '"' +
+                ' type="checkbox" role="switch"' +
+                ' id="' + switchId + '"' +
+                ' data-user-id="' + userId + '"' +
+                ' data-perm="' + perm + '"' +
+                checkedAttr + disabledAttr +
+                (title ? ' title="' + title + '"' : '') +
+                '>' +
+                '</div>';
+        }
+
+        function renderTable() {
+            var tbody = document.getElementById('permissionsBody');
+            if (!usersCache.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No users found</td></tr>';
+                return;
+            }
+            tbody.innerHTML = usersCache.map(function(u) {
+                var roleBadge = u.role === 'admin'
+                    ? '<span class="badge bg-danger">admin</span>'
+                    : '<span class="badge bg-secondary">user</span>';
+                var isAdmin = u.role === 'admin';
+                var p = u.permissions || {};
+                return '<tr>' +
+                    '<td class="ps-3">' + escapeHtml(u.name || u.email) + '</td>' +
+                    '<td>' + roleBadge + '</td>' +
+                    '<td class="text-center">' + makeSwitch(u.id, 'catalogue', isAdmin || p.catalogue, isAdmin) + '</td>' +
+                    '<td class="text-center">' + makeSwitch(u.id, 'booklet_creator', isAdmin || p.booklet_creator, isAdmin) + '</td>' +
+                    '<td class="text-center">' + makeSwitch(u.id, 'import_source', isAdmin || p.import_source, isAdmin) + '</td>' +
+                    '</tr>';
+            }).join('');
+
+            tbody.querySelectorAll('.perm-switch:not([disabled])').forEach(function(sw) {
+                sw.addEventListener('change', onToggle);
+            });
+        }
+
+        async function onToggle(e) {
+            var input = e.target;
+            var userId = input.getAttribute('data-user-id');
+            var perm = input.getAttribute('data-perm');
+            var user = usersCache.find(function(u) { return String(u.id) === String(userId); });
+            if (!user) return;
+
+            var perms = Object.assign({}, user.permissions || {});
+            perms[perm] = input.checked;
+
+            input.disabled = true;
+            try {
+                var res = await fetch('/api/auth/admin/users/' + userId + '/permissions', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        catalogue: !!perms.catalogue,
+                        booklet_creator: !!perms.booklet_creator,
+                        import_source: !!perms.import_source
+                    })
+                });
+                if (!res.ok) {
+                    var err = await res.json().catch(function() { return {}; });
+                    throw new Error(err.error || 'Save failed');
+                }
+                user.permissions = perms;
+                showToast('Permission updated', 'success');
+            } catch (ex) {
+                input.checked = !input.checked;
+                showToast('Error: ' + ex.message, 'error');
+            } finally {
+                input.disabled = false;
+            }
+        }
+
         async function loadUsers() {
             try {
-                const res = await fetch('/api/auth/admin/users', { credentials: 'include' });
+                var res = await fetch('/api/auth/admin/users', { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to load users');
-                const data = await res.json();
-                const users = data.users || [];
-                const tbody = document.getElementById('permissionsBody');
-                if (!users.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No users found</td></tr>';
-                    return;
-                }
-                tbody.innerHTML = users.map(function(u) {
-                    const roleBadge = u.role === 'admin'
-                        ? '<span class="badge bg-danger">admin</span>'
-                        : '<span class="badge bg-secondary">user</span>';
-                    const check = '<i class="bi bi-check-circle-fill text-success"></i>';
-                    const dash = '<i class="bi bi-dash-circle text-muted"></i>';
-                    const isAdmin = u.role === 'admin';
-                    return '<tr>' +
-                        '<td>' + (u.username || u.email) + '</td>' +
-                        '<td>' + roleBadge + '</td>' +
-                        '<td class="text-center">' + (isAdmin ? check : check) + '</td>' +
-                        '<td class="text-center">' + (isAdmin ? check : dash) + '</td>' +
-                        '<td class="text-center">' + (isAdmin ? check : dash) + '</td>' +
-                        '</tr>';
-                }).join('');
+                var data = await res.json();
+                usersCache = (data.users || []).filter(function(u) {
+                    return u.status === 'approved';
+                });
+                renderTable();
             } catch (e) {
                 document.getElementById('permissionsBody').innerHTML =
                     '<tr><td colspan="5" class="text-danger text-center py-4">' +
@@ -88,6 +175,13 @@
                     '</td></tr>';
             }
         }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
         document.addEventListener('DOMContentLoaded', loadUsers);
     })();
     </script>

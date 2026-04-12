@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { generateToken, isAccountLocked, requireAuth, requireAdmin } from '../middleware/auth.js';
+import { ensureUserPermissions } from '../db.js';
 import emailService from '../services/emailService.js';
 
 const router = express.Router();
@@ -248,8 +249,21 @@ router.post('/refresh', requireAuth, async (req, res) => {
   }
 });
 
-// Get current user info
+// Get current user info (including permissions)
 router.get('/me', requireAuth, async (req, res) => {
+  let permissions = { catalogue: true, booklet_creator: true, import_source: true };
+
+  if (req.user.role !== 'admin') {
+    await ensureUserPermissions(req.user.id);
+    const permResult = await pool.query(
+      'SELECT catalogue, booklet_creator, import_source FROM user_permissions WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (permResult.rows.length) {
+      permissions = permResult.rows[0];
+    }
+  }
+
   res.json({
     user: {
       id: req.user.id,
@@ -257,7 +271,8 @@ router.get('/me', requireAuth, async (req, res) => {
       name: req.user.name,
       role: req.user.role,
       status: req.user.status,
-      last_login: req.user.last_login
+      last_login: req.user.last_login,
+      permissions
     }
   });
 });
@@ -395,15 +410,19 @@ router.get('/admin/users', requireAdmin, async (req, res) => {
     const params = [limit, offset];
     
     if (status && ['pending', 'approved', 'rejected', 'suspended'].includes(status)) {
-      whereClause = 'WHERE status = $3';
+      whereClause = 'WHERE u.status = $3';
       params.push(status);
     }
 
     const result = await pool.query(`
-      SELECT id, email, name, status, role, created_at, last_login, login_attempts
-      FROM users 
+      SELECT u.id, u.email, u.name, u.status, u.role, u.created_at, u.last_login, u.login_attempts,
+             COALESCE(p.catalogue, true) AS perm_catalogue,
+             COALESCE(p.booklet_creator, false) AS perm_booklet_creator,
+             COALESCE(p.import_source, false) AS perm_import_source
+      FROM users u
+      LEFT JOIN user_permissions p ON p.user_id = u.id
       ${whereClause}
-      ORDER BY created_at DESC 
+      ORDER BY u.created_at DESC 
       LIMIT $1 OFFSET $2
     `, params);
 
@@ -414,8 +433,24 @@ router.get('/admin/users', requireAdmin, async (req, res) => {
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
+    const users = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      status: row.status,
+      role: row.role,
+      created_at: row.created_at,
+      last_login: row.last_login,
+      login_attempts: row.login_attempts,
+      permissions: {
+        catalogue: row.perm_catalogue,
+        booklet_creator: row.perm_booklet_creator,
+        import_source: row.perm_import_source
+      }
+    }));
+
     res.json({
-      users: result.rows,
+      users,
       pagination: {
         total,
         page: parseInt(page),
@@ -551,6 +586,42 @@ router.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('Update user role error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: Update user permissions
+router.put('/admin/users/:id/permissions', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { catalogue, booklet_creator, import_source } = req.body;
+
+    if (typeof catalogue !== 'boolean' || typeof booklet_creator !== 'boolean' || typeof import_source !== 'boolean') {
+      return res.status(400).json({ error: 'catalogue, booklet_creator, and import_source must be booleans' });
+    }
+
+    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await ensureUserPermissions(parseInt(id));
+
+    await pool.query(
+      `UPDATE user_permissions
+       SET catalogue = $1, booklet_creator = $2, import_source = $3,
+           updated_at = NOW(), updated_by = $4
+       WHERE user_id = $5`,
+      [catalogue, booklet_creator, import_source, req.user.id, id]
+    );
+
+    res.json({
+      message: 'Permissions updated',
+      permissions: { catalogue, booklet_creator, import_source }
+    });
+
+  } catch (error) {
+    console.error('Update permissions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

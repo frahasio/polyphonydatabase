@@ -2,7 +2,7 @@ import express from 'express';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { pool } from './db.js';
-import { requireAuthWeb } from './middleware/auth.js';
+import { requireAuthWeb, requirePermission } from './middleware/auth.js';
 import sourcesRouter from './routes/sources.js';
 import composersRouter from './routes/composers.js';
 import editorsRouter from './routes/editors.js';
@@ -52,8 +52,8 @@ app.get('/favicon.ico', (req, res) => res.status(204).send());
 // Auth routes (no authentication required)
 app.use('/api/auth', authRouter);
 
-// Liturgy booklet (authenticated users only; must be before static catch-all)
-app.get('/booklet', requireAuthWeb, (req, res) => {
+// Liturgy booklet (requires booklet_creator permission)
+app.get('/booklet', requireAuthWeb, requirePermission('booklet_creator'), (req, res) => {
   res.sendFile('modules/liturgy-booklet/index.html', { root: 'public' });
 });
 
@@ -69,8 +69,8 @@ app.get('/', (req, res) => {
 // Public API routes for search
 app.use('/api/search', searchRouter);
 
-// Booklet helpers (authenticated)
-app.use('/api/booklet', bookletApiRouter);
+// Booklet helpers (requires booklet_creator permission)
+app.use('/api/booklet', requireAuthWeb, requirePermission('booklet_creator'), bookletApiRouter);
 
 // ADMIN ROUTES (authentication required)
 // Admin login pages (no auth required)
@@ -118,16 +118,16 @@ app.get('/admin/modules*', requireAuthWeb, (req, res, next) => {
   express.static('public')(req, res, next);
 });
 
-// Admin API routes (require authentication)
-app.use('/api/admin/sources', requireAuthWeb, sourcesRouter);
-app.use('/api/admin/composers', requireAuthWeb, composersRouter);
-app.use('/api/admin/editors', requireAuthWeb, editorsRouter);
-app.use('/api/admin/performers', requireAuthWeb, performersRouter);
-app.use('/api/admin/publishers', requireAuthWeb, publishersRouter);
-app.use('/api/admin/scribes', requireAuthWeb, scribesRouter);
-app.use('/api/admin/functions', requireAuthWeb, functionsRouter);
-app.use('/api/admin/groups', requireAuthWeb, groupsRouter);
-app.use('/api/admin/import', requireAuthWeb, importRouter);
+// Admin API routes (require authentication + feature permissions)
+app.use('/api/admin/sources', requireAuthWeb, requirePermission('catalogue'), sourcesRouter);
+app.use('/api/admin/composers', requireAuthWeb, requirePermission('catalogue'), composersRouter);
+app.use('/api/admin/editors', requireAuthWeb, requirePermission('catalogue'), editorsRouter);
+app.use('/api/admin/performers', requireAuthWeb, requirePermission('catalogue'), performersRouter);
+app.use('/api/admin/publishers', requireAuthWeb, requirePermission('catalogue'), publishersRouter);
+app.use('/api/admin/scribes', requireAuthWeb, requirePermission('catalogue'), scribesRouter);
+app.use('/api/admin/functions', requireAuthWeb, requirePermission('catalogue'), functionsRouter);
+app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), groupsRouter);
+app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 
 // Start server

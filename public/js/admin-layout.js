@@ -3,16 +3,16 @@
 
   const NAV_ITEMS = [
     { label: 'Dashboard',       icon: 'bi-speedometer2',   href: '/admin',                              adminOnly: false },
-    { label: 'Sources',         icon: 'bi-book',           href: '/modules/sources/index.html',         adminOnly: false },
-    { label: 'Composers',       icon: 'bi-person',         href: '/modules/composers/index.html',       adminOnly: false },
-    { label: 'Editors',         icon: 'bi-pencil',         href: '/modules/editors/index.html',         adminOnly: false },
-    { label: 'Scribes',         icon: 'bi-feather',        href: '/modules/scribes/index.html',         adminOnly: false },
-    { label: 'Publishers',      icon: 'bi-printer',        href: '/modules/publishers/index.html',      adminOnly: false },
-    { label: 'Performers',      icon: 'bi-mic',            href: '/modules/performers/index.html',      adminOnly: false },
-    { label: 'Titles',          icon: 'bi-card-text',      href: '/modules/titles/index.html',          adminOnly: false },
-    { label: 'Functions',       icon: 'bi-tag',            href: '/modules/functions/index.html',       adminOnly: false },
-    { label: 'Import Source',  icon: 'bi-upload',     href: '/modules/import/index.html',       adminOnly: true },
-    { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html', adminOnly: true, smallLabel: true },
+    { label: 'Sources',         icon: 'bi-book',           href: '/modules/sources/index.html',         adminOnly: false, permission: 'catalogue' },
+    { label: 'Composers',       icon: 'bi-person',         href: '/modules/composers/index.html',       adminOnly: false, permission: 'catalogue' },
+    { label: 'Editors',         icon: 'bi-pencil',         href: '/modules/editors/index.html',         adminOnly: false, permission: 'catalogue' },
+    { label: 'Scribes',         icon: 'bi-feather',        href: '/modules/scribes/index.html',         adminOnly: false, permission: 'catalogue' },
+    { label: 'Publishers',      icon: 'bi-printer',        href: '/modules/publishers/index.html',      adminOnly: false, permission: 'catalogue' },
+    { label: 'Performers',      icon: 'bi-mic',            href: '/modules/performers/index.html',      adminOnly: false, permission: 'catalogue' },
+    { label: 'Titles',          icon: 'bi-card-text',      href: '/modules/titles/index.html',          adminOnly: false, permission: 'catalogue' },
+    { label: 'Functions',       icon: 'bi-tag',            href: '/modules/functions/index.html',       adminOnly: false, permission: 'catalogue' },
+    { label: 'Import Source',  icon: 'bi-upload',     href: '/modules/import/index.html',       adminOnly: true, permission: 'import_source' },
+    { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html', adminOnly: true, smallLabel: true, permission: 'catalogue' },
     { label: 'Clef / Voicings', icon: 'custom-treble-clef', href: '/modules/clef-voicings/index.html', adminOnly: true },
     { label: 'Users',           icon: 'bi-people',         href: '/user-management.html',               adminOnly: true },
     { label: 'Permissions',     icon: 'bi-shield-lock',    href: '/modules/permissions/index.html',     adminOnly: true }
@@ -177,6 +177,30 @@
         el.remove();
       }
     });
+
+    applyPermissionVisibility(sidebar);
+  }
+
+  async function applyPermissionVisibility(sidebar) {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const user = data.user;
+      if (!user || user.role === 'admin') return;
+
+      const perms = user.permissions || {};
+      sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
+        const href = link.getAttribute('href');
+        const item = NAV_ITEMS.find(n => n.href === href);
+        if (!item || !item.permission) return;
+        if (!perms[item.permission]) {
+          link.closest('.sidebar-item').style.display = 'none';
+        }
+      });
+    } catch (e) {
+      // Sidebar stays fully visible on error
+    }
   }
 
   if (document.readyState === 'loading') {
