@@ -2743,6 +2743,10 @@
   var _debugRenderCount = 0;
   var _dbgRun = '';
   async function renderPreview() {
+    if (document.readyState !== 'complete') {
+      await new Promise(function (r) { window.addEventListener('load', r, { once: true }); });
+    }
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
     var root = document.getElementById('previewPages');
     var store = document.getElementById('bookletPageStore');
     if (!root) return;
