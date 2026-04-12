@@ -9,34 +9,6 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/vendor/jgabc/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/Hyphenopoly_Loader.min.js"></script>
-    <script>
-    Hyphenopoly.config({
-        require: {
-            "en-us": "supercalifragilisticexpialidocious"
-        },
-        paths: {
-            patterndir: "https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/patterns/",
-            maindir: "https://cdnjs.cloudflare.com/ajax/libs/hyphenopoly/6.0.0/"
-        },
-        setup: {
-            defaultLanguage: "en-us",
-            hide: "none",
-            safeCopy: true,
-            selectors: {
-                ".booklet-richtext": {
-                    minWordLength: 6,
-                    leftmin: 3,
-                    rightmin: 2,
-                    orphanControl: 2
-                }
-            }
-        },
-        handleEvent: {
-            error: function (e) { e.preventDefault(); }
-        }
-    });
-    </script>
     <style>
         :root {
             --booklet-margin-left-mm: 16;
