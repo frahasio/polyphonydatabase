@@ -201,6 +201,16 @@
             opacity: 1;
             transition: opacity 0.1s;
         }
+        .booklet-insert-zone.menu-open {
+            opacity: 1;
+            z-index: 1060;
+        }
+        .booklet-insert-zone.menu-open ~ .booklet-block-row .booklet-insert-zone,
+        .booklet-block-row:has(~ .booklet-insert-zone.menu-open) + .booklet-insert-zone,
+        .insert-zones-suppressed .booklet-insert-zone:not(.menu-open) {
+            pointer-events: none;
+            opacity: 0 !important;
+        }
         .booklet-insert-line {
             width: 100%;
             height: 1px;
@@ -439,6 +449,8 @@
             padding-right: 0.06em;
             margin-right: 0.02em;
             font-weight: inherit;
+            position: relative;
+            top: 0.05em;
         }
         .booklet-richtext p {
             margin: 0;
@@ -895,6 +907,10 @@
                                 <option value="Source Code Pro">Source Code Pro</option>
                             </optgroup>
                         </select>
+                    </label>
+                    <label class="d-flex flex-column gap-0" title="Pixels to cover at text split boundaries to hide font-specific ascender/descender overshoot. Increase if you see bleed at page breaks in split text.">
+                        <span>Split clip (px)</span>
+                        <input type="number" id="inpSplitClipPx" class="form-control form-control-sm" style="width:4rem" min="0" max="10" step="1" value="3">
                     </label>
                     <div class="vr"></div>
                     <label class="d-flex flex-column gap-0">

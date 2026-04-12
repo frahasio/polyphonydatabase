@@ -117,6 +117,7 @@
       gapTolerancePx: GAP_FLEX_PX,
       marginTolerancePx: MARGIN_TOLERANCE_PX,
       minOrphanLines: 3,
+      splitClipPx: 3,
       previewDisplay: 'scroll',
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
@@ -1585,6 +1586,7 @@
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
+    syncNum('inpSplitClipPx', 'splitClipPx', 3);
     var pdGrp = document.getElementById('btnGroupPreviewDisplay');
     if (pdGrp) {
       var cur = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
@@ -2110,21 +2112,18 @@
   }
 
   function createClippedView(el, fromPx, toPx, widthPx, clipClass, lineHPx) {
-    var container = document.createElement('div');
-    container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
-    container.style.width = '100%';
-    container.style.height = (toPx - fromPx) + 'px';
-    container.style.overflow = 'hidden';
-    container.style.position = 'relative';
-    container.setAttribute('aria-hidden', 'true');
     var isTop = clipClass === 'booklet-clip-top';
     var isMid = clipClass === 'booklet-clip-mid';
     var isBot = clipClass === 'booklet-clip-bottom';
-    var insetTop = (isBot || isMid) ? 3 : 0;
-    var insetBot = (isTop || isMid) ? 3 : 0;
-    if (insetTop || insetBot) {
-      container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
-    }
+    var clipPx = getSetting('splitClipPx', 3);
+    var extraBot = (isMid || isBot) ? clipPx : 0;
+    var container = document.createElement('div');
+    container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
+    container.style.width = '100%';
+    container.style.height = (toPx - fromPx + extraBot) + 'px';
+    container.style.overflow = 'hidden';
+    container.style.position = 'relative';
+    container.setAttribute('aria-hidden', 'true');
     var clone = el.cloneNode(true);
     clone.style.position = 'relative';
     clone.style.top = (-fromPx) + 'px';
@@ -2132,6 +2131,18 @@
     clone.style.pointerEvents = 'none';
     if (el.dataset && el.dataset.blockId) container.dataset.blockId = el.dataset.blockId;
     container.appendChild(clone);
+    if (clipPx > 0) {
+      if (isMid || isBot) {
+        var coverTop = document.createElement('div');
+        coverTop.style.cssText = 'position:absolute;top:0;left:0;right:0;height:' + clipPx + 'px;background:#fff;z-index:1;';
+        container.appendChild(coverTop);
+      }
+      if (isTop || isMid) {
+        var coverBot = document.createElement('div');
+        coverBot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:' + clipPx + 'px;background:#fff;z-index:1;';
+        container.appendChild(coverBot);
+      }
+    }
     return container;
   }
 
@@ -2909,7 +2920,13 @@
     btn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var existing = document.querySelector('.booklet-insert-menu');
-      if (existing) existing.remove();
+      if (existing) {
+        existing.closest('.booklet-insert-zone')?.classList.remove('menu-open');
+        existing.remove();
+      }
+      var blockList = document.getElementById('blockList');
+      zone.classList.add('menu-open');
+      if (blockList) blockList.classList.add('insert-zones-suppressed');
       var menu = document.createElement('div');
       menu.className = 'booklet-insert-menu';
       INSERT_MENU_ITEMS.forEach(function (item) {
@@ -2918,6 +2935,8 @@
         mb.innerHTML = '<i class="bi ' + item.icon + ' me-2"></i>' + item.label;
         mb.addEventListener('click', function () {
           menu.remove();
+          zone.classList.remove('menu-open');
+          if (blockList) blockList.classList.remove('insert-zones-suppressed');
           addBlock(item.type, insertIdx);
         });
         menu.appendChild(mb);
@@ -2926,6 +2945,8 @@
       setTimeout(function () {
         document.addEventListener('click', function dismiss() {
           menu.remove();
+          zone.classList.remove('menu-open');
+          if (blockList) blockList.classList.remove('insert-zones-suppressed');
           document.removeEventListener('click', dismiss);
         }, { once: true });
       }, 0);
@@ -4211,6 +4232,7 @@
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
     bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);
     bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);
+    bindLayoutSetting('inpSplitClipPx', 'splitClipPx', 0, 10, 3);
 
     
     document.getElementById('btnSaveProject')?.addEventListener('click', downloadJson);
