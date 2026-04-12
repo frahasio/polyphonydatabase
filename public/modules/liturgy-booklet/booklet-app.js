@@ -2974,7 +2974,10 @@
     return zone;
   }
 
+  var _blockListRenderSuppressed = false;
+  var _blockListRenderPending = false;
   function renderBlockList() {
+    if (_blockListRenderSuppressed) { _blockListRenderPending = true; return; }
     const el = document.getElementById('blockList');
     if (!el) return;
     el.innerHTML = '';
@@ -4126,7 +4129,15 @@
         if (e.target.closest('.booklet-insert-menu')) return;
         var active = document.activeElement;
         if (active && active.getAttribute('contenteditable') === 'true' && !blockListEl.contains(active)) {
+          _blockListRenderSuppressed = true;
           active.blur();
+          setTimeout(function () {
+            _blockListRenderSuppressed = false;
+            if (_blockListRenderPending) {
+              _blockListRenderPending = false;
+              renderBlockList();
+            }
+          }, 300);
         }
       });
       blockListEl.addEventListener('dragover', function (ev) {
