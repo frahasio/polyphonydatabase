@@ -2743,10 +2743,18 @@
   var _debugRenderCount = 0;
   var _dbgRun = '';
   async function renderPreview() {
-    if (document.readyState !== 'complete') {
-      await new Promise(function (r) { window.addEventListener('load', r, { once: true }); });
+    var _fontWaitStart = Date.now();
+    if (document.fonts) {
+      var _ff = fontStackFor(state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT);
+      try { await document.fonts.load('400 12pt ' + _ff); } catch(e){}
+      try { await document.fonts.load('italic 400 12pt ' + _ff); } catch(e){}
+      try { await document.fonts.load('600 12pt ' + _ff); } catch(e){}
+      await document.fonts.ready;
     }
-    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    var _fontWaitMs = Date.now() - _fontWaitStart;
+    // #region agent log
+    console.log('[DBG86970d]', JSON.stringify({loc:'fontWait',waitMs:_fontWaitMs,fontsCheck:document.fonts?document.fonts.check('400 12pt "Crimson Text"'):null,readyState:document.readyState}));
+    // #endregion
     var root = document.getElementById('previewPages');
     var store = document.getElementById('bookletPageStore');
     if (!root) return;
