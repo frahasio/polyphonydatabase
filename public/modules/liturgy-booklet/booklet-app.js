@@ -117,7 +117,9 @@
       gapTolerancePx: GAP_FLEX_PX,
       marginTolerancePx: MARGIN_TOLERANCE_PX,
       minOrphanLines: 3,
-      splitClipPx: 3,
+      descClipPx: 3,
+      ascClipPx: 3,
+      dropCapOffsetEm: 0.05,
       previewDisplay: 'scroll',
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
@@ -373,6 +375,8 @@
     root.style.setProperty('--booklet-body-font', fontStackFor(fk));
     const rc = state.settings.rubricColor || '#8b1538';
     root.style.setProperty('--booklet-rubric-color', /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538');
+    var dco = Number(state.settings.dropCapOffsetEm);
+    root.style.setProperty('--booklet-drop-cap-offset', (Number.isFinite(dco) ? dco : 0.05) + 'em');
   }
 
   function getContentWidthPx() {
@@ -1102,7 +1106,6 @@
   function stripLegacyBookletSettings(settings) {
     if (!settings || typeof settings !== 'object') return;
     delete settings.fontScale;
-    delete settings.sectionGapMm;
     delete settings.chantNeumeSize;
     delete settings.chantStaffColor;
     delete settings.chantLinePadTop;
@@ -1283,6 +1286,11 @@
     parsed.projectTitle = parsed.projectTitle != null ? String(parsed.projectTitle) : '';
     parsed.settings = parsed.settings || {};
     stripLegacyBookletSettings(parsed.settings);
+    if (parsed.settings.splitClipPx != null && parsed.settings.descClipPx == null) {
+      parsed.settings.descClipPx = parsed.settings.splitClipPx;
+      parsed.settings.ascClipPx = parsed.settings.splitClipPx;
+      delete parsed.settings.splitClipPx;
+    }
     parsed.settings.previewDisplay =
       parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
     parsed.settings.fontFamilyKey = migrateFontKey(parsed.settings.fontFamilyKey);
@@ -1586,7 +1594,9 @@
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
-    syncNum('inpSplitClipPx', 'splitClipPx', 3);
+    syncNum('inpDescClipPx', 'descClipPx', 3);
+    syncNum('inpAscClipPx', 'ascClipPx', 3);
+    syncNum('inpDropCapOffset', 'dropCapOffsetEm', 0.05);
     var pdGrp = document.getElementById('btnGroupPreviewDisplay');
     if (pdGrp) {
       var cur = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
@@ -1877,7 +1887,7 @@
       var _lhPt = (b.lineHeightPt || 16) + 'pt';
       if (translationHasContent(b.translation)) {
         appendSectionHeading(wrap, b);
-        const leftPct = Math.min(80, Math.max(20, parseInt(b.parallelLeftPct, 10) || 50));
+        const leftPct = Math.min(80, Math.max(20, parseFloat(b.parallelLeftPct) || 50));
         const rightPct = 100 - leftPct;
         const gapMm = Math.min(20, Math.max(0, parseInt(b.parallelGapMm, 10) || 4));
         const halfGap = gapMm / 2;
@@ -2115,8 +2125,9 @@
     var isTop = clipClass === 'booklet-clip-top';
     var isMid = clipClass === 'booklet-clip-mid';
     var isBot = clipClass === 'booklet-clip-bottom';
-    var clipPx = getSetting('splitClipPx', 3);
-    var extraBot = (isMid || isBot) ? clipPx : 0;
+    var descClip = getSetting('descClipPx', 3);
+    var ascClip = getSetting('ascClipPx', 3);
+    var extraBot = (isMid || isBot) ? descClip : 0;
     var container = document.createElement('div');
     container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
     container.style.width = '100%';
@@ -2131,17 +2142,15 @@
     clone.style.pointerEvents = 'none';
     if (el.dataset && el.dataset.blockId) container.dataset.blockId = el.dataset.blockId;
     container.appendChild(clone);
-    if (clipPx > 0) {
-      if (isMid || isBot) {
-        var coverTop = document.createElement('div');
-        coverTop.style.cssText = 'position:absolute;top:0;left:0;right:0;height:' + clipPx + 'px;background:#fff;z-index:1;';
-        container.appendChild(coverTop);
-      }
-      if (isTop || isMid) {
-        var coverBot = document.createElement('div');
-        coverBot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:' + clipPx + 'px;background:#fff;z-index:1;';
-        container.appendChild(coverBot);
-      }
+    if ((isMid || isBot) && descClip > 0) {
+      var coverTop = document.createElement('div');
+      coverTop.style.cssText = 'position:absolute;top:0;left:0;right:0;height:' + descClip + 'px;background:#fff;z-index:1;';
+      container.appendChild(coverTop);
+    }
+    if ((isTop || isMid) && ascClip > 0) {
+      var coverBot = document.createElement('div');
+      coverBot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:' + ascClip + 'px;background:#fff;z-index:1;';
+      container.appendChild(coverBot);
     }
     return container;
   }
@@ -2929,26 +2938,31 @@
       if (blockList) blockList.classList.add('insert-zones-suppressed');
       var menu = document.createElement('div');
       menu.className = 'booklet-insert-menu';
+      function closeMenu() {
+        if (!menu.parentNode) return;
+        menu.remove();
+        zone.classList.remove('menu-open');
+        if (blockList) blockList.classList.remove('insert-zones-suppressed');
+        document.removeEventListener('mousedown', outsideDismiss, true);
+      }
+      function outsideDismiss(e) {
+        if (menu.contains(e.target) || btn.contains(e.target)) return;
+        closeMenu();
+      }
       INSERT_MENU_ITEMS.forEach(function (item) {
         var mb = document.createElement('button');
         mb.type = 'button';
         mb.innerHTML = '<i class="bi ' + item.icon + ' me-2"></i>' + item.label;
-        mb.addEventListener('click', function () {
-          menu.remove();
-          zone.classList.remove('menu-open');
-          if (blockList) blockList.classList.remove('insert-zones-suppressed');
+        mb.addEventListener('click', function (e) {
+          e.stopPropagation();
+          closeMenu();
           addBlock(item.type, insertIdx);
         });
         menu.appendChild(mb);
       });
       zone.appendChild(menu);
       setTimeout(function () {
-        document.addEventListener('click', function dismiss() {
-          menu.remove();
-          zone.classList.remove('menu-open');
-          if (blockList) blockList.classList.remove('insert-zones-suppressed');
-          document.removeEventListener('click', dismiss);
-        }, { once: true });
+        document.addEventListener('mousedown', outsideDismiss, true);
       }, 0);
     });
     line.appendChild(btn);
@@ -3071,14 +3085,6 @@
       if (badge) div.appendChild(badge);
       div.appendChild(textEl);
       div.appendChild(actions);
-      div.addEventListener('mousedown', function (e) {
-        if (e.target.closest('.booklet-block-actions')) return;
-        if (e.button !== 0) return;
-        var active = document.activeElement;
-        if (active && active.getAttribute('contenteditable') === 'true') {
-          active.blur();
-        }
-      });
       div.addEventListener('click', function (e) {
         if (e.target.closest('.booklet-block-actions')) return;
         selectedBlockId = b.id;
@@ -3298,9 +3304,11 @@
         <div class="form-control form-control-sm booklet-rich-ed mb-1" contenteditable="true" id="edReadTrans"></div>
         <hr class="my-1">
         <div id="readParallelOpts" class="border rounded p-2 bg-light small">
-          <label class="form-label small mb-1">Column split <span class="text-muted">(original width %)</span></label>
-          <input type="range" class="form-range" id="rngReadSplit" min="20" max="80" step="1" value="${split}">
-          <div class="d-flex justify-content-between"><span>20%</span><span id="readSplitVal">${split}%</span><span>80%</span></div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <label class="form-label small mb-0">Column split <span class="text-muted">(original %)</span></label>
+            <input type="number" class="form-control form-control-sm ms-auto" id="inpReadSplitNum" min="20" max="80" step="0.25" value="${split}" style="width:5rem">
+          </div>
+          <input type="range" class="form-range" id="rngReadSplit" min="20" max="80" step="0.25" value="${split}">
           <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" id="chkReadBorder" ${b.parallelBorder ? 'checked' : ''}>
             <label class="form-check-label" for="chkReadBorder">Vertical line between columns only</label>
@@ -3353,12 +3361,14 @@
       bindRichToolbar(panel.querySelector('.read-tb-orig'), edO, push);
       bindRichToolbar(panel.querySelector('.read-tb-trans'), edT, push);
       const rng = panel.querySelector('#rngReadSplit');
-      const rv = panel.querySelector('#readSplitVal');
+      const splitNum = panel.querySelector('#inpReadSplitNum');
       const chk = panel.querySelector('#chkReadBorder');
       const ig = panel.querySelector('#inpReadGap');
-      const syncParallel = () => {
-        b.parallelLeftPct = parseInt(rng.value, 10) || 50;
-        if (rv) rv.textContent = b.parallelLeftPct + '%';
+      const syncParallel = (source) => {
+        var raw = parseFloat((source === 'num' ? splitNum : rng).value);
+        b.parallelLeftPct = Number.isFinite(raw) ? Math.min(80, Math.max(20, raw)) : 50;
+        if (source !== 'num' && splitNum) splitNum.value = b.parallelLeftPct;
+        if (source !== 'rng' && rng) rng.value = b.parallelLeftPct;
         b.parallelBorder = !!chk.checked;
         let ggm = parseInt(ig.value, 10);
         if (!Number.isFinite(ggm)) {
@@ -3368,9 +3378,10 @@
         scheduleAutosave();
         markLayoutStale();
       };
-      rng.addEventListener('input', syncParallel);
-      chk.addEventListener('change', syncParallel);
-      ig.addEventListener('input', syncParallel);
+      rng.addEventListener('input', function() { syncParallel('rng'); });
+      splitNum.addEventListener('change', function() { syncParallel('num'); });
+      chk.addEventListener('change', function() { syncParallel(); });
+      ig.addEventListener('input', function() { syncParallel(); });
       wireEditorSectionLayout(panel, b, true, false);
     } else if (b.type === 'image') {
       const iw = b.imageWidthPx != null ? Math.round(Number(b.imageWidthPx)) : 0;
@@ -4107,6 +4118,13 @@
 
     var blockListEl = document.getElementById('blockList');
     if (blockListEl) {
+      blockListEl.addEventListener('mousedown', function (e) {
+        if (e.target.closest('.booklet-insert-menu')) return;
+        var active = document.activeElement;
+        if (active && active.getAttribute('contenteditable') === 'true' && !blockListEl.contains(active)) {
+          active.blur();
+        }
+      });
       blockListEl.addEventListener('dragover', function (ev) {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = 'move';
@@ -4232,7 +4250,20 @@
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
     bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);
     bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);
-    bindLayoutSetting('inpSplitClipPx', 'splitClipPx', 0, 10, 3);
+    bindLayoutSetting('inpDescClipPx', 'descClipPx', 0, 10, 3);
+    bindLayoutSetting('inpAscClipPx', 'ascClipPx', 0, 10, 3);
+    (function() {
+      var dcEl = document.getElementById('inpDropCapOffset');
+      if (!dcEl) return;
+      dcEl.addEventListener('change', function () {
+        var raw = parseFloat(String(dcEl.value).trim().replace(',', '.'));
+        state.settings.dropCapOffsetEm = Number.isFinite(raw) ? Math.min(0.5, Math.max(-0.2, raw)) : 0.05;
+        dcEl.value = String(state.settings.dropCapOffsetEm);
+        applyCssVars();
+        scheduleAutosave();
+        markLayoutStale();
+      });
+    })();
 
     
     document.getElementById('btnSaveProject')?.addEventListener('click', downloadJson);
