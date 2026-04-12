@@ -1705,9 +1705,9 @@
             var vy = bbox.y - margin;
             var vw = bbox.width + margin * 2;
             var vh = bbox.height + margin * 2;
+            var lyricEls = svg.querySelectorAll('text.lyric');
             var dropCapEl = svg.querySelector('text.dropCap');
-            if (dropCapEl) {
-              var lyricEls = svg.querySelectorAll('text.lyric');
+            if (dropCapEl && lyricEls.length) {
               var maxLyricY = -Infinity;
               lyricEls.forEach(function (ly) {
                 var lyY = parseFloat(ly.getAttribute('y'));
@@ -1720,6 +1720,10 @@
                   vh = trimmedBottom - vy;
                 }
               }
+            }
+            if (!lyricEls.length) {
+              var lyricPad = ctxt.staffInterval * 3;
+              vh = Math.max(vh, bbox.height + margin * 2 + lyricPad);
             }
             svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
             svg.setAttribute('width', vw);
