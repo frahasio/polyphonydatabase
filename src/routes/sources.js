@@ -627,11 +627,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     const { source, inclusions } = req.body;
     const now = new Date();
     
-    console.log('\n=== SAVE WITH INCLUSIONS START ===');
-    console.log('Source ID:', sourceId);
-    console.log('Source data:', source);
-    console.log('Form inclusions received:', inclusions.length);
-    
     // Step 1: Update source data first
     const updateSourceQuery = `
       UPDATE sources 
@@ -696,28 +691,17 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       }
     }
 
-    // Step 2: Handle form inclusions 
-    console.log('\n=== PROCESSING FORM INCLUSIONS ===');
-    
+    // Step 2: Handle form inclusions
     // Only process inclusions that have titles (non-empty rows)
     // Filter out null/undefined inclusions and those without titles
     const processedInclusions = inclusions.filter(inclusion => 
       inclusion && inclusion.composition && inclusion.composition.title_text?.trim()
     );
 
-    console.log(`Processing ${processedInclusions.length} inclusions with titles from form`);
-
     // Process each inclusion individually
     for (let i = 0; i < processedInclusions.length; i++) {
       const inclusion = processedInclusions[i];
       let compositionId = null;
-      
-      console.log(`Processing inclusion ${i + 1}: "${inclusion.composition.title_text}" (${inclusion.id ? 'existing ID: ' + inclusion.id : 'new'})`);
-
-      // Debug logging for composition type changes
-      if (inclusion.composition.composition_type_id) {
-        console.log(`  - Setting composition type: ${inclusion.composition.composition_type_name} (ID: ${inclusion.composition.composition_type_id})`);
-      }
 
       // Calculate number of voices from clefs
       let numberOfVoices = null;
@@ -770,8 +754,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       
       // If composer_ids is empty or contains nulls, default to Anon (id=23)
       if (!composerIds || composerIds.length === 0 || composerIds.every(id => !id || id === null)) {
-        composerIds = [23]; // Default to Anon composer
-        console.log(`Defaulting to Anon composer for inclusion: "${inclusion.composition.title_text}"`);
+        composerIds = [23];
       } else {
         // Filter out any null values and ensure all are valid integers
         composerIds = composerIds.filter(id => id !== null && id !== undefined && !isNaN(parseInt(id)))
@@ -780,7 +763,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
         // If after filtering we have no valid IDs, default to Anon
         if (composerIds.length === 0) {
           composerIds = [23];
-          console.log(`No valid composer IDs found, defaulting to Anon for inclusion: "${inclusion.composition.title_text}"`);
         }
       }
       
@@ -804,9 +786,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           AND composer_id_list = $6
         `, [titleId, compositionTypeId, tone, evenOdd, numberOfVoicesInt, composerIds]);
         
-        if (existingComposition.rows.length > 0) {
-          console.log(`  - Found existing composition, reusing ID: ${existingComposition.rows[0].id}`);
-        }
       }
 
       let groupId;
@@ -854,8 +833,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
               if (isAnonymous) {
                 // For Anon compositions, skip merge logic and always update in place
                 // Anon compositions are always unique and should not be merged
-                console.log(`  - Updating unique anonymous composition ${currentComposition.id} in place`);
-                
                 // Update the existing composition with new details
                 await client.query(`
                   UPDATE compositions SET 
@@ -881,7 +858,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                 }
               } else {
                 // Create new composition for non-anonymous works when properties change
-                console.log(`  - Creating new composition for changed properties`);
                 const newGroupResult = await client.query(`
                   INSERT INTO groups (display_title, created_at, updated_at) VALUES ($1, $2, $3) RETURNING id
                 `, [inclusion.composition.title_text, now, now]);
@@ -892,7 +868,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
                 `, [titleId, compositionTypeId, tone, toneConnector, evenOdd, numberOfVoicesInt, composerIds.length > 0 ? composerIds : null, groupId, now, now]);
                 compositionId = compositionResult.rows[0].id;
-                console.log(`  - Created new composition ID: ${compositionId}`);
               }
             } else {
               // Multiple inclusions exist - create new composition
@@ -961,7 +936,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           inclusion.id,
           sourceId
         ]);
-        console.log(`Updated inclusion ${inclusion.id} with composition ${compositionId}`);
       } else {
         // Create new inclusion
         const newInclusionResult = await client.query(`
@@ -981,7 +955,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
           now, 
           now
         ]);
-        console.log(`Created new inclusion ID: ${newInclusionResult.rows[0].id}`);
       }
     }
 
@@ -1024,10 +997,6 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
 
     await client.query('COMMIT');
     
-    console.log(`\n=== SAVE COMPLETE ===`);
-    console.log(`Processed ${processedInclusions.length} form inclusions`);
-    console.log(`====================\n`);
-    
     if (processedInclusions.length > 0) {
       triggerCleanup(true, 'all', 'after source save', 5000);
     }
@@ -1059,8 +1028,6 @@ router.delete('/inclusions/:id', requireAdmin, async (req, res) => {
   const client = await pool.connect();
   
   try {
-    console.log(`Deleting inclusion with ID: ${id}`);
-    
     // Get inclusion details before deletion for audit trail
     const inclusionResult = await client.query(`
       SELECT i.*, s.code as source_code, s.title as source_title, c.title_id, t.text as composition_title
@@ -1112,7 +1079,6 @@ router.delete('/inclusions/:id', requireAdmin, async (req, res) => {
       console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
     }
     
-    console.log(`Successfully deleted inclusion ${id}`);
     res.json({ 
       success: true, 
       message: 'Inclusion deleted successfully',

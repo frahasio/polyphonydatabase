@@ -107,8 +107,6 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log('Login attempt for:', email);
-
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -119,25 +117,18 @@ router.post('/login', loginLimiter, async (req, res) => {
       [email.toLowerCase()]
     );
 
-    console.log('Database query result:', result.rows.length, 'users found');
-
     const user = result.rows[0];
     if (!user) {
-      console.log('No user found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    console.log('User found:', user.email, 'Status:', user.status, 'Role:', user.role);
-
     // Check if account is locked
     if (isAccountLocked(user)) {
-      console.log('Account is locked until:', user.locked_until);
       return res.status(423).json({ error: 'Account temporarily locked due to multiple failed login attempts' });
     }
 
     // Check if account is approved
     if (user.status !== 'approved') {
-      console.log('Account status is not approved:', user.status);
       let message = 'Account not approved';
       if (user.status === 'pending') {
         message = 'Account is pending approval';
@@ -149,13 +140,10 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: message });
     }
 
-    console.log('Verifying password...');
     // Verify password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    console.log('Password match:', passwordMatch);
     
     if (!passwordMatch) {
-      console.log('Password verification failed');
       // Increment failed login attempts
       const newAttempts = user.login_attempts + 1;
       let lockedUntil = null;
@@ -346,7 +334,7 @@ router.post('/forgot-password', async (req, res) => {
     if (emailSent) {
       console.log(`Password reset email sent to ${email}`);
     } else {
-      console.error(`Failed to send password reset email to ${email}. Token: ${resetToken}`);
+      console.error(`Failed to send password reset email to ${email}`);
     }
 
     res.json({ message: 'If an account with that email exists, a password reset link has been sent' });

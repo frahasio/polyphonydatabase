@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { runDatabaseCleanup } from '../cleanup.js';
+import { CLEF_DISPLAY_ORDER } from '../constants.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -187,11 +188,6 @@ router.post('/clef-combinations', async (req, res) => {
 
     const trimmedClefCombo = clef_combination.trim();
 
-    // Define clef display order for sorting and validation
-    const clefDisplayOrder = [
-      'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
-    ];
-
     // Parse and validate individual clefs
     const clefArray = trimmedClefCombo.match(/(g[0-9]+|g28|c[0-9]+|f[0-9]+|x[0-9]+|y[0-9]+|d[0-9]+|lut|org|bc)/g) || [];
     
@@ -201,15 +197,15 @@ router.post('/clef-combinations', async (req, res) => {
 
     // Validate each clef exists in our valid list
     for (const clef of clefArray) {
-      if (!clefDisplayOrder.includes(clef)) {
+      if (!CLEF_DISPLAY_ORDER.includes(clef)) {
         return res.status(400).json({ error: `Invalid clef: ${clef}` });
       }
     }
 
     // Sort clefs according to display order to ensure consistency
     const sortedClefs = clefArray.sort((a, b) => {
-      const aIndex = clefDisplayOrder.indexOf(a);
-      const bIndex = clefDisplayOrder.indexOf(b);
+      const aIndex = CLEF_DISPLAY_ORDER.indexOf(a);
+      const bIndex = CLEF_DISPLAY_ORDER.indexOf(b);
       return aIndex - bIndex;
     });
 
@@ -242,7 +238,7 @@ router.post('/clef-combinations', async (req, res) => {
 });
 
 // Check recent user registrations
-router.get('/recent-users', requireAdmin, async (req, res) => {
+router.get('/recent-users', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     
@@ -274,65 +270,40 @@ router.get('/recent-users', requireAdmin, async (req, res) => {
 });
 
 // Get recent activity/audit trail from audit_log table
+async function getLegacyActivity(limit) {
+  const result = await pool.query(`
+    SELECT 'source' as type, 'CREATE' as action, id, 
+           COALESCE(code, 'Untitled Source') as title, 
+           'Unknown User' as user_email,
+           COALESCE(created_at, updated_at, NOW()) as created_at
+    FROM sources 
+    WHERE (created_at >= NOW() - INTERVAL '30 days' 
+           OR updated_at >= NOW() - INTERVAL '30 days')
+    ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
+    LIMIT $1
+  `, [limit]);
+  return result.rows;
+}
+
 router.get('/recent-activity', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     
-    // Check if audit_log table exists
-    const tableExists = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'audit_log'
-      );
-    `);
-    
-    if (!tableExists.rows[0].exists) {
-      // Fallback to legacy activity tracking if audit_log doesn't exist
-      const legacyActivity = await pool.query(`
-        SELECT 'source' as type, 'CREATE' as action, id, 
-               COALESCE(code, 'Untitled Source') as title, 
-               'Unknown User' as user_email,
-               COALESCE(created_at, updated_at, NOW()) as created_at
-        FROM sources 
-        WHERE (created_at >= NOW() - INTERVAL '30 days' 
-               OR updated_at >= NOW() - INTERVAL '30 days')
-        ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
-        LIMIT $1
-      `, [limit]);
-      
-      return res.json({ activity: legacyActivity.rows });
-    }
-    
-    // Check if audit_log table has the expected structure
+    // Check if audit_log table exists and has the expected structure
     const tableStructure = await pool.query(`
-      SELECT column_name, data_type 
+      SELECT column_name
       FROM information_schema.columns 
       WHERE table_name = 'audit_log' 
-      ORDER BY ordinal_position
     `);
     
     if (tableStructure.rows.length === 0) {
-      // Fallback to legacy activity tracking if audit_log doesn't exist
-      const legacyActivity = await pool.query(`
-        SELECT 'source' as type, 'CREATE' as action, id, 
-               COALESCE(code, 'Untitled Source') as title, 
-               'Unknown User' as user_email,
-               COALESCE(created_at, updated_at, NOW()) as created_at
-        FROM sources 
-        WHERE (created_at >= NOW() - INTERVAL '30 days' 
-               OR updated_at >= NOW() - INTERVAL '30 days')
-        ORDER BY COALESCE(updated_at, created_at, NOW()) DESC
-        LIMIT $1
-      `, [limit]);
-      
-      return res.json({ activity: legacyActivity.rows });
+      return res.json({ activity: await getLegacyActivity(limit) });
     }
     
-    // Check if the table has the changes column
-    const hasChangesColumn = tableStructure.rows.some(col => col.column_name === 'changes');
+    const columnNames = tableStructure.rows.map(col => col.column_name);
+    const hasChangesColumn = columnNames.includes('changes');
     
     if (!hasChangesColumn) {
-      // Fallback to basic audit log query without enhanced record titles
       const auditActivity = await pool.query(`
         SELECT 
           al.user_email,
@@ -349,7 +320,7 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: auditActivity.rows });
     }
     
-    // Get simplified audit log entries with enhanced record titles
+    // Get audit log entries with enhanced record titles
     const auditActivity = await pool.query(`
       SELECT 
         al.user_email,
@@ -367,7 +338,6 @@ router.get('/recent-activity', async (req, res) => {
           WHEN al.table_name = 'functions' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'name' THEN al.changes->'new'->>'name'
           WHEN al.table_name = 'functions_titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'title_text' THEN al.changes->'new'->>'title_text'
           WHEN al.table_name = 'inclusions' AND al.changes::jsonb ? 'old' AND al.changes->'old' ? 'composition_title' THEN al.changes->'old'->>'composition_title'
-          -- Fallback: try to lookup the actual source code from database for sources
           WHEN al.table_name = 'sources' AND al.record_id IS NOT NULL THEN (
             SELECT COALESCE(s.code, 'Source #' || s.id)
             FROM sources s 
@@ -383,9 +353,7 @@ router.get('/recent-activity', async (req, res) => {
       LIMIT $1
     `, [limit]);
     
-    // If no audit log entries, fall back to recent user registrations and other activity
     if (auditActivity.rows.length === 0) {
-      // Get recent user registrations
       const recentUsers = await pool.query(`
         SELECT 
           email as user_email,

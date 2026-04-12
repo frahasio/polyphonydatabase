@@ -2688,6 +2688,7 @@
   
 
   async function renderPreview() {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
     var root = document.getElementById('previewPages');
     var store = document.getElementById('bookletPageStore');
     if (!root) return;

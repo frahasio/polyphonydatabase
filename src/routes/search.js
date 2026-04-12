@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { CLEF_DISPLAY_ORDER } from '../constants.js';
 
 const router = express.Router();
 
@@ -495,8 +496,6 @@ router.get('/groups', async (req, res) => {
     // Voicing filter (database-driven clef combinations) - skip if tables don't exist
     if (voicingIds.length > 0) {
       try {
-        console.log('Voicing filter: trying fast path with new columns...');
-        
         // Get clef combinations associated with selected voicings
         const voicingClefsQuery = `
           SELECT DISTINCT cc.clef_combination
@@ -506,7 +505,6 @@ router.get('/groups', async (req, res) => {
         `;
         
         const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
-        console.log('Found clef combinations for voicings:', voicingClefsResult.rows.length);
         
         if (voicingClefsResult.rows.length > 0) {
           // Use the new indexed sorted_clef_combination column for fast matching
@@ -514,13 +512,10 @@ router.get('/groups', async (req, res) => {
             .map(row => row.clef_combination)
             .filter(combo => combo && combo.trim());
           
-          console.log('Target clef combinations:', targetClefCombinations);
-          
           if (targetClefCombinations.length > 0) {
             // Test if the new columns exist with a simple query first
             try {
               await pool.query('SELECT sorted_clef_combination_required FROM inclusions LIMIT 1');
-              console.log('New columns exist, using fast path');
               
               // Simple exact matching - the clef_combinations_voicings mapping already defines valid combinations
               const condition = `EXISTS (
@@ -537,7 +532,6 @@ router.get('/groups', async (req, res) => {
               queryParams.push(targetClefCombinations);
               paramIndex++;
             } catch (columnError) {
-              console.log('New columns do not exist, falling back to old logic');
               throw columnError; // This will trigger the fallback
             }
           }
@@ -556,11 +550,6 @@ router.get('/groups', async (req, res) => {
           const voicingClefsResult = await pool.query(voicingClefsQuery, [voicingIds]);
           
           if (voicingClefsResult.rows.length > 0) {
-            // Define clef display order for sorting (fallback logic)
-            const clefDisplayOrder = [
-              'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
-            ];
-            
             const voicingConditions = voicingClefsResult.rows.map((row) => {
               const targetClefCombination = row.clef_combination;
               if (!targetClefCombination) return null;
@@ -573,7 +562,7 @@ router.get('/groups', async (req, res) => {
                 AND (
                   SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
                     CASE clef_obj->>'clef'
-                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ${CLEF_DISPLAY_ORDER.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
                       ELSE 999
                     END
                   )
@@ -640,11 +629,6 @@ router.get('/groups', async (req, res) => {
       const clefPatterns = clefPattern.split(',').map(p => p.trim()).filter(p => p);
       
       if (clefPatterns.length > 0) {
-        // Define clef display order for sorting (same as in admin.js)
-        const clefDisplayOrder = [
-          'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2', 'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3', 'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut'
-        ];
-        
         // Build conditions for each pattern
         const patternConditions = [];
         
@@ -661,7 +645,7 @@ router.get('/groups', async (req, res) => {
                 (
                   SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
                     CASE clef_obj->>'clef'
-                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ${CLEF_DISPLAY_ORDER.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
                       ELSE 999
                     END
                   )
@@ -674,7 +658,7 @@ router.get('/groups', async (req, res) => {
                 (
                   SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
                     CASE clef_obj->>'clef'
-                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ${CLEF_DISPLAY_ORDER.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
                       ELSE 999
                     END
                   )
@@ -691,7 +675,7 @@ router.get('/groups', async (req, res) => {
                 (
                   SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
                     CASE clef_obj->>'clef'
-                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ${CLEF_DISPLAY_ORDER.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
                       ELSE 999
                     END
                   )
@@ -704,7 +688,7 @@ router.get('/groups', async (req, res) => {
                 (
                   SELECT string_agg(clef_obj->>'clef', '' ORDER BY 
                     CASE clef_obj->>'clef'
-                      ${clefDisplayOrder.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
+                      ${CLEF_DISPLAY_ORDER.map((clef, idx) => `WHEN '${clef}' THEN ${idx}`).join(' ')}
                       ELSE 999
                     END
                   )
@@ -1136,8 +1120,6 @@ router.get('/groups', async (req, res) => {
       pool.query(countQuery, queryParams.slice(0, -2)),
       pool.query(searchQuery, queryParams)
     ]);
-    
-    console.log('Search completed successfully, found:', countResult.rows[0]?.total, 'total results');
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / parseInt(limit));

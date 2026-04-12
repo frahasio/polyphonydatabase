@@ -1,7 +1,7 @@
 import express from 'express';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-import { pool } from './db.js';
+import { pool, runMigrations } from './db.js';
 import { requireAuthWeb, requirePermission } from './middleware/auth.js';
 import sourcesRouter from './routes/sources.js';
 import composersRouter from './routes/composers.js';
@@ -130,10 +130,10 @@ app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), gro
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-  console.log(`Visit http://localhost:${port} to access the application`);
-  console.log(`Default admin login: admin@polyphony.local / tempPassword123!`);
-  console.log(`Please change the default password immediately after first login.`);
+// Run migrations then start server
+runMigrations().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+    console.log(`Visit http://localhost:${port} to access the application`);
+  });
 }); 

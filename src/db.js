@@ -1,9 +1,4 @@
 import pg from 'pg';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -14,15 +9,21 @@ const pool = new pg.Pool({
 
 async function runMigrations() {
   try {
-    const sql = readFileSync(join(__dirname, '..', 'migrations', '002_user_permissions.sql'), 'utf8');
-    await pool.query(sql);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_permissions (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        catalogue BOOLEAN NOT NULL DEFAULT true,
+        booklet_creator BOOLEAN NOT NULL DEFAULT false,
+        import_source BOOLEAN NOT NULL DEFAULT false,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        updated_by INTEGER REFERENCES users(id)
+      )
+    `);
     console.log('Migrations: user_permissions table ready');
   } catch (error) {
     console.error('Migration error:', error.message);
   }
 }
-
-runMigrations();
 
 async function ensureUserPermissions(userId) {
   await pool.query(
@@ -31,4 +32,4 @@ async function ensureUserPermissions(userId) {
   );
 }
 
-export { pool, ensureUserPermissions };
+export { pool, ensureUserPermissions, runMigrations };
