@@ -426,8 +426,9 @@ router.get('/admin/users', requireAdmin, async (req, res) => {
       LIMIT $1 OFFSET $2
     `, params);
 
+    const countWhereClause = status ? 'WHERE status = $1' : '';
     const countResult = await pool.query(`
-      SELECT COUNT(*) as total FROM users ${whereClause}
+      SELECT COUNT(*) as total FROM users ${countWhereClause}
     `, status ? [status] : []);
 
     const total = parseInt(countResult.rows[0].total);
