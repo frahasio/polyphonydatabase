@@ -59,7 +59,8 @@
             try {
                 const res = await fetch('/api/auth/admin/users', { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to load users');
-                const users = await res.json();
+                const data = await res.json();
+                const users = data.users || [];
                 const tbody = document.getElementById('permissionsBody');
                 if (!users.length) {
                     tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No users found</td></tr>';

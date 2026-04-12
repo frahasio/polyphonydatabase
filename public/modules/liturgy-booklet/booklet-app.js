@@ -2933,7 +2933,7 @@
     btn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       // #region agent log
-      fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:btnClick',message:'INSERT BTN CLICK - opening menu',data:{insertIdx:insertIdx,hasExisting:!!document.querySelector('.booklet-insert-menu'),suppressed:_blockListRenderSuppressed},timestamp:Date.now()})}).catch(()=>{});
+      console.log('[DBG] INSERT BTN CLICK', {insertIdx, suppressed: _blockListRenderSuppressed});
       // #endregion
       var existing = document.querySelector('.booklet-insert-menu');
       if (existing) {
@@ -2946,11 +2946,10 @@
       var menu = document.createElement('div');
       menu.className = 'booklet-insert-menu';
       function closeMenu() {
-        if (!menu.parentNode) return;
         // #region agent log
-        fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:closeMenu',message:'CLOSE MENU called',data:{stack:new Error().stack?.split('\n').slice(1,5).join(' | ')},timestamp:Date.now()})}).catch(()=>{});
+        console.log('[DBG] closeMenu called', {menuInDom: !!menu.parentNode, stack: new Error().stack?.split('\n').slice(1,4).join(' | ')});
         // #endregion
-        menu.remove();
+        if (menu.parentNode) menu.remove();
         zone.classList.remove('menu-open');
         if (blockList) blockList.classList.remove('insert-zones-suppressed');
         document.removeEventListener('mousedown', outsideDismiss, true);
@@ -2959,7 +2958,7 @@
         var inMenu = menu.contains(e.target);
         var inBtn = btn.contains(e.target);
         // #region agent log
-        fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:outsideDismiss',message:'outsideDismiss fired',data:{inMenu:inMenu,inBtn:inBtn,targetTag:e.target?.tagName,targetClass:e.target?.className,eventType:e.type},timestamp:Date.now()})}).catch(()=>{});
+        console.log('[DBG] outsideDismiss', {inMenu, inBtn, targetTag: e.target?.tagName, targetClass: e.target?.className});
         // #endregion
         if (inMenu || inBtn) return;
         closeMenu();
@@ -2975,14 +2974,23 @@
         });
         menu.appendChild(mb);
       });
-      zone.appendChild(menu);
+      var btnRect = btn.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.left = Math.max(0, btnRect.left + btnRect.width / 2 - 100) + 'px';
+      menu.style.top = (btnRect.bottom + 4) + 'px';
+      menu.style.transform = 'none';
+      document.body.appendChild(menu);
       // #region agent log
-      fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:menuAppended',message:'Menu appended to DOM, registering dismiss in setTimeout(0)',data:{menuInDom:!!menu.parentNode,zoneHasMenuOpen:zone.classList.contains('menu-open')},timestamp:Date.now()})}).catch(()=>{});
+      console.log('[DBG] Menu appended to body', {menuInDom: !!menu.parentNode, menuOpen: zone.classList.contains('menu-open')});
       // #endregion
       setTimeout(function () {
         // #region agent log
-        fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:setTimeout0',message:'setTimeout(0) fired - registering outsideDismiss',data:{menuStillInDom:!!menu.parentNode},timestamp:Date.now()})}).catch(()=>{});
+        console.log('[DBG] setTimeout(0) fired', {menuStillInDom: !!menu.parentNode});
         // #endregion
+        if (!menu.parentNode) {
+          closeMenu();
+          return;
+        }
         document.addEventListener('mousedown', outsideDismiss, true);
       }, 0);
     });
@@ -2995,7 +3003,7 @@
   var _blockListRenderPending = false;
   function renderBlockList() {
     // #region agent log
-    fetch('http://127.0.0.1:7772/ingest/7c940ab0-fd08-426d-a25d-0a3fa982e89a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b10422'},body:JSON.stringify({sessionId:'b10422',location:'booklet-app.js:renderBlockList',message:'renderBlockList called',data:{suppressed:_blockListRenderSuppressed,pending:_blockListRenderPending,stack:new Error().stack?.split('\n').slice(1,4).join(' | ')},timestamp:Date.now()})}).catch(()=>{});
+    if (document.querySelector('.booklet-insert-menu')) console.log('[DBG] renderBlockList while menu open!', {suppressed: _blockListRenderSuppressed, stack: new Error().stack?.split('\n').slice(1,4).join(' | ')});
     // #endregion
     if (_blockListRenderSuppressed) { _blockListRenderPending = true; return; }
     const el = document.getElementById('blockList');

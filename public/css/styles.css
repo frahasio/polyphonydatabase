@@ -657,9 +657,8 @@ a:hover {
     margin-top: 0.75rem;
 }
 
-/* Common display and visibility utilities */
-.d-none { display: none !important; }
-.d-block { display: block !important; }
+/* Note: d-none / d-block are supplied by Bootstrap; do NOT redefine them here
+   or they will override Bootstrap's responsive variants (d-md-inline-flex etc.) */
 
 /* Status badges */
 .badge {
