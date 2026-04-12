@@ -2109,6 +2109,9 @@
     ctx.body.appendChild(clone);
     mount.appendChild(ctx.page);
     var h = clone.getBoundingClientRect().height;
+    // #region agent log
+    if (!measureInContext._logged && el.classList && el.classList.contains('booklet-section')) { measureInContext._logged = true; var _mBody = ctx.body.getBoundingClientRect(); console.log('[DBG86970d]', JSON.stringify({loc:'measureInContext',run:_dbgRun,requestedWidth:widthPx,actualBodyW:_mBody.width,actualBodyH:_mBody.height,cloneH:h,mountW:mount.getBoundingClientRect().width})); }
+    // #endregion
     mount.removeChild(ctx.page);
     ctx.body.innerHTML = '';
     mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
@@ -2283,10 +2286,16 @@
       var elLh = getElementLineHeightPx(el);
       var minOrphanH = minOrphan * elLh;
       var offset = startOffset;
+      // #region agent log
+      console.log('[DBG86970d]', JSON.stringify({loc:'splitContinuation:entry',run:_dbgRun,blockId:el.dataset&&el.dataset.blockId,totalH:totalH,startOffset:startOffset,w:w,elLh:elLh,pageHPx:pageHPx,marginTolPx:marginTolPx,minOrphan:minOrphan}));
+      // #endregion
       while (offset < totalH) {
         var rem = totalH - offset;
         var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx, 0, 0, elLh);
         if (rem <= snap.h) {
+          // #region agent log
+          console.log('[DBG86970d]', JSON.stringify({loc:'splitContinuation:lastPiece',run:_dbgRun,blockId:el.dataset&&el.dataset.blockId,offset:offset,rem:rem,snapH:snap.h,totalH:totalH}));
+          // #endregion
           curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom', elLh)];
           curHeights = [rem];
           curGaps = [0];
@@ -2325,6 +2334,9 @@
       var el = item.el;
       var h = measureInContext(el, widthPx);
       var gap = 0, gapFlex = false;
+      // #region agent log
+      if (item.splittable) { console.log('[DBG86970d]', JSON.stringify({loc:'paginateFlow',run:_dbgRun,blockId:el.dataset&&el.dataset.blockId,measuredH:h,widthPx:widthPx,pageHPx:pageHPx,marginTolPx:marginTolPx,flowIdx:i})); }
+      // #endregion
 
       if (curEls.length > 0) {
         if (item.internalGapPx != null && item.internalGapPx >= 0) {
@@ -2687,12 +2699,18 @@
 
   
 
+  var _debugRenderCount = 0;
   async function renderPreview() {
-    if (document.fonts && document.fonts.ready) await document.fonts.ready;
     var root = document.getElementById('previewPages');
     var store = document.getElementById('bookletPageStore');
     if (!root) return;
     var myTok = ++previewToken;
+    _debugRenderCount++;
+    var _dbgRun = 'render_' + _debugRenderCount;
+    measureInContext._logged = false;
+    // #region agent log
+    console.log('[DBG86970d]', JSON.stringify({loc:'renderPreview',run:_dbgRun,renderCount:_debugRenderCount}));
+    // #endregion
     var size = state.settings.pageSize;
     var prevHost = root.querySelector('.booklet-spread-host');
     if (prevHost && prevHost._bookletCleanup) prevHost._bookletCleanup();
@@ -2786,6 +2804,23 @@
     if (selectedBlockId) {
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     }
+    // #region agent log
+    setTimeout(function () {
+      var _dbgClips = root.querySelectorAll('.booklet-clip-bottom');
+      var _dbgData = [];
+      _dbgClips.forEach(function (c) {
+        var containerH = c.getBoundingClientRect().height;
+        var clone = c.querySelector(':scope > [style*="position"]');
+        var cloneRect = clone ? clone.getBoundingClientRect() : null;
+        var visibleBottom = cloneRect ? (cloneRect.bottom - c.getBoundingClientRect().top) : null;
+        _dbgData.push({ blockId: c.dataset.blockId, containerH: containerH, cloneBottom: visibleBottom, containerStyleH: c.style.height });
+      });
+      var _dbgBodies = root.querySelectorAll('.booklet-page-body');
+      var _dbgWidths = [];
+      _dbgBodies.forEach(function (b, i) { _dbgWidths.push({ page: i, bodyW: b.getBoundingClientRect().width }); });
+      console.log('[DBG86970d]', JSON.stringify({loc:'postRender',run:_dbgRun,computedWidthPx:widthPx,pageBodyWidths:_dbgWidths,clipBottoms:_dbgData}));
+    }, 300);
+    // #endregion
 
   }
 
