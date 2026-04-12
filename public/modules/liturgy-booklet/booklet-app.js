@@ -127,6 +127,47 @@
     blocks: [],
   };
 
+  function getDefaultState() {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      projectTitle: '',
+      settings: {
+        pageSize: 'A4',
+        marginMm: DEFAULT_BOOKLET_MARGIN_MM,
+        marginTopMm: DEFAULT_BOOKLET_MARGIN_MM,
+        marginBottomMm: DEFAULT_BOOKLET_MARGIN_MM,
+        marginLeftMm: DEFAULT_BOOKLET_MARGIN_MM,
+        marginRightMm: DEFAULT_BOOKLET_MARGIN_MM,
+        sectionGapMm: DEFAULT_SECTION_GAP_AFTER_MM,
+        gapTolerancePx: GAP_FLEX_PX,
+        marginTolerancePx: MARGIN_TOLERANCE_PX,
+        minOrphanLines: 3,
+        descClipPx: 3,
+        ascClipPx: 3,
+        dropCapOffsetEm: 0.05,
+        previewDisplay: 'scroll',
+        fontFamilyKey: BOOKLET_DEFAULT_FONT,
+        rubricColor: '#8b1538',
+      },
+      blocks: [],
+    };
+  }
+
+  function hasUnsavedWork() {
+    return state.blocks.length > 0 || (state.projectTitle && state.projectTitle.trim() !== '');
+  }
+
+  function resetToNewProject() {
+    state = getDefaultState();
+    selectedBlockId = null;
+    applyCssVars();
+    syncControlsFromState();
+    scheduleAutosave();
+    renderBlockList();
+    renderEditor();
+    scheduleRenderPreview();
+  }
+
   function getSetting(key, fallback) {
     var v = state.settings[key];
     return v != null && Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -2700,13 +2741,14 @@
   
 
   var _debugRenderCount = 0;
+  var _dbgRun = '';
   async function renderPreview() {
     var root = document.getElementById('previewPages');
     var store = document.getElementById('bookletPageStore');
     if (!root) return;
     var myTok = ++previewToken;
     _debugRenderCount++;
-    var _dbgRun = 'render_' + _debugRenderCount;
+    _dbgRun = 'render_' + _debugRenderCount;
     measureInContext._logged = false;
     // #region agent log
     console.log('[DBG86970d]', JSON.stringify({loc:'renderPreview',run:_dbgRun,renderCount:_debugRenderCount}));
@@ -4337,6 +4379,31 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
+
+    (function bindNewProject() {
+      var modalEl = document.getElementById('modalNewProject');
+      if (!modalEl) return;
+      var modal = new bootstrap.Modal(modalEl);
+
+      document.getElementById('btnNewProject')?.addEventListener('click', function () {
+        if (hasUnsavedWork()) {
+          modal.show();
+        } else {
+          resetToNewProject();
+        }
+      });
+
+      document.getElementById('btnNewProjectDiscard')?.addEventListener('click', function () {
+        modal.hide();
+        resetToNewProject();
+      });
+
+      document.getElementById('btnNewProjectSave')?.addEventListener('click', async function () {
+        modal.hide();
+        await downloadJson();
+        resetToNewProject();
+      });
+    })();
     document.getElementById('btnRefreshLayout')?.addEventListener('click', () => {
       scheduleRenderPreview();
     });

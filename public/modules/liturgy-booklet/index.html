@@ -791,6 +791,7 @@
                     <input type="text" id="inpProjectTitle" class="form-control form-control-sm" style="min-width: 12rem; max-width: 22rem" placeholder="e.g. Easter Vigil 2026" title="Shown in filenames when you save">
                 </label>
                 <div class="vr d-none d-md-block"></div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnNewProject" title="Start a new blank project"><i class="bi bi-file-earmark-plus me-1"></i>New project</button>
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-primary" id="btnSaveProject" title="Download project JSON"><i class="bi bi-download me-1"></i>Save project</button>
                     <button type="button" class="btn btn-outline-primary" id="btnLoadProject"><i class="bi bi-upload me-1"></i>Load project</button>
@@ -971,6 +972,25 @@
     <div id="bookletMeasureMount" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;"></div>
 
     <input type="file" id="fileImagePick" accept="image/*" class="d-none">
+
+    <div class="modal fade" id="modalNewProject" tabindex="-1" aria-labelledby="modalNewProjectLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modalNewProjectLabel">Unsaved changes</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body small">
+                    Your current project has unsaved content. Would you like to save it first?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btnNewProjectDiscard">Don't save</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnNewProjectSave"><i class="bi bi-download me-1"></i>Save first</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="/vendor/jgabc/jquery.min.js"></script>
     <script src="/vendor/jgabc/exsurge.min.js"></script>
