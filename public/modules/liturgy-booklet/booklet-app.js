@@ -2117,11 +2117,6 @@
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
     container.setAttribute('aria-hidden', 'true');
-    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? 2 : 0;
-    var insetBot = (clipClass === 'booklet-clip-top' || clipClass === 'booklet-clip-mid') ? 2 : 0;
-    if (insetTop || insetBot) {
-      container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
-    }
     var clone = el.cloneNode(true);
     clone.style.position = 'relative';
     clone.style.top = (-fromPx) + 'px';
@@ -2154,6 +2149,7 @@
     var marginTolPx = getSetting('marginTolerancePx', MARGIN_TOLERANCE_PX);
     var defaultGapMm = getSetting('sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
     var pendingGapMm = defaultGapMm;
+    var minOrphan = getSetting('minOrphanLines', 3);
 
     function numFlexGaps() {
       var n = 0;
@@ -2253,6 +2249,7 @@
 
     function splitContinuation(el, totalH, startOffset, w) {
       var elLh = getElementLineHeightPx(el);
+      var minOrphanH = minOrphan * elLh;
       var offset = startOffset;
       while (offset < totalH) {
         var rem = totalH - offset;
@@ -2265,6 +2262,11 @@
           break;
         }
         var sliceH = snap.h;
+        var afterRem = totalH - offset - sliceH;
+        if (afterRem > 0 && afterRem < minOrphanH && sliceH > minOrphanH) {
+          var pullLines = minOrphan - Math.max(0, Math.floor(afterRem / elLh));
+          sliceH = Math.max(elLh, sliceH - pullLines * elLh);
+        }
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
         var clip = createClippedView(el, offset, offset + sliceH, w, cls, elLh);
         var padBot = Math.max(-marginTolPx, pageHPx - sliceH);
@@ -2323,6 +2325,7 @@
         if (maxRemaining >= 60) {
           var offsets = measureBlockOffsets(el, widthPx);
           var elLineH = getElementLineHeightPx(el);
+          var minOrphanH = minOrphan * elLineH;
           var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
 
@@ -2336,6 +2339,10 @@
             var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
             if (snap.h < 20) continue;
             var splitH = Math.min(snap.h, h);
+            var textInFirst = splitH - (offsets.header || 0) - (offsets.footer || 0);
+            var remainder = h - splitH;
+            if (textInFirst < minOrphanH && splitH < h) continue;
+            if (remainder > 0 && remainder < minOrphanH) continue;
             var total = above + splitH;
             var absPad = Math.abs(pageHPx - total);
 
@@ -3038,7 +3045,13 @@
       div.addEventListener('mousedown', function (e) {
         if (e.target.closest('.booklet-block-actions')) return;
         if (e.button !== 0) return;
-        e.preventDefault();
+        var active = document.activeElement;
+        if (active && active.getAttribute('contenteditable') === 'true') {
+          active.blur();
+        }
+      });
+      div.addEventListener('click', function (e) {
+        if (e.target.closest('.booklet-block-actions')) return;
         selectedBlockId = b.id;
         var edP = document.getElementById('bookletEditorPane');
         if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
