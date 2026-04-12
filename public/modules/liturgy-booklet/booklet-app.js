@@ -438,14 +438,6 @@
         parts.push('text-align-last:' + vl);
       }
     }
-    const ff = st.match(/font-family\s*:\s*([^;]+)/i);
-    if (ff) {
-      var rawFF = ff[1].trim();
-      var familyName = rawFF.replace(/^['"]|['"]$/g, '').replace(/,.*$/, '').trim();
-      if (BOOKLET_FONT_STACKS[familyName] != null) {
-        parts.push('font-family:' + fontStackFor(familyName));
-      }
-    }
     const fw = st.match(/font-weight\s*:\s*([^;]+)/i);
     if (fw) {
       var vw = fw[1].trim().toLowerCase();
@@ -1183,7 +1175,9 @@
       }
       if (o.type === 'reading') {
         if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
-        if (o.useDropCap === undefined) o.useDropCap = false;
+        if (o.dropCapOriginal === undefined) o.dropCapOriginal = !!o.useDropCap;
+        if (o.dropCapTranslation === undefined) o.dropCapTranslation = false;
+        delete o.useDropCap;
       }
       if (o.type === 'chant_gabc') {
         const cd = chantD || {};
@@ -1269,6 +1263,10 @@
         o.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
         const lc = String(o.titleLineColor || '#adb5bd').trim();
         o.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
+        if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
+        if (o.titleBold === undefined) o.titleBold = false;
+        if (o.titleItalic === undefined) o.titleItalic = false;
+        if (o.titleSmallCaps === undefined) o.titleSmallCaps = true;
       }
       return o;
     });
@@ -1900,12 +1898,12 @@
           tdL.style.borderRight = '1px solid #adb5bd';
         }
         const innerL = document.createElement('div');
-        innerL.className = 'booklet-richtext reading' + (b.useDropCap ? ' booklet-drop-cap' : '');
+        innerL.className = 'booklet-richtext reading' + (b.dropCapOriginal ? ' booklet-drop-cap' : '');
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
         innerL.appendChild(sanitizeToFragment(b.text || ''));
         const innerR = document.createElement('div');
-        innerR.className = 'booklet-richtext reading';
+        innerR.className = 'booklet-richtext reading' + (b.dropCapTranslation ? ' booklet-drop-cap' : '');
         innerR.style.fontSize = (b.translationFontSizePt || 11) + 'pt';
         innerR.style.lineHeight = _lhPt;
         innerR.appendChild(sanitizeToFragment(b.translation || ''));
@@ -1918,7 +1916,7 @@
       } else {
         appendSectionHeading(wrap, b);
         const p = document.createElement('div');
-        p.className = 'reading booklet-richtext' + (b.useDropCap ? ' booklet-drop-cap' : '');
+        p.className = 'reading booklet-richtext' + (b.dropCapOriginal ? ' booklet-drop-cap' : '');
         p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         p.style.lineHeight = _lhPt;
         p.appendChild(sanitizeToFragment(b.text || ''));
@@ -1962,6 +1960,11 @@
       const textEl = document.createElement('span');
       textEl.className = 'booklet-title-rule-text';
       textEl.textContent = String(b.text || '').trim();
+      if (b.titleFontSizePt) textEl.style.fontSize = b.titleFontSizePt + 'pt';
+      if (b.titleBold) textEl.style.fontWeight = 'bold';
+      if (b.titleItalic) textEl.style.fontStyle = 'italic';
+      if (b.titleSmallCaps !== false) textEl.style.fontVariant = 'small-caps';
+      else textEl.style.fontVariant = 'normal';
       const fk = (b.titleFontKey && BOOKLET_FONT_STACKS[b.titleFontKey] != null)
           ? b.titleFontKey
           : (state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT);
@@ -2114,9 +2117,8 @@
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
     container.setAttribute('aria-hidden', 'true');
-    var descenderClear = lineHPx ? Math.ceil(lineHPx * 0.18) : 3;
-    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? descenderClear : 0;
-    var insetBot = (clipClass === 'booklet-clip-top' || clipClass === 'booklet-clip-mid') ? 1 : 0;
+    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? 2 : 0;
+    var insetBot = (clipClass === 'booklet-clip-top' || clipClass === 'booklet-clip-mid') ? 2 : 0;
     if (insetTop || insetBot) {
       container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
     }
@@ -2419,7 +2421,8 @@
     var vp = host.querySelector('.booklet-spread-viewport');
     var vpW = vp ? vp.clientWidth : host.clientWidth;
     var slotW = Math.floor((vpW - 2) / 2);
-    var slotH = vp ? vp.clientHeight : slots[0].clientHeight;
+    var vpH = vp ? vp.clientHeight : host.clientHeight;
+    var slotH = Math.max(vpH - 4, 100);
     if (slotW <= 100 || slotH <= 100) {
       setTimeout(function () { scaleBookletSpread(host); }, 250);
       return;
@@ -2802,7 +2805,6 @@
         '</div>' +
       '</div>' +
       '<div class="d-flex flex-wrap align-items-center" style="gap:2px 4px">' +
-        '<select class="form-select form-select-sm" data-rich-family-select style="max-width:8.5rem;font-size:0.68rem;padding:1px 18px 1px 4px;height:1.55rem" title="Font family">' + fontOpts + '</select>' +
         '<input type="color" class="booklet-rich-color-pick" value="#212529" title="Text colour" style="width:1.55rem;height:1.55rem;padding:1px;border-radius:3px">' +
         '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.6rem;line-height:1.3;height:1.55rem" data-toggle-special="' + uid + '" title="Special characters">' +
           '<i class="bi bi-chevron-right" style="font-size:0.5rem"></i> \u266D' +
@@ -2986,7 +2988,7 @@
       var textEl = document.createElement('span');
       textEl.className = 'booklet-block-preview-text';
       textEl.textContent = meta.noIcon ? ('— ' + line + ' —') : line;
-      if (b.type === 'title') textEl.style.fontVariant = 'small-caps';
+      if (b.type === 'title' && b.titleSmallCaps !== false) textEl.style.fontVariant = 'small-caps';
 
       var actions = document.createElement('span');
       actions.className = 'booklet-block-actions';
@@ -3033,8 +3035,10 @@
       if (badge) div.appendChild(badge);
       div.appendChild(textEl);
       div.appendChild(actions);
-      div.addEventListener('click', function (e) {
+      div.addEventListener('mousedown', function (e) {
         if (e.target.closest('.booklet-block-actions')) return;
+        if (e.button !== 0) return;
+        e.preventDefault();
         selectedBlockId = b.id;
         var edP = document.getElementById('bookletEditorPane');
         if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
@@ -3108,8 +3112,20 @@
         : '#adb5bd';
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
-        <label class="form-label small mb-1" for="edTitleText" title="Centered small caps with horizontal rules to the margins.">Title text</label>
+        <label class="form-label small mb-1" for="edTitleText">Title text</label>
         <input type="text" class="form-control form-control-sm mb-2" id="edTitleText" value="${escapeAttr(b.text || '')}" placeholder="e.g. Kyrie">
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Size pt</span>
+            <input type="number" class="form-control form-control-sm" id="edTitleSizePt" min="6" max="36" step="0.5" value="${b.titleFontSizePt || 11}"></label>
+          <div>
+            <span class="form-label small mb-0 d-block">Style</span>
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-light border py-0 px-1 ${b.titleBold ? 'active' : ''}" id="btnTitleBold" title="Bold"><strong>B</strong></button>
+              <button type="button" class="btn btn-light border py-0 px-1 ${b.titleItalic ? 'active' : ''}" id="btnTitleItalic" title="Italic"><em>I</em></button>
+              <button type="button" class="btn btn-light border py-0 px-1 ${b.titleSmallCaps !== false ? 'active' : ''}" id="btnTitleSC" title="Small caps" style="font-variant:small-caps;font-size:0.72rem">Sc</button>
+            </div>
+          </div>
+        </div>
         <label class="form-label small mb-1" for="edTitleFont">Font</label>
         <select id="edTitleFont" class="form-select form-select-sm mb-2">${fontOpts}</select>
         <div class="row g-2 mb-0">
@@ -3126,6 +3142,11 @@
       const syncTitle = function () {
         b.text = panel.querySelector('#edTitleText').value;
         b.titleFontKey = panel.querySelector('#edTitleFont').value;
+        var pts = parseFloat(panel.querySelector('#edTitleSizePt').value);
+        b.titleFontSizePt = Number.isFinite(pts) ? Math.min(36, Math.max(6, pts)) : 11;
+        b.titleBold = panel.querySelector('#btnTitleBold').classList.contains('active');
+        b.titleItalic = panel.querySelector('#btnTitleItalic').classList.contains('active');
+        b.titleSmallCaps = panel.querySelector('#btnTitleSC').classList.contains('active');
         const tc = panel.querySelector('#edTitleTextCol').value;
         b.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
         const lc = panel.querySelector('#edTitleLineCol').value;
@@ -3135,9 +3156,17 @@
         renderBlockList();
       };
       panel.querySelector('#edTitleText').addEventListener('input', syncTitle);
+      panel.querySelector('#edTitleSizePt').addEventListener('input', syncTitle);
       panel.querySelector('#edTitleFont').addEventListener('change', syncTitle);
       panel.querySelector('#edTitleTextCol').addEventListener('input', syncTitle);
       panel.querySelector('#edTitleLineCol').addEventListener('input', syncTitle);
+      ['btnTitleBold', 'btnTitleItalic', 'btnTitleSC'].forEach(function(id) {
+        var btn = panel.querySelector('#' + id);
+        if (btn) btn.addEventListener('click', function() {
+          btn.classList.toggle('active');
+          syncTitle();
+        });
+      });
       wireEditorSectionLayout(panel, b, true, false);
       return;
     }
@@ -3204,18 +3233,22 @@
         <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
           <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
             <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
-          <div class="form-check ms-2 mb-0">
-            <input class="form-check-input" type="checkbox" id="chkReadDropCap" ${b.useDropCap ? 'checked' : ''}>
-            <label class="form-check-label small" for="chkReadDropCap">Drop cap</label>
-          </div>
         </div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
+          <div class="form-check form-check-inline ms-2 mb-0">
+            <input class="form-check-input" type="checkbox" id="chkDropCapOrig" ${b.dropCapOriginal ? 'checked' : ''}>
+            <label class="form-check-label small" for="chkDropCapOrig">Drop cap</label>
+          </div>
           <label class="ms-auto d-flex align-items-center gap-1"><small class="text-muted">pt</small>
             <input type="number" class="form-control form-control-sm" id="edReadOrigSize" min="6" max="36" step="0.5" value="${b.bodyFontSizePt || 11}" style="width:4rem"></label>
         </div>
         ${richToolbarHtml('read-tb-orig')}
         <div class="form-control form-control-sm booklet-rich-ed mb-1" contenteditable="true" id="edReadOrig"></div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Translation</small><small class="text-muted">(parallel when filled)</small>
+          <div class="form-check form-check-inline ms-2 mb-0">
+            <input class="form-check-input" type="checkbox" id="chkDropCapTrans" ${b.dropCapTranslation ? 'checked' : ''}>
+            <label class="form-check-label small" for="chkDropCapTrans">Drop cap</label>
+          </div>
           <label class="ms-auto d-flex align-items-center gap-1"><small class="text-muted">pt</small>
             <input type="number" class="form-control form-control-sm" id="edReadTransSize" min="6" max="36" step="0.5" value="${b.translationFontSizePt || 11}" style="width:4rem"></label>
         </div>
@@ -3253,7 +3286,8 @@
         b.bodyFontSizePt = Number.isFinite(os) ? Math.min(36, Math.max(6, os)) : 11;
         var trs = parseFloat(panel.querySelector('#edReadTransSize').value);
         b.translationFontSizePt = Number.isFinite(trs) ? Math.min(36, Math.max(6, trs)) : 11;
-        b.useDropCap = !!panel.querySelector('#chkReadDropCap')?.checked;
+        b.dropCapOriginal = !!panel.querySelector('#chkDropCapOrig')?.checked;
+        b.dropCapTranslation = !!panel.querySelector('#chkDropCapTrans')?.checked;
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -3265,7 +3299,8 @@
       panel.querySelector('#edReadLineHeight').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadOrigSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
-      panel.querySelector('#chkReadDropCap').addEventListener('change', pushMetaRead);
+      panel.querySelector('#chkDropCapOrig')?.addEventListener('change', pushMetaRead);
+      panel.querySelector('#chkDropCapTrans')?.addEventListener('change', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;

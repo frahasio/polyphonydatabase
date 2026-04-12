@@ -252,14 +252,19 @@
         .block-list-item[draggable="true"] { cursor: grab; }
         .block-list-item[draggable="true"]:active { cursor: grabbing; }
         .block-list-dragging .booklet-insert-zone {
-            height: 18px;
-            opacity: 1;
+            height: 6px;
+            opacity: 0;
+            transition: height 0.1s, opacity 0.1s;
         }
         .block-list-dragging .booklet-insert-zone .booklet-insert-btn { display: none; }
         .block-list-dragging .booklet-insert-zone .booklet-insert-line {
             height: 2px;
             background: #c3e6cb;
             border-radius: 1px;
+        }
+        .block-list-dragging .booklet-insert-zone.drag-over-zone {
+            height: 14px;
+            opacity: 1;
         }
         .booklet-insert-zone.drag-over-zone .booklet-insert-line {
             height: 3px;
@@ -427,9 +432,10 @@
         .booklet-drop-cap::first-letter {
             float: left;
             font-size: 2.4em;
-            line-height: 1;
-            padding-right: 0.08em;
-            font-weight: bold;
+            line-height: 0.8;
+            padding-right: 0.06em;
+            margin-right: 0.02em;
+            font-weight: inherit;
         }
         .booklet-richtext p {
             margin: 0;
@@ -574,6 +580,9 @@
         .booklet-block-row {
             margin-bottom: 0.2rem;
         }
+        #blockList {
+            padding-bottom: 8rem;
+        }
         
         .booklet-page img.user-img {
             max-width: 100%;
@@ -596,9 +605,7 @@
         }
         .booklet-title-rule-text {
             flex: 0 1 auto;
-            font-variant: small-caps;
             letter-spacing: 0.06em;
-            font-size: 1.06em;
             text-align: center;
             white-space: normal;
             max-width: 88%;
@@ -653,6 +660,7 @@
             gap: 0.5rem;
             flex: 1 1 auto;
             min-height: 0;
+            overflow: hidden;
         }
         .booklet-spread-nav {
             display: flex;
@@ -825,8 +833,6 @@
                     <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 300px;">
                         <li><h6 class="dropdown-header px-2 mb-1">Ben Bloomfield's suite of GABC tools</h6></li>
                         <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Mass propers (jgabc)</a></li>
-                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/ordinaries.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Mass ordinaries (jgabc)</a></li>
-                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/hymns.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Hymns (jgabc)</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="https://www.sourceandsummit.com/editor/alpha/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Source &amp; Summit chant editor</a></li>
                         <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Exsurge chant renderer (GitHub)</a></li>
