@@ -441,8 +441,8 @@
                 The Polyphony Database
             </a>
             <div class="d-flex align-items-center gap-2 text-white">
-                <a id="bookletNavLink" href="/booklet" class="admin-link" style="display: none;" title="Liturgy booklet creator (signed in)">
-                    <i class="bi bi-journal-richtext me-1"></i>Liturgy booklet
+                <a id="bookletNavLink" href="/booklet" class="admin-link d-none d-md-inline-flex" title="Liturgy booklet creator">
+                    <i class="bi bi-journal-richtext me-1"></i>Liturgy booklet <span class="badge bg-warning text-dark ms-1" style="font-size: 0.6em;">BETA</span>
                 </a>
                 <small class="navbar-text text-white mb-0">
                     <i class="bi bi-envelope me-1"></i>
@@ -901,7 +901,13 @@
             await checkAuthStatus();
             const bookletNav = document.getElementById('bookletNavLink');
             if (bookletNav) {
-                bookletNav.style.display = isUserLoggedIn ? 'inline-flex' : 'none';
+                bookletNav.addEventListener('click', function(e) {
+                    if (!isUserLoggedIn) {
+                        e.preventDefault();
+                        var modal = new bootstrap.Modal(document.getElementById('bookletInfoModal'));
+                        modal.show();
+                    }
+                });
             }
             initializeInterface();
             // Ensure SVG clef files are loaded before rendering explainer icons
@@ -2511,5 +2517,29 @@
 
 
     </script>
+
+    <!-- Booklet info modal for unauthenticated users -->
+    <div class="modal fade" id="bookletInfoModal" tabindex="-1" aria-labelledby="bookletInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bookletInfoModalLabel"><i class="bi bi-journal-richtext me-2"></i>Liturgy Booklet Creator</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>The Liturgy Booklet Creator lets you build beautiful worship booklets with chant notation, readings, rubrics, and edition PDFs — all laid out automatically for print.</p>
+                    <div class="text-center my-3">
+                        <img id="bookletScreenshot" src="" alt="Booklet creator screenshot" class="img-fluid rounded border" style="max-height: 280px; display: none;">
+                        <p class="text-muted small mt-1" id="bookletScreenshotPlaceholder"><em>Screenshot coming soon</em></p>
+                    </div>
+                    <p class="mb-0">Sign up for a free account to get started.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="/admin/register" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create account</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

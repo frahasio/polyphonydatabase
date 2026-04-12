@@ -282,14 +282,13 @@
     footer.style.fontSize = '7.5pt';
     footer.style.lineHeight = '1.35';
     footer.style.color = '#6c757d';
+    footer.style.textAlign = 'center';
     const credits = collectCatalogueEditionCredits(state.blocks);
-    const parts = [
-      'Generated at polyphonydatabase.com (Polyphony Database).',
-    ];
+    var creditsSuffix = '';
     if (credits.length) {
-      parts.push('Edition credits: ' + credits.join(', ') + '.');
+      creditsSuffix = ' Edition credits: ' + escapeHtml(credits.join(', ')) + '.';
     }
-    footer.textContent = parts.join(' ');
+    footer.innerHTML = 'Generated at <a href="https://polyphonydatabase.com" style="color:#6c757d;text-decoration:underline">PolyphonyDatabase.com</a>' + creditsSuffix;
     inner.appendChild(footer);
   }
 
@@ -621,6 +620,7 @@
     return frag;
   }
 
+  var versiculumReverseMap = { v: '\\V.', r: '\\R.', a: '\\A.', '+': '\\+' };
   function initialRichHtmlForEditor(stored) {
     const s = stored || '';
     if (!s.trim()) return '<br>';
@@ -629,6 +629,11 @@
     }
     const w = document.createElement('div');
     w.appendChild(sanitizeToFragment(s));
+    w.querySelectorAll('.versiculum').forEach(function(sp) {
+      var text = (sp.textContent || '').trim();
+      var code = versiculumReverseMap[text] || text;
+      sp.replaceWith(document.createTextNode(code));
+    });
     const h = w.innerHTML;
     return h.trim() ? h : '<br>';
   }
@@ -973,12 +978,14 @@
         onChange();
       });
     }
+    var richInsertShortcodeMap = { v: '\\V.', r: '\\R.', a: '\\A.', '+': '\\+' };
     toolbarRoot.querySelectorAll('[data-rich-insert]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         restoreSelection();
         var glyph = btn.getAttribute('data-rich-insert');
+        var code = richInsertShortcodeMap[glyph] || glyph;
         try {
-          document.execCommand('insertHTML', false, '<span class="versiculum">' + glyph + '</span>');
+          document.execCommand('insertText', false, code);
         } catch (_) {}
         onChange();
       });
@@ -1176,6 +1183,7 @@
       }
       if (o.type === 'reading') {
         if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
+        if (o.useDropCap === undefined) o.useDropCap = false;
       }
       if (o.type === 'chant_gabc') {
         const cd = chantD || {};
@@ -1892,7 +1900,7 @@
           tdL.style.borderRight = '1px solid #adb5bd';
         }
         const innerL = document.createElement('div');
-        innerL.className = 'booklet-richtext reading';
+        innerL.className = 'booklet-richtext reading' + (b.useDropCap ? ' booklet-drop-cap' : '');
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
         innerL.appendChild(sanitizeToFragment(b.text || ''));
@@ -1910,7 +1918,7 @@
       } else {
         appendSectionHeading(wrap, b);
         const p = document.createElement('div');
-        p.className = 'reading booklet-richtext';
+        p.className = 'reading booklet-richtext' + (b.useDropCap ? ' booklet-drop-cap' : '');
         p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         p.style.lineHeight = _lhPt;
         p.appendChild(sanitizeToFragment(b.text || ''));
@@ -2022,7 +2030,9 @@
         for (var li = 0; li < lines.length; li++) {
           lines[li].dataset.blockId = b.id;
           var isLast = li === lines.length - 1;
-          out.push({ t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0, internalGapPx: li > 0 ? chantVGapPx : 0 });
+          var flowItem = { t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0 };
+          if (li > 0) flowItem.internalGapPx = chantVGapPx;
+          out.push(flowItem);
         }
         continue;
       }
@@ -2096,7 +2106,7 @@
     return snapped > 0 ? snapped : targetPx;
   }
 
-  function createClippedView(el, fromPx, toPx, widthPx, clipClass) {
+  function createClippedView(el, fromPx, toPx, widthPx, clipClass, lineHPx) {
     var container = document.createElement('div');
     container.className = 'booklet-clip-container' + (clipClass ? ' ' + clipClass : '');
     container.style.width = '100%';
@@ -2104,7 +2114,8 @@
     container.style.overflow = 'hidden';
     container.style.position = 'relative';
     container.setAttribute('aria-hidden', 'true');
-    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? 1 : 0;
+    var descenderClear = lineHPx ? Math.ceil(lineHPx * 0.18) : 3;
+    var insetTop = (clipClass === 'booklet-clip-bottom' || clipClass === 'booklet-clip-mid') ? descenderClear : 0;
     var insetBot = (clipClass === 'booklet-clip-top' || clipClass === 'booklet-clip-mid') ? 1 : 0;
     if (insetTop || insetBot) {
       container.style.clipPath = 'inset(' + insetTop + 'px 0 ' + insetBot + 'px 0)';
@@ -2245,7 +2256,7 @@
         var rem = totalH - offset;
         var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx, 0, 0, elLh);
         if (rem <= snap.h) {
-          curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom')];
+          curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom', elLh)];
           curHeights = [rem];
           curGaps = [0];
           curGapFlex = [false];
@@ -2253,7 +2264,7 @@
         }
         var sliceH = snap.h;
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
-        var clip = createClippedView(el, offset, offset + sliceH, w, cls);
+        var clip = createClippedView(el, offset, offset + sliceH, w, cls, elLh);
         var padBot = Math.max(-marginTolPx, pageHPx - sliceH);
         pushPage([clip], [0], 0, padBot);
         offset += sliceH;
@@ -2335,7 +2346,7 @@
           }
 
           if (best && best.splitH >= 20) {
-            var clipTop = createClippedView(el, 0, best.splitH, widthPx, 'booklet-clip-top');
+            var clipTop = createClippedView(el, 0, best.splitH, widthPx, 'booklet-clip-top', elLineH);
             var adjGaps = buildAdjGaps(best.dt);
             adjGaps.push(best.gAdj);
             var els = curEls.slice();
@@ -2407,7 +2418,7 @@
     if (slots.length !== 2) return;
     var vp = host.querySelector('.booklet-spread-viewport');
     var vpW = vp ? vp.clientWidth : host.clientWidth;
-    var slotW = Math.floor((vpW - 4) / 2);
+    var slotW = Math.floor((vpW - 2) / 2);
     var slotH = vp ? vp.clientHeight : slots[0].clientHeight;
     if (slotW <= 100 || slotH <= 100) {
       setTimeout(function () { scaleBookletSpread(host); }, 250);
@@ -3193,6 +3204,10 @@
         <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
           <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
             <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
+          <div class="form-check ms-2 mb-0">
+            <input class="form-check-input" type="checkbox" id="chkReadDropCap" ${b.useDropCap ? 'checked' : ''}>
+            <label class="form-check-label small" for="chkReadDropCap">Drop cap</label>
+          </div>
         </div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
           <label class="ms-auto d-flex align-items-center gap-1"><small class="text-muted">pt</small>
@@ -3238,6 +3253,7 @@
         b.bodyFontSizePt = Number.isFinite(os) ? Math.min(36, Math.max(6, os)) : 11;
         var trs = parseFloat(panel.querySelector('#edReadTransSize').value);
         b.translationFontSizePt = Number.isFinite(trs) ? Math.min(36, Math.max(6, trs)) : 11;
+        b.useDropCap = !!panel.querySelector('#chkReadDropCap')?.checked;
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -3249,6 +3265,7 @@
       panel.querySelector('#edReadLineHeight').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadOrigSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
+      panel.querySelector('#chkReadDropCap').addEventListener('change', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
@@ -4100,6 +4117,12 @@
       scheduleAutosave();
       switchDisplayMode();
     });
+    var layoutPanel = document.getElementById('layoutSettingsPanel');
+    var layoutBtn = document.getElementById('btnLayoutToggle');
+    if (layoutPanel && layoutBtn) {
+      layoutPanel.addEventListener('shown.bs.collapse', function() { layoutBtn.classList.add('active'); });
+      layoutPanel.addEventListener('hidden.bs.collapse', function() { layoutBtn.classList.remove('active'); });
+    }
     document.getElementById('inpProjectTitle')?.addEventListener('input', (e) => {
       state.projectTitle = e.target.value;
       scheduleAutosave();

@@ -55,12 +55,19 @@
             background: linear-gradient(135deg, #8b1538 0%, #6d1029 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .booklet-toolbar {
-            background: #fff;
-            border-bottom: 1px solid #dee2e6;
+        .booklet-toolbar-group {
             position: sticky;
             top: 0;
             z-index: 1020;
+        }
+        .booklet-toolbar {
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .booklet-toolbar .btn {
+            height: 31px;
+            display: inline-flex;
+            align-items: center;
         }
         .booklet-columns {
             display: flex;
@@ -414,6 +421,15 @@
             font-variant: normal;
             font-style: normal;
             font-weight: normal;
+            line-height: 0;
+            vertical-align: baseline;
+        }
+        .booklet-drop-cap::first-letter {
+            float: left;
+            font-size: 2.4em;
+            line-height: 1;
+            padding-right: 0.08em;
+            font-weight: bold;
         }
         .booklet-richtext p {
             margin: 0;
@@ -650,7 +666,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.35rem;
+            gap: 2px;
             width: 100%;
             max-width: 100%;
             min-height: 0;
@@ -663,7 +679,7 @@
         .booklet-spread-slot {
             flex: 1 1 0;
             width: 50%;
-            max-width: calc(50% - 0.175rem);
+            max-width: calc(50% - 1px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -766,7 +782,7 @@
     <nav class="navbar booklet-navbar py-2 no-print">
         <div class="container-fluid d-flex flex-wrap align-items-center gap-2">
             <a class="navbar-brand text-white mb-0" href="/"><i class="bi bi-arrow-left me-2"></i>Back to database</a>
-            <span class="navbar-text text-white-50 small mb-0">Liturgy booklet creator</span>
+            <span class="navbar-text text-white-50 small mb-0">Liturgy booklet creator <span class="badge bg-warning text-dark ms-1">BETA</span></span>
             <div class="ms-lg-auto">
                 <button type="button" class="btn btn-sm btn-outline-light disabled" id="btnCommunityBooklets" title="Search and load shared booklet JSON projects from other users — coming soon.">
                     <i class="bi bi-people me-1"></i>Community booklets
@@ -775,7 +791,8 @@
         </div>
     </nav>
 
-    <div class="booklet-toolbar py-2 px-3 no-print">
+    <div class="booklet-toolbar-group no-print">
+    <div class="booklet-toolbar py-2 px-3">
         <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <label class="small mb-0 d-flex align-items-center gap-1">
@@ -789,13 +806,15 @@
                 </div>
                 <input type="file" id="fileLoadProject" accept=".json,application/json" class="d-none">
                 <button type="button" class="btn btn-success btn-sm" id="btnDownloadPdf" title="Export as PDF via the server"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
-                <button type="button" class="btn btn-primary btn-sm" id="btnRefreshLayout" title="Recalculate page layout"><i class="bi bi-arrow-clockwise me-1"></i>Refresh layout</button>
-                <div class="form-check form-check-inline ms-2 mb-0">
-                  <input class="form-check-input" type="checkbox" id="chkAutoRefresh" checked>
-                  <label class="form-check-label small" for="chkAutoRefresh">Auto</label>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-primary" id="btnRefreshLayout" title="Recalculate page layout"><i class="bi bi-arrow-clockwise me-1"></i>Refresh layout</button>
+                    <label class="btn btn-outline-primary d-flex align-items-center gap-1 mb-0" title="Auto-refresh on changes">
+                        <input class="form-check-input m-0" type="checkbox" id="chkAutoRefresh" checked>
+                        <span class="small">Auto</span>
+                    </label>
                 </div>
                 <div class="vr d-none d-md-block"></div>
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#layoutSettingsPanel" title="Layout settings"><i class="bi bi-sliders me-1"></i>Layout</button>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#layoutSettingsPanel" title="Layout settings" id="btnLayoutToggle"><i class="bi bi-sliders me-1"></i>Layout</button>
                 <div class="btn-group btn-group-sm" id="btnGroupPreviewDisplay">
                     <button type="button" class="btn btn-outline-secondary active" data-view="scroll" title="Scroll pages"><i class="bi bi-file-text me-1"></i>Pages</button>
                     <button type="button" class="btn btn-outline-secondary" data-view="booklet" title="Facing pages"><i class="bi bi-book me-1"></i>Spreads</button>
@@ -803,17 +822,23 @@
                 
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">Useful tools</button>
-                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 280px;">
+                    <ul class="dropdown-menu dropdown-menu-end p-2 small" style="min-width: 300px;">
+                        <li><h6 class="dropdown-header px-2 mb-1">Ben Bloomfield's suite of GABC tools</h6></li>
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Mass propers (jgabc)</a></li>
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/ordinaries.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Mass ordinaries (jgabc)</a></li>
+                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/hymns.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Hymns (jgabc)</a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="https://www.sourceandsummit.com/editor/alpha/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Source &amp; Summit chant editor</a></li>
-                        <li><a class="dropdown-item" href="https://bbloomf.github.io/jgabc/propers.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Ben Bloomfield's Mass propers (jgabc)</a></li>
                         <li><a class="dropdown-item" href="https://github.com/frmatthew/exsurge" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-2"></i>Exsurge chant renderer (GitHub)</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="mailto:polyphonydatabase@gmail.com"><i class="bi bi-envelope me-2"></i>Report a bug / send feedback</a></li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="collapse no-print" id="layoutSettingsPanel">
+    <div class="collapse" id="layoutSettingsPanel">
         <div class="bg-light border-bottom px-3 py-2">
             <div class="container-fluid">
                 <div class="d-flex flex-wrap align-items-end gap-3 small">
@@ -905,6 +930,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /.booklet-toolbar-group -->
 
     <div class="booklet-columns">
         <div class="booklet-pane booklet-pane-list no-print" id="bookletSidebar">
