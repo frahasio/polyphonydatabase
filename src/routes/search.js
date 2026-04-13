@@ -184,7 +184,7 @@ router.get('/groups', async (req, res) => {
       // Function to normalize text by removing punctuation but preserving % wildcards
       const normalizeText = (text) => {
         return text.toLowerCase()
-          .replace(/[^a-z0-9\s%]/g, '') // Keep % signs
+          .replace(/[^a-z0-9\s%{}]/g, '') // Keep % signs and {} for literal brace searches like {N}, {psalm}
           .replace(/\s+/g, ' ')
           .trim();
       };
@@ -227,18 +227,18 @@ router.get('/groups', async (req, res) => {
         queryParams.push(`%${variation}%`);
         paramIndex++;
         return `(
-          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]{}/-', '') ILIKE $${p} OR
+          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE $${p} OR
           EXISTS (
             SELECT 1 FROM compositions c2
             JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]{}/-', '') ILIKE $${p}
+            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE $${p}
           ) OR
           EXISTS (
             SELECT 1 FROM compositions c2
             CROSS JOIN LATERAL unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS cid
             JOIN composers comp ON comp.id = cid AND comp.id != 23
             WHERE c2.group_id = g.id
-            AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]{}/-', '') ILIKE $${p}
+            AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]/-', '') ILIKE $${p}
           )
         )`;
       });

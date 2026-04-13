@@ -477,11 +477,11 @@ router.get('/', async (req, res) => {
         if (title.trim()) {
             paramCount++;
             conditions.push(`(
-                TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]{}/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]{}/-', '') OR 
+                TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]/-', '') OR 
                 EXISTS (
                     SELECT 1 FROM compositions c2
                     JOIN titles t2 ON c2.title_id = t2.id
-                    WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]{}/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]{}/-', '')
+                    WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]/-', '')
                 )
             )`);
             params.push(`%${title.trim()}%`);

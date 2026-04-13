@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
 
     const queryParams = [];
     if (searchTerm) {
-      query += ` WHERE TRANSLATE(LOWER(f.name), '.,;:!?"''()[]{}/-', '') ILIKE TRANSLATE(LOWER($1), '.,;:!?"''()[]{}/-', '')`;
+      query += ` WHERE TRANSLATE(LOWER(f.name), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($1), '.,;:!?"''()[]/-', '')`;
       queryParams.push(`%${searchTerm}%`);
     }
 
@@ -430,10 +430,10 @@ router.get('/titles/search', async (req, res) => {
         conditions.push(`t.language IS NULL`);
       } else if (similar === 'true') {
         // Use basic similarity search for finding potential duplicates with punctuation-insensitive matching
-        conditions.push(`TRANSLATE(LOWER(t.text), '.,;:!?"''()[]{}/-', '') ILIKE TRANSLATE(LOWER($${queryParams.length + 1}), '.,;:!?"''()[]{}/-', '')`);
+        conditions.push(`TRANSLATE(LOWER(t.text), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${queryParams.length + 1}), '.,;:!?"''()[]/-', '')`);
         queryParams.push(`%${search}%`);
       } else {
-        conditions.push(`TRANSLATE(LOWER(t.text), '.,;:!?"''()[]{}/-', '') ILIKE TRANSLATE(LOWER($${queryParams.length + 1}), '.,;:!?"''()[]{}/-', '')`);
+        conditions.push(`TRANSLATE(LOWER(t.text), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${queryParams.length + 1}), '.,;:!?"''()[]/-', '')`);
         queryParams.push(`%${search}%`);
       }
     }
