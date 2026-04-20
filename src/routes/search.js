@@ -174,8 +174,13 @@ router.get('/groups', async (req, res) => {
     let queryParams = [];
         let paramIndex = 1;
 
-    // Always exclude groups with no compositions
-    whereConditions.push('EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)');
+    // Always exclude groups with no publicly visible sources
+    whereConditions.push(`EXISTS (
+      SELECT 1 FROM compositions c
+      JOIN inclusions i ON c.id = i.composition_id
+      JOIN sources s ON i.source_id = s.id
+      WHERE c.group_id = g.id AND s.catalogued = true
+    )`);
 
     // Title search - search both group display_title AND composition titles
     if (title.trim()) {
