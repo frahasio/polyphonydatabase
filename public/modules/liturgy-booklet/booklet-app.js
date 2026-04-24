@@ -3027,6 +3027,10 @@
       menu.style.top = (btnRect.bottom + 4) + 'px';
       menu.style.transform = 'none';
       document.body.appendChild(menu);
+      var menuRect = menu.getBoundingClientRect();
+      if (menuRect.bottom > window.innerHeight - 8) {
+        menu.style.top = Math.max(0, btnRect.top - menuRect.height - 4) + 'px';
+      }
       setTimeout(function () {
         if (!menu.parentNode) {
           closeMenu();
