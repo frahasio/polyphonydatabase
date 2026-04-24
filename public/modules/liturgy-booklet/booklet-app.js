@@ -536,8 +536,8 @@
 
     var liturgicalRe = /\\V\.|\\R\.|\\A\.|\\[+]|℣|℟|✠/g;
     var liturgicalMap = {
-      '\\V.': 'v', '\\R.': 'r', '\\A.': 'a', '\\+': '+',
-      '\u2123': 'v', '\u211F': 'r', '\u2720': '+'
+      '\\V.': 'v', '\\R.': 'r', '\\A.': 'a', '\\+': '\u2720',
+      '\u2123': 'v', '\u211F': 'r', '\u2720': '\u2720'
     };
     function expandLiturgical(text) {
       if (!liturgicalRe.test(text)) return document.createTextNode(text);
@@ -655,7 +655,7 @@
     return frag;
   }
 
-  var versiculumReverseMap = { v: '\\V.', r: '\\R.', a: '\\A.', '+': '\\+' };
+  var versiculumReverseMap = { v: '\\V.', r: '\\R.', a: '\\A.', '+': '\\+', '\u2720': '\\+' };
   function initialRichHtmlForEditor(stored) {
     const s = stored || '';
     if (!s.trim()) return '<br>';
@@ -691,7 +691,7 @@
       .replace(/\\V\./g, '<span class="versiculum">v</span>')
       .replace(/\\R\./g, '<span class="versiculum">r</span>')
       .replace(/\\A\./g, '<span class="versiculum">a</span>')
-      .replace(/\\[+]/g, '<span class="versiculum">+</span>')
+      .replace(/\\[+]/g, '<span class="versiculum">\u2720</span>')
       .replace(/\n/g, '<br>');
   }
 
@@ -1073,7 +1073,8 @@
     const glyphMult = Number(b.chantGlyphScale) || 1.4;
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
     const lyricPx = Number(b.chantNeumeSize) || 23;
-    ctxt.setFont(CHANT_TEXT_FONT, lyricPx / 0.9);
+    const glyphRatio = glyphMult / 1.4;
+    ctxt.setFont(CHANT_TEXT_FONT, (lyricPx / 0.9) * glyphRatio);
     const hSpacing = Number(b.chantHorizSpacing) || 1.0;
     ctxt.interSyllabicMultiplier = 2.5 * hSpacing;
     ctxt.minLyricWordSpacing *= hSpacing;
@@ -2910,7 +2911,7 @@
           '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="v" title="Versicle (\\V.)">v</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="r" title="Response (\\R.)">r</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="a" title="Antiphon (\\A.)">a</button>' +
-          '<button type="button" class="btn btn-light border py-0 px-1 versiculum" data-rich-insert="+" title="Cross (\\+)">+</button>' +
+          '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert="+" title="Maltese Cross (\\+)">\u2720</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="\u2020" title="Dagger">\u2020</button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-insert-text="*" title="Asterisk">*</button>' +
         '</div>' +
@@ -3648,7 +3649,7 @@
           <div class="mt-1 pb-1">
           <div class="mb-2" style="font-size:0.72rem">
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Lyric size</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantNeumeSize">${cn}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantNeumeSize" min="8" max="40" step="1" value="${cn}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantGlyphScale">${cg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Music scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantGlyphScale">${cg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Horiz. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantHorizSpacing">${chs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantHorizSpacing" min="0.5" max="2.0" step="0.05" value="${chs}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Vert. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantVertSpacing">${cvs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Drop cap scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantDropCapScale">${cd}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantDropCapScale" min="0.3" max="2.0" step="0.05" value="${cd}"></div>
