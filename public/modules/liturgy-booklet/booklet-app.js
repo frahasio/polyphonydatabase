@@ -1071,6 +1071,7 @@
     var ctxt = new exsurge.ChantContext(exsurge.TextMeasuringStrategy.Canvas);
     ctxt.condenseLineAmount = 1;
     const glyphMult = Number(b.chantGlyphScale) || 1.4;
+    ctxt.scaleDefs = false;
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
     const lyricPx = Number(b.chantNeumeSize) || 23;
     const glyphRatio = glyphMult / 1.4;
