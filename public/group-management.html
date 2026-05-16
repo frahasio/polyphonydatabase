@@ -1588,15 +1588,7 @@
         }
 
         function checkGroupCompatibility() {
-            if (selectedGroups.length < 2) return true;
-
-            const first = selectedGroups[0];
-            return selectedGroups.every(group => 
-                group.voices === first.voices && 
-                group.compositionType === first.compositionType &&
-                group.tone === first.tone &&
-                group.evenOdd === first.evenOdd
-            );
+            return checkDetailedGroupCompatibility().isCompatible;
         }
 
         function checkDetailedGroupCompatibility() {
