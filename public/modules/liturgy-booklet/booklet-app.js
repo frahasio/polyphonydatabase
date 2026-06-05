@@ -2075,12 +2075,18 @@
         continue;
       }
       if (b.type === 'spacer') {
-        var hMm = parseBoundedNumber(b.heightMm, 1, 100, 10);
+        var hMm = parseBoundedNumber(b.heightMm, -100, 100, 10);
+        var hPx = mmToPx(hMm);
         var spacerEl = document.createElement('div');
         spacerEl.className = 'booklet-spacer';
-        spacerEl.style.height = mmToPx(hMm) + 'px';
         spacerEl.dataset.blockId = b.id;
-        out.push({ t: 'flow', el: spacerEl, splittable: false, gapMm: 0 });
+        if (hPx < 0) {
+          spacerEl.style.height = '0px';
+          spacerEl.dataset.spacerMb = String(hPx);
+        } else {
+          spacerEl.style.height = hPx + 'px';
+        }
+        out.push({ t: 'flow', el: spacerEl, splittable: false, gapMm: 0, fixedHeightPx: hPx });
         continue;
       }
       var gapAfter = blockSectionGapAfterMm(b);
@@ -2374,7 +2380,7 @@
       if (item.t === 'break') { flushPage(); continue; }
 
       var el = item.el;
-      var h = measureInContext(el, widthPx);
+      var h = (item.fixedHeightPx != null) ? item.fixedHeightPx : measureInContext(el, widthPx);
       var gap = 0, gapFlex = false;
 
       if (curEls.length > 0) {
@@ -2802,7 +2808,7 @@
       body.className = 'booklet-page-body';
       pg.elements.forEach(function (el, idx) {
         el.style.marginTop = (pg.adjustedGaps[idx] || 0) + 'px';
-        el.style.marginBottom = '0';
+        el.style.marginBottom = (el.dataset && el.dataset.spacerMb) ? el.dataset.spacerMb + 'px' : '0';
         body.appendChild(el);
       });
       inner.appendChild(body);
@@ -3201,11 +3207,11 @@
       var sh = b.heightMm != null ? b.heightMm : 10;
       panel.innerHTML =
         '<label class="form-label small mb-1">Spacer height (mm)</label>' +
-        '<input type="number" class="form-control form-control-sm" id="edSpacerHeight" min="1" max="100" step="1" value="' + sh + '">' +
-        '<p class="small text-muted mt-1 mb-0">Unbreakable vertical space.</p>';
+        '<input type="number" class="form-control form-control-sm" id="edSpacerHeight" min="-100" max="100" step="1" value="' + sh + '">' +
+        '<p class="small text-muted mt-1 mb-0">Unbreakable vertical space. Use a negative value to tighten the gap between blocks (pulls the following block up).</p>';
       var inp = panel.querySelector('#edSpacerHeight');
       if (inp) inp.addEventListener('change', function () {
-        b.heightMm = parseBoundedNumber(inp.value, 1, 100, 10);
+        b.heightMm = parseBoundedNumber(inp.value, -100, 100, 10);
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
