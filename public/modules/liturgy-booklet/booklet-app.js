@@ -692,7 +692,7 @@
       .replace(/\\R\./g, '<span class="versiculum">r</span>')
       .replace(/\\A\./g, '<span class="versiculum">a</span>')
       .replace(/\\[+]/g, '<span class="versiculum">\u2720</span>')
-      .replace(/\n/g, '<br>');
+      .replace(/\n+/g, '<br>');
   }
 
   function insertTextBoundaryMarkers(el) {
