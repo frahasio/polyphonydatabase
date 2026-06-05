@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "postinstall": "npx --yes puppeteer browsers install chrome --path node_modules/.cache/puppeteer"
+    "postinstall": "node -e \"require('fs').rmSync('node_modules/.cache/puppeteer',{recursive:true,force:true})\" && npx --yes puppeteer browsers install chrome --path node_modules/.cache/puppeteer"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
