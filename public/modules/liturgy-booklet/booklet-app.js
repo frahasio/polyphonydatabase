@@ -2922,18 +2922,25 @@
       return;
     }
 
+    // Fade existing pages in-place while the new layout is computed.
+    // This avoids replacing root content (which would reset scrollTop to 0)
+    // before the new content is ready.
     var savedScrollTop = root.scrollTop;
-    root.innerHTML = '<p class="text-muted small no-print px-2">Laying out preview…</p>';
+    root.classList.add('booklet-preview--rebuilding');
 
     var flow;
     try {
       flow = await buildFlowList();
     } catch (e) {
       console.error(e);
+      root.classList.remove('booklet-preview--rebuilding');
       root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
       return;
     }
-    if (myTok !== previewToken) return;
+    if (myTok !== previewToken) {
+      root.classList.remove('booklet-preview--rebuilding');
+      return;
+    }
 
     var widthPx = getContentWidthPx();
     var pageHPx = getMaxPageBodyHeightPx();
@@ -2963,7 +2970,10 @@
       return page;
     });
 
+    // Now swap content. root still has its old pages so scrollTop is preserved.
     root.innerHTML = '';
+    root.classList.remove('booklet-preview--rebuilding');
+
     if (!pageDivs.length) {
       root.innerHTML = '<p class="text-muted small px-2">Nothing to show yet.</p>';
       exportPageElements = [];
@@ -2979,7 +2989,6 @@
         if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
       }
       if (allPdf) p.classList.add('booklet-page--pdf-full');
-      
     });
 
     appendCreditsFooterToLastPage(pageDivs);
@@ -2993,12 +3002,14 @@
       if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
       mountBookletSpreadUi(root, pageDivs);
     }
+
     if (selectedBlockId && scrollToBlockAfterRender) {
       scrollToBlockAfterRender = false;
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
     } else {
       scrollToBlockAfterRender = false;
-      root.scrollTop = savedScrollTop;
+      // Restore scroll after the browser has reflowed the new content.
+      requestAnimationFrame(function () { root.scrollTop = savedScrollTop; });
     }
 
   }
