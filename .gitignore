@@ -2,6 +2,9 @@ node_modules/
 .env
 .DS_Store
 
+# Puppeteer's downloaded Chrome (cached by Heroku via package.json cacheDirectories)
+puppeteer-cache/
+
 # Development and deployment scripts
 deploy.ps1
 audit-log-check.js

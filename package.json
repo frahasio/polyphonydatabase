@@ -7,10 +7,13 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "cacheDirectories": [
+    "puppeteer-cache"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "postinstall": "node -e \"require('fs').rmSync('node_modules/.cache/puppeteer',{recursive:true,force:true})\" && npx --yes puppeteer browsers install chrome --path node_modules/.cache/puppeteer"
+    "postinstall": "node scripts/install-chrome.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

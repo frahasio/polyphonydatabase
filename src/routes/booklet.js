@@ -52,6 +52,8 @@ function resolveChromeExecutable(puppeteerModule) {
 
   // Scan known Puppeteer cache directories for any chrome/chromium binary.
   const cacheDirs = [
+    '/app/puppeteer-cache',
+    process.cwd() + '/puppeteer-cache',
     '/app/node_modules/.cache/puppeteer',
     '/app/.cache/puppeteer',
     process.env.HOME ? process.env.HOME + '/.cache/puppeteer' : null,

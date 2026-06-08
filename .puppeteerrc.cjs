@@ -1,10 +1,11 @@
 const { join } = require('path');
 
 /**
- * Heroku prunes /app/.cache after build, so Puppeteer's downloaded Chrome
- * disappears before runtime. Redirecting the cache into node_modules keeps
- * it inside the slug.
+ * Keep Puppeteer's Chrome in a top-level dir (not node_modules, which Heroku
+ * wipes on every `npm ci`, and not /app/.cache, which Heroku prunes from the
+ * slug). Listing this dir in package.json "cacheDirectories" lets Heroku
+ * persist it between builds, so Chrome is only downloaded when it changes.
  */
 module.exports = {
-  cacheDirectory: join(__dirname, 'node_modules', '.cache', 'puppeteer'),
+  cacheDirectory: join(__dirname, 'puppeteer-cache'),
 };
