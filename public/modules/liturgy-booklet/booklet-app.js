@@ -4171,7 +4171,7 @@
       var mh = buildPdfManifestAndHtml(pages);
       var r = await fetch('/api/booklet/pdf', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ html: mh.html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4', manifest: mh.manifest }),
+        body: JSON.stringify({ html: mh.html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4', manifest: mh.manifest, title: state.projectTitle || '' }),
       });
       if (!r.ok) {
         var msg = 'Server PDF export failed (status ' + r.status + ').';

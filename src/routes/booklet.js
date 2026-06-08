@@ -105,6 +105,8 @@ router.post('/pdf', requireAuth, async (req, res) => {
   try {
     const html = req.body && typeof req.body.html === 'string' ? req.body.html : '';
     const pageSize = req.body && req.body.pageSize === 'A5' ? 'A5' : 'A4';
+    const docTitle =
+      req.body && typeof req.body.title === 'string' ? req.body.title.trim().slice(0, 200) : '';
     if (!html.trim()) {
       return res.status(400).json({ error: 'Missing html' });
     }
@@ -190,6 +192,11 @@ router.post('/pdf', requireAuth, async (req, res) => {
         }
       });
     });
+    // Chrome uses document.title as the PDF /Title; otherwise it falls back to
+    // the page URL ("about:blank") which then shows in PDF viewers' title bars.
+    await page.evaluate(function (t) {
+      document.title = t || 'Liturgy booklet';
+    }, docTitle);
 
     const format = pageSize === 'A5' ? 'A5' : 'A4';
     const pdfBuffer = await page.pdf({
@@ -205,6 +212,10 @@ router.post('/pdf', requireAuth, async (req, res) => {
     if (manifest && manifest.some(e => e.type === 'edition')) {
       const puppeteerDoc = await PDFDocument.load(pdfBuffer);
       const finalDoc = await PDFDocument.create();
+      // copyPages does not carry over document metadata, so set it explicitly.
+      if (docTitle) finalDoc.setTitle(docTitle);
+      finalDoc.setProducer('Polyphony Database');
+      finalDoc.setCreator('Polyphony Database — Liturgy booklet');
       const editionCache = {};
 
       for (const entry of manifest) {
@@ -241,8 +252,10 @@ router.post('/pdf', requireAuth, async (req, res) => {
       finalBuffer = Buffer.from(pdfBuffer);
     }
 
+    const filenameBase =
+      (docTitle.replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)) || 'liturgy-booklet';
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="liturgy-booklet.pdf"');
+    res.setHeader('Content-Disposition', 'inline; filename="' + filenameBase + '.pdf"');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(finalBuffer);
   } catch (err) {
