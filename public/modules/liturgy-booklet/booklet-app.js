@@ -963,6 +963,8 @@
     toolbarRoot.addEventListener('mousedown', function (e) {
       if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' ||
           e.target.closest('select')) return;
+      // Allow inputs (e.g. the list-start number field) to receive focus normally.
+      if (e.target.tagName === 'INPUT' || e.target.closest('input')) return;
       e.preventDefault();
     }, false);
 
@@ -1055,15 +1057,27 @@
     }
     var listStartInp = toolbarRoot.querySelector('.booklet-rich-list-start');
     if (listStartInp) {
-      // Keep the input in sync with cursor position
-      ed.addEventListener('keyup', function () { syncListStartInput(listStartInp, ed); });
-      ed.addEventListener('mouseup', function () { syncListStartInput(listStartInp, ed); });
+      var trackedOl = null;
+      function updateListStart() {
+        var ol = getAncestorOl(ed);
+        trackedOl = ol;
+        if (ol) {
+          listStartInp.value = ol.getAttribute('start') || '1';
+          listStartInp.disabled = false;
+        } else {
+          listStartInp.value = '1';
+          listStartInp.disabled = true;
+        }
+      }
+      ed.addEventListener('keyup', updateListStart);
+      ed.addEventListener('mouseup', updateListStart);
+      // Use the stored OL reference — by the time 'change' fires the editor
+      // selection is gone because focus moved to this input.
       listStartInp.addEventListener('change', function () {
         var n = parseInt(listStartInp.value, 10);
         if (!Number.isFinite(n) || n < 1) return;
-        var ol = getAncestorOl(ed);
-        if (!ol) return;
-        ol.setAttribute('start', String(n));
+        if (!trackedOl) return;
+        trackedOl.setAttribute('start', String(n));
         onChange();
       });
     }
