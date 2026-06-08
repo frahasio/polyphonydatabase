@@ -2416,50 +2416,9 @@
       return { header: header, footer: footer };
     }
 
-    /**
-     * Measures the top/bottom offset (px from el top) of every <li> in el,
-     * rendered at widthPx. Returns null when no <li> is present.
-     */
-    function measureListItemBoundaries(el, widthPx) {
-      var mount = document.getElementById('bookletMeasureMount');
-      if (!mount) return null;
-      mount.innerHTML = '';
-      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
-      var ctx = ensureMeasurePageContext(mount, widthPx);
-      ctx.body.innerHTML = '';
-      var clone = el.cloneNode(true);
-      ctx.body.appendChild(clone);
-      mount.appendChild(ctx.page);
-      var elTop = clone.getBoundingClientRect().top;
-      var boundaries = [];
-      clone.querySelectorAll('li').forEach(function (li) {
-        var r = li.getBoundingClientRect();
-        boundaries.push({ top: r.top - elTop, bottom: r.bottom - elTop });
-      });
-      mount.removeChild(ctx.page);
-      ctx.body.innerHTML = '';
-      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
-      return boundaries.length > 0 ? boundaries : null;
-    }
-
-    /**
-     * Returns the largest li.bottom that fits entirely within maxAvail
-     * (and is above startOffset if given), or null if none fits.
-     */
-    function bestLiBoundarySnap(maxAvail, liBoundaries, startOffset) {
-      var after = startOffset || 0;
-      var result = null;
-      for (var i = 0; i < liBoundaries.length; i++) {
-        var b = liBoundaries[i].bottom;
-        if (b > after && b <= maxAvail) result = b;
-      }
-      return result;
-    }
-
     function splitContinuation(el, totalH, startOffset, w) {
       var elLh = getElementLineHeightPx(el);
       var minOrphanH = minOrphan * elLh;
-      var contLiBounds = el.querySelector('li') ? measureListItemBoundaries(el, w) : null;
       var offset = startOffset;
       while (offset < totalH) {
         var rem = totalH - offset;
@@ -2471,18 +2430,11 @@
           curGapFlex = [false];
           break;
         }
-        var sliceH;
-        if (contLiBounds) {
-          var liSnap = bestLiBoundarySnap(offset + pageHPx + marginTolPx, contLiBounds, offset);
-          sliceH = liSnap != null ? liSnap - offset : null;
-        }
-        if (!sliceH || sliceH < elLh) {
-          sliceH = snap.h;
-          var afterRem = totalH - offset - sliceH;
-          if (afterRem > 0 && afterRem < minOrphanH && sliceH > minOrphanH) {
-            var pullLines = minOrphan - Math.max(0, Math.floor(afterRem / elLh));
-            sliceH = Math.max(elLh, sliceH - pullLines * elLh);
-          }
+        var sliceH = snap.h;
+        var afterRem = totalH - offset - sliceH;
+        if (afterRem > 0 && afterRem < minOrphanH && sliceH > minOrphanH) {
+          var pullLines = minOrphan - Math.max(0, Math.floor(afterRem / elLh));
+          sliceH = Math.max(elLh, sliceH - pullLines * elLh);
         }
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
         var clip = createClippedView(el, offset, offset + sliceH, w, cls, elLh);
@@ -2545,9 +2497,6 @@
           var minOrphanH = minOrphan * elLineH;
           var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
-          // When the block contains list items, snap to li boundaries so no
-          // single bullet is split across pages.
-          var liBounds = el.querySelector('li') ? measureListItemBoundaries(el, widthPx) : null;
 
           for (var d = 0; d < deltas.length; d++) {
             var dt = deltas[d];
@@ -2556,28 +2505,13 @@
             var maxA = pageHPx + marginTolPx - above;
             if (maxA < 20) continue;
 
-            var splitH, skipOrphan;
-            if (liBounds) {
-              var liH = bestLiBoundarySnap(Math.max(0, maxA), liBounds, 0);
-              if (liH != null && liH >= 20) {
-                splitH = Math.min(liH, h);
-                skipOrphan = true;
-              } else {
-                continue; // no complete li fits; try next delta or push to next page
-              }
-            } else {
-              var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
-              if (snap.h < 20) continue;
-              splitH = Math.min(snap.h, h);
-              skipOrphan = false;
-            }
-
-            if (!skipOrphan) {
-              var textInFirst = splitH - (offsets.header || 0) - (offsets.footer || 0);
-              var remainder = h - splitH;
-              if (textInFirst < minOrphanH && splitH < h) continue;
-              if (remainder > 0 && remainder < minOrphanH) continue;
-            }
+            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
+            if (snap.h < 20) continue;
+            var splitH = Math.min(snap.h, h);
+            var textInFirst = splitH - (offsets.header || 0) - (offsets.footer || 0);
+            var remainder = h - splitH;
+            if (textInFirst < minOrphanH && splitH < h) continue;
+            if (remainder > 0 && remainder < minOrphanH) continue;
             var total = above + splitH;
             var absPad = Math.abs(pageHPx - total);
 
