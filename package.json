@@ -7,9 +7,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "cacheDirectories": [
-    "puppeteer-cache"
-  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",

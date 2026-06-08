@@ -30,6 +30,10 @@ function resolveChromeExecutable(puppeteerModule) {
   if (chromeBinaryExists(envPath)) return envPath;
 
   const candidates = [
+    // Real binary from the google-chrome .deb (the /usr/bin symlink is absolute
+    // and therefore broken once relocated under /app/.apt, so target it directly).
+    '/app/.apt/opt/google/chrome/chrome',
+    '/app/.apt/opt/google/chrome/google-chrome',
     '/app/.apt/usr/bin/google-chrome-stable',
     '/app/.apt/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
