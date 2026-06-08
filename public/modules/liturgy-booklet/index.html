@@ -444,6 +444,8 @@
         .booklet-richtext li,
         .booklet-rich-ed li {
             margin: 0;
+            break-inside: avoid;
+            page-break-inside: avoid;
             padding-inline-start: 0.35em;
         }
         .booklet-reading-parallel {
@@ -455,6 +457,12 @@
         .booklet-reading-parallel td {
             vertical-align: top;
             text-align: start;
+        }
+        .booklet-hr {
+            padding: 0;
+        }
+        .booklet-hr .booklet-title-rule-line {
+            min-width: 0;
         }
         .booklet-chant-parallel {
             width: 100%;

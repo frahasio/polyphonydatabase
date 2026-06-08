@@ -188,6 +188,7 @@
   let renderPreviewTimer = null;
   let layoutStale = false;
   let autoRefresh = true;
+  let scrollToBlockAfterRender = false;
 
   function markLayoutStale() {
     layoutStale = true;
@@ -769,6 +770,9 @@
     if (t === 'spacer') {
       return { icon: '', color: '', label: 'Spacer', noIcon: true, itemBg: '#f0f4f8' };
     }
+    if (t === 'hr') {
+      return { icon: '', color: '', label: 'Horizontal rule', noIcon: true, itemBg: '#f0f4f8' };
+    }
     if (t === 'jgabc_propers') {
       return { icon: 'bi-music-note', color: '#fd7e14', label: 'Propers (legacy)' };
     }
@@ -822,6 +826,9 @@
     }
     if (b.type === 'spacer') {
       return 'Spacer (' + (b.heightMm || 10) + 'mm)';
+    }
+    if (b.type === 'hr') {
+      return 'Horizontal rule';
     }
     if (b.type === 'jgabc_propers') {
       return 'Legacy propers — replace with GABC';
@@ -913,6 +920,28 @@
       }
     }
     onChange();
+  }
+
+  function getAncestorOl(ed) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var node = sel.getRangeAt(0).startContainer;
+    while (node && node !== ed) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'OL') return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function syncListStartInput(inp, ed) {
+    var ol = getAncestorOl(ed);
+    if (ol) {
+      inp.value = ol.getAttribute('start') || '1';
+      inp.disabled = false;
+    } else {
+      inp.value = '1';
+      inp.disabled = true;
+    }
   }
 
   function bindRichToolbar(toolbarRoot, ed, onChange) {
@@ -1021,6 +1050,20 @@
           document.execCommand('styleWithCSS', false, true);
           document.execCommand('foreColor', false, colorPick.value);
         } catch (e) { /* ignore */ }
+        onChange();
+      });
+    }
+    var listStartInp = toolbarRoot.querySelector('.booklet-rich-list-start');
+    if (listStartInp) {
+      // Keep the input in sync with cursor position
+      ed.addEventListener('keyup', function () { syncListStartInput(listStartInp, ed); });
+      ed.addEventListener('mouseup', function () { syncListStartInput(listStartInp, ed); });
+      listStartInp.addEventListener('change', function () {
+        var n = parseInt(listStartInp.value, 10);
+        if (!Number.isFinite(n) || n < 1) return;
+        var ol = getAncestorOl(ed);
+        if (!ol) return;
+        ol.setAttribute('start', String(n));
         onChange();
       });
     }
@@ -1210,6 +1253,11 @@
         if (o.heightMm == null) o.heightMm = 10;
         return o;
       }
+      if (b.type === 'hr') {
+        const o = { ...b };
+        if (o.hidden === undefined) o.hidden = false;
+        return o;
+      }
       const o = { ...b };
       if (o.hidden === undefined) o.hidden = false;
       if (o.sectionGapAfterMm == null) {
@@ -1258,6 +1306,11 @@
           o.chantVertSpacing = 1.0;
         } else {
           o.chantVertSpacing = Number(o.chantVertSpacing) || 1.0;
+        }
+        if (o.chantLineGap == null) {
+          o.chantLineGap = 1.0;
+        } else {
+          o.chantLineGap = Number(o.chantLineGap) || 1.0;
         }
         delete o.chantLyricTight;
         delete o.chantSystemGap;
@@ -1718,7 +1771,7 @@
       temp.innerHTML = html;
       const lines = [];
       var annotYAdj = Number(cb.chantAnnotationYAdj) || 0;
-      var vSpacingGapPx = ctxt.staffInterval * 0.5 * (Number(cb.chantVertSpacing) || 1.0);
+      var vSpacingGapPx = ctxt.staffInterval * 0.5 * (Number(cb.chantLineGap != null ? cb.chantLineGap : 1.0));
 
       var hasTranslation = fullWidthPx && translationHasContent(cb.chantTranslation);
       var transLines = hasTranslation ? splitTranslationLines(cb.chantTranslation) : [];
@@ -2089,6 +2142,19 @@
         out.push({ t: 'flow', el: spacerEl, splittable: false, gapMm: 0, fixedHeightPx: hPx });
         continue;
       }
+      if (b.type === 'hr') {
+        var hrEl = document.createElement('div');
+        hrEl.className = 'booklet-title-rule booklet-hr';
+        hrEl.dataset.blockId = b.id;
+        var hrLine = document.createElement('span');
+        hrLine.className = 'booklet-title-rule-line';
+        hrLine.setAttribute('aria-hidden', 'true');
+        var hrLineColor = String(b.hrLineColor || '').trim();
+        hrLine.style.backgroundColor = /^#[0-9a-f]{6}$/i.test(hrLineColor) ? hrLineColor : '#adb5bd';
+        hrEl.appendChild(hrLine);
+        out.push({ t: 'flow', el: hrEl, splittable: false, gapMm: blockSectionGapAfterMm(b) });
+        continue;
+      }
       var gapAfter = blockSectionGapAfterMm(b);
       var splittable = (b.type === 'rubric' || b.type === 'reading');
       if (b.type === 'chant_gabc') {
@@ -2102,7 +2168,7 @@
         }
         var lines = renderChantGabcToLines(b.gabc || '', chantW, b, chantFullW);
         var chantStaffInterval = 100 * (1 / 16) * (Number(b.chantGlyphScale) || 1.4);
-        var chantVGapPx = chantStaffInterval * 0.5 * (Number(b.chantVertSpacing) || 1.0);
+        var chantVGapPx = chantStaffInterval * 0.5 * (Number(b.chantLineGap != null ? b.chantLineGap : 1.0));
         for (var li = 0; li < lines.length; li++) {
           lines[li].dataset.blockId = b.id;
           var isLast = li === lines.length - 1;
@@ -2776,6 +2842,7 @@
       return;
     }
 
+    var savedScrollTop = root.scrollTop;
     root.innerHTML = '<p class="text-muted small no-print px-2">Laying out preview…</p>';
 
     var flow;
@@ -2846,8 +2913,12 @@
       if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
       mountBookletSpreadUi(root, pageDivs);
     }
-    if (selectedBlockId) {
+    if (selectedBlockId && scrollToBlockAfterRender) {
+      scrollToBlockAfterRender = false;
       setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
+    } else {
+      scrollToBlockAfterRender = false;
+      root.scrollTop = savedScrollTop;
     }
 
   }
@@ -2905,6 +2976,10 @@
         '<div class="btn-group btn-group-sm" role="group">' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="insertOrderedList" title="Numbered list"><i class="bi bi-list-ol"></i></button>' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="insertUnorderedList" title="Bullet list"><i class="bi bi-list-ul"></i></button>' +
+        '</div>' +
+        '<div class="d-flex align-items-center btn-group-sm" style="gap:2px" title="Set start number of the current numbered list">' +
+          '<label class="text-muted" style="font-size:0.6rem;white-space:nowrap">Start #</label>' +
+          '<input type="number" min="1" max="9999" step="1" value="1" class="form-control form-control-sm py-0 booklet-rich-list-start" style="width:3.2rem;height:1.55rem;font-size:0.7rem">' +
         '</div>' +
       '</div>' +
       '<div class="d-flex flex-wrap align-items-center" style="gap:2px 4px">' +
@@ -2982,6 +3057,7 @@
     { type: 'edition_pdf', icon: 'bi-file-earmark-pdf', label: 'Polyphony edition PDF' },
     { type: 'page_break', icon: 'bi-file-earmark-break', label: 'Force page break' },
     { type: 'spacer', icon: 'bi-arrows-expand', label: 'Vertical spacer' },
+    { type: 'hr', icon: 'bi-hr', label: 'Horizontal rule' },
   ];
 
   function createInsertZone(insertIdx) {
@@ -3177,6 +3253,7 @@
         if (edP) edP.classList.remove('booklet-pane-editor--collapsed');
         renderBlockList();
         renderEditor();
+        scrollToBlockAfterRender = true;
         setTimeout(function () { scrollPreviewToBlock(b.id); }, 100);
       });
       row.appendChild(div);
@@ -3215,6 +3292,21 @@
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
+      });
+      return;
+    }
+    if (b.type === 'hr') {
+      var hlc = /^#[0-9a-f]{6}$/i.test(String(b.hrLineColor || '').trim()) ? String(b.hrLineColor).trim() : '#adb5bd';
+      panel.innerHTML =
+        '<label class="form-label small mb-1" for="edHrColor">Rule colour</label>' +
+        '<input type="color" id="edHrColor" class="form-control form-control-color w-100 mb-2" value="' + escapeAttr(hlc) + '">' +
+        '<p class="small text-muted mb-0">Full-width horizontal rule — same style as a title rule but with no text.</p>';
+      var hrColorInp = panel.querySelector('#edHrColor');
+      if (hrColorInp) hrColorInp.addEventListener('input', function () {
+        var cv = hrColorInp.value;
+        b.hrLineColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '#adb5bd';
+        scheduleAutosave();
+        markLayoutStale();
       });
       return;
     }
@@ -3631,6 +3723,7 @@
       const cg = b.chantGlyphScale != null ? b.chantGlyphScale : 1;
       const chs = b.chantHorizSpacing != null ? b.chantHorizSpacing : 1.0;
       const cvs = b.chantVertSpacing != null ? b.chantVertSpacing : 1.0;
+      const clg = b.chantLineGap != null ? b.chantLineGap : 1.0;
       const cd = b.chantDropCapScale != null ? b.chantDropCapScale : 1;
       const cas = b.chantAnnotationSizeAdj != null ? b.chantAnnotationSizeAdj : 0;
       const cay = b.chantAnnotationYAdj != null ? b.chantAnnotationYAdj : 0;
@@ -3658,7 +3751,8 @@
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Lyric size</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantNeumeSize">${cn}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantNeumeSize" min="8" max="40" step="1" value="${cn}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Music scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantGlyphScale">${cg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Horiz. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantHorizSpacing">${chs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantHorizSpacing" min="0.5" max="2.0" step="0.05" value="${chs}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Vert. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantVertSpacing">${cvs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantVertSpacing">${cvs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Line gap</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantLineGap">${clg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantLineGap" min="0.0" max="3.0" step="0.05" value="${clg}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Drop cap scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantDropCapScale">${cd}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantDropCapScale" min="0.3" max="2.0" step="0.05" value="${cd}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. size adj.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. vert. pos.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
@@ -3893,6 +3987,7 @@
       b.chantStaffColor = '';
       b.chantHorizSpacing = 1.0;
       b.chantVertSpacing = 1.0;
+      b.chantLineGap = 1.0;
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
@@ -3911,7 +4006,10 @@
     if (type === 'spacer') {
       b.heightMm = 10;
     }
-    if (type !== 'page_break' && type !== 'spacer') {
+    if (type === 'hr') {
+      b.hrLineColor = '#adb5bd';
+    }
+    if (type !== 'page_break' && type !== 'spacer' && type !== 'hr') {
       b.hidden = false;
     } else {
       b.hidden = false;
