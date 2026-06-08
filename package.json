@@ -13,7 +13,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "postinstall": "node scripts/install-chrome.js"
+    "postinstall": "node scripts/install-chrome.cjs"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
