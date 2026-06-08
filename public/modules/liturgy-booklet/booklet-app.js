@@ -189,6 +189,9 @@
   let layoutStale = false;
   let autoRefresh = true;
   let scrollToBlockAfterRender = false;
+  // Chant render cache: blockId → { sig: string, lines: HTMLElement[] (pristine clones) }
+  // Bounded to one slot per live block; pruned at the end of every buildFlowList call.
+  const chantRenderCache = new Map();
 
   function markLayoutStale() {
     layoutStale = true;
@@ -955,10 +958,15 @@
     };
     ed.addEventListener('keyup', saveEdSelection);
     ed.addEventListener('mouseup', saveEdSelection);
-    document.addEventListener('selectionchange', function () {
+    var selChangeHandler = function () {
       if (!document.contains(ed)) return;
       saveEdSelection();
-    });
+    };
+    document.addEventListener('selectionchange', selChangeHandler);
+    // Expose cleanup so renderEditor can remove this listener before rebuilding the panel.
+    toolbarRoot._richCleanup = function () {
+      document.removeEventListener('selectionchange', selChangeHandler);
+    };
 
     toolbarRoot.addEventListener('mousedown', function (e) {
       if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' ||
@@ -2180,7 +2188,27 @@
           chantW = Math.round(w * ctLPct / 100 - ctGapPx / 2);
           chantFullW = w;
         }
-        var lines = renderChantGabcToLines(b.gabc || '', chantW, b, chantFullW);
+        var chantSig = JSON.stringify([
+          b.gabc, chantW, chantFullW,
+          b.chantNeumeSize, b.chantGlyphScale, b.chantHorizSpacing,
+          b.chantVertSpacing, b.chantLineGap,
+          b.chantDropCapScale, b.chantUseDropCap, b.chantLyricLanguage,
+          b.chantTextFont, b.chantStaffColor, b.chantRubricColor,
+          b.chantAnnotationSizeAdj, b.chantAnnotationYAdj,
+          b.chantTranslation, b.chantTranslationLeftPct, b.chantTranslationGapMm,
+          b.chantTranslationBorder, b.chantTranslationFontSizePt,
+          b.chantTranslationVAlign, b.chantTranslationTextAlign
+        ]);
+        var cached = chantRenderCache.get(b.id);
+        var lines;
+        if (cached && cached.sig === chantSig) {
+          // Cache hit — clone pristine nodes so the cache copy stays intact.
+          lines = cached.lines.map(function (el) { return el.cloneNode(true); });
+        } else {
+          lines = renderChantGabcToLines(b.gabc || '', chantW, b, chantFullW);
+          // Store pristine clones before they enter the page DOM.
+          chantRenderCache.set(b.id, { sig: chantSig, lines: lines.map(function (el) { return el.cloneNode(true); }) });
+        }
         var chantStaffInterval = 100 * (1 / 16) * (Number(b.chantGlyphScale) || 1.4);
         var chantVGapPx = chantStaffInterval * 0.5 * (Number(b.chantLineGap != null ? b.chantLineGap : 1.0));
         for (var li = 0; li < lines.length; li++) {
@@ -2204,6 +2232,9 @@
       el.dataset.blockId = b.id;
       out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter });
     }
+    // Prune cache entries for blocks that no longer exist.
+    var liveIds = new Set(state.blocks.map(function (b) { return b.id; }));
+    chantRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) chantRenderCache.delete(id); });
     return out;
   }
 
@@ -2856,22 +2887,25 @@
       return;
     }
 
-    // Fade existing pages in-place while the new layout is computed.
-    // This avoids replacing root content (which would reset scrollTop to 0)
-    // before the new content is ready.
+    // Keep old pages in the DOM so scrollTop is preserved, but remove them from
+    // layout (display:none) so getBoundingClientRect calls during build/paginate
+    // don't reflow an 11k-node tree on every keypress.
     var savedScrollTop = root.scrollTop;
     root.classList.add('booklet-preview--rebuilding');
+    root.style.display = 'none';
 
     var flow;
     try {
       flow = await buildFlowList();
     } catch (e) {
       console.error(e);
+      root.style.display = '';
       root.classList.remove('booklet-preview--rebuilding');
       root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
       return;
     }
     if (myTok !== previewToken) {
+      root.style.display = '';
       root.classList.remove('booklet-preview--rebuilding');
       return;
     }
@@ -2904,7 +2938,8 @@
       return page;
     });
 
-    // Now swap content. root still has its old pages so scrollTop is preserved.
+    // Restore to layout, swap content, restore scroll.
+    root.style.display = '';
     root.innerHTML = '';
     root.classList.remove('booklet-preview--rebuilding');
 
@@ -2984,7 +3019,7 @@
       groups[label].forEach(function (f) { fontOpts += '<option value="' + f + '">' + f + '</option>'; });
       fontOpts += '</optgroup>';
     });
-    return '<div class="booklet-rich-toolbar ' + tbClass + '">' +
+    return '<div class="booklet-rich-toolbar ' + tbClass + '" data-rich-toolbar-root>' +
       '<div class="d-flex flex-wrap align-items-center" style="gap:2px 6px">' +
         '<div class="btn-group btn-group-sm" role="group">' +
           '<button type="button" class="btn btn-light border py-0 px-1" data-rich-cmd="bold" title="Bold"><strong>B</strong></button>' +
@@ -3294,6 +3329,10 @@
   function renderEditor() {
     const panel = document.getElementById('editorPanel');
     if (!panel) return;
+    // Clean up any selectionchange listener from the previous toolbar before replacing the panel.
+    panel.querySelectorAll('[data-rich-toolbar-root]').forEach(function (tb) {
+      if (tb._richCleanup) tb._richCleanup();
+    });
     const b = state.blocks.find((x) => x.id === selectedBlockId);
     if (!b) {
       panel.innerHTML =
