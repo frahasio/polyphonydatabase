@@ -22,8 +22,12 @@ const exeName = process.platform === 'win32' ? 'chrome.exe' : 'chrome';
 const systemChromes = [
   process.env.PUPPETEER_EXECUTABLE_PATH,
   process.env.GOOGLE_CHROME_BIN,
+  // Runtime slug location (apt buildpack).
   '/app/.apt/opt/google/chrome/chrome',
   '/app/.apt/usr/bin/google-chrome-stable',
+  // Build-time location: the apt buildpack installs into <build_dir>/.apt, and
+  // the Node buildpack's postinstall runs with cwd === build_dir.
+  path.join(process.cwd(), '.apt', 'opt', 'google', 'chrome', 'chrome'),
   '/usr/bin/google-chrome-stable',
 ].filter(Boolean);
 
