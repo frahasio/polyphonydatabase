@@ -192,6 +192,8 @@
   // Chant render cache: blockId → { sig: string, lines: HTMLElement[] (pristine clones) }
   // Bounded to one slot per live block; pruned at the end of every buildFlowList call.
   const chantRenderCache = new Map();
+  // ABC render cache: blockId → { sig: string, el: HTMLElement (pristine clone) }
+  const abcRenderCache = new Map();
   // Static block height cache: blockId → { sig: string, h: number (px) }
   // Avoids repeated measureInContext reflows for unchanged rubric/reading/title blocks.
   const staticHeightCache = new Map();
@@ -1298,8 +1300,15 @@
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
         if (o.abcText == null) o.abcText = '';
-        if (o.abcScale == null) o.abcScale = 1.0;
+        if (o.abcScale == null) o.abcScale = 0.7;
         if (o.abcStaffWidth == null) o.abcStaffWidth = 100;
+        if (o.abcTranslation == null) o.abcTranslation = '';
+        if (o.abcTranslationLeftPct == null) o.abcTranslationLeftPct = 60;
+        if (o.abcTranslationGapMm == null) o.abcTranslationGapMm = 4;
+        if (o.abcTranslationBorder == null) o.abcTranslationBorder = false;
+        if (o.abcTranslationFontSizePt == null) o.abcTranslationFontSizePt = 11;
+        if (o.abcTranslationVAlign == null) o.abcTranslationVAlign = 'middle';
+        if (o.abcTranslationTextAlign == null) o.abcTranslationTextAlign = 'left';
         if (o.sectionGapAfterMm == null) o.sectionGapAfterMm = DEFAULT_SECTION_GAP_AFTER_MM;
         return o;
       }
@@ -2164,7 +2173,8 @@
 
   /**
    * Render ABC notation text to a block element using abcjs.
-   * Returns a div containing one SVG per line of music.
+   * Returns a div containing one SVG per line of music, optionally beside a
+   * translation column (same layout as GABC+translation).
    */
   function renderAbcNotation(b, widthPx) {
     var wrap = document.createElement('div');
@@ -2183,43 +2193,99 @@
       wrap.appendChild(err);
       return wrap;
     }
+
+    // Translation column setup (mirrors chant translation).
+    var hasTranslation = translationHasContent(b.abcTranslation);
+    var abcContentW = widthPx;
+    var abcRightPct, abcHalfGapMm, abcTransFontPt, abcShowBorder, abcTransVAlign, abcTransTextAlign;
+    if (hasTranslation) {
+      var abcLeftPct = Math.min(80, Math.max(20, parseInt(b.abcTranslationLeftPct, 10) || 60));
+      abcRightPct = 100 - abcLeftPct;
+      abcHalfGapMm = (Math.min(20, Math.max(0, parseInt(b.abcTranslationGapMm, 10) || 4))) / 2;
+      abcTransFontPt = b.abcTranslationFontSizePt || 11;
+      abcShowBorder = !!b.abcTranslationBorder;
+      abcTransVAlign = b.abcTranslationVAlign || 'middle';
+      abcTransTextAlign = b.abcTranslationTextAlign || 'left';
+      abcContentW = Math.round(widthPx * abcLeftPct / 100 - mmToPx(abcHalfGapMm));
+    }
+
     try {
-      var scale = Math.max(0.3, Math.min(3.0, Number(b.abcScale) || 1.0));
+      var scale = Math.max(0.1, Math.min(3.0, Number(b.abcScale) || 0.7));
       var staffWidthPct = Math.max(20, Math.min(100, Number(b.abcStaffWidth) || 100));
-      var staffWidthPx = Math.round(widthPx * staffWidthPct / 100);
-      // abcjs renders into a container div, so give it a temporary mount.
+      var staffWidthPx = Math.round(abcContentW * staffWidthPct / 100);
+
+      // Render into a temporarily live div so getBBox() works for tight cropping.
       var mount = document.createElement('div');
-      mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:' + staffWidthPx + 'px;';
+      mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + staffWidthPx + 'px;';
       document.body.appendChild(mount);
       ABCJS.renderAbc(mount, b.abcText, {
         scale: scale,
         staffwidth: staffWidthPx,
-        // Do NOT use responsive:'resize' — that sets width:100% and no explicit
-        // height, making the block measure as 0px in the off-screen paginator.
-        // Fixed staffwidth gives the SVG concrete pixel dimensions.
+        // Fixed staffwidth gives SVGs concrete pixel dimensions (no responsive:resize).
         add_classes: true,
         selectionColor: 'none',
         print: true,
-        paddingtop: 0,
-        paddingbottom: 0,
+        paddingtop: 4,
+        paddingbottom: 4,
         paddingright: 0,
         paddingleft: 0,
       });
-      // Copy rendered SVGs to the wrap.
+
       var svgs = mount.querySelectorAll('svg');
       if (svgs.length === 0) {
+        document.body.removeChild(mount);
         var noSvg = document.createElement('p');
         noSvg.className = 'text-warning small';
         noSvg.textContent = 'No music rendered — check ABC syntax.';
         wrap.appendChild(noSvg);
-      } else {
-        svgs.forEach(function (svg) {
-          // Ensure block display so the wrap height is the sum of SVG heights.
-          svg.style.display = 'block';
-          svg.style.maxWidth = '100%';
-          wrap.appendChild(svg);
-        });
+        return wrap;
       }
+
+      // Crop each SVG to its actual content bbox, eliminating abcjs whitespace.
+      svgs.forEach(function (svg) {
+        try {
+          var bb = svg.getBBox();
+          if (bb.width > 0 && bb.height > 0) {
+            var pad = 3;
+            svg.setAttribute('viewBox', (bb.x - pad) + ' ' + (bb.y - pad) + ' ' + (bb.width + pad * 2) + ' ' + (bb.height + pad * 2));
+            svg.setAttribute('width', staffWidthPx + 'px');
+            svg.setAttribute('height', (bb.height + pad * 2) + 'px');
+          }
+        } catch (_) { /* getBBox can fail on empty SVG */ }
+        svg.style.display = 'block';
+        svg.style.maxWidth = '100%';
+        svg.style.overflow = 'visible';
+      });
+
+      if (hasTranslation) {
+        // Parallel layout: ABC on left, translation text on right.
+        var table = document.createElement('table');
+        table.className = 'booklet-chant-parallel';
+        var tr = document.createElement('tr');
+        var tdL = document.createElement('td');
+        tdL.style.width = (100 - abcRightPct) + '%';
+        tdL.style.paddingRight = abcHalfGapMm + 'mm';
+        tdL.style.verticalAlign = 'top';
+        if (abcShowBorder) tdL.style.borderRight = '1px solid #adb5bd';
+        svgs.forEach(function (svg) { tdL.appendChild(svg); });
+        var tdR = document.createElement('td');
+        tdR.style.width = abcRightPct + '%';
+        tdR.style.paddingLeft = abcHalfGapMm + 'mm';
+        tdR.style.verticalAlign = abcTransVAlign;
+        var transDiv = document.createElement('div');
+        transDiv.className = 'booklet-richtext chant-translation';
+        transDiv.style.fontSize = abcTransFontPt + 'pt';
+        transDiv.style.textAlign = abcTransTextAlign;
+        transDiv.innerHTML = renderSimpleMarkup(b.abcTranslation || '');
+        tdR.appendChild(transDiv);
+        tr.appendChild(tdL);
+        tr.appendChild(tdR);
+        table.appendChild(tr);
+        wrap.appendChild(table);
+      } else {
+        svgs.forEach(function (svg) { wrap.appendChild(svg); });
+      }
+
       document.body.removeChild(mount);
     } catch (e) {
       console.error('ABC render error', e);
@@ -2313,7 +2379,20 @@
         continue;
       }
       if (b.type === 'abc_notation') {
-        var abcEl = renderAbcNotation(b, w);
+        var abcSig = JSON.stringify([
+          b.abcText, b.abcScale, b.abcStaffWidth, w,
+          b.abcTranslation, b.abcTranslationLeftPct, b.abcTranslationGapMm,
+          b.abcTranslationBorder, b.abcTranslationFontSizePt,
+          b.abcTranslationVAlign, b.abcTranslationTextAlign
+        ]);
+        var abcCached = abcRenderCache.get(b.id);
+        var abcEl;
+        if (abcCached && abcCached.sig === abcSig) {
+          abcEl = abcCached.el.cloneNode(true);
+        } else {
+          abcEl = renderAbcNotation(b, w);
+          abcRenderCache.set(b.id, { sig: abcSig, el: abcEl.cloneNode(true) });
+        }
         abcEl.dataset.blockId = b.id;
         out.push({ t: 'flow', el: abcEl, splittable: false, gapMm: gapAfter });
         continue;
@@ -2345,6 +2424,7 @@
     // Prune cache entries for blocks that no longer exist.
     var liveIds = new Set(state.blocks.map(function (b) { return b.id; }));
     chantRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) chantRenderCache.delete(id); });
+    abcRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) abcRenderCache.delete(id); });
     staticHeightCache.forEach(function (_, id) { if (!liveIds.has(id)) staticHeightCache.delete(id); });
     return out;
   }
@@ -3501,45 +3581,101 @@
       return;
     }
     if (b.type === 'abc_notation') {
-      var abcScale = b.abcScale != null ? b.abcScale : 1.0;
+      var abcScale = b.abcScale != null ? b.abcScale : 0.7;
       var abcWidth = b.abcStaffWidth != null ? b.abcStaffWidth : 100;
+      var abcTlp = b.abcTranslationLeftPct != null ? b.abcTranslationLeftPct : 60;
+      var abcTgm = b.abcTranslationGapMm != null ? b.abcTranslationGapMm : 4;
+      var abcTfs = b.abcTranslationFontSizePt != null ? b.abcTranslationFontSizePt : 11;
       panel.innerHTML =
         '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
-        '<textarea class="form-control form-control-sm font-monospace mb-2" rows="8" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
-        '<div class="d-flex align-items-center gap-2 mb-1" style="font-size:0.78rem">' +
-          '<label class="mb-0" style="min-width:5rem">Scale</label>' +
-          '<input type="number" id="edAbcScale" class="form-control form-control-sm" style="width:4.5rem" min="0.3" max="3" step="0.05" value="' + abcScale + '">' +
+        '<textarea class="form-control form-control-sm font-monospace mb-2" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
+        '<div class="small border rounded px-2 py-1 mb-1 bg-light" style="font-size:0.72rem">' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Scale</span>' +
+            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcScaleNum" min="0.1" max="3" step="0.05" value="' + abcScale + '" style="width:3.5rem">' +
+            '<input type="range" class="form-range flex-grow-1" id="edAbcScaleRange" min="0.1" max="3" step="0.05" value="' + abcScale + '"></div>' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff width %</span>' +
+            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcWidthNum" min="20" max="100" step="1" value="' + abcWidth + '" style="width:3.5rem">' +
+            '<input type="range" class="form-range flex-grow-1" id="edAbcWidthRange" min="20" max="100" step="1" value="' + abcWidth + '"></div>' +
         '</div>' +
-        '<div class="d-flex align-items-center gap-2 mb-2" style="font-size:0.78rem">' +
-          '<label class="mb-0" style="min-width:5rem">Staff width %</label>' +
-          '<input type="number" id="edAbcStaffWidth" class="form-control form-control-sm" style="width:4.5rem" min="20" max="100" step="1" value="' + abcWidth + '">' +
+        '<hr class="my-1"><small class="fw-semibold text-muted">Translation</small><small class="text-muted ms-1">(parallel when filled)</small>' +
+        '<textarea class="form-control form-control-sm font-monospace mt-1 mb-1" rows="3" id="edAbcTrans" placeholder="Translation text (one paragraph, *bold* _italic_)"></textarea>' +
+        '<div class="d-flex flex-wrap gap-2 mb-1" style="font-size:0.72rem">' +
+          '<label class="d-flex align-items-center gap-1"><span>Left col %</span><input type="number" class="form-control form-control-sm" id="edAbcTransLeftPct" min="20" max="80" step="1" value="' + abcTlp + '" style="width:3.5rem"></label>' +
+          '<label class="d-flex align-items-center gap-1"><span>Gap mm</span><input type="number" class="form-control form-control-sm" id="edAbcTransGap" min="0" max="20" step="0.5" value="' + abcTgm + '" style="width:3.5rem"></label>' +
+          '<label class="d-flex align-items-center gap-1"><span>Size pt</span><input type="number" class="form-control form-control-sm" id="edAbcTransSize" min="6" max="36" step="0.5" value="' + abcTfs + '" style="width:3.5rem"></label>' +
         '</div>' +
-        '<p class="small text-muted mb-0">Paste <a href="https://abcnotation.com/wiki/abc:standard:v2.1" target="_blank" rel="noopener">ABC notation</a>. ' +
-        'Hymn tunes can often be found at <a href="https://ifdo.ca/~seymour/runabc/abcguide/abc2midi_harmony.html" target="_blank" rel="noopener">ABC resources</a> ' +
-        'or exported from MuseScore.</p>';
+        '<div class="d-flex flex-wrap gap-2 mb-1" style="font-size:0.72rem">' +
+          '<label class="d-flex align-items-center gap-1"><input class="form-check-input" type="checkbox" id="chkAbcBorder"' + (b.abcTranslationBorder ? ' checked' : '') + '><span>Border</span></label>' +
+          '<label class="d-flex align-items-center gap-1"><span>V-align</span><select id="edAbcTransVA" class="form-select form-select-sm" style="width:auto"><option value="middle"' + ((b.abcTranslationVAlign||'middle')==='middle'?' selected':'') + '>Middle</option><option value="top"' + (b.abcTranslationVAlign==='top'?' selected':'') + '>Top</option><option value="bottom"' + (b.abcTranslationVAlign==='bottom'?' selected':'') + '>Bottom</option></select></label>' +
+        '</div>' +
+        '<p class="small text-muted mt-1 mb-0">Paste <a href="https://abcnotation.com/wiki/abc:standard:v2.1" target="_blank" rel="noopener">ABC notation</a>.</p>';
+
       var abcTa = panel.querySelector('#edAbcText');
+      var abcChangeTimer = null;
       if (abcTa) {
         abcTa.value = b.abcText || '';
         abcTa.addEventListener('input', function () {
           b.abcText = abcTa.value;
           scheduleAutosave();
-          markLayoutStale();
-          renderBlockList();
+          // Debounce the expensive re-render: wait 600ms after typing stops.
+          clearTimeout(abcChangeTimer);
+          abcChangeTimer = setTimeout(function () {
+            markLayoutStale();
+            renderBlockList();
+          }, 600);
         });
       }
-      var abcScaleInp = panel.querySelector('#edAbcScale');
-      if (abcScaleInp) abcScaleInp.addEventListener('change', function () {
-        var v = parseFloat(abcScaleInp.value);
-        b.abcScale = Number.isFinite(v) ? Math.min(3, Math.max(0.3, v)) : 1.0;
-        scheduleAutosave();
-        markLayoutStale();
+
+      function wireAbcSlider(numId, rangeId, prop, min, max, fallback, isFloat) {
+        var numEl = panel.querySelector('#' + numId);
+        var rangeEl = panel.querySelector('#' + rangeId);
+        function apply(v) {
+          v = isFloat ? parseFloat(v) : parseInt(v, 10);
+          if (!Number.isFinite(v)) return;
+          v = Math.min(max, Math.max(min, v));
+          b[prop] = v;
+          if (numEl) numEl.value = v;
+          if (rangeEl) rangeEl.value = v;
+        }
+        if (numEl) {
+          numEl.addEventListener('input', function () { apply(numEl.value); scheduleAutosave(); markLayoutStale(); });
+          numEl.addEventListener('change', function () { apply(numEl.value); scheduleAutosave(); markLayoutStale(); });
+        }
+        if (rangeEl) {
+          rangeEl.addEventListener('input', function () { apply(rangeEl.value); scheduleAutosave(); markLayoutStale(); });
+          rangeEl.addEventListener('change', function () { apply(rangeEl.value); scheduleAutosave(); markLayoutStale(); });
+        }
+      }
+      wireAbcSlider('edAbcScaleNum', 'edAbcScaleRange', 'abcScale', 0.1, 3, 0.7, true);
+      wireAbcSlider('edAbcWidthNum', 'edAbcWidthRange', 'abcStaffWidth', 20, 100, 100, false);
+
+      var abcTransTa = panel.querySelector('#edAbcTrans');
+      if (abcTransTa) {
+        abcTransTa.value = b.abcTranslation || '';
+        abcTransTa.addEventListener('input', function () {
+          b.abcTranslation = abcTransTa.value;
+          scheduleAutosave(); markLayoutStale();
+        });
+      }
+      panel.querySelector('#edAbcTransLeftPct')?.addEventListener('change', function (e) {
+        b.abcTranslationLeftPct = Math.min(80, Math.max(20, parseInt(e.target.value, 10) || 60));
+        scheduleAutosave(); markLayoutStale();
       });
-      var abcWidthInp = panel.querySelector('#edAbcStaffWidth');
-      if (abcWidthInp) abcWidthInp.addEventListener('change', function () {
-        var v = parseInt(abcWidthInp.value, 10);
-        b.abcStaffWidth = Number.isFinite(v) ? Math.min(100, Math.max(20, v)) : 100;
-        scheduleAutosave();
-        markLayoutStale();
+      panel.querySelector('#edAbcTransGap')?.addEventListener('change', function (e) {
+        b.abcTranslationGapMm = Math.min(20, Math.max(0, parseFloat(e.target.value) || 4));
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcTransSize')?.addEventListener('change', function (e) {
+        b.abcTranslationFontSizePt = Math.min(36, Math.max(6, parseFloat(e.target.value) || 11));
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#chkAbcBorder')?.addEventListener('change', function (e) {
+        b.abcTranslationBorder = e.target.checked;
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcTransVA')?.addEventListener('change', function (e) {
+        b.abcTranslationVAlign = e.target.value || 'middle';
+        scheduleAutosave(); markLayoutStale();
       });
       return;
     }
@@ -4254,8 +4390,15 @@
     }
     if (type === 'abc_notation') {
       b.abcText = '';
-      b.abcScale = 1.0;
+      b.abcScale = 0.7;
       b.abcStaffWidth = 100;
+      b.abcTranslation = '';
+      b.abcTranslationLeftPct = 60;
+      b.abcTranslationGapMm = 4;
+      b.abcTranslationBorder = false;
+      b.abcTranslationFontSizePt = 11;
+      b.abcTranslationVAlign = 'middle';
+      b.abcTranslationTextAlign = 'left';
     }
     if (type !== 'page_break' && type !== 'spacer' && type !== 'hr') {
       b.hidden = false;
