@@ -189,14 +189,17 @@
   let layoutStale = false;
   let autoRefresh = true;
   let scrollToBlockAfterRender = false;
-  // Chant render cache: blockId → { sig: string, lines: HTMLElement[] (pristine clones) }
-  // Bounded to one slot per live block; pruned at the end of every buildFlowList call.
+  // Render caches, all bounded to one slot per live block and pruned at the end
+  // of every buildFlowList call.
+  // chantRenderCache: blockId → { sig, lines: HTMLElement[] (pristine clones) }
   const chantRenderCache = new Map();
-  // ABC render cache: blockId → { sig: string, el: HTMLElement (pristine clone) }
+  // abcRenderCache: blockId → { sig, svgs: SVGElement[] (pristine clones) }
   const abcRenderCache = new Map();
-  // Static block height cache: blockId → { sig: string, h: number (px) }
-  // Avoids repeated measureInContext reflows for unchanged rubric/reading/title blocks.
-  const staticHeightCache = new Map();
+  // editionRenderCache: blockId → { sig, els: HTMLElement[] (pristine clones) }
+  const editionRenderCache = new Map();
+  // flowHeightCache: '<blockId>#<slot>' → { sig, h, header, footer }
+  // Avoids measureInContext / measureBlockOffsets reflows for unchanged items.
+  const flowHeightCache = new Map();
 
   function markLayoutStale() {
     layoutStale = true;
@@ -2211,23 +2214,74 @@
       if (opts.staffColor) abcOpts.staffColor = opts.staffColor;
       if (opts.noteColor) abcOpts.noteColor = opts.noteColor;
       ABCJS.renderAbc(mount, textToRender, abcOpts);
-      var rawSvgs = mount.querySelectorAll('svg');
+      // abcjs renders ONE svg per tune containing all staff systems. To let the
+      // paginator flow systems across pages, slice it into horizontal bands
+      // (one per system) found via the abcjs-l<N> line classes.
+      var svg = mount.querySelector('svg');
+      if (!svg) {
+        document.body.removeChild(mount);
+        return null;
+      }
       var result = [];
-      rawSvgs.forEach(function (svg) {
-        try {
-          var bb = svg.getBBox();
-          if (bb.width > 0 && bb.height > 0) {
-            var pad = 3;
-            svg.setAttribute('viewBox', (bb.x - pad) + ' ' + (bb.y - pad) + ' ' + (bb.width + pad * 2) + ' ' + (bb.height + pad * 2));
-            svg.setAttribute('width', staffWidthPx + 'px');
-            svg.setAttribute('height', (bb.height + pad * 2) + 'px');
-          }
-        } catch (_) { /* getBBox can fail on empty SVG */ }
-        svg.style.display = 'block';
-        svg.style.maxWidth = '100%';
-        svg.style.overflow = 'visible';
-        result.push(svg);
+      var pad = 3;
+      var fullBB = null;
+      try { fullBB = svg.getBBox(); } catch (_) { /* empty svg */ }
+      if (!fullBB || fullBB.width <= 0 || fullBB.height <= 0) {
+        document.body.removeChild(mount);
+        return null;
+      }
+
+      // Collect per-system vertical extents from abcjs-l<N> classes.
+      var lineBands = {};
+      svg.querySelectorAll('[class]').forEach(function (el) {
+        var m = String(el.getAttribute('class') || '').match(/(?:^|\s)abcjs-l(\d+)(?:\s|$)/);
+        if (!m) return;
+        var n = parseInt(m[1], 10);
+        var bb;
+        try { bb = el.getBBox(); } catch (_) { return; }
+        if (!bb || (bb.width === 0 && bb.height === 0)) return;
+        if (!lineBands[n]) lineBands[n] = { top: bb.y, bottom: bb.y + bb.height };
+        else {
+          lineBands[n].top = Math.min(lineBands[n].top, bb.y);
+          lineBands[n].bottom = Math.max(lineBands[n].bottom, bb.y + bb.height);
+        }
       });
+      var lineNums = Object.keys(lineBands).map(Number).sort(function (a, z) { return a - z; });
+
+      var pxPerUnit = staffWidthPx / (fullBB.width + pad * 2);
+
+      function makeBandSvg(bandTop, bandBottom) {
+        var clone = svg.cloneNode(true);
+        var vbY = bandTop;
+        var vbH = bandBottom - bandTop;
+        clone.setAttribute('viewBox', (fullBB.x - pad) + ' ' + vbY + ' ' + (fullBB.width + pad * 2) + ' ' + vbH);
+        clone.setAttribute('width', staffWidthPx + 'px');
+        clone.setAttribute('height', Math.max(1, Math.round(vbH * pxPerUnit)) + 'px');
+        clone.removeAttribute('id');
+        clone.style.display = 'block';
+        clone.style.maxWidth = '100%';
+        // Crop: content of other systems must NOT bleed outside the band.
+        clone.style.overflow = 'hidden';
+        return clone;
+      }
+
+      if (lineNums.length <= 1) {
+        // Single system (or no line classes found): one cropped svg.
+        result.push(makeBandSvg(fullBB.y - pad, fullBB.y + fullBB.height + pad));
+      } else {
+        for (var ln = 0; ln < lineNums.length; ln++) {
+          var cur = lineBands[lineNums[ln]];
+          // Band edges sit midway between adjacent systems so nothing is cut off.
+          var top = ln === 0
+            ? fullBB.y - pad
+            : (lineBands[lineNums[ln - 1]].bottom + cur.top) / 2;
+          var bottom = ln === lineNums.length - 1
+            ? fullBB.y + fullBB.height + pad
+            : (cur.bottom + lineBands[lineNums[ln + 1]].top) / 2;
+          result.push(makeBandSvg(top, bottom));
+        }
+      }
+
       document.body.removeChild(mount);
       return result.length > 0 ? result : null;
     } catch (e) {
@@ -2313,6 +2367,8 @@
           var isLast = li === lines.length - 1;
           var flowItem = { t: 'flow', el: lines[li], splittable: false, gapMm: isLast ? gapAfter : 0 };
           if (li > 0) flowItem.internalGapPx = chantVGapPx;
+          flowItem.measureKey = b.id + '#c' + li;
+          flowItem.measureSig = chantSig;
           out.push(flowItem);
         }
         continue;
@@ -2448,22 +2504,38 @@
           var abcIsLast = ai === abcSvgs.length - 1;
           var abcFlowItem = { t: 'flow', el: abcLine, splittable: false, gapMm: abcIsLast ? gapAfter : 0 };
           if (ai > 0) abcFlowItem.internalGapPx = abcLineGapPx;
+          abcFlowItem.measureKey = b.id + '#a' + ai;
+          abcFlowItem.measureSig = abcSig + '|' + JSON.stringify([b.sectionTitle, b.sectionSourceRef, b.titleFontSizePt, b.sourceFontSizePt]);
           out.push(abcFlowItem);
         }
         continue;
       }
       if (b.type === 'edition_pdf') {
-        var units = await renderEditionPageUnits(b, w);
+        // Edition pages are expensive (PDF fetch + canvas render); cache the
+        // finished units (they contain only <img> with data URLs — cloneable).
+        var edSig = JSON.stringify([b.url, b.pdfPageFrom, b.pdfPageTo, state.settings.pageSize, w]);
+        var edCached = editionRenderCache.get(b.id);
+        var units;
+        if (edCached && edCached.sig === edSig) {
+          units = edCached.els.map(function (u) { return u.cloneNode(true); });
+        } else {
+          units = await renderEditionPageUnits(b, w);
+          editionRenderCache.set(b.id, { sig: edSig, els: units.map(function (u) { return u.cloneNode(true); }) });
+        }
         for (var ui = 0; ui < units.length; ui++) {
           units[ui].dataset.blockId = b.id;
-          out.push({ t: 'flow', el: units[ui], splittable: false, gapMm: ui === units.length - 1 ? gapAfter : 0, forceBreakBefore: true });
+          var edItem = { t: 'flow', el: units[ui], splittable: false, gapMm: ui === units.length - 1 ? gapAfter : 0, forceBreakBefore: true };
+          // Full-page units carry an explicit pixel height — no measuring needed.
+          var edH = parseFloat(units[ui].style && units[ui].style.height);
+          if (Number.isFinite(edH) && edH > 0) edItem.fixedHeightPx = edH;
+          out.push(edItem);
         }
         continue;
       }
       var el = buildStaticSectionEl(b);
       el.dataset.blockId = b.id;
       // Carry a cache key so paginateFlow can skip measureInContext on unchanged blocks.
-      var staticSig = b.id + '|' + JSON.stringify([
+      var staticSig = JSON.stringify([
         b.type, b.text, b.translation, b.sectionTitle, b.sectionSourceRef,
         b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
         b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
@@ -2474,13 +2546,17 @@
         b.hrLineColor, b.heightMm,
         state.settings.fontFamilyKey, state.settings.pageSize
       ]);
-      out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter, staticSig: staticSig, blockId: b.id });
+      out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter, measureKey: b.id + '#s', measureSig: staticSig });
     }
     // Prune cache entries for blocks that no longer exist.
     var liveIds = new Set(state.blocks.map(function (b) { return b.id; }));
     chantRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) chantRenderCache.delete(id); });
     abcRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) abcRenderCache.delete(id); });
-    staticHeightCache.forEach(function (_, id) { if (!liveIds.has(id)) staticHeightCache.delete(id); });
+    editionRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) editionRenderCache.delete(id); });
+    flowHeightCache.forEach(function (_, key) {
+      var ownerId = String(key).split('#')[0];
+      if (!liveIds.has(ownerId)) flowHeightCache.delete(key);
+    });
     return out;
   }
 
@@ -2740,14 +2816,14 @@
       var h;
       if (item.fixedHeightPx != null) {
         h = item.fixedHeightPx;
-      } else if (item.staticSig) {
-        var cacheKey = item.staticSig + '|w' + widthPx;
-        var cached = staticHeightCache.get(item.blockId);
-        if (cached && cached.key === cacheKey) {
+      } else if (item.measureKey) {
+        var cacheSig = item.measureSig + '|w' + widthPx;
+        var cached = flowHeightCache.get(item.measureKey);
+        if (cached && cached.sig === cacheSig) {
           h = cached.h;
         } else {
           h = measureInContext(el, widthPx);
-          staticHeightCache.set(item.blockId, { key: cacheKey, h: h });
+          flowHeightCache.set(item.measureKey, { sig: cacheSig, h: h });
         }
       } else {
         h = measureInContext(el, widthPx);
@@ -2783,7 +2859,19 @@
         var maxRemaining = pageHPx + marginTolPx - minAbove;
 
         if (maxRemaining >= 60) {
-          var offsets = measureBlockOffsets(el, widthPx);
+          var offsets;
+          if (item.measureKey) {
+            var offSig = item.measureSig + '|off|w' + widthPx;
+            var offCached = flowHeightCache.get(item.measureKey + '#off');
+            if (offCached && offCached.sig === offSig) {
+              offsets = { header: offCached.header, footer: offCached.footer };
+            } else {
+              offsets = measureBlockOffsets(el, widthPx);
+              flowHeightCache.set(item.measureKey + '#off', { sig: offSig, header: offsets.header, footer: offsets.footer });
+            }
+          } else {
+            offsets = measureBlockOffsets(el, widthPx);
+          }
           var elLineH = getElementLineHeightPx(el);
           var minOrphanH = minOrphan * elLineH;
           var deltas = [-gapFlexPx, 0, gapFlexPx];
