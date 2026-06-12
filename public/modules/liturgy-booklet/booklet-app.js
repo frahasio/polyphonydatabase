@@ -3741,10 +3741,17 @@
       panel.innerHTML =
         '<label class="form-label small mb-0">Label <span class="text-muted">(left panel only — not printed)</span></label>' +
         '<input type="text" class="form-control form-control-sm mb-1" id="edAbcLabel" value="' + escapeAttr(b.abcLabel || '') + '" placeholder="Uses ABC T: title if blank">' +
-        '<label class="form-label small mb-0">Section heading / source ref</label>' +
         '<div class="row g-1 mb-1">' +
-          '<div class="col"><input type="text" class="form-control form-control-sm" id="edAbcSecTitle" placeholder="Heading" value="' + escapeAttr(b.sectionTitle || '') + '"></div>' +
-          '<div class="col-auto"><input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Source" style="width:7rem" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
+          '<div class="col"><label class="form-label small mb-0">Section title <span class="text-muted">(opt.)</span></label>' +
+            '<input type="text" class="form-control form-control-sm" id="edAbcSecTitle" placeholder="Bold heading" value="' + escapeAttr(b.sectionTitle || '') + '"></div>' +
+          '<div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>' +
+            '<input type="number" class="form-control form-control-sm" id="edAbcTitleSize" min="6" max="36" step="0.5" value="' + (b.titleFontSizePt || 11) + '"></div>' +
+        '</div>' +
+        '<div class="row g-1 mb-1">' +
+          '<div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>' +
+            '<input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Italic, right" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
+          '<div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>' +
+            '<input type="number" class="form-control form-control-sm" id="edAbcSourceSize" min="6" max="36" step="0.5" value="' + (b.sourceFontSizePt || 9) + '"></div>' +
         '</div>' +
         '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
         '<textarea class="form-control form-control-sm font-monospace mb-1" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
@@ -3813,6 +3820,16 @@
       panel.querySelector('#edAbcSecSrc')?.addEventListener('input', function (e) {
         b.sectionSourceRef = e.target.value;
         scheduleAutosave(); markLayoutStale(); renderBlockList();
+      });
+      panel.querySelector('#edAbcTitleSize')?.addEventListener('change', function (e) {
+        var ts = parseFloat(e.target.value);
+        b.titleFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcSourceSize')?.addEventListener('change', function (e) {
+        var ss = parseFloat(e.target.value);
+        b.sourceFontSizePt = Number.isFinite(ss) ? Math.min(36, Math.max(6, ss)) : 9;
+        scheduleAutosave(); markLayoutStale();
       });
 
       // ABC textarea (debounced, expensive)

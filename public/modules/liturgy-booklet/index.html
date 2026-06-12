@@ -494,6 +494,19 @@
         .booklet-hr .booklet-title-rule-line {
             min-width: 0;
         }
+        /* Compact number boxes paired with sliders: no spinners, small text */
+        .chant-num-box {
+            font-size: 0.68rem !important;
+            padding: 0.05rem 0.15rem !important;
+            height: 1.35rem !important;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        .chant-num-box::-webkit-outer-spin-button,
+        .chant-num-box::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
         .booklet-abc-block svg {
             max-width: 100%;
             height: auto;
