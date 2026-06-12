@@ -708,6 +708,9 @@
       .replace(/\\R\./g, '<span class="versiculum">r</span>')
       .replace(/\\A\./g, '<span class="versiculum">a</span>')
       .replace(/\\[+]/g, '<span class="versiculum">\u2720</span>')
+      // "//" = manual line break within the same translation cell (a real
+      // newline would instead pair the text with the NEXT chant system).
+      .replace(/\s*\/\/\s*/g, '<br>')
       .replace(/\n+/g, '<br>');
   }
 
@@ -3919,7 +3922,7 @@
             '<input type="color" id="edAbcNoteColor" class="form-control form-control-color" style="width:2.2rem;height:1.6rem;padding:2px" value="' + escapeAttr(abcNColorVal) + '">' +
             '<button type="button" class="btn btn-sm btn-outline-secondary py-0" id="edAbcNoteColorDef">Default</button></div>' +
         '</div>' +
-        '<hr class="my-1"><small class="fw-semibold text-muted">Translation</small> <small class="text-muted">(one line per system; *bold* _italic_)</small>' +
+        '<hr class="my-1"><small class="fw-semibold text-muted">Translation</small> <small class="text-muted">(one line per system; *bold* _italic_; // = line break)</small>' +
         '<div class="row g-1 mb-1 mt-1 align-items-end">' +
           '<div class="col"><label class="form-label small mb-0">Translation text</label></div>' +
           '<div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>' +
@@ -4565,7 +4568,7 @@
           </div>
         </div>
         <div class="row g-1 mb-0 mt-2">
-          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(one line per chant system; *bold* _italic_)</span></label></div>
+          <div class="col"><label class="form-label small mb-0">Translation <span class="text-muted">(one line per chant system; *bold* _italic_; // = line break)</span></label></div>
           <div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>
             <input type="number" class="form-control form-control-sm" id="edChantTransSize" step="0.5" value="${b.chantTranslationFontSizePt || 11}"></div>
         </div>
