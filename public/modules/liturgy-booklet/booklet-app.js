@@ -1213,10 +1213,10 @@
     var srcPt = (b.sourceFontSizePt || 9) + 'pt';
     if (!t && sref) {
       const solo = document.createElement('div');
-      solo.className = 'fst-italic text-muted mb-1 booklet-section-heading-source';
+      solo.className = 'text-muted mb-1 booklet-section-heading-source';
       solo.style.textAlign = 'right';
       solo.style.fontSize = srcPt;
-      solo.textContent = sref;
+      solo.innerHTML = renderSimpleMarkup(sref);
       wrap.appendChild(solo);
       return;
     }
@@ -1230,10 +1230,10 @@
     row.appendChild(left);
     if (sref) {
       const right = document.createElement('div');
-      right.className = 'fst-italic text-muted booklet-section-heading-source';
+      right.className = 'text-muted booklet-section-heading-source';
       right.style.textAlign = 'right';
       right.style.fontSize = srcPt;
-      right.textContent = sref;
+      right.innerHTML = renderSimpleMarkup(sref);
       row.appendChild(right);
     }
     wrap.appendChild(row);
@@ -2585,9 +2585,9 @@
               }
               if (abcSrc) {
                 var headR = document.createElement('div');
-                headR.className = 'fst-italic text-muted booklet-section-heading-source';
+                headR.className = 'text-muted booklet-section-heading-source';
                 headR.style.fontSize = (b.sourceFontSizePt || 9) + 'pt';
-                headR.textContent = abcSrc;
+                headR.innerHTML = renderSimpleMarkup(abcSrc);
                 headRow.appendChild(headR);
               }
               abcLine.appendChild(headRow);
@@ -3874,7 +3874,7 @@
         '</div>' +
         '<div class="row g-1 mb-1">' +
           '<div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>' +
-            '<input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Italic, right" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
+            '<input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Right-aligned; *bold* _italic_" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
           '<div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>' +
             '<input type="number" class="form-control form-control-sm" id="edAbcSourceSize" min="6" max="36" step="0.5" value="' + (b.sourceFontSizePt || 9) + '"></div>' +
         '</div>' +
@@ -4215,7 +4215,7 @@
         </div>
         <div class="row g-1 mb-1">
           <div class="col"><label class="form-label small mb-0">Source ref <span class="text-muted">(opt.)</span></label>
-            <input type="text" class="form-control form-control-sm" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Italic, right"></div>
+            <input type="text" class="form-control form-control-sm" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Right-aligned; *bold* _italic_"></div>
           <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
             <input type="number" class="form-control form-control-sm" id="edReadSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
         </div>
