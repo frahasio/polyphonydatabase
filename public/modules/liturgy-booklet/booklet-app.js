@@ -2172,54 +2172,17 @@
   }
 
   /**
-   * Render ABC notation text to a block element using abcjs.
-   * Returns a div containing one SVG per line of music, optionally beside a
-   * translation column (same layout as GABC+translation).
+   * Render ABC notation using abcjs and return an array of cropped SVG elements
+   * (one per staff system), ready to be used as individual flow items.
+   * Returns null if abcjs is unavailable or no music rendered.
    */
-  function renderAbcNotation(b, widthPx) {
-    var wrap = document.createElement('div');
-    wrap.className = 'booklet-section booklet-abc-block';
-    if (!b.abcText || !String(b.abcText).trim()) {
-      var ph = document.createElement('p');
-      ph.className = 'text-muted small';
-      ph.textContent = 'Paste ABC notation in the editor.';
-      wrap.appendChild(ph);
-      return wrap;
-    }
-    if (typeof ABCJS === 'undefined') {
-      var err = document.createElement('p');
-      err.className = 'text-warning small';
-      err.textContent = 'abcjs library not loaded.';
-      wrap.appendChild(err);
-      return wrap;
-    }
-
-    // Translation column setup (mirrors chant translation).
-    var hasTranslation = translationHasContent(b.abcTranslation);
-    var abcContentW = widthPx;
-    var abcRightPct, abcHalfGapMm, abcTransFontPt, abcShowBorder, abcTransVAlign, abcTransTextAlign;
-    if (hasTranslation) {
-      var abcLeftPct = Math.min(80, Math.max(20, parseInt(b.abcTranslationLeftPct, 10) || 60));
-      abcRightPct = 100 - abcLeftPct;
-      abcHalfGapMm = (Math.min(20, Math.max(0, parseInt(b.abcTranslationGapMm, 10) || 4))) / 2;
-      abcTransFontPt = b.abcTranslationFontSizePt || 11;
-      abcShowBorder = !!b.abcTranslationBorder;
-      abcTransVAlign = b.abcTranslationVAlign || 'middle';
-      abcTransTextAlign = b.abcTranslationTextAlign || 'left';
-      abcContentW = Math.round(widthPx * abcLeftPct / 100 - mmToPx(abcHalfGapMm));
-    }
-
+  function renderAbcSvgs(abcText, staffWidthPx) {
+    if (typeof ABCJS === 'undefined') return null;
     try {
-      var scale = Math.max(0.1, Math.min(3.0, Number(b.abcScale) || 0.7));
-      var staffWidthPct = Math.max(20, Math.min(100, Number(b.abcStaffWidth) || 100));
-      var staffWidthPx = Math.round(abcContentW * staffWidthPct / 100);
-
-      // Render into a temporarily live div so getBBox() works for tight cropping.
       var mount = document.createElement('div');
       mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + staffWidthPx + 'px;';
       document.body.appendChild(mount);
-      ABCJS.renderAbc(mount, b.abcText, {
-        scale: scale,
+      ABCJS.renderAbc(mount, abcText, {
         staffwidth: staffWidthPx,
         // Fixed staffwidth gives SVGs concrete pixel dimensions (no responsive:resize).
         add_classes: true,
@@ -2230,19 +2193,9 @@
         paddingright: 0,
         paddingleft: 0,
       });
-
-      var svgs = mount.querySelectorAll('svg');
-      if (svgs.length === 0) {
-        document.body.removeChild(mount);
-        var noSvg = document.createElement('p');
-        noSvg.className = 'text-warning small';
-        noSvg.textContent = 'No music rendered — check ABC syntax.';
-        wrap.appendChild(noSvg);
-        return wrap;
-      }
-
-      // Crop each SVG to its actual content bbox, eliminating abcjs whitespace.
-      svgs.forEach(function (svg) {
+      var rawSvgs = mount.querySelectorAll('svg');
+      var result = [];
+      rawSvgs.forEach(function (svg) {
         try {
           var bb = svg.getBBox();
           if (bb.width > 0 && bb.height > 0) {
@@ -2255,46 +2208,14 @@
         svg.style.display = 'block';
         svg.style.maxWidth = '100%';
         svg.style.overflow = 'visible';
+        result.push(svg);
       });
-
-      if (hasTranslation) {
-        // Parallel layout: ABC on left, translation text on right.
-        var table = document.createElement('table');
-        table.className = 'booklet-chant-parallel';
-        var tr = document.createElement('tr');
-        var tdL = document.createElement('td');
-        tdL.style.width = (100 - abcRightPct) + '%';
-        tdL.style.paddingRight = abcHalfGapMm + 'mm';
-        tdL.style.verticalAlign = 'top';
-        if (abcShowBorder) tdL.style.borderRight = '1px solid #adb5bd';
-        svgs.forEach(function (svg) { tdL.appendChild(svg); });
-        var tdR = document.createElement('td');
-        tdR.style.width = abcRightPct + '%';
-        tdR.style.paddingLeft = abcHalfGapMm + 'mm';
-        tdR.style.verticalAlign = abcTransVAlign;
-        var transDiv = document.createElement('div');
-        transDiv.className = 'booklet-richtext chant-translation';
-        transDiv.style.fontSize = abcTransFontPt + 'pt';
-        transDiv.style.textAlign = abcTransTextAlign;
-        transDiv.innerHTML = renderSimpleMarkup(b.abcTranslation || '');
-        tdR.appendChild(transDiv);
-        tr.appendChild(tdL);
-        tr.appendChild(tdR);
-        table.appendChild(tr);
-        wrap.appendChild(table);
-      } else {
-        svgs.forEach(function (svg) { wrap.appendChild(svg); });
-      }
-
       document.body.removeChild(mount);
+      return result.length > 0 ? result : null;
     } catch (e) {
       console.error('ABC render error', e);
-      var errEl = document.createElement('p');
-      errEl.className = 'text-danger small';
-      errEl.textContent = 'ABC error: ' + (e.message || String(e));
-      wrap.appendChild(errEl);
+      return null;
     }
-    return wrap;
   }
 
   async function buildFlowList() {
@@ -2379,22 +2300,105 @@
         continue;
       }
       if (b.type === 'abc_notation') {
+        if (!b.abcText || !String(b.abcText).trim()) {
+          var abcPh = document.createElement('div');
+          abcPh.className = 'booklet-section text-muted small';
+          abcPh.dataset.blockId = b.id;
+          abcPh.textContent = 'Paste ABC notation in the editor.';
+          out.push({ t: 'flow', el: abcPh, splittable: false, gapMm: gapAfter });
+          continue;
+        }
+
+        // Translation column settings.
+        var abcHasTrans = translationHasContent(b.abcTranslation);
+        var abcLeftPct = Math.min(80, Math.max(20, parseInt(b.abcTranslationLeftPct, 10) || 60));
+        var abcRightPct2 = 100 - abcLeftPct;
+        var abcHalfGapMm = (Math.min(20, Math.max(0, parseInt(b.abcTranslationGapMm, 10) || 4))) / 2;
+        var abcTransFontPt = b.abcTranslationFontSizePt || 11;
+        var abcShowBorder = !!b.abcTranslationBorder;
+        var abcTransVAlign = b.abcTranslationVAlign || 'middle';
+        var abcTransTextAlign = b.abcTranslationTextAlign || 'left';
+        var abcTransLines = abcHasTrans ? splitTranslationLines(b.abcTranslation) : [];
+
+        var abcScale = Math.max(0.1, Math.min(3.0, Number(b.abcScale) || 0.7));
+        var abcStaffWidthPct = Math.max(20, Math.min(100, Number(b.abcStaffWidth) || 100));
+        var abcContentW = abcHasTrans
+          ? Math.round(w * abcLeftPct / 100 - mmToPx(abcHalfGapMm))
+          : w;
+        var abcStaffW = Math.round(abcContentW * abcStaffWidthPct / 100);
+
+        // Cache is keyed on everything that affects rendering.
         var abcSig = JSON.stringify([
-          b.abcText, b.abcScale, b.abcStaffWidth, w,
+          b.abcText, abcScale, abcStaffW,
           b.abcTranslation, b.abcTranslationLeftPct, b.abcTranslationGapMm,
           b.abcTranslationBorder, b.abcTranslationFontSizePt,
           b.abcTranslationVAlign, b.abcTranslationTextAlign
         ]);
         var abcCached = abcRenderCache.get(b.id);
-        var abcEl;
+        var abcSvgs;
         if (abcCached && abcCached.sig === abcSig) {
-          abcEl = abcCached.el.cloneNode(true);
+          abcSvgs = abcCached.svgs.map(function (s) { return s.cloneNode(true); });
         } else {
-          abcEl = renderAbcNotation(b, w);
-          abcRenderCache.set(b.id, { sig: abcSig, el: abcEl.cloneNode(true) });
+          abcSvgs = renderAbcSvgs(b.abcText, abcStaffW) || [];
+          abcRenderCache.set(b.id, { sig: abcSig, svgs: abcSvgs.map(function (s) { return s.cloneNode(true); }) });
         }
-        abcEl.dataset.blockId = b.id;
-        out.push({ t: 'flow', el: abcEl, splittable: false, gapMm: gapAfter });
+
+        if (abcSvgs.length === 0) {
+          var abcErrEl = document.createElement('div');
+          abcErrEl.className = 'booklet-section text-warning small';
+          abcErrEl.dataset.blockId = b.id;
+          abcErrEl.textContent = 'ABC: no music rendered — check syntax.';
+          out.push({ t: 'flow', el: abcErrEl, splittable: false, gapMm: gapAfter });
+          continue;
+        }
+
+        // Each SVG becomes its own flow item (like GABC lines), so they can
+        // distribute naturally across pages.
+        var abcLineGapPx = 4;
+        for (var ai = 0; ai < abcSvgs.length; ai++) {
+          var abcSvg = abcSvgs[ai];
+          var abcLine = document.createElement('div');
+          abcLine.className = 'booklet-chant-line booklet-abc-block';
+          abcLine.style.overflow = 'visible';
+          abcLine.dataset.blockId = b.id;
+
+          if (abcHasTrans) {
+            // Pair translation lines with staff systems (same logic as GABC).
+            var abcTransHtml = ai < abcSvgs.length - 1
+              ? (abcTransLines[ai] || '')
+              : abcTransLines.slice(ai).join('\n');
+            var abcTable = document.createElement('table');
+            abcTable.className = 'booklet-chant-parallel';
+            var abcTr = document.createElement('tr');
+            var abcTdL = document.createElement('td');
+            abcTdL.style.width = abcLeftPct + '%';
+            abcTdL.style.paddingRight = abcHalfGapMm + 'mm';
+            abcTdL.style.verticalAlign = 'top';
+            if (abcShowBorder) abcTdL.style.borderRight = '1px solid #adb5bd';
+            abcTdL.appendChild(abcSvg);
+            var abcTdR = document.createElement('td');
+            abcTdR.style.width = abcRightPct2 + '%';
+            abcTdR.style.paddingLeft = abcHalfGapMm + 'mm';
+            abcTdR.style.verticalAlign = abcTransVAlign;
+            var abcTransDiv = document.createElement('div');
+            abcTransDiv.className = 'booklet-richtext chant-translation';
+            abcTransDiv.style.fontSize = abcTransFontPt + 'pt';
+            abcTransDiv.style.textAlign = abcTransTextAlign;
+            abcTransDiv.innerHTML = renderSimpleMarkup(abcTransHtml);
+            abcTdR.appendChild(abcTransDiv);
+            abcTr.appendChild(abcTdL);
+            abcTr.appendChild(abcTdR);
+            abcTable.appendChild(abcTr);
+            abcLine.appendChild(abcTable);
+          } else {
+            abcLine.appendChild(abcSvg);
+          }
+
+          var abcIsLast = ai === abcSvgs.length - 1;
+          var abcFlowItem = { t: 'flow', el: abcLine, splittable: false, gapMm: abcIsLast ? gapAfter : 0 };
+          if (ai > 0) abcFlowItem.internalGapPx = abcLineGapPx;
+          out.push(abcFlowItem);
+        }
         continue;
       }
       if (b.type === 'edition_pdf') {
