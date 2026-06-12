@@ -2194,7 +2194,9 @@
       ABCJS.renderAbc(mount, b.abcText, {
         scale: scale,
         staffwidth: staffWidthPx,
-        responsive: 'resize',
+        // Do NOT use responsive:'resize' — that sets width:100% and no explicit
+        // height, making the block measure as 0px in the off-screen paginator.
+        // Fixed staffwidth gives the SVG concrete pixel dimensions.
         add_classes: true,
         selectionColor: 'none',
         print: true,
@@ -2212,6 +2214,8 @@
         wrap.appendChild(noSvg);
       } else {
         svgs.forEach(function (svg) {
+          // Ensure block display so the wrap height is the sum of SVG heights.
+          svg.style.display = 'block';
           svg.style.maxWidth = '100%';
           wrap.appendChild(svg);
         });
