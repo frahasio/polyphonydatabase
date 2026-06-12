@@ -2186,6 +2186,119 @@
   }
 
   /**
+   * Expand the w: lines of an ABC source into a flat list of lyric slots,
+   * mirroring abcjs's own expansion: one slot per syllable / hold (_) / skip (*).
+   */
+  function expandAbcLyricSlots(abcSource) {
+    var slots = [];
+    String(abcSource).split(/\r?\n/).forEach(function (line) {
+      var m = line.match(/^w:\s?(.*)$/);
+      if (!m) return;
+      m[1].trim().split(/\s+/).filter(Boolean).forEach(function (tok) {
+        if (tok === '*') { slots.push({ t: 'skip' }); return; }
+        if (/^_+$/.test(tok)) {
+          for (var u = 0; u < tok.length; u++) slots.push({ t: 'hold' });
+          return;
+        }
+        var trail = (tok.match(/_+$/) || [''])[0].length;
+        var core = trail ? tok.slice(0, -trail) : tok;
+        // Split internal hyphens into separate syllables, hyphen kept on the left part.
+        var parts = core.match(/[^-]*-|[^-]+$/g) || [core];
+        parts.forEach(function (p, pi) {
+          var isLast = pi === parts.length - 1;
+          slots.push({ t: 'text', text: p, raw: isLast && trail ? p + tok.slice(-trail) : p });
+        });
+        for (var u2 = 0; u2 < trail; u2++) slots.push({ t: 'hold' });
+      });
+    });
+    return slots;
+  }
+
+  /**
+   * abcjs (through at least v6.6.3) does not draw lyric extender lines: a hold
+   * (_) renders as a blank lyric slot and a trailing underscore is left in the
+   * syllable text. This matches lyric <text> elements against the parsed w:
+   * slots, strips stray underscores, and draws the extender lines ourselves.
+   * Bails out silently on any mismatch (e.g. multi-verse lyrics) — in that
+   * case the output is simply unchanged.
+   */
+  function addAbcLyricExtenders(svg, abcSource) {
+    var els = Array.prototype.slice.call(svg.querySelectorAll('text.abcjs-lyric'));
+    if (!els.length) return;
+    var slots = expandAbcLyricSlots(abcSource);
+    if (!slots.length) return;
+    var n = Math.min(els.length, slots.length);
+
+    // Verify the 1:1 mapping before touching anything.
+    for (var i = 0; i < n; i++) {
+      var txt = els[i].textContent;
+      var s = slots[i];
+      if (s.t === 'text') {
+        if (txt !== s.raw && txt !== s.text) return;
+      } else if (txt.trim() !== '') {
+        return;
+      }
+    }
+
+    // Strip literal trailing underscores left in syllable text.
+    for (var j = 0; j < n; j++) {
+      if (slots[j].t === 'text' && slots[j].raw !== slots[j].text && els[j].textContent === slots[j].raw) {
+        els[j].textContent = slots[j].text;
+      }
+    }
+
+    function lineClassOf(el) {
+      var mm = String(el.getAttribute('class') || '').match(/(?:^|\s)abcjs-l(\d+)(?:\s|$)/);
+      return mm ? mm[1] : null;
+    }
+
+    var k = 0;
+    while (k < n) {
+      if (slots[k].t !== 'hold') { k++; continue; }
+      var a = k - 1;
+      while (a >= 0 && slots[a].t !== 'text') a--;
+      var run = [];
+      while (k < n && slots[k].t === 'hold') { run.push(els[k]); k++; }
+      if (a < 0) continue;
+      var anchorEl = els[a];
+      var anchorLc = lineClassOf(anchorEl);
+      // Group consecutive holds by system so a melisma wrapping to the next
+      // system gets its own segment there rather than a diagonal line.
+      var groups = [];
+      run.forEach(function (hEl) {
+        var lc = lineClassOf(hEl);
+        var g = groups[groups.length - 1];
+        if (g && g.lc === lc) g.els.push(hEl);
+        else groups.push({ lc: lc, els: [hEl] });
+      });
+      groups.forEach(function (g) {
+        var lastH = g.els[g.els.length - 1];
+        var endX = parseFloat(lastH.getAttribute('x')) + 4;
+        var startX, y;
+        if (g.lc === anchorLc) {
+          var bb;
+          try { bb = anchorEl.getBBox(); } catch (_) { return; }
+          startX = bb.x + bb.width + 1.5;
+          y = parseFloat(anchorEl.getAttribute('y'));
+        } else {
+          startX = parseFloat(g.els[0].getAttribute('x')) - 8;
+          y = parseFloat(g.els[0].getAttribute('y'));
+        }
+        if (!Number.isFinite(startX) || !Number.isFinite(endX) || !Number.isFinite(y) || endX - startX < 2) return;
+        var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        ln.setAttribute('x1', startX);
+        ln.setAttribute('x2', endX);
+        ln.setAttribute('y1', y);
+        ln.setAttribute('y2', y);
+        ln.setAttribute('stroke', anchorEl.getAttribute('fill') || '#000');
+        ln.setAttribute('stroke-width', '0.9');
+        if (g.lc != null) ln.setAttribute('class', 'abcjs-lyric-extender abcjs-l' + g.lc);
+        (anchorEl.parentNode || svg).appendChild(ln);
+      });
+    }
+  }
+
+  /**
    * Render ABC notation using abcjs and return an array of cropped SVG elements
    * (one per staff system), ready to be used as individual flow items.
    * Returns null if abcjs is unavailable or no music rendered.
@@ -2223,6 +2336,8 @@
         document.body.removeChild(mount);
         return null;
       }
+      // abcjs doesn't draw lyric extender lines (melisma underscores); add them.
+      try { addAbcLyricExtenders(svg, textToRender); } catch (extErr) { console.warn('ABC extenders skipped', extErr); }
       var result = [];
       var pad = 3;
       var fullBB = null;
