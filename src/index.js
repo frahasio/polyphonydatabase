@@ -57,8 +57,18 @@ app.get('/booklet', requireAuthWeb, requirePermission('booklet_creator'), (req, 
   res.sendFile('modules/liturgy-booklet/index.html', { root: 'public' });
 });
 
-// Serve static files
-app.use(express.static('public'));
+// Serve static files. Fonts get a CORS header: unlike CSS/images, web fonts
+// are blocked for cross/null-origin documents without it. The PDF export
+// renders pages via Puppeteer setContent() (null origin), so without this the
+// bold Crimson faces fail there and Chrome falls back to DejaVu (oversized
+// bold lyrics, broken small-caps text mapping in exported PDFs).
+app.use(express.static('public', {
+  setHeaders: function (res, path) {
+    if (/\.(ttf|otf|woff2?|eot)$/i.test(path)) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+  },
+}));
 
 // PUBLIC ROUTES (no authentication required)
 // Root URL serves the public search interface
