@@ -846,6 +846,7 @@
       return 'Horizontal rule';
     }
     if (b.type === 'abc_notation') {
+      if (b.abcLabel && String(b.abcLabel).trim()) return String(b.abcLabel).trim();
       const firstLine = (b.abcText || '').split('\n').find(function (l) { return l.startsWith('T:'); });
       return firstLine ? firstLine.slice(2).trim() : 'ABC notation (no title)';
     }
@@ -1300,8 +1301,17 @@
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
         if (o.abcText == null) o.abcText = '';
+        if (o.abcLabel == null) o.abcLabel = '';
         if (o.abcScale == null) o.abcScale = 0.7;
         if (o.abcStaffWidth == null) o.abcStaffWidth = 100;
+        if (o.abcSystemGapMm == null) o.abcSystemGapMm = 2;
+        if (o.abcStaffColor == null) o.abcStaffColor = '';
+        if (o.abcNoteColor == null) o.abcNoteColor = '';
+        if (o.abcShowTitle == null) o.abcShowTitle = false;
+        if (o.sectionTitle == null) o.sectionTitle = '';
+        if (o.sectionSourceRef == null) o.sectionSourceRef = '';
+        if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
+        if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
         if (o.abcTranslation == null) o.abcTranslation = '';
         if (o.abcTranslationLeftPct == null) o.abcTranslationLeftPct = 60;
         if (o.abcTranslationGapMm == null) o.abcTranslationGapMm = 4;
@@ -2176,13 +2186,17 @@
    * (one per staff system), ready to be used as individual flow items.
    * Returns null if abcjs is unavailable or no music rendered.
    */
-  function renderAbcSvgs(abcText, staffWidthPx, scale) {
+  function renderAbcSvgs(abcText, staffWidthPx, scale, opts) {
     if (typeof ABCJS === 'undefined') return null;
+    opts = opts || {};
+    var showTitle = !!opts.showTitle;
+    // Strip T: header lines if title rendering is suppressed.
+    var textToRender = showTitle ? abcText : abcText.replace(/^T:[^\r\n]*[\r\n]?/gm, '');
     try {
       var mount = document.createElement('div');
       mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + staffWidthPx + 'px;';
       document.body.appendChild(mount);
-      ABCJS.renderAbc(mount, abcText, {
+      var abcOpts = {
         scale: scale || 0.7,
         staffwidth: staffWidthPx,
         // Fixed staffwidth gives SVGs concrete pixel dimensions (no responsive:resize).
@@ -2193,7 +2207,10 @@
         paddingbottom: 4,
         paddingright: 0,
         paddingleft: 0,
-      });
+      };
+      if (opts.staffColor) abcOpts.staffColor = opts.staffColor;
+      if (opts.noteColor) abcOpts.noteColor = opts.noteColor;
+      ABCJS.renderAbc(mount, textToRender, abcOpts);
       var rawSvgs = mount.querySelectorAll('svg');
       var result = [];
       rawSvgs.forEach(function (svg) {
@@ -2328,9 +2345,14 @@
           : w;
         var abcStaffW = Math.round(abcContentW * abcStaffWidthPct / 100);
 
+        var abcShowTitle = !!b.abcShowTitle;
+        var abcSystemGapMm = Math.max(0, Math.min(20, parseFloat(b.abcSystemGapMm) || 2));
+        var abcSColor = String(b.abcStaffColor || '').trim();
+        var abcNColor = String(b.abcNoteColor || '').trim();
+
         // Cache is keyed on everything that affects rendering.
         var abcSig = JSON.stringify([
-          b.abcText, abcScale, abcStaffW,
+          b.abcText, abcScale, abcStaffW, abcShowTitle, abcSColor, abcNColor,
           b.abcTranslation, b.abcTranslationLeftPct, b.abcTranslationGapMm,
           b.abcTranslationBorder, b.abcTranslationFontSizePt,
           b.abcTranslationVAlign, b.abcTranslationTextAlign
@@ -2340,7 +2362,11 @@
         if (abcCached && abcCached.sig === abcSig) {
           abcSvgs = abcCached.svgs.map(function (s) { return s.cloneNode(true); });
         } else {
-          abcSvgs = renderAbcSvgs(b.abcText, abcStaffW, abcScale) || [];
+          abcSvgs = renderAbcSvgs(b.abcText, abcStaffW, abcScale, {
+            showTitle: abcShowTitle,
+            staffColor: abcSColor || undefined,
+            noteColor: abcNColor || undefined,
+          }) || [];
           abcRenderCache.set(b.id, { sig: abcSig, svgs: abcSvgs.map(function (s) { return s.cloneNode(true); }) });
         }
 
@@ -2355,13 +2381,37 @@
 
         // Each SVG becomes its own flow item (like GABC lines), so they can
         // distribute naturally across pages.
-        var abcLineGapPx = 4;
+        var abcLineGapPx = mmToPx(abcSystemGapMm);
         for (var ai = 0; ai < abcSvgs.length; ai++) {
           var abcSvg = abcSvgs[ai];
           var abcLine = document.createElement('div');
           abcLine.className = 'booklet-chant-line booklet-abc-block';
           abcLine.style.overflow = 'visible';
           abcLine.dataset.blockId = b.id;
+          // Add section heading (title / source ref) above the first system only.
+          if (ai === 0) {
+            var abcSt = String(b.sectionTitle || '').trim();
+            var abcSrc = String(b.sectionSourceRef || '').trim();
+            if (abcSt || abcSrc) {
+              var headRow = document.createElement('div');
+              headRow.className = 'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap mb-1';
+              if (abcSt) {
+                var headL = document.createElement('div');
+                headL.className = 'fw-bold booklet-section-heading-title';
+                headL.style.fontSize = (b.titleFontSizePt || 11) + 'pt';
+                headL.textContent = abcSt;
+                headRow.appendChild(headL);
+              }
+              if (abcSrc) {
+                var headR = document.createElement('div');
+                headR.className = 'fst-italic text-muted booklet-section-heading-source';
+                headR.style.fontSize = (b.sourceFontSizePt || 9) + 'pt';
+                headR.textContent = abcSrc;
+                headRow.appendChild(headR);
+              }
+              abcLine.appendChild(headRow);
+            }
+          }
 
           if (abcHasTrans) {
             // Pair translation lines with staff systems (same logic as GABC).
@@ -3588,12 +3638,27 @@
     if (b.type === 'abc_notation') {
       var abcScale = b.abcScale != null ? b.abcScale : 0.7;
       var abcWidth = b.abcStaffWidth != null ? b.abcStaffWidth : 100;
+      var abcGapMm = b.abcSystemGapMm != null ? b.abcSystemGapMm : 2;
       var abcTlp = b.abcTranslationLeftPct != null ? b.abcTranslationLeftPct : 60;
       var abcTgm = b.abcTranslationGapMm != null ? b.abcTranslationGapMm : 4;
       var abcTfs = b.abcTranslationFontSizePt != null ? b.abcTranslationFontSizePt : 11;
+      var abcSColorVal = /^#[0-9a-f]{6}$/i.test(String(b.abcStaffColor||'').trim()) ? String(b.abcStaffColor).trim() : '#000000';
+      var abcNColorVal = /^#[0-9a-f]{6}$/i.test(String(b.abcNoteColor||'').trim()) ? String(b.abcNoteColor).trim() : '#000000';
+
       panel.innerHTML =
+        '<label class="form-label small mb-0">Label <span class="text-muted">(left panel only — not printed)</span></label>' +
+        '<input type="text" class="form-control form-control-sm mb-1" id="edAbcLabel" value="' + escapeAttr(b.abcLabel || '') + '" placeholder="Uses ABC T: title if blank">' +
+        '<label class="form-label small mb-0">Section heading / source ref</label>' +
+        '<div class="row g-1 mb-1">' +
+          '<div class="col"><input type="text" class="form-control form-control-sm" id="edAbcSecTitle" placeholder="Heading" value="' + escapeAttr(b.sectionTitle || '') + '"></div>' +
+          '<div class="col-auto"><input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Source" style="width:7rem" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
+        '</div>' +
         '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
-        '<textarea class="form-control form-control-sm font-monospace mb-2" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
+        '<textarea class="form-control form-control-sm font-monospace mb-1" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
+        '<div class="form-check mb-1">' +
+          '<input class="form-check-input" type="checkbox" id="chkAbcShowTitle"' + (b.abcShowTitle ? ' checked' : '') + '>' +
+          '<label class="form-check-label small" for="chkAbcShowTitle">Print T: title on page</label>' +
+        '</div>' +
         '<div class="small border rounded px-2 py-1 mb-1 bg-light" style="font-size:0.72rem">' +
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Scale</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcScaleNum" min="0.1" max="3" step="0.05" value="' + abcScale + '" style="width:3.5rem">' +
@@ -3601,20 +3666,63 @@
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff width %</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcWidthNum" min="20" max="100" step="1" value="' + abcWidth + '" style="width:3.5rem">' +
             '<input type="range" class="form-range flex-grow-1" id="edAbcWidthRange" min="20" max="100" step="1" value="' + abcWidth + '"></div>' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">System gap mm</span>' +
+            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcGapNum" min="0" max="20" step="0.5" value="' + abcGapMm + '" style="width:3.5rem">' +
+            '<input type="range" class="form-range flex-grow-1" id="edAbcGapRange" min="0" max="20" step="0.5" value="' + abcGapMm + '"></div>' +
+          '<div class="d-flex align-items-center gap-2 mb-1"><span style="min-width:5.5rem">Staff colour</span>' +
+            '<input type="color" id="edAbcStaffColor" class="form-control form-control-color" style="width:2.2rem;height:1.6rem;padding:2px" value="' + escapeAttr(abcSColorVal) + '">' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary py-0" id="edAbcStaffColorDef">Default</button></div>' +
+          '<div class="d-flex align-items-center gap-2"><span style="min-width:5.5rem">Note colour</span>' +
+            '<input type="color" id="edAbcNoteColor" class="form-control form-control-color" style="width:2.2rem;height:1.6rem;padding:2px" value="' + escapeAttr(abcNColorVal) + '">' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary py-0" id="edAbcNoteColorDef">Default</button></div>' +
         '</div>' +
-        '<hr class="my-1"><small class="fw-semibold text-muted">Translation</small><small class="text-muted ms-1">(parallel when filled)</small>' +
-        '<textarea class="form-control form-control-sm font-monospace mt-1 mb-1" rows="3" id="edAbcTrans" placeholder="Translation text (one paragraph, *bold* _italic_)"></textarea>' +
-        '<div class="d-flex flex-wrap gap-2 mb-1" style="font-size:0.72rem">' +
-          '<label class="d-flex align-items-center gap-1"><span>Left col %</span><input type="number" class="form-control form-control-sm" id="edAbcTransLeftPct" min="20" max="80" step="1" value="' + abcTlp + '" style="width:3.5rem"></label>' +
-          '<label class="d-flex align-items-center gap-1"><span>Gap mm</span><input type="number" class="form-control form-control-sm" id="edAbcTransGap" min="0" max="20" step="0.5" value="' + abcTgm + '" style="width:3.5rem"></label>' +
-          '<label class="d-flex align-items-center gap-1"><span>Size pt</span><input type="number" class="form-control form-control-sm" id="edAbcTransSize" min="6" max="36" step="0.5" value="' + abcTfs + '" style="width:3.5rem"></label>' +
+        '<hr class="my-1"><small class="fw-semibold text-muted">Translation</small> <small class="text-muted">(one line per system; *bold* _italic_)</small>' +
+        '<div class="row g-1 mb-1 mt-1 align-items-end">' +
+          '<div class="col"><label class="form-label small mb-0">Translation text</label></div>' +
+          '<div class="col-auto" style="width:5.5rem"><label class="form-label small mb-0">Font pt</label>' +
+            '<input type="number" class="form-control form-control-sm" id="edAbcTransSize" step="0.5" min="6" max="36" value="' + abcTfs + '"></div>' +
         '</div>' +
-        '<div class="d-flex flex-wrap gap-2 mb-1" style="font-size:0.72rem">' +
-          '<label class="d-flex align-items-center gap-1"><input class="form-check-input" type="checkbox" id="chkAbcBorder"' + (b.abcTranslationBorder ? ' checked' : '') + '><span>Border</span></label>' +
-          '<label class="d-flex align-items-center gap-1"><span>V-align</span><select id="edAbcTransVA" class="form-select form-select-sm" style="width:auto"><option value="middle"' + ((b.abcTranslationVAlign||'middle')==='middle'?' selected':'') + '>Middle</option><option value="top"' + (b.abcTranslationVAlign==='top'?' selected':'') + '>Top</option><option value="bottom"' + (b.abcTranslationVAlign==='bottom'?' selected':'') + '>Bottom</option></select></label>' +
-        '</div>' +
-        '<p class="small text-muted mt-1 mb-0">Paste <a href="https://abcnotation.com/wiki/abc:standard:v2.1" target="_blank" rel="noopener">ABC notation</a>.</p>';
+        '<textarea class="form-control form-control-sm font-monospace mb-1" rows="3" id="edAbcTrans" placeholder="One line per system…"></textarea>' +
+        '<div class="border rounded p-2 bg-light small">' +
+          '<label class="form-label small mb-1">Column split <span class="text-muted">(music width %)</span></label>' +
+          '<input type="range" class="form-range" id="rngAbcSplit" min="20" max="80" step="1" value="' + abcTlp + '">' +
+          '<div class="d-flex justify-content-between mb-1"><span>20%</span><span id="abcSplitVal">' + abcTlp + '%</span><span>80%</span></div>' +
+          '<div class="form-check mb-1">' +
+            '<input class="form-check-input" type="checkbox" id="chkAbcTransBorder"' + (b.abcTranslationBorder ? ' checked' : '') + '>' +
+            '<label class="form-check-label" for="chkAbcTransBorder">Vertical line between columns</label>' +
+          '</div>' +
+          '<label class="form-label small mb-0">Space between columns (mm)</label>' +
+          '<input type="number" class="form-control form-control-sm mb-1" id="inpAbcTransGap" min="0" max="20" value="' + abcTgm + '">' +
+          '<label class="form-label small mb-0">Translation vert. align</label>' +
+          '<select id="selAbcTransVAlign" class="form-select form-select-sm mb-1">' +
+            '<option value="middle"' + ((b.abcTranslationVAlign||'middle')==='middle'?' selected':'') + '>Middle</option>' +
+            '<option value="top"' + (b.abcTranslationVAlign==='top'?' selected':'') + '>Top</option>' +
+            '<option value="bottom"' + (b.abcTranslationVAlign==='bottom'?' selected':'') + '>Bottom</option>' +
+          '</select>' +
+          '<label class="form-label small mb-0">Translation text align</label>' +
+          '<select id="selAbcTransTextAlign" class="form-select form-select-sm">' +
+            '<option value="left"' + ((b.abcTranslationTextAlign||'left')==='left'?' selected':'') + '>Left</option>' +
+            '<option value="right"' + (b.abcTranslationTextAlign==='right'?' selected':'') + '>Right</option>' +
+            '<option value="justify"' + (b.abcTranslationTextAlign==='justify'?' selected':'') + '>Justify</option>' +
+          '</select>' +
+        '</div>';
 
+      // Label (list only, not printed)
+      panel.querySelector('#edAbcLabel')?.addEventListener('input', function (e) {
+        b.abcLabel = e.target.value;
+        scheduleAutosave(); renderBlockList();
+      });
+      // Section heading
+      panel.querySelector('#edAbcSecTitle')?.addEventListener('input', function (e) {
+        b.sectionTitle = e.target.value;
+        scheduleAutosave(); markLayoutStale(); renderBlockList();
+      });
+      panel.querySelector('#edAbcSecSrc')?.addEventListener('input', function (e) {
+        b.sectionSourceRef = e.target.value;
+        scheduleAutosave(); markLayoutStale(); renderBlockList();
+      });
+
+      // ABC textarea (debounced, expensive)
       var abcTa = panel.querySelector('#edAbcText');
       var abcChangeTimer = null;
       if (abcTa) {
@@ -3622,14 +3730,15 @@
         abcTa.addEventListener('input', function () {
           b.abcText = abcTa.value;
           scheduleAutosave();
-          // Debounce the expensive re-render: wait 600ms after typing stops.
           clearTimeout(abcChangeTimer);
-          abcChangeTimer = setTimeout(function () {
-            markLayoutStale();
-            renderBlockList();
-          }, 600);
+          abcChangeTimer = setTimeout(function () { markLayoutStale(); renderBlockList(); }, 600);
         });
       }
+
+      panel.querySelector('#chkAbcShowTitle')?.addEventListener('change', function (e) {
+        b.abcShowTitle = e.target.checked;
+        scheduleAutosave(); markLayoutStale();
+      });
 
       function wireAbcSlider(numId, rangeId, prop, min, max, fallback, isFloat) {
         var numEl = panel.querySelector('#' + numId);
@@ -3653,7 +3762,30 @@
       }
       wireAbcSlider('edAbcScaleNum', 'edAbcScaleRange', 'abcScale', 0.1, 3, 0.7, true);
       wireAbcSlider('edAbcWidthNum', 'edAbcWidthRange', 'abcStaffWidth', 20, 100, 100, false);
+      wireAbcSlider('edAbcGapNum', 'edAbcGapRange', 'abcSystemGapMm', 0, 20, 2, true);
 
+      panel.querySelector('#edAbcStaffColor')?.addEventListener('input', function (e) {
+        var v = e.target.value;
+        b.abcStaffColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '';
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcStaffColorDef')?.addEventListener('click', function () {
+        b.abcStaffColor = '';
+        panel.querySelector('#edAbcStaffColor').value = '#000000';
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcNoteColor')?.addEventListener('input', function (e) {
+        var v = e.target.value;
+        b.abcNoteColor = /^#[0-9a-f]{6}$/i.test(v) ? v : '';
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcNoteColorDef')?.addEventListener('click', function () {
+        b.abcNoteColor = '';
+        panel.querySelector('#edAbcNoteColor').value = '#000000';
+        scheduleAutosave(); markLayoutStale();
+      });
+
+      // Translation
       var abcTransTa = panel.querySelector('#edAbcTrans');
       if (abcTransTa) {
         abcTransTa.value = b.abcTranslation || '';
@@ -3662,24 +3794,31 @@
           scheduleAutosave(); markLayoutStale();
         });
       }
-      panel.querySelector('#edAbcTransLeftPct')?.addEventListener('change', function (e) {
-        b.abcTranslationLeftPct = Math.min(80, Math.max(20, parseInt(e.target.value, 10) || 60));
-        scheduleAutosave(); markLayoutStale();
-      });
-      panel.querySelector('#edAbcTransGap')?.addEventListener('change', function (e) {
-        b.abcTranslationGapMm = Math.min(20, Math.max(0, parseFloat(e.target.value) || 4));
-        scheduleAutosave(); markLayoutStale();
-      });
       panel.querySelector('#edAbcTransSize')?.addEventListener('change', function (e) {
         b.abcTranslationFontSizePt = Math.min(36, Math.max(6, parseFloat(e.target.value) || 11));
         scheduleAutosave(); markLayoutStale();
       });
-      panel.querySelector('#chkAbcBorder')?.addEventListener('change', function (e) {
+      var rngAbcSplit = panel.querySelector('#rngAbcSplit');
+      var abcSplitVal = panel.querySelector('#abcSplitVal');
+      rngAbcSplit?.addEventListener('input', function () {
+        b.abcTranslationLeftPct = parseInt(rngAbcSplit.value, 10) || 60;
+        if (abcSplitVal) abcSplitVal.textContent = b.abcTranslationLeftPct + '%';
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#chkAbcTransBorder')?.addEventListener('change', function (e) {
         b.abcTranslationBorder = e.target.checked;
         scheduleAutosave(); markLayoutStale();
       });
-      panel.querySelector('#edAbcTransVA')?.addEventListener('change', function (e) {
+      panel.querySelector('#inpAbcTransGap')?.addEventListener('change', function (e) {
+        b.abcTranslationGapMm = Math.min(20, Math.max(0, parseFloat(e.target.value) || 4));
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#selAbcTransVAlign')?.addEventListener('change', function (e) {
         b.abcTranslationVAlign = e.target.value || 'middle';
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#selAbcTransTextAlign')?.addEventListener('change', function (e) {
+        b.abcTranslationTextAlign = e.target.value || 'left';
         scheduleAutosave(); markLayoutStale();
       });
       return;
@@ -4395,8 +4534,17 @@
     }
     if (type === 'abc_notation') {
       b.abcText = '';
+      b.abcLabel = '';
       b.abcScale = 0.7;
       b.abcStaffWidth = 100;
+      b.abcSystemGapMm = 2;
+      b.abcStaffColor = '';
+      b.abcNoteColor = '';
+      b.abcShowTitle = false;
+      b.sectionTitle = '';
+      b.sectionSourceRef = '';
+      b.titleFontSizePt = 11;
+      b.sourceFontSizePt = 9;
       b.abcTranslation = '';
       b.abcTranslationLeftPct = 60;
       b.abcTranslationGapMm = 4;
