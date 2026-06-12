@@ -1211,11 +1211,15 @@
     if (!t && !sref) return;
     var titlePt = (b.titleFontSizePt || 11) + 'pt';
     var srcPt = (b.sourceFontSizePt || 9) + 'pt';
+    var srcCol = /^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim())
+      ? String(b.sourceColor).trim()
+      : '#6c757d';
     if (!t && sref) {
       const solo = document.createElement('div');
-      solo.className = 'text-muted mb-1 booklet-section-heading-source';
+      solo.className = 'mb-1 booklet-section-heading-source';
       solo.style.textAlign = 'right';
       solo.style.fontSize = srcPt;
+      solo.style.color = srcCol;
       solo.innerHTML = renderSimpleMarkup(sref);
       wrap.appendChild(solo);
       return;
@@ -1230,9 +1234,10 @@
     row.appendChild(left);
     if (sref) {
       const right = document.createElement('div');
-      right.className = 'text-muted booklet-section-heading-source';
+      right.className = 'booklet-section-heading-source';
       right.style.textAlign = 'right';
       right.style.fontSize = srcPt;
+      right.style.color = srcCol;
       right.innerHTML = renderSimpleMarkup(sref);
       row.appendChild(right);
     }
@@ -1316,6 +1321,7 @@
         if (o.sectionSourceRef == null) o.sectionSourceRef = '';
         if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
         if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
+        if (o.sourceColor == null) o.sourceColor = '';
         if (o.abcTranslation == null) o.abcTranslation = '';
         if (o.abcTranslationLeftPct == null) o.abcTranslationLeftPct = 60;
         if (o.abcTranslationGapMm == null) o.abcTranslationGapMm = 4;
@@ -1343,6 +1349,7 @@
         if (o.lineHeightPt == null) o.lineHeightPt = 16;
         if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
         if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
+        if (o.sourceColor == null) o.sourceColor = '';
       }
       if (o.type === 'reading') {
         if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
@@ -2585,8 +2592,11 @@
               }
               if (abcSrc) {
                 var headR = document.createElement('div');
-                headR.className = 'text-muted booklet-section-heading-source';
+                headR.className = 'booklet-section-heading-source';
                 headR.style.fontSize = (b.sourceFontSizePt || 9) + 'pt';
+                headR.style.color = /^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim())
+                  ? String(b.sourceColor).trim()
+                  : '#6c757d';
                 headR.innerHTML = renderSimpleMarkup(abcSrc);
                 headRow.appendChild(headR);
               }
@@ -3877,6 +3887,8 @@
             '<input type="text" class="form-control form-control-sm" id="edAbcSecSrc" placeholder="Right-aligned; *bold* _italic_" value="' + escapeAttr(b.sectionSourceRef || '') + '"></div>' +
           '<div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>' +
             '<input type="number" class="form-control form-control-sm" id="edAbcSourceSize" min="6" max="36" step="0.5" value="' + (b.sourceFontSizePt || 9) + '"></div>' +
+          '<div class="col-auto" style="width:3.2rem"><label class="form-label small mb-0">Col.</label>' +
+            '<input type="color" class="form-control form-control-color form-control-sm w-100" id="edAbcSourceColor" value="' + escapeAttr(/^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim()) ? String(b.sourceColor).trim() : '#6c757d') + '"></div>' +
         '</div>' +
         '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
         '<textarea class="form-control form-control-sm font-monospace mb-1" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
@@ -3960,6 +3972,11 @@
       panel.querySelector('#edAbcSourceSize')?.addEventListener('change', function (e) {
         var ss = parseFloat(e.target.value);
         b.sourceFontSizePt = Number.isFinite(ss) ? Math.min(36, Math.max(6, ss)) : 9;
+        scheduleAutosave(); markLayoutStale();
+      });
+      panel.querySelector('#edAbcSourceColor')?.addEventListener('input', function (e) {
+        var cv = e.target.value;
+        b.sourceColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave(); markLayoutStale();
       });
 
@@ -4218,6 +4235,8 @@
             <input type="text" class="form-control form-control-sm" id="edReadSecSource" value="${escapeAttr(b.sectionSourceRef || '')}" placeholder="Right-aligned; *bold* _italic_"></div>
           <div class="col-auto" style="width:4.5rem"><label class="form-label small mb-0">Size</label>
             <input type="number" class="form-control form-control-sm" id="edReadSourceSize" min="6" max="36" step="0.5" value="${b.sourceFontSizePt || 9}"></div>
+          <div class="col-auto" style="width:3.2rem"><label class="form-label small mb-0">Col.</label>
+            <input type="color" class="form-control form-control-color form-control-sm w-100" id="edReadSourceColor" value="${escapeAttr(/^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim()) ? String(b.sourceColor).trim() : '#6c757d')}"></div>
         </div>
         <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
           <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
@@ -4271,6 +4290,8 @@
         b.titleFontSizePt = Number.isFinite(ts) ? Math.min(36, Math.max(6, ts)) : 11;
         var srs = parseFloat(panel.querySelector('#edReadSourceSize').value);
         b.sourceFontSizePt = Number.isFinite(srs) ? Math.min(36, Math.max(6, srs)) : 9;
+        var scv = panel.querySelector('#edReadSourceColor')?.value;
+        b.sourceColor = /^#[0-9a-f]{6}$/i.test(scv || '') ? scv : '';
         var lh = parseFloat(panel.querySelector('#edReadLineHeight').value);
         b.lineHeightPt = Number.isFinite(lh) ? Math.min(50, Math.max(6, lh)) : 16;
         var os = parseFloat(panel.querySelector('#edReadOrigSize').value);
@@ -4287,6 +4308,7 @@
       rss.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadTitleSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadSourceSize').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadSourceColor')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadLineHeight').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadOrigSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
@@ -4716,6 +4738,7 @@
       b.lineHeightPt = 16;
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
+      b.sourceColor = '';
     }
     if (type === 'reading') {
       b.text = '';
@@ -4730,6 +4753,7 @@
       b.lineHeightPt = 16;
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
+      b.sourceColor = '';
     }
     if (type === 'image') {
       b.mime = 'image/png';
@@ -4797,6 +4821,7 @@
       b.sectionSourceRef = '';
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
+      b.sourceColor = '';
       b.abcTranslation = '';
       b.abcTranslationLeftPct = 60;
       b.abcTranslationGapMm = 4;
