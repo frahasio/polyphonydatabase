@@ -2176,13 +2176,14 @@
    * (one per staff system), ready to be used as individual flow items.
    * Returns null if abcjs is unavailable or no music rendered.
    */
-  function renderAbcSvgs(abcText, staffWidthPx) {
+  function renderAbcSvgs(abcText, staffWidthPx, scale) {
     if (typeof ABCJS === 'undefined') return null;
     try {
       var mount = document.createElement('div');
       mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + staffWidthPx + 'px;';
       document.body.appendChild(mount);
       ABCJS.renderAbc(mount, abcText, {
+        scale: scale || 0.7,
         staffwidth: staffWidthPx,
         // Fixed staffwidth gives SVGs concrete pixel dimensions (no responsive:resize).
         add_classes: true,
@@ -2339,7 +2340,7 @@
         if (abcCached && abcCached.sig === abcSig) {
           abcSvgs = abcCached.svgs.map(function (s) { return s.cloneNode(true); });
         } else {
-          abcSvgs = renderAbcSvgs(b.abcText, abcStaffW) || [];
+          abcSvgs = renderAbcSvgs(b.abcText, abcStaffW, abcScale) || [];
           abcRenderCache.set(b.id, { sig: abcSig, svgs: abcSvgs.map(function (s) { return s.cloneNode(true); }) });
         }
 
