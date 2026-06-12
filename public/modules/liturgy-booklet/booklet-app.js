@@ -1307,6 +1307,7 @@
         if (o.abcLabel == null) o.abcLabel = '';
         if (o.abcScale == null) o.abcScale = 0.7;
         if (o.abcStaffWidth == null) o.abcStaffWidth = 100;
+        if (o.abcAlign == null) o.abcAlign = 'left';
         if (o.abcSystemGapMm == null) o.abcSystemGapMm = 2;
         if (o.abcStaffColor == null) o.abcStaffColor = '';
         if (o.abcNoteColor == null) o.abcNoteColor = '';
@@ -2437,9 +2438,18 @@
 
         // Each SVG becomes its own flow item (like GABC lines), so they can
         // distribute naturally across pages.
+        var abcAlign = b.abcAlign === 'center' || b.abcAlign === 'right' ? b.abcAlign : 'left';
         var abcLineGapPx = mmToPx(abcSystemGapMm);
         for (var ai = 0; ai < abcSvgs.length; ai++) {
           var abcSvg = abcSvgs[ai];
+          // SVGs are display:block with explicit width, so auto margins align them.
+          if (abcAlign === 'center') {
+            abcSvg.style.marginLeft = 'auto';
+            abcSvg.style.marginRight = 'auto';
+          } else if (abcAlign === 'right') {
+            abcSvg.style.marginLeft = 'auto';
+            abcSvg.style.marginRight = '0';
+          }
           var abcLine = document.createElement('div');
           abcLine.className = 'booklet-chant-line booklet-abc-block';
           abcLine.style.overflow = 'visible';
@@ -3769,6 +3779,12 @@
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">System gap mm</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcGapNum" min="0" max="20" step="0.5" value="' + abcGapMm + '" style="width:3.5rem">' +
             '<input type="range" class="form-range flex-grow-1" id="edAbcGapRange" min="0" max="20" step="0.5" value="' + abcGapMm + '"></div>' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Align</span>' +
+            '<div class="btn-group btn-group-sm" role="group">' +
+              '<button type="button" class="btn btn-light border py-0 px-2' + ((b.abcAlign || 'left') === 'left' ? ' active' : '') + '" data-abc-align="left" title="Align left"><i class="bi bi-text-left"></i></button>' +
+              '<button type="button" class="btn btn-light border py-0 px-2' + (b.abcAlign === 'center' ? ' active' : '') + '" data-abc-align="center" title="Centre"><i class="bi bi-text-center"></i></button>' +
+              '<button type="button" class="btn btn-light border py-0 px-2' + (b.abcAlign === 'right' ? ' active' : '') + '" data-abc-align="right" title="Align right"><i class="bi bi-text-right"></i></button>' +
+            '</div></div>' +
           '<div class="d-flex align-items-center gap-2 mb-1"><span style="min-width:5.5rem">Staff colour</span>' +
             '<input type="color" id="edAbcStaffColor" class="form-control form-control-color" style="width:2.2rem;height:1.6rem;padding:2px" value="' + escapeAttr(abcSColorVal) + '">' +
             '<button type="button" class="btn btn-sm btn-outline-secondary py-0" id="edAbcStaffColorDef">Default</button></div>' +
@@ -3873,6 +3889,16 @@
       wireAbcSlider('edAbcScaleNum', 'edAbcScaleRange', 'abcScale', 0.1, 3, 0.7, true);
       wireAbcSlider('edAbcWidthNum', 'edAbcWidthRange', 'abcStaffWidth', 20, 100, 100, false);
       wireAbcSlider('edAbcGapNum', 'edAbcGapRange', 'abcSystemGapMm', 0, 20, 2, true);
+
+      panel.querySelectorAll('[data-abc-align]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          b.abcAlign = btn.getAttribute('data-abc-align') || 'left';
+          panel.querySelectorAll('[data-abc-align]').forEach(function (x) {
+            x.classList.toggle('active', x === btn);
+          });
+          scheduleAutosave(); markLayoutStale();
+        });
+      });
 
       panel.querySelector('#edAbcStaffColor')?.addEventListener('input', function (e) {
         var v = e.target.value;
@@ -4647,6 +4673,7 @@
       b.abcLabel = '';
       b.abcScale = 0.7;
       b.abcStaffWidth = 100;
+      b.abcAlign = 'left';
       b.abcSystemGapMm = 2;
       b.abcStaffColor = '';
       b.abcNoteColor = '';
