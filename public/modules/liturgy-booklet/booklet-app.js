@@ -192,6 +192,9 @@
   // Chant render cache: blockId → { sig: string, lines: HTMLElement[] (pristine clones) }
   // Bounded to one slot per live block; pruned at the end of every buildFlowList call.
   const chantRenderCache = new Map();
+  // Static block height cache: blockId → { sig: string, h: number (px) }
+  // Avoids repeated measureInContext reflows for unchanged rubric/reading/title blocks.
+  const staticHeightCache = new Map();
 
   function markLayoutStale() {
     layoutStale = true;
@@ -678,6 +681,10 @@
   }
 
   function translationHasContent(html) {
+    if (!html || typeof html !== 'string') return false;
+    // Fast path: strip all tags and check for any non-whitespace text.
+    if (!html.replace(/<[^>]*>/g, '').trim()) return false;
+    // Full sanitize-then-check for edge cases (e.g. entities-only content).
     const w = document.createElement('div');
     w.appendChild(sanitizeToFragment(html));
     return (w.textContent || '').trim().length > 0;
@@ -776,6 +783,9 @@
     if (t === 'hr') {
       return { icon: '', color: '', label: 'Horizontal rule', noIcon: true, itemBg: '#f0f4f8' };
     }
+    if (t === 'abc_notation') {
+      return { icon: 'bi-music-note-list', color: '#0077aa', label: 'Music (ABC)' };
+    }
     if (t === 'jgabc_propers') {
       return { icon: 'bi-music-note', color: '#fd7e14', label: 'Propers (legacy)' };
     }
@@ -832,6 +842,10 @@
     }
     if (b.type === 'hr') {
       return 'Horizontal rule';
+    }
+    if (b.type === 'abc_notation') {
+      const firstLine = (b.abcText || '').split('\n').find(function (l) { return l.startsWith('T:'); });
+      return firstLine ? firstLine.slice(2).trim() : 'ABC notation (no title)';
     }
     if (b.type === 'jgabc_propers') {
       return 'Legacy propers — replace with GABC';
@@ -1278,6 +1292,15 @@
       if (b.type === 'hr') {
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
+        return o;
+      }
+      if (b.type === 'abc_notation') {
+        const o = { ...b };
+        if (o.hidden === undefined) o.hidden = false;
+        if (o.abcText == null) o.abcText = '';
+        if (o.abcScale == null) o.abcScale = 1.0;
+        if (o.abcStaffWidth == null) o.abcStaffWidth = 100;
+        if (o.sectionGapAfterMm == null) o.sectionGapAfterMm = DEFAULT_SECTION_GAP_AFTER_MM;
         return o;
       }
       const o = { ...b };
@@ -2139,6 +2162,71 @@
     return getSetting('sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
   }
 
+  /**
+   * Render ABC notation text to a block element using abcjs.
+   * Returns a div containing one SVG per line of music.
+   */
+  function renderAbcNotation(b, widthPx) {
+    var wrap = document.createElement('div');
+    wrap.className = 'booklet-section booklet-abc-block';
+    if (!b.abcText || !String(b.abcText).trim()) {
+      var ph = document.createElement('p');
+      ph.className = 'text-muted small';
+      ph.textContent = 'Paste ABC notation in the editor.';
+      wrap.appendChild(ph);
+      return wrap;
+    }
+    if (typeof ABCJS === 'undefined') {
+      var err = document.createElement('p');
+      err.className = 'text-warning small';
+      err.textContent = 'abcjs library not loaded.';
+      wrap.appendChild(err);
+      return wrap;
+    }
+    try {
+      var scale = Math.max(0.3, Math.min(3.0, Number(b.abcScale) || 1.0));
+      var staffWidthPct = Math.max(20, Math.min(100, Number(b.abcStaffWidth) || 100));
+      var staffWidthPx = Math.round(widthPx * staffWidthPct / 100);
+      // abcjs renders into a container div, so give it a temporary mount.
+      var mount = document.createElement('div');
+      mount.style.cssText = 'position:absolute;left:-9999px;visibility:hidden;width:' + staffWidthPx + 'px;';
+      document.body.appendChild(mount);
+      ABCJS.renderAbc(mount, b.abcText, {
+        scale: scale,
+        staffwidth: staffWidthPx,
+        responsive: 'resize',
+        add_classes: true,
+        selectionColor: 'none',
+        print: true,
+        paddingtop: 0,
+        paddingbottom: 0,
+        paddingright: 0,
+        paddingleft: 0,
+      });
+      // Copy rendered SVGs to the wrap.
+      var svgs = mount.querySelectorAll('svg');
+      if (svgs.length === 0) {
+        var noSvg = document.createElement('p');
+        noSvg.className = 'text-warning small';
+        noSvg.textContent = 'No music rendered — check ABC syntax.';
+        wrap.appendChild(noSvg);
+      } else {
+        svgs.forEach(function (svg) {
+          svg.style.maxWidth = '100%';
+          wrap.appendChild(svg);
+        });
+      }
+      document.body.removeChild(mount);
+    } catch (e) {
+      console.error('ABC render error', e);
+      var errEl = document.createElement('p');
+      errEl.className = 'text-danger small';
+      errEl.textContent = 'ABC error: ' + (e.message || String(e));
+      wrap.appendChild(errEl);
+    }
+    return wrap;
+  }
+
   async function buildFlowList() {
     var w = getContentWidthPx();
     var out = [];
@@ -2220,6 +2308,12 @@
         }
         continue;
       }
+      if (b.type === 'abc_notation') {
+        var abcEl = renderAbcNotation(b, w);
+        abcEl.dataset.blockId = b.id;
+        out.push({ t: 'flow', el: abcEl, splittable: false, gapMm: gapAfter });
+        continue;
+      }
       if (b.type === 'edition_pdf') {
         var units = await renderEditionPageUnits(b, w);
         for (var ui = 0; ui < units.length; ui++) {
@@ -2230,11 +2324,24 @@
       }
       var el = buildStaticSectionEl(b);
       el.dataset.blockId = b.id;
-      out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter });
+      // Carry a cache key so paginateFlow can skip measureInContext on unchanged blocks.
+      var staticSig = b.id + '|' + JSON.stringify([
+        b.type, b.text, b.translation, b.sectionTitle, b.sectionSourceRef,
+        b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
+        b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
+        b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.fontScale,
+        b.titleFontKey, b.titleTextColor, b.titleLineColor, b.titleFontSizePt,
+        b.titleBold, b.titleItalic, b.titleSmallCaps,
+        b.imageWidthPx, b.imageAlign, b.dataBase64,
+        b.hrLineColor, b.heightMm,
+        state.settings.fontFamilyKey, state.settings.pageSize
+      ]);
+      out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter, staticSig: staticSig, blockId: b.id });
     }
     // Prune cache entries for blocks that no longer exist.
     var liveIds = new Set(state.blocks.map(function (b) { return b.id; }));
     chantRenderCache.forEach(function (_, id) { if (!liveIds.has(id)) chantRenderCache.delete(id); });
+    staticHeightCache.forEach(function (_, id) { if (!liveIds.has(id)) staticHeightCache.delete(id); });
     return out;
   }
 
@@ -2491,7 +2598,21 @@
       if (item.t === 'break') { flushPage(); continue; }
 
       var el = item.el;
-      var h = (item.fixedHeightPx != null) ? item.fixedHeightPx : measureInContext(el, widthPx);
+      var h;
+      if (item.fixedHeightPx != null) {
+        h = item.fixedHeightPx;
+      } else if (item.staticSig) {
+        var cacheKey = item.staticSig + '|w' + widthPx;
+        var cached = staticHeightCache.get(item.blockId);
+        if (cached && cached.key === cacheKey) {
+          h = cached.h;
+        } else {
+          h = measureInContext(el, widthPx);
+          staticHeightCache.set(item.blockId, { key: cacheKey, h: h });
+        }
+      } else {
+        h = measureInContext(el, widthPx);
+      }
       var gap = 0, gapFlex = false;
 
       if (curEls.length > 0) {
@@ -3116,6 +3237,7 @@
     { type: 'image', icon: 'bi-image', label: 'Image' },
     { type: 'edition_pdf', icon: 'bi-file-earmark-pdf', label: 'Polyphony edition PDF' },
     { type: 'page_break', icon: 'bi-file-earmark-break', label: 'Force page break' },
+    { type: 'abc_notation', icon: 'bi-music-note-list', label: 'Music (ABC notation)' },
     { type: 'spacer', icon: 'bi-arrows-expand', label: 'Vertical spacer' },
     { type: 'hr', icon: 'bi-hr', label: 'Horizontal rule' },
   ];
@@ -3369,6 +3491,49 @@
       if (hrColorInp) hrColorInp.addEventListener('input', function () {
         var cv = hrColorInp.value;
         b.hrLineColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '#adb5bd';
+        scheduleAutosave();
+        markLayoutStale();
+      });
+      return;
+    }
+    if (b.type === 'abc_notation') {
+      var abcScale = b.abcScale != null ? b.abcScale : 1.0;
+      var abcWidth = b.abcStaffWidth != null ? b.abcStaffWidth : 100;
+      panel.innerHTML =
+        '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
+        '<textarea class="form-control form-control-sm font-monospace mb-2" rows="8" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
+        '<div class="d-flex align-items-center gap-2 mb-1" style="font-size:0.78rem">' +
+          '<label class="mb-0" style="min-width:5rem">Scale</label>' +
+          '<input type="number" id="edAbcScale" class="form-control form-control-sm" style="width:4.5rem" min="0.3" max="3" step="0.05" value="' + abcScale + '">' +
+        '</div>' +
+        '<div class="d-flex align-items-center gap-2 mb-2" style="font-size:0.78rem">' +
+          '<label class="mb-0" style="min-width:5rem">Staff width %</label>' +
+          '<input type="number" id="edAbcStaffWidth" class="form-control form-control-sm" style="width:4.5rem" min="20" max="100" step="1" value="' + abcWidth + '">' +
+        '</div>' +
+        '<p class="small text-muted mb-0">Paste <a href="https://abcnotation.com/wiki/abc:standard:v2.1" target="_blank" rel="noopener">ABC notation</a>. ' +
+        'Hymn tunes can often be found at <a href="https://ifdo.ca/~seymour/runabc/abcguide/abc2midi_harmony.html" target="_blank" rel="noopener">ABC resources</a> ' +
+        'or exported from MuseScore.</p>';
+      var abcTa = panel.querySelector('#edAbcText');
+      if (abcTa) {
+        abcTa.value = b.abcText || '';
+        abcTa.addEventListener('input', function () {
+          b.abcText = abcTa.value;
+          scheduleAutosave();
+          markLayoutStale();
+          renderBlockList();
+        });
+      }
+      var abcScaleInp = panel.querySelector('#edAbcScale');
+      if (abcScaleInp) abcScaleInp.addEventListener('change', function () {
+        var v = parseFloat(abcScaleInp.value);
+        b.abcScale = Number.isFinite(v) ? Math.min(3, Math.max(0.3, v)) : 1.0;
+        scheduleAutosave();
+        markLayoutStale();
+      });
+      var abcWidthInp = panel.querySelector('#edAbcStaffWidth');
+      if (abcWidthInp) abcWidthInp.addEventListener('change', function () {
+        var v = parseInt(abcWidthInp.value, 10);
+        b.abcStaffWidth = Number.isFinite(v) ? Math.min(100, Math.max(20, v)) : 100;
         scheduleAutosave();
         markLayoutStale();
       });
@@ -3812,12 +3977,12 @@
         <div class="small border rounded px-2 py-1 mt-1 bg-light">
           <div class="mt-1 pb-1">
           <div class="mb-2" style="font-size:0.72rem">
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Lyric size</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantNeumeSize">${cn}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantNeumeSize" min="8" max="40" step="1" value="${cn}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Music scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantGlyphScale">${cg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Horiz. spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantHorizSpacing">${chs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantHorizSpacing" min="0.5" max="2.0" step="0.05" value="${chs}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff spacing</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantVertSpacing">${cvs}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Line gap</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantLineGap">${clg}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantLineGap" min="0.0" max="3.0" step="0.05" value="${clg}"></div>
-            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Drop cap scale</span><span class="text-muted me-1" style="min-width:2rem;text-align:right" data-chant-val="chantDropCapScale">${cd}</span><input type="range" class="form-range flex-grow-1 ms-1" data-chant-num="chantDropCapScale" min="0.3" max="2.0" step="0.05" value="${cd}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Lyric size</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantNeumeSize" data-chant-num="chantNeumeSize" min="8" max="40" step="1" value="${cn}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantNeumeSize" data-chant-range min="8" max="40" step="1" value="${cn}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Music scale</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantGlyphScale" data-chant-num="chantGlyphScale" min="0.5" max="3.0" step="0.05" value="${cg}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantGlyphScale" data-chant-range min="0.5" max="3.0" step="0.05" value="${cg}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Horiz. spacing</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantHorizSpacing" data-chant-num="chantHorizSpacing" min="0.5" max="2.0" step="0.05" value="${chs}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantHorizSpacing" data-chant-range min="0.5" max="2.0" step="0.05" value="${chs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff spacing</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantVertSpacing" data-chant-num="chantVertSpacing" min="0.5" max="2.0" step="0.05" value="${cvs}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantVertSpacing" data-chant-range min="0.5" max="2.0" step="0.05" value="${cvs}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Line gap</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantLineGap" data-chant-num="chantLineGap" min="0.0" max="3.0" step="0.05" value="${clg}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantLineGap" data-chant-range min="0.0" max="3.0" step="0.05" value="${clg}"></div>
+            <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Drop cap scale</span><input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" data-chant-val="chantDropCapScale" data-chant-num="chantDropCapScale" min="0.3" max="2.0" step="0.05" value="${cd}" style="width:3.5rem"><input type="range" class="form-range flex-grow-1" data-chant-num="chantDropCapScale" data-chant-range min="0.3" max="2.0" step="0.05" value="${cd}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. size adj.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationSizeAdj" step="1" value="${cas}"></div>
             <div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Annot. vert. pos.</span><input type="number" class="form-control form-control-sm ms-auto" style="width:4rem" data-chant-num="chantAnnotationYAdj" step="1" value="${cay}"></div>
           </div>
@@ -3896,23 +4061,33 @@
       });
       panel.querySelectorAll('[data-chant-num]').forEach(function (inp) {
         var prop = inp.dataset.chantNum;
-        var valSpan = panel.querySelector('[data-chant-val="' + prop + '"]');
-        var handler = function () {
-          var v = parseFloat(inp.value);
-          if (Number.isFinite(v)) {
-            var mn = parseFloat(inp.min), mx = parseFloat(inp.max);
-            if (Number.isFinite(mn)) v = Math.max(mn, v);
-            if (Number.isFinite(mx)) v = Math.min(mx, v);
-            b[prop] = v;
-            inp.value = b[prop];
-            if (valSpan) valSpan.textContent = b[prop];
-          }
+        var isRange = inp.hasAttribute('data-chant-range');
+        // For range sliders: sync to the number box. For number boxes: sync to the range slider.
+        var peer = isRange
+          ? panel.querySelector('[data-chant-val="' + prop + '"].chant-num-box')
+          : panel.querySelector('input[data-chant-range][data-chant-num="' + prop + '"]');
+        var applyValue = function (v) {
+          if (!Number.isFinite(v)) return;
+          var mn = parseFloat(inp.min), mx = parseFloat(inp.max);
+          if (Number.isFinite(mn)) v = Math.max(mn, v);
+          if (Number.isFinite(mx)) v = Math.min(mx, v);
+          v = Math.round(v / parseFloat(inp.step || '1')) * parseFloat(inp.step || '1');
+          v = parseFloat(v.toPrecision(6));
+          b[prop] = v;
+          inp.value = v;
+          if (peer) peer.value = v;
+        };
+        inp.addEventListener('input', function () {
+          applyValue(parseFloat(inp.value));
+          scheduleAutosave();
+          markLayoutStale();
+        });
+        inp.addEventListener('change', function () {
+          applyValue(parseFloat(inp.value));
           scheduleAutosave();
           markLayoutStale();
           renderBlockList();
-        };
-        inp.addEventListener('input', handler);
-        inp.addEventListener('change', handler);
+        });
       });
       panel.querySelector('#edChantStaff')?.addEventListener('input', () => {
         const cv = panel.querySelector('#edChantStaff').value;
@@ -4072,6 +4247,11 @@
     }
     if (type === 'hr') {
       b.hrLineColor = '#adb5bd';
+    }
+    if (type === 'abc_notation') {
+      b.abcText = '';
+      b.abcScale = 1.0;
+      b.abcStaffWidth = 100;
     }
     if (type !== 'page_break' && type !== 'spacer' && type !== 'hr') {
       b.hidden = false;

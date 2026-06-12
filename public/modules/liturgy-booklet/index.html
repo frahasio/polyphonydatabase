@@ -467,6 +467,13 @@
         .booklet-hr .booklet-title-rule-line {
             min-width: 0;
         }
+        .booklet-abc-block svg {
+            max-width: 100%;
+            height: auto;
+            overflow: visible;
+            display: block;
+        }
+        .booklet-abc-block .abcjs-cursor { display: none; }
         .booklet-chant-parallel {
             width: 100%;
             border-collapse: collapse;
@@ -1007,6 +1014,7 @@
     <script src="/vendor/jgabc/jquery.min.js"></script>
     <script src="/vendor/jgabc/exsurge.min.js"></script>
     <script src="/vendor/jgabc/util.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el){new bootstrap.Tooltip(el);});</script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
