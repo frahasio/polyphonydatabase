@@ -3153,94 +3153,99 @@
     var savedScrollTop = root.scrollTop;
     root.classList.add('booklet-preview--rebuilding');
     root.style.display = 'none';
+    document.body.classList.add('booklet-rebuilding');
 
-    var flow;
+    var flow, pageDivs;
     try {
-      flow = await buildFlowList();
-    } catch (e) {
-      console.error(e);
-      root.style.display = '';
-      root.classList.remove('booklet-preview--rebuilding');
-      root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
-      return;
-    }
-    if (myTok !== previewToken) {
-      root.style.display = '';
-      root.classList.remove('booklet-preview--rebuilding');
-      return;
-    }
-
-    var widthPx = getContentWidthPx();
-    var pageHPx = getMaxPageBodyHeightPx();
-    var marginTopPx = mmToPx(getBookletMarginTopMm());
-    var marginBotPx = mmToPx(getBookletMarginBottomMm());
-    var pageResults = paginateFlow(flow, widthPx, pageHPx, BOOKLET_FOOTER_RESERVE_PX);
-
-    var pageDivs = pageResults.map(function (pg) {
-      var page = document.createElement('div');
-      page.className = 'booklet-page';
-      page.dataset.size = size;
-      if (pg.padTopAdjust || pg.padBottomAdjust) {
-        page.style.paddingTop = (marginTopPx + (pg.padTopAdjust || 0)) + 'px';
-        page.style.paddingBottom = (marginBotPx + (pg.padBottomAdjust || 0)) + 'px';
+      try {
+        flow = await buildFlowList();
+      } catch (e) {
+        console.error(e);
+        root.style.display = '';
+        root.classList.remove('booklet-preview--rebuilding');
+        root.innerHTML = '<p class="text-danger small">Layout error: ' + escapeHtml(e.message || String(e)) + '</p>';
+        return;
       }
-      var inner = document.createElement('div');
-      inner.className = 'page-inner-flow';
-      var body = document.createElement('div');
-      body.className = 'booklet-page-body';
-      pg.elements.forEach(function (el, idx) {
-        el.style.marginTop = (pg.adjustedGaps[idx] || 0) + 'px';
-        el.style.marginBottom = (el.dataset && el.dataset.spacerMb) ? el.dataset.spacerMb + 'px' : '0';
-        body.appendChild(el);
+      if (myTok !== previewToken) {
+        root.style.display = '';
+        root.classList.remove('booklet-preview--rebuilding');
+        return;
+      }
+
+      var widthPx = getContentWidthPx();
+      var pageHPx = getMaxPageBodyHeightPx();
+      var marginTopPx = mmToPx(getBookletMarginTopMm());
+      var marginBotPx = mmToPx(getBookletMarginBottomMm());
+      var pageResults = paginateFlow(flow, widthPx, pageHPx, BOOKLET_FOOTER_RESERVE_PX);
+
+      pageDivs = pageResults.map(function (pg) {
+        var page = document.createElement('div');
+        page.className = 'booklet-page';
+        page.dataset.size = size;
+        if (pg.padTopAdjust || pg.padBottomAdjust) {
+          page.style.paddingTop = (marginTopPx + (pg.padTopAdjust || 0)) + 'px';
+          page.style.paddingBottom = (marginBotPx + (pg.padBottomAdjust || 0)) + 'px';
+        }
+        var inner = document.createElement('div');
+        inner.className = 'page-inner-flow';
+        var body = document.createElement('div');
+        body.className = 'booklet-page-body';
+        pg.elements.forEach(function (el, idx) {
+          el.style.marginTop = (pg.adjustedGaps[idx] || 0) + 'px';
+          el.style.marginBottom = (el.dataset && el.dataset.spacerMb) ? el.dataset.spacerMb + 'px' : '0';
+          body.appendChild(el);
+        });
+        inner.appendChild(body);
+        page.appendChild(inner);
+        return page;
       });
-      inner.appendChild(body);
-      page.appendChild(inner);
-      return page;
-    });
 
-    // Restore to layout, swap content, restore scroll.
-    root.style.display = '';
-    root.innerHTML = '';
-    root.classList.remove('booklet-preview--rebuilding');
+      // Restore to layout, swap content, restore scroll.
+      root.style.display = '';
+      root.innerHTML = '';
+      root.classList.remove('booklet-preview--rebuilding');
 
-    if (!pageDivs.length) {
-      root.innerHTML = '<p class="text-muted small px-2">Nothing to show yet.</p>';
-      exportPageElements = [];
-      return;
-    }
-
-    pageDivs.forEach(function (p) {
-      var body = p.querySelector('.booklet-page-body');
-      if (!body) return;
-      var children = body.children;
-      var allPdf = children.length > 0;
-      for (var ci = 0; ci < children.length; ci++) {
-        if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
+      if (!pageDivs.length) {
+        root.innerHTML = '<p class="text-muted small px-2">Nothing to show yet.</p>';
+        exportPageElements = [];
+        return;
       }
-      if (allPdf) p.classList.add('booklet-page--pdf-full');
-    });
 
-    appendCreditsFooterToLastPage(pageDivs);
+      pageDivs.forEach(function (p) {
+        var body = p.querySelector('.booklet-page-body');
+        if (!body) return;
+        var children = body.children;
+        var allPdf = children.length > 0;
+        for (var ci = 0; ci < children.length; ci++) {
+          if (!children[ci].classList.contains('booklet-pdf-page-unit')) { allPdf = false; break; }
+        }
+        if (allPdf) p.classList.add('booklet-page--pdf-full');
+      });
 
-    exportPageElements = pageDivs;
+      appendCreditsFooterToLastPage(pageDivs);
 
-    var display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
-    if (display === 'scroll') {
-      pageDivs.forEach(function (p) { root.appendChild(p); });
-    } else {
-      if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
-      mountBookletSpreadUi(root, pageDivs);
+      exportPageElements = pageDivs;
+
+      var display = state.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
+      if (display === 'scroll') {
+        pageDivs.forEach(function (p) { root.appendChild(p); });
+      } else {
+        if (store) pageDivs.forEach(function (p) { store.appendChild(p); });
+        mountBookletSpreadUi(root, pageDivs);
+      }
+
+      if (selectedBlockId && scrollToBlockAfterRender) {
+        scrollToBlockAfterRender = false;
+        setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
+      } else {
+        scrollToBlockAfterRender = false;
+        // Restore scroll after the browser has reflowed the new content.
+        requestAnimationFrame(function () { root.scrollTop = savedScrollTop; });
+      }
+    } finally {
+      // Always remove the rebuilding indicator, regardless of how we exit.
+      document.body.classList.remove('booklet-rebuilding');
     }
-
-    if (selectedBlockId && scrollToBlockAfterRender) {
-      scrollToBlockAfterRender = false;
-      setTimeout(function () { scrollPreviewToBlock(selectedBlockId); }, 150);
-    } else {
-      scrollToBlockAfterRender = false;
-      // Restore scroll after the browser has reflowed the new content.
-      requestAnimationFrame(function () { root.scrollTop = savedScrollTop; });
-    }
-
   }
 
   function switchDisplayMode() {

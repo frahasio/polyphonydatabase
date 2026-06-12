@@ -317,6 +317,33 @@
             pointer-events: none;
             transition: opacity 0.15s;
         }
+        /* Rebuilding indicator — spinner badge and dimmed controls */
+        #bookletRebuildOverlay {
+            position: fixed;
+            bottom: 1.2rem;
+            right: 1.2rem;
+            z-index: 600;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255,255,255,0.95);
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 0.35rem 0.75rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+            pointer-events: none;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        body.booklet-rebuilding #bookletRebuildOverlay {
+            display: flex;
+        }
+        body.booklet-rebuilding .booklet-pane-list,
+        body.booklet-rebuilding .booklet-pane-editor {
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
         #previewPages > .booklet-spread-host {
             flex: 1 1 auto;
             min-height: 0;
@@ -989,6 +1016,11 @@
     <div id="bookletPageStore" aria-hidden="true"></div>
 
     <div id="bookletMeasureMount" aria-hidden="true" style="position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;"></div>
+
+    <div id="bookletRebuildOverlay" aria-live="polite" aria-label="Rebuilding preview">
+        <div class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true" style="width:0.9rem;height:0.9rem;border-width:2px"></div>
+        <span>Rebuilding…</span>
+    </div>
 
     <input type="file" id="fileImagePick" accept="image/*" class="d-none">
 
