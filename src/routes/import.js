@@ -131,27 +131,68 @@ router.get('/template', async (req, res) => {
     const typeRows = await pool.query('SELECT name FROM composition_types ORDER BY name');
     const compositionTypeNames = typeRows.rows.map(r => r.name);
 
+    const publisherRows = await pool.query('SELECT name FROM publishers ORDER BY name');
+    const publisherNames = publisherRows.rows.map(r => r.name);
+
+    const scribeRows = await pool.query('SELECT name FROM scribes ORDER BY name');
+    const scribeNames = scribeRows.rows.map(r => r.name);
+
     const wb = XLSX.utils.book_new();
 
     // Source sheet
     const sourceHeaders = [
       'code', 'title', 'type', 'format', 'town', 'rism_link',
       'notes', 'from_year', 'to_year', 'from_year_annotation',
-      'to_year_annotation', 'catalogued'
+      'to_year_annotation', 'catalogued', 'publishers', 'scribes'
     ];
     const sourceSheet = XLSX.utils.aoa_to_sheet([sourceHeaders, []]);
-    sourceSheet['!cols'] = sourceHeaders.map(() => ({ wch: 18 }));
+    sourceSheet['!cols'] = sourceHeaders.map((h) => {
+      if (h === 'publishers' || h === 'scribes') return { wch: 30 };
+      return { wch: 18 };
+    });
     XLSX.utils.book_append_sheet(wb, sourceSheet, 'Source');
 
-    // Inclusions sheet
+    // Inclusions sheet.
+    // The individual clef_1..clef_16 columns let users type one clef per cell.
+    // The "clefs" column is an Excel formula that joins those cells into the
+    // semicolon-delimited string the importer actually reads. Users can type
+    // directly into "clefs" to override the formula.
+    const CLEF_COLS = 16;
+    const clefHeaders = Array.from({ length: CLEF_COLS }, (_, i) => `clef_${i + 1}`);
     const inclHeaders = [
       'position', 'title_text', 'composition_type', 'tone', 'tone_connector',
-      'even_odd', 'clefs', 'composer_names', 'attribution_text', 'notes'
+      'even_odd', 'clefs', 'composer_names', 'attribution_text', 'notes',
+      ...clefHeaders
     ];
     const inclSheet = XLSX.utils.aoa_to_sheet([inclHeaders]);
+
+    const clefsColIdx = inclHeaders.indexOf('clefs');
+    const firstClefColIdx = inclHeaders.indexOf('clef_1');
+    const lastClefColIdx = inclHeaders.indexOf(`clef_${CLEF_COLS}`);
+    const firstClefColLetter = XLSX.utils.encode_col(firstClefColIdx);
+    const lastClefColLetter = XLSX.utils.encode_col(lastClefColIdx);
+
+    // Pre-fill the clefs formula for a generous number of rows so the join
+    // works as soon as the user types into the clef_N cells.
+    const PREFILL_ROWS = 200;
+    for (let r = 1; r <= PREFILL_ROWS; r++) {
+      const excelRow = r + 1; // r is 0-indexed; row 0 is the header
+      const cellRef = XLSX.utils.encode_cell({ c: clefsColIdx, r });
+      inclSheet[cellRef] = {
+        t: 's',
+        v: '',
+        f: `TEXTJOIN(";",TRUE,${firstClefColLetter}${excelRow}:${lastClefColLetter}${excelRow})`
+      };
+    }
+    inclSheet['!ref'] = XLSX.utils.encode_range(
+      { c: 0, r: 0 },
+      { c: lastClefColIdx, r: PREFILL_ROWS }
+    );
+
     inclSheet['!cols'] = inclHeaders.map((h) => {
       if (h === 'title_text' || h === 'composer_names') return { wch: 30 };
       if (h === 'clefs') return { wch: 25 };
+      if (h.startsWith('clef_')) return { wch: 8 };
       return { wch: 16 };
     });
     XLSX.utils.book_append_sheet(wb, inclSheet, 'Inclusions');
@@ -177,6 +218,8 @@ router.get('/template', async (req, res) => {
       ['from_year / to_year', 'Integer years'],
       ['from_year_annotation / to_year_annotation', '"before", "after", "c." etc.'],
       ['catalogued', 'TRUE or FALSE (default FALSE)'],
+      ['publishers', 'Semicolon-separated publisher names exactly as in the database. Unknown names are skipped with a warning.'],
+      ['scribes', 'Semicolon-separated scribe names exactly as in the database. Unknown names are skipped with a warning.'],
       [],
       ['INCLUSION FIELDS'],
       ['position', 'Position in the source (e.g. folio number). Free text.'],
@@ -185,7 +228,8 @@ router.get('/template', async (req, res) => {
       ['tone', 'Tone number 1-12, or: mix, per, pro. Semicolon-separate for multiple (e.g. "1;2")'],
       ['tone_connector', 'Connector between multiple tones, e.g. "&", "/"'],
       ['even_odd', '"even", "odd", or "both"'],
-      ['clefs', 'Semicolon-separated clef list. e.g. "c1;c3;c4;f4". Use [c1] for missing, (c1) for optional, {c1} for incomplete, c1>c3 for transition'],
+      ['clefs', 'Semicolon-separated clef list. e.g. "c1;c3;c4;f4". Use [c1] for missing, (c1) for optional, {c1} for incomplete, c1>c3 for transition. Auto-filled by a formula from the clef_1..clef_16 columns — type here to override it.'],
+      ['clef_1 ... clef_16', 'One clef per cell (same notation as above). These are joined into the "clefs" column automatically.'],
       ['composer_names', 'Semicolon-separated composer names exactly as in the database. Unknown names default to Anonymous.'],
       ['attribution_text', 'Attribution text as written in the source, e.g. "A. Byrd"'],
       ['notes', 'Free text notes for this inclusion'],
@@ -202,10 +246,32 @@ router.get('/template', async (req, res) => {
       [],
       ['VALID TONE VALUES'],
       ['1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, mix (or mixti), per (or peregrini), pro (or proprii)'],
+      [],
+      ['EVEN/ODD VALUES'],
+      ['even, odd, both (also accepts 0, 1, 2)'],
+      [],
+      ['CLEF MODIFIERS'],
+      ['[c1]', 'Missing voice'],
+      ['(c1)', 'Optional voice'],
+      ['{c1}', 'Incomplete voice'],
+      ['c1>c3', 'Clef changes / transitions to another clef'],
+      [],
+      [`VALID PUBLISHER NAMES (${publisherNames.length})`],
+      ...(publisherNames.length ? publisherNames.map(n => [n]) : [['(none in database yet)']]),
+      [],
+      [`VALID SCRIBE NAMES (${scribeNames.length})`],
+      ...(scribeNames.length ? scribeNames.map(n => [n]) : [['(none in database yet)']]),
+      [],
+      ['COMPOSER NAMES'],
+      ['Composer names must match the database exactly. There are too many to list here — use the source editor\'s composer search to find exact spellings. Unknown names default to Anonymous.'],
     ];
     const refSheet = XLSX.utils.aoa_to_sheet(refData);
     refSheet['!cols'] = [{ wch: 30 }, { wch: 80 }];
     XLSX.utils.book_append_sheet(wb, refSheet, 'Reference');
+
+    // Ensure spreadsheet apps recalculate the clefs formulas when the file opens.
+    wb.Workbook = wb.Workbook || {};
+    wb.Workbook.CalcPr = { fullCalcOnLoad: true };
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
@@ -261,8 +327,45 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       catalogued,
       publishers: [],
       scribes: [],
+      publisher_names: [],
+      scribe_names: [],
       source_images: []
     };
+
+    // --- Resolve publishers & scribes (semicolon-delimited names → ids) ---
+    const publisherResult = await pool.query('SELECT id, name FROM publishers ORDER BY name');
+    const publisherMap = new Map();
+    for (const p of publisherResult.rows) publisherMap.set(p.name.toLowerCase(), p.id);
+
+    const scribeResult = await pool.query('SELECT id, name FROM scribes ORDER BY name');
+    const scribeMap = new Map();
+    for (const s of scribeResult.rows) scribeMap.set(s.name.toLowerCase(), s.id);
+
+    const rawPublishers = cellStr(sr, 'publishers');
+    if (rawPublishers) {
+      for (const name of rawPublishers.split(';').map(s => s.trim()).filter(Boolean)) {
+        const id = publisherMap.get(name.toLowerCase());
+        if (id) {
+          source.publishers.push(id);
+          source.publisher_names.push(name);
+        } else {
+          warnings.push(`Source: publisher "${name}" not found — will be skipped`);
+        }
+      }
+    }
+
+    const rawScribes = cellStr(sr, 'scribes');
+    if (rawScribes) {
+      for (const name of rawScribes.split(';').map(s => s.trim()).filter(Boolean)) {
+        const id = scribeMap.get(name.toLowerCase());
+        if (id) {
+          source.scribes.push(id);
+          source.scribe_names.push(name);
+        } else {
+          warnings.push(`Source: scribe "${name}" not found — will be skipped`);
+        }
+      }
+    }
 
     // --- Parse Images sheet (optional) ---
     const imageSheetName = wb.SheetNames.find(n => n.toLowerCase() === 'images');
@@ -285,10 +388,6 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     }
     const inclRows = XLSX.utils.sheet_to_json(wb.Sheets[inclSheetName], { defval: '' });
 
-    if (inclRows.length === 0) {
-      warnings.push('Inclusions sheet is empty — only the source will be created');
-    }
-
     // Pre-load composers for name resolution
     const composerResult = await pool.query('SELECT id, name FROM composers ORDER BY name');
     const composerMap = new Map();
@@ -310,8 +409,30 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       const rowNum = i + 2; // spreadsheet row (1-indexed header + 1-indexed data)
       const titleText = cellStr(row, 'title_text');
 
+      // Resolve clefs: prefer the joined "clefs" column, otherwise fall back to
+      // joining the individual clef_1..clef_16 cells (in case the formula was
+      // cleared or did not recalculate on the user's machine).
+      let rawClefs = cellStr(row, 'clefs');
+      if (!rawClefs) {
+        const clefParts = [];
+        for (let n = 1; n <= 16; n++) {
+          const v = cellStr(row, `clef_${n}`);
+          if (v) clefParts.push(v);
+        }
+        rawClefs = clefParts.join(';');
+      }
+
+      // Skip rows that are entirely empty (e.g. the pre-filled formula rows the
+      // user never used). Only flag a missing title when the row has content.
+      const rowHasContent = !!rawClefs || [
+        'position', 'composition_type', 'tone', 'tone_connector',
+        'even_odd', 'composer_names', 'attribution_text', 'notes'
+      ].some(f => cellStr(row, f));
+
       if (!titleText) {
-        errors.push(`Row ${rowNum}: "title_text" is required`);
+        if (rowHasContent) {
+          errors.push(`Row ${rowNum}: "title_text" is required`);
+        }
         continue;
       }
 
@@ -345,8 +466,7 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       const toneConnector = cellStr(row, 'tone_connector') || null;
       const evenOdd = parseEvenOdd(cellStr(row, 'even_odd'));
 
-      // Clefs
-      const rawClefs = cellStr(row, 'clefs');
+      // Clefs (rawClefs resolved at the top of the loop)
       const clefs = parseClefs(rawClefs);
       const clefErrors = validateClefs(clefs);
       for (const ce of clefErrors) {
@@ -380,7 +500,7 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
 
       inclusions.push({
         id: null,
-        order: i + 1,
+        order: inclusions.length + 1,
         position: cellStr(row, 'position'),
         attribution_texts: attribution ? [attribution] : [''],
         composer_ids: composerIds,
@@ -397,6 +517,10 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
           composer_names: composerNames
         }
       });
+    }
+
+    if (inclusions.length === 0) {
+      warnings.push('No inclusions found — only the source will be created');
     }
 
     res.json({ source, inclusions, warnings, errors });

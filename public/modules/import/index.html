@@ -263,6 +263,8 @@
 
             // Source card
             const s = source;
+            const publisherNames = s.publisher_names || [];
+            const scribeNames = s.scribe_names || [];
             const images = s.source_images || [];
             const imagesHtml = images.length
                 ? '<div class="col-12"><strong>Images (' + images.length + '):</strong><ul class="mb-0">'
@@ -282,6 +284,8 @@
                     <div class="col-md-3"><strong>Years:</strong> ${s.from_year_annotation ? esc(s.from_year_annotation) + ' ' : ''}${s.from_year || '?'} – ${s.to_year_annotation ? esc(s.to_year_annotation) + ' ' : ''}${s.to_year || '?'}</div>
                     <div class="col-md-3"><strong>Catalogued:</strong> ${s.catalogued ? 'Yes' : 'No'}</div>
                     <div class="col-md-3"><strong>RISM:</strong> ${s.rism_link ? '<a href="'+esc(s.rism_link)+'" target="_blank">link</a>' : '—'}</div>
+                    <div class="col-md-6"><strong>Publishers:</strong> ${publisherNames.length ? esc(publisherNames.join('; ')) : '—'}</div>
+                    <div class="col-md-6"><strong>Scribes:</strong> ${scribeNames.length ? esc(scribeNames.join('; ')) : '—'}</div>
                     ${s.notes ? '<div class="col-12"><strong>Notes:</strong> '+esc(s.notes)+'</div>' : ''}
                     ${imagesHtml}
                 </div>
