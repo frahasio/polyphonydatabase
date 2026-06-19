@@ -181,7 +181,9 @@ router.get('/template', async (req, res) => {
       inclSheet[cellRef] = {
         t: 's',
         v: '',
-        f: `TEXTJOIN(";",TRUE,${firstClefColLetter}${excelRow}:${lastClefColLetter}${excelRow})`
+        // TEXTJOIN is a post-2007 "future function", so it must be stored with
+        // the _xlfn. prefix or Excel shows #NAME? (and renders it as =@TEXTJOIN).
+        f: `_xlfn.TEXTJOIN(";",TRUE,${firstClefColLetter}${excelRow}:${lastClefColLetter}${excelRow})`
       };
     }
     inclSheet['!ref'] = XLSX.utils.encode_range(
