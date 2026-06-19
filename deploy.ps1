@@ -1,7 +1,8 @@
 # Deploy script for GitHub and Heroku
 param(
     [string]$commitMessage = "Update changes",
-    [string]$herokuAppName = "polyphony-database-node"
+    [string]$herokuAppName = "polyphony-database-node",
+    [switch]$Clean
 )
 
 # Check if Heroku CLI is installed
@@ -37,10 +38,15 @@ if (-not $herokuRemote) {
 $currentBranch = git rev-parse --abbrev-ref HEAD
 Write-Host "Current branch: $currentBranch" -ForegroundColor Yellow
 
-# Clean up and reinstall dependencies
-Write-Host "Cleaning up and reinstalling dependencies..."
-Remove-Item -Path "package-lock.json" -ErrorAction SilentlyContinue
-Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+# Install dependencies. By default this is incremental (fast); pass -Clean for a
+# full reinstall. Chrome lives in puppeteer-cache/ and is preserved either way,
+# so it is not re-downloaded unless missing.
+if ($Clean) {
+    Write-Host "Clean install: removing node_modules and lock file..."
+    Remove-Item -Path "package-lock.json" -ErrorAction SilentlyContinue
+    Remove-Item -Path "node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+}
+Write-Host "Installing dependencies..."
 npm install
 
 # Stage and commit changes

@@ -263,6 +263,15 @@
 
             // Source card
             const s = source;
+            const images = s.source_images || [];
+            const imagesHtml = images.length
+                ? '<div class="col-12"><strong>Images (' + images.length + '):</strong><ul class="mb-0">'
+                    + images.map(img =>
+                        '<li><a href="' + esc(img.url) + '" target="_blank">' + esc(img.url) + '</a>'
+                        + (img.label ? ' — ' + esc(img.label) : '') + '</li>'
+                      ).join('')
+                    + '</ul></div>'
+                : '';
             sourcePreview.innerHTML = `
                 <div class="row g-2">
                     <div class="col-md-4"><strong>Code:</strong> ${esc(s.code)}</div>
@@ -274,6 +283,7 @@
                     <div class="col-md-3"><strong>Catalogued:</strong> ${s.catalogued ? 'Yes' : 'No'}</div>
                     <div class="col-md-3"><strong>RISM:</strong> ${s.rism_link ? '<a href="'+esc(s.rism_link)+'" target="_blank">link</a>' : '—'}</div>
                     ${s.notes ? '<div class="col-12"><strong>Notes:</strong> '+esc(s.notes)+'</div>' : ''}
+                    ${imagesHtml}
                 </div>
             `;
 

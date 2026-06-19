@@ -119,6 +119,7 @@
       minOrphanLines: 3,
       descClipPx: 3,
       ascClipPx: 3,
+      pdfClipSafetyPx: 2,
       dropCapOffsetEm: 0.05,
       previewDisplay: 'scroll',
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
@@ -144,6 +145,7 @@
         minOrphanLines: 3,
         descClipPx: 3,
         ascClipPx: 3,
+        pdfClipSafetyPx: 2,
         dropCapOffsetEm: 0.05,
         previewDisplay: 'scroll',
         fontFamilyKey: BOOKLET_DEFAULT_FONT,
@@ -1778,6 +1780,7 @@
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
     syncNum('inpDescClipPx', 'descClipPx', 3);
     syncNum('inpAscClipPx', 'ascClipPx', 3);
+    syncNum('inpPdfClipSafetyPx', 'pdfClipSafetyPx', 2);
     syncNum('inpDropCapOffset', 'dropCapOffsetEm', 0.05);
     var pdGrp = document.getElementById('btnGroupPreviewDisplay');
     if (pdGrp) {
@@ -2776,12 +2779,14 @@
     container.appendChild(clone);
     if ((isMid || isBot) && descClip > 0) {
       var coverTop = document.createElement('div');
-      coverTop.style.cssText = 'position:absolute;top:0;left:0;right:0;height:' + descClip + 'px;background:#fff;z-index:1;';
+      coverTop.className = 'booklet-clip-cover-top';
+      coverTop.style.cssText = 'position:absolute;top:0;left:0;right:0;--cov-h:' + descClip + 'px;height:calc(var(--cov-h) + var(--booklet-pdf-clip-safety, 0px));background:#fff;z-index:1;';
       container.appendChild(coverTop);
     }
     if ((isTop || isMid) && ascClip > 0) {
       var coverBot = document.createElement('div');
-      coverBot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:' + ascClip + 'px;background:#fff;z-index:1;';
+      coverBot.className = 'booklet-clip-cover-bottom';
+      coverBot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;--cov-h:' + ascClip + 'px;height:calc(var(--cov-h) + var(--booklet-pdf-clip-safety, 0px));background:#fff;z-index:1;';
       container.appendChild(coverBot);
     }
     return container;
@@ -4974,10 +4979,12 @@
       styles.push('<style>' + s.textContent + '</style>');
     });
     const varBlock = bookletRootCssVarsInline();
+    const pdfClipSafety = getSetting('pdfClipSafetyPx', 2);
     const extra =
       '<style>' +
       ':root{' +
       varBlock +
+      ';--booklet-pdf-clip-safety:' + pdfClipSafety + 'px' +
       '}' +
       'body.booklet-print-export{background:#fff!important;margin:0!important;padding:0!important;}' +
       '.booklet-print-export .booklet-page{box-shadow:none!important;margin:0 auto!important;' +
@@ -5267,6 +5274,7 @@
     bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);
     bindLayoutSetting('inpDescClipPx', 'descClipPx', 0, 10, 3);
     bindLayoutSetting('inpAscClipPx', 'ascClipPx', 0, 10, 3);
+    bindLayoutSetting('inpPdfClipSafetyPx', 'pdfClipSafetyPx', 0, 10, 2);
     (function() {
       var dcEl = document.getElementById('inpDropCapOffset');
       if (!dcEl) return;

@@ -2,6 +2,8 @@ import express from 'express';
 import XLSX from 'xlsx';
 import { pool } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { saveSourceWithInclusions } from './sources.js';
+import { triggerCleanup } from '../cleanup.js';
 
 const router = express.Router();
 
@@ -154,6 +156,12 @@ router.get('/template', async (req, res) => {
     });
     XLSX.utils.book_append_sheet(wb, inclSheet, 'Inclusions');
 
+    // Images sheet — one row per image link, each with an optional label.
+    const imageHeaders = ['url', 'label'];
+    const imageSheet = XLSX.utils.aoa_to_sheet([imageHeaders]);
+    imageSheet['!cols'] = [{ wch: 60 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, imageSheet, 'Images');
+
     // Reference sheet
     const refData = [
       ['Polyphony Database — Import Template Reference'],
@@ -181,6 +189,10 @@ router.get('/template', async (req, res) => {
       ['composer_names', 'Semicolon-separated composer names exactly as in the database. Unknown names default to Anonymous.'],
       ['attribution_text', 'Attribution text as written in the source, e.g. "A. Byrd"'],
       ['notes', 'Free text notes for this inclusion'],
+      [],
+      ['IMAGE FIELDS (Images sheet — add one row per image)'],
+      ['url', 'Required. Direct link to the image (https://...). Rows without a url are ignored.'],
+      ['label', 'Optional caption/label for the image, e.g. "f. 12r"'],
       [],
       ['VALID COMPOSITION TYPES'],
       ...compositionTypeNames.map(n => [n]),
@@ -251,6 +263,20 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       scribes: [],
       source_images: []
     };
+
+    // --- Parse Images sheet (optional) ---
+    const imageSheetName = wb.SheetNames.find(n => n.toLowerCase() === 'images');
+    if (imageSheetName) {
+      const imageRows = XLSX.utils.sheet_to_json(wb.Sheets[imageSheetName], { defval: '' });
+      for (let i = 0; i < imageRows.length; i++) {
+        const url = cellStr(imageRows[i], 'url');
+        if (!url) continue; // skip blank rows
+        source.source_images.push({
+          url,
+          label: cellStr(imageRows[i], 'label')
+        });
+      }
+    }
 
     // --- Parse Inclusions sheet ---
     const inclSheetName = wb.SheetNames.find(n => n.toLowerCase() === 'inclusions');
@@ -383,16 +409,24 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
 // --- POST /confirm  — create source + inclusions via the same code path as the form ---
 
 router.post('/confirm', async (req, res) => {
-  try {
-    const { source, inclusions } = req.body;
+  const { source, inclusions } = req.body;
 
-    if (!source || !source.code) {
-      return res.status(400).json({ error: 'Source code is required' });
-    }
+  if (!source || !source.code) {
+    return res.status(400).json({ error: 'Source code is required' });
+  }
+
+  // Run the whole import in a single transaction so a failure never leaves an
+  // orphaned source row behind. We call the shared save logic directly instead
+  // of looping back over HTTP (which broke behind the Heroku HTTPS proxy).
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const now = new Date();
 
     // Step 1: Create the source row
-    const now = new Date();
-    const createResult = await pool.query(`
+    const createResult = await client.query(`
       INSERT INTO sources (
         code, title, type, format, town, rism_link, catalogued,
         notes, from_year, to_year, from_year_annotation, to_year_annotation,
@@ -417,11 +451,8 @@ router.post('/confirm', async (req, res) => {
 
     const sourceId = createResult.rows[0].id;
 
-    // Step 2: Call save-with-inclusions internally via HTTP to the same server.
-    // We build the exact payload the existing handler expects and forward
-    // the request through Express's internal routing.
-
-    // Build the source update payload matching what save-with-inclusions expects
+    // Step 2: Persist relationships + inclusions through the same code path
+    // used by the source editor's save-with-inclusions endpoint.
     const sourceUpdateData = {
       code: source.code,
       title: source.title || '',
@@ -440,47 +471,29 @@ router.post('/confirm', async (req, res) => {
       source_images: source.source_images || []
     };
 
-    // Use an internal fetch to the save-with-inclusions endpoint.
-    // This guarantees we go through the exact same code path.
-    const port = req.socket.localPort;
-    const protocol = req.protocol;
-    const host = `${protocol}://127.0.0.1:${port}`;
+    const { processedInclusions } = await saveSourceWithInclusions(
+      client, sourceId, sourceUpdateData, inclusions || [], req.user
+    );
 
-    // Forward the session cookie so auth passes
-    const cookieHeader = req.headers.cookie || '';
+    await client.query('COMMIT');
 
-    const saveResponse = await fetch(`${host}/api/admin/sources/${sourceId}/save-with-inclusions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': cookieHeader
-      },
-      body: JSON.stringify({
-        source: sourceUpdateData,
-        inclusions: inclusions || []
-      })
-    });
-
-    if (!saveResponse.ok) {
-      const errBody = await saveResponse.json().catch(() => ({}));
-      return res.status(saveResponse.status).json({
-        error: 'Failed to save inclusions',
-        details: errBody.details || errBody.error || 'Unknown error'
-      });
+    if (processedInclusions.length > 0) {
+      triggerCleanup(true, 'all', 'after source import', 5000);
     }
-
-    const saveResult = await saveResponse.json();
 
     res.json({
       success: true,
       sourceId,
       sourceCode: source.code,
-      message: saveResult.message || `Source created with ${(inclusions || []).length} inclusions.`,
-      details: saveResult
+      message: `Source created with ${processedInclusions.length} inclusions.`,
+      processedInclusions: processedInclusions.length
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error confirming import:', error);
     res.status(500).json({ error: 'Import failed', details: error.message });
+  } finally {
+    client.release();
   }
 });
 

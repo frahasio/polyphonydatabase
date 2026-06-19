@@ -616,17 +616,13 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Bulk save source with inclusions (with automatic temp_inclusions processing)
-router.post('/:id/save-with-inclusions', async (req, res) => {
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
-    const sourceId = parseInt(req.params.id);
-    const { source, inclusions } = req.body;
+// Core save logic shared by the save-with-inclusions route and the spreadsheet importer.
+// Operates within a caller-provided transaction client; it does NOT manage
+// BEGIN/COMMIT/ROLLBACK or release the client — that is the caller's responsibility.
+// Returns { processedInclusions } so the caller can decide on cleanup / response.
+export async function saveSourceWithInclusions(client, sourceId, source, inclusions, user) {
     const now = new Date();
-    
+
     // Step 1: Update source data first
     const updateSourceQuery = `
       UPDATE sources 
@@ -694,7 +690,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     // Step 2: Handle form inclusions
     // Only process inclusions that have titles (non-empty rows)
     // Filter out null/undefined inclusions and those without titles
-    const processedInclusions = inclusions.filter(inclusion => 
+    const processedInclusions = (inclusions || []).filter(inclusion => 
       inclusion && inclusion.composition && inclusion.composition.title_text?.trim()
     );
 
@@ -963,8 +959,8 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
       await client.query(
         `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
         [
-          req.user?.id || null,
-          req.user?.email || 'unknown@system.local',
+          user?.id || null,
+          user?.email || 'unknown@system.local',
           'UPDATE',
           'sources',
           sourceId,
@@ -995,14 +991,31 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     // Database cleanup removed from automatic execution after save
     // Run cleanup manually from time to time to avoid interfering with save operations
 
+    return { processedInclusions };
+}
+
+// Bulk save source with inclusions (with automatic temp_inclusions processing)
+router.post('/:id/save-with-inclusions', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const sourceId = parseInt(req.params.id);
+    const { source, inclusions } = req.body;
+
+    const { processedInclusions } = await saveSourceWithInclusions(
+      client, sourceId, source, inclusions, req.user
+    );
+
     await client.query('COMMIT');
-    
+
     if (processedInclusions.length > 0) {
       triggerCleanup(true, 'all', 'after source save', 5000);
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: `Source saved successfully. Processed ${processedInclusions.length} inclusions.`,
       processedFormInclusions: processedInclusions.length
     });
@@ -1011,7 +1024,7 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Error saving source with inclusions:', error);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to save source and inclusions',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
