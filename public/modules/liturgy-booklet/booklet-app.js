@@ -2353,6 +2353,10 @@
         paddingbottom: 4,
         paddingright: 0,
         paddingleft: 0,
+        // Justify EVERY line (incl. the last/only one) to fill the full staff width,
+        // so a short tune spreads across 100% of its container instead of sitting
+        // ragged on the left. stretchlast:1 makes the justify test always pass.
+        format: { stretchlast: 1 },
       };
       if (opts.staffColor) abcOpts.staffColor = opts.staffColor;
       if (opts.noteColor) abcOpts.noteColor = opts.noteColor;
