@@ -1209,6 +1209,13 @@
     return ctxt;
   }
 
+  /** Gap (mm) between the section title/source row and the content below. Default ~matches mb-1. */
+  function sectionTitleGapMmOf(b) {
+    var v = Number(b && b.sectionTitleGapMm);
+    if (!Number.isFinite(v)) v = 1;
+    return Math.min(30, Math.max(0, v));
+  }
+
   function appendSectionHeading(wrap, b) {
     if (b.type !== 'rubric' && b.type !== 'reading') return;
     const t = String(b.sectionTitle || '').trim();
@@ -1216,12 +1223,14 @@
     if (!t && !sref) return;
     var titlePt = (b.titleFontSizePt || 11) + 'pt';
     var srcPt = (b.sourceFontSizePt || 9) + 'pt';
+    var gapMm = sectionTitleGapMmOf(b) + 'mm';
     var srcCol = /^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim())
       ? String(b.sourceColor).trim()
       : '#6c757d';
     if (!t && sref) {
       const solo = document.createElement('div');
-      solo.className = 'mb-1 booklet-section-heading-source';
+      solo.className = 'booklet-section-heading-source';
+      solo.style.marginBottom = gapMm;
       solo.style.textAlign = 'right';
       solo.style.fontSize = srcPt;
       solo.style.color = srcCol;
@@ -1231,7 +1240,8 @@
     }
     const row = document.createElement('div');
     row.className =
-      'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap mb-1';
+      'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap';
+    row.style.marginBottom = gapMm;
     const left = document.createElement('div');
     left.className = 'fw-bold booklet-section-heading-title';
     left.style.fontSize = titlePt;
@@ -1317,6 +1327,8 @@
         if (o.abcLabel == null) o.abcLabel = '';
         if (o.abcScale == null) o.abcScale = 0.7;
         if (o.abcStaffWidth == null) o.abcStaffWidth = 100;
+        if (o.abcMinPadding == null) o.abcMinPadding = 0;
+        if (o.abcTimeBased == null) o.abcTimeBased = false;
         if (o.abcAlign == null) o.abcAlign = 'left';
         if (o.abcSystemGapMm == null) o.abcSystemGapMm = 2;
         if (o.abcStaffColor == null) o.abcStaffColor = '';
@@ -1327,6 +1339,8 @@
         if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
         if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
         if (o.sourceColor == null) o.sourceColor = '';
+        if (o.sectionTitleGapMm == null) o.sectionTitleGapMm = 1;
+        else o.sectionTitleGapMm = Math.min(30, Math.max(0, Number(o.sectionTitleGapMm)));
         if (o.abcTranslation == null) o.abcTranslation = '';
         if (o.abcTranslationLeftPct == null) o.abcTranslationLeftPct = 60;
         if (o.abcTranslationGapMm == null) o.abcTranslationGapMm = 4;
@@ -1355,6 +1369,8 @@
         if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
         if (o.sourceFontSizePt == null) o.sourceFontSizePt = 9;
         if (o.sourceColor == null) o.sourceColor = '';
+        if (o.sectionTitleGapMm == null) o.sectionTitleGapMm = 1;
+        else o.sectionTitleGapMm = Math.min(30, Math.max(0, Number(o.sectionTitleGapMm)));
       }
       if (o.type === 'reading') {
         if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
@@ -2340,6 +2356,15 @@
       };
       if (opts.staffColor) abcOpts.staffColor = opts.staffColor;
       if (opts.noteColor) abcOpts.noteColor = opts.noteColor;
+      // Horizontal note spacing controls.
+      var minPad = Math.max(0, Math.min(40, Number(opts.minPadding) || 0));
+      if (opts.timeBased) {
+        // Space notes purely by duration (ignores lyric widths) for even, metronomic layout.
+        abcOpts.timeBasedLayout = { minPadding: minPad || 6, align: 'center' };
+      } else if (minPad > 0) {
+        // Force a minimum gap so bars with short lyrics don't collapse together.
+        abcOpts.minPadding = minPad;
+      }
       ABCJS.renderAbc(mount, textToRender, abcOpts);
       // abcjs renders ONE svg per tune containing all staff systems. To let the
       // paginator flow systems across pages, slice it into horizontal bands
@@ -2534,10 +2559,13 @@
         var abcSystemGapMm = Math.max(0, Math.min(20, parseFloat(b.abcSystemGapMm) || 2));
         var abcSColor = String(b.abcStaffColor || '').trim();
         var abcNColor = String(b.abcNoteColor || '').trim();
+        var abcMinPad = Math.max(0, Math.min(40, Number(b.abcMinPadding) || 0));
+        var abcTimeBased = !!b.abcTimeBased;
 
         // Cache is keyed on everything that affects rendering.
         var abcSig = JSON.stringify([
           b.abcText, abcScale, abcStaffW, abcShowTitle, abcSColor, abcNColor,
+          abcMinPad, abcTimeBased,
           b.abcTranslation, b.abcTranslationLeftPct, b.abcTranslationGapMm,
           b.abcTranslationBorder, b.abcTranslationFontSizePt,
           b.abcTranslationVAlign, b.abcTranslationTextAlign
@@ -2551,6 +2579,8 @@
             showTitle: abcShowTitle,
             staffColor: abcSColor || undefined,
             noteColor: abcNColor || undefined,
+            minPadding: abcMinPad,
+            timeBased: abcTimeBased,
           }) || [];
           abcRenderCache.set(b.id, { sig: abcSig, svgs: abcSvgs.map(function (s) { return s.cloneNode(true); }) });
         }
@@ -2588,7 +2618,8 @@
             var abcSrc = String(b.sectionSourceRef || '').trim();
             if (abcSt || abcSrc) {
               var headRow = document.createElement('div');
-              headRow.className = 'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap mb-1';
+              headRow.className = 'booklet-section-heading d-flex justify-content-between align-items-baseline gap-2 flex-wrap';
+              headRow.style.marginBottom = sectionTitleGapMmOf(b) + 'mm';
               if (abcSt) {
                 var headL = document.createElement('div');
                 headL.className = 'fw-bold booklet-section-heading-title';
@@ -2646,7 +2677,7 @@
           var abcFlowItem = { t: 'flow', el: abcLine, splittable: false, gapMm: abcIsLast ? gapAfter : 0 };
           if (ai > 0) abcFlowItem.internalGapPx = abcLineGapPx;
           abcFlowItem.measureKey = b.id + '#a' + ai;
-          abcFlowItem.measureSig = abcSig + '|' + JSON.stringify([b.sectionTitle, b.sectionSourceRef, b.titleFontSizePt, b.sourceFontSizePt]);
+          abcFlowItem.measureSig = abcSig + '|' + JSON.stringify([b.sectionTitle, b.sectionSourceRef, b.titleFontSizePt, b.sourceFontSizePt, b.sectionTitleGapMm]);
           out.push(abcFlowItem);
         }
         continue;
@@ -2678,6 +2709,7 @@
       // Carry a cache key so paginateFlow can skip measureInContext on unchanged blocks.
       var staticSig = JSON.stringify([
         b.type, b.text, b.translation, b.sectionTitle, b.sectionSourceRef,
+        b.sectionTitleGapMm,
         b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
         b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
         b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.fontScale,
@@ -3875,6 +3907,8 @@
       var abcScale = b.abcScale != null ? b.abcScale : 0.7;
       var abcWidth = b.abcStaffWidth != null ? b.abcStaffWidth : 100;
       var abcGapMm = b.abcSystemGapMm != null ? b.abcSystemGapMm : 2;
+      var abcMinPad = b.abcMinPadding != null ? b.abcMinPadding : 0;
+      var abcTitleGap = b.sectionTitleGapMm != null ? b.sectionTitleGapMm : 1;
       var abcTlp = b.abcTranslationLeftPct != null ? b.abcTranslationLeftPct : 60;
       var abcTgm = b.abcTranslationGapMm != null ? b.abcTranslationGapMm : 4;
       var abcTfs = b.abcTranslationFontSizePt != null ? b.abcTranslationFontSizePt : 11;
@@ -3898,6 +3932,8 @@
           '<div class="col-auto" style="width:3.2rem"><label class="form-label small mb-0">Col.</label>' +
             '<input type="color" class="form-control form-control-color form-control-sm w-100" id="edAbcSourceColor" value="' + escapeAttr(/^#[0-9a-f]{6}$/i.test(String(b.sourceColor || '').trim()) ? String(b.sourceColor).trim() : '#6c757d') + '"></div>' +
         '</div>' +
+        '<div class="row g-1 mb-1"><div class="col-auto"><label class="form-label small mb-0" title="Space between the title/source row and the music below it.">Gap below title (mm)</label>' +
+          '<input type="number" class="form-control form-control-sm" id="edAbcTitleGap" min="0" max="30" step="0.5" value="' + abcTitleGap + '" style="width:6rem"></div></div>' +
         '<label class="form-label small mb-1" for="edAbcText">ABC notation</label>' +
         '<textarea class="form-control form-control-sm font-monospace mb-1" rows="6" id="edAbcText" placeholder="X:1&#10;T:Title&#10;M:4/4&#10;K:C&#10;..."></textarea>' +
         '<div class="form-check mb-1">' +
@@ -3914,6 +3950,13 @@
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">System gap mm</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcGapNum" min="0" max="20" step="0.5" value="' + abcGapMm + '" style="width:3.5rem">' +
             '<input type="range" class="form-range flex-grow-1" id="edAbcGapRange" min="0" max="20" step="0.5" value="' + abcGapMm + '"></div>' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem" title="Minimum horizontal gap between notes. Raise this to stop bars with short lyrics (e.g. E-I-E-I-O) from collapsing together.">Min note gap</span>' +
+            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcMinPadNum" min="0" max="40" step="1" value="' + abcMinPad + '" style="width:3.5rem">' +
+            '<input type="range" class="form-range flex-grow-1" id="edAbcMinPadRange" min="0" max="40" step="1" value="' + abcMinPad + '"></div>' +
+          '<div class="form-check mb-0">' +
+            '<input class="form-check-input" type="checkbox" id="chkAbcTimeBased"' + (b.abcTimeBased ? ' checked' : '') + '>' +
+            '<label class="form-check-label" for="chkAbcTimeBased" title="Space notes purely by duration, ignoring lyric widths. Gives even, metronomic spacing (a whole note takes 4× a quarter note).">Even (time-based) spacing</label>' +
+          '</div>' +
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Align</span>' +
             '<div class="btn-group btn-group-sm" role="group">' +
               '<button type="button" class="btn btn-light border py-0 px-2' + ((b.abcAlign || 'left') === 'left' ? ' active' : '') + '" data-abc-align="left" title="Align left"><i class="bi bi-text-left"></i></button>' +
@@ -3987,6 +4030,11 @@
         b.sourceColor = /^#[0-9a-f]{6}$/i.test(cv) ? cv : '';
         scheduleAutosave(); markLayoutStale();
       });
+      panel.querySelector('#edAbcTitleGap')?.addEventListener('change', function (e) {
+        var g = parseFloat(e.target.value);
+        b.sectionTitleGapMm = Number.isFinite(g) ? Math.min(30, Math.max(0, g)) : 1;
+        scheduleAutosave(); markLayoutStale();
+      });
 
       // ABC textarea (debounced, expensive)
       var abcTa = panel.querySelector('#edAbcText');
@@ -4029,6 +4077,12 @@
       wireAbcSlider('edAbcScaleNum', 'edAbcScaleRange', 'abcScale', 0.1, 3, 0.7, true);
       wireAbcSlider('edAbcWidthNum', 'edAbcWidthRange', 'abcStaffWidth', 20, 100, 100, false);
       wireAbcSlider('edAbcGapNum', 'edAbcGapRange', 'abcSystemGapMm', 0, 20, 2, true);
+      wireAbcSlider('edAbcMinPadNum', 'edAbcMinPadRange', 'abcMinPadding', 0, 40, 0, false);
+
+      panel.querySelector('#chkAbcTimeBased')?.addEventListener('change', function (e) {
+        b.abcTimeBased = e.target.checked;
+        scheduleAutosave(); markLayoutStale();
+      });
 
       panel.querySelectorAll('[data-abc-align]').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -4249,6 +4303,8 @@
         <div class="d-flex flex-wrap align-items-end gap-2 mb-1">
           <label class="d-flex flex-column gap-0" style="width:5rem"><span class="form-label small mb-0">Leading pt</span>
             <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
+          <label class="d-flex flex-column gap-0" style="width:6.5rem" title="Space between the title/source row and the text below it."><span class="form-label small mb-0">Gap below title</span>
+            <input type="number" class="form-control form-control-sm" id="edReadTitleGap" min="0" max="30" step="0.5" value="${b.sectionTitleGapMm != null ? b.sectionTitleGapMm : 1}"></label>
         </div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
           <div class="form-check form-check-inline ms-2 mb-0">
@@ -4302,6 +4358,8 @@
         b.sourceColor = /^#[0-9a-f]{6}$/i.test(scv || '') ? scv : '';
         var lh = parseFloat(panel.querySelector('#edReadLineHeight').value);
         b.lineHeightPt = Number.isFinite(lh) ? Math.min(50, Math.max(6, lh)) : 16;
+        var rtg = parseFloat(panel.querySelector('#edReadTitleGap').value);
+        b.sectionTitleGapMm = Number.isFinite(rtg) ? Math.min(30, Math.max(0, rtg)) : 1;
         var os = parseFloat(panel.querySelector('#edReadOrigSize').value);
         b.bodyFontSizePt = Number.isFinite(os) ? Math.min(36, Math.max(6, os)) : 11;
         var trs = parseFloat(panel.querySelector('#edReadTransSize').value);
@@ -4318,6 +4376,7 @@
       panel.querySelector('#edReadSourceSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadSourceColor')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadLineHeight').addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadTitleGap')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadOrigSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#chkDropCapOrig')?.addEventListener('change', pushMetaRead);
@@ -4747,6 +4806,7 @@
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
       b.sourceColor = '';
+      b.sectionTitleGapMm = 1;
     }
     if (type === 'reading') {
       b.text = '';
@@ -4762,6 +4822,7 @@
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
       b.sourceColor = '';
+      b.sectionTitleGapMm = 1;
     }
     if (type === 'image') {
       b.mime = 'image/png';
@@ -4820,6 +4881,8 @@
       b.abcLabel = '';
       b.abcScale = 0.7;
       b.abcStaffWidth = 100;
+      b.abcMinPadding = 0;
+      b.abcTimeBased = false;
       b.abcAlign = 'left';
       b.abcSystemGapMm = 2;
       b.abcStaffColor = '';
@@ -4830,6 +4893,7 @@
       b.titleFontSizePt = 11;
       b.sourceFontSizePt = 9;
       b.sourceColor = '';
+      b.sectionTitleGapMm = 1;
       b.abcTranslation = '';
       b.abcTranslationLeftPct = 60;
       b.abcTranslationGapMm = 4;
