@@ -2264,6 +2264,31 @@
             }
         }
 
+        // Escape catalogue text before inserting into HTML. All API fields are
+        // user-entered scholarly text and must never reach innerHTML raw.
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Only http(s) URLs may appear in href attributes (blocks javascript:/data: links).
+        function safeUrl(value) {
+            const s = String(value || '').trim();
+            return /^https?:\/\//i.test(s) ? escapeHtml(s) : '';
+        }
+
+        // Render an external link when the URL is safe, otherwise plain text.
+        function externalLinkHtml(url, innerHtml, cssClass) {
+            const u = safeUrl(url);
+            if (!u) return `<span class="${cssClass}">${innerHtml}</span>`;
+            return `<a href="${u}" target="_blank" rel="noopener" class="${cssClass}">${innerHtml}</a>`;
+        }
+
         function displayResults(data) {
             const resultsBody = document.getElementById('resultsBody');
             const paginationInfo = document.getElementById('paginationInfo');
@@ -2308,35 +2333,29 @@
             resultsBody.innerHTML = groups.map(group => `
                 <tr>
                     <td>
-                        <strong>${group.display_title || 'Untitled'}</strong>
-                        ${group.tone && group.tone.length ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.tone_connector)}</span>` : ''}
-                        ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
+                        <strong>${escapeHtml(group.display_title) || 'Untitled'}</strong>
+                        ${group.tone && group.tone.length ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.tone_connector))}</span>` : ''}
+                        ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.even_odd] || group.even_odd)})</span>` : ''}
                         ${(group.editions || []).map(edition => `
                             <div class="mt-1">
-                                <a href="${edition.file_url}" target="_blank" class="edition-link">
-                                    <i class="bi bi-file-earmark-pdf me-1"></i>
-                                    ${edition.editor_name || 'Unknown Editor'} ${edition.voicing || ''}
-                                </a>
+                                ${externalLinkHtml(edition.file_url, `<i class="bi bi-file-earmark-pdf me-1"></i>${escapeHtml(edition.editor_name) || 'Unknown Editor'} ${escapeHtml(edition.voicing)}`, 'edition-link')}
                             </div>
                         `).join('')}
                         ${(group.recordings || []).map(recording => `
                             <div class="mt-1">
-                                <a href="${recording.file_url}" target="_blank" class="recording-link">
-                                    <i class="bi bi-play-circle me-1"></i>
-                                    ${recording.performer_name || 'Unknown Performer'}
-                                </a>
+                                ${externalLinkHtml(recording.file_url, `<i class="bi bi-play-circle me-1"></i>${escapeHtml(recording.performer_name) || 'Unknown Performer'}`, 'recording-link')}
                             </div>
                         `).join('')}
                     </td>
                     <td>
-                        ${(group.function_names || []).join(', ')}
+                        ${(group.function_names || []).map(name => escapeHtml(name)).join(', ')}
                     </td>
                     <td>
-                        ${group.composer_display || 'Anon'}
-                        ${group.composer_dates ? `<br><small class="text-muted fst-italic">${group.composer_dates}</small>` : ''}
+                        ${escapeHtml(group.composer_display) || 'Anon'}
+                        ${group.composer_dates ? `<br><small class="text-muted fst-italic">${escapeHtml(group.composer_dates)}</small>` : ''}
                     </td>
                     <td>
-                        ${(group.voice_counts || []).join(', ')}
+                        ${(group.voice_counts || []).map(v => escapeHtml(v)).join(', ')}
                     </td>
                     <td>
                         ${(group.sources || []).length > 0 ? `
@@ -2347,53 +2366,47 @@
                                             <div class="d-flex justify-content-between align-items-start">
                                                 <div class="flex-grow-1">
                                                     <div class="d-flex align-items-center">
-                                                        <strong>${source.code || ''}</strong>
+                                                        <strong>${escapeHtml(source.code)}</strong>
                                                         ${isUserLoggedIn && source.id ? `
-                                                            <a href="/modules/sources/edit.html?id=${source.id}${source.order > 100 ? '&page=' + Math.ceil(source.order / 100) : ''}"
+                                                            <a href="/modules/sources/edit.html?id=${encodeURIComponent(source.id)}${source.order > 100 ? '&page=' + Math.ceil(source.order / 100) : ''}"
                                                                class="ms-2 text-primary edit-link" 
-                                                               title="Edit source${source.order ? ' (inclusion #' + source.order + ')' : ''}">
+                                                               title="Edit source${source.order ? ' (inclusion #' + escapeHtml(source.order) + ')' : ''}">
                                                                 <i class="bi bi-pencil-square"></i>
                                                             </a>
                                                         ` : ''}
                                                     </div>
                                                     ${source.title ? `
-                                                        <br><span ${source.title.length > 35 ? `title="${source.title}"` : ''}>
-                                                            ${source.title.length > 35 ? source.title.substring(0, 35) + '...' : source.title}
+                                                        <br><span ${source.title.length > 35 ? `title="${escapeHtml(source.title)}"` : ''}>
+                                                            ${escapeHtml(source.title.length > 35 ? source.title.substring(0, 35) + '...' : source.title)}
                                                         </span>
                                                     ` : ''}
                                                     ${source.town || source.from_year || source.to_year ? `
-                                                        <br><small>${[
+                                                        <br><small>${escapeHtml([
                                                             source.town,
                                                             source.from_year && source.to_year ? `${source.from_year_annotation || ''}${source.from_year}–${source.to_year_annotation || ''}${source.to_year}` :
                                                             source.from_year ? `${source.from_year_annotation || ''}${source.from_year}` :
                                                             source.to_year ? `${source.to_year_annotation || ''}${source.to_year}` : ''
-                                                        ].filter(Boolean).join(', ')}</small>
+                                                        ].filter(Boolean).join(', '))}</small>
                                                     ` : ''}
                                                     ${source.publishers && source.publishers.length > 0 ? `
-                                                        <br><small><strong>Publishers:</strong> ${source.publishers.join(', ')}</small>
+                                                        <br><small><strong>Publishers:</strong> ${source.publishers.map(p => escapeHtml(p)).join(', ')}</small>
                                                     ` : ''}
                                                     ${source.scribes && source.scribes.length > 0 ? `
-                                                        <br><small><strong>Scribes:</strong> ${source.scribes.join(', ')}</small>
+                                                        <br><small><strong>Scribes:</strong> ${source.scribes.map(s => escapeHtml(s)).join(', ')}</small>
                                                     ` : ''}
                                                     ${source.type || source.format ? `
-                                                        <br><small><strong>Type:</strong> ${[source.type, source.format].filter(Boolean).join(', ')}</small>
+                                                        <br><small><strong>Type:</strong> ${escapeHtml([source.type, source.format].filter(Boolean).join(', '))}</small>
                                                     ` : ''}
                                                     ${source.source_images && source.source_images.length > 0 ? `
                                                         <br><small><strong>Images:</strong> 
-                                                        ${source.source_images.map(img => `
-                                                            <a href="${img.url}" target="_blank" class="text-primary">
-                                                                <i class="bi bi-image"></i> ${img.label || 'View'}
-                                                            </a>
-                                                        `).join(', ')}
+                                                        ${source.source_images.map(img => externalLinkHtml(img.url, `<i class="bi bi-image"></i> ${escapeHtml(img.label) || 'View'}`, 'text-primary')).join(', ')}
                                                         </small>
                                                     ` : ''}
                                                     ${source.rism_link ? `
-                                                        <br><a href="${source.rism_link}" target="_blank" class="text-primary">
-                                                            <small><i class="bi bi-link-45deg"></i> RISM</small>
-                                                        </a>
+                                                        <br>${externalLinkHtml(source.rism_link, '<small><i class="bi bi-link-45deg"></i> RISM</small>', 'text-primary')}
                                                     ` : ''}
                                                     ${source.source_notes ? `
-                                                        <br><small><strong>Source notes:</strong> ${source.source_notes}</small>
+                                                        <br><small><strong>Source notes:</strong> ${escapeHtml(source.source_notes)}</small>
                                                     ` : ''}
                                                 </div>
                                             </div>
@@ -2406,25 +2419,25 @@
                                                             const clefName = clef.clef.trim();
                                                             const clefCode = clef.transitions_to && clef.transitions_to.length > 0 ?
                                                                 [clefName, ...clef.transitions_to].join('/') : clefName;
-                                                            return `<span class="clef-render-target" data-clef="${clefCode}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"></span>`;
+                                                            return `<span class="clef-render-target" data-clef="${escapeHtml(clefCode)}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"></span>`;
                                                         }
                                                         return '';
                                                     }).join('')}
                                                 </div>
                                             ` : ''}
                                             ${source.composition_titles && source.composition_titles.length > 0 && source.composition_titles.some(title => title !== group.display_title) ? `
-                                                <div><small><strong>Title:</strong> ${source.composition_titles.filter(title => title !== group.display_title).join(', ')}</small></div>
+                                                <div><small><strong>Title:</strong> ${source.composition_titles.filter(title => title !== group.display_title).map(t => escapeHtml(t)).join(', ')}</small></div>
                                             ` : ''}
                                             ${source.attribution_texts && source.attribution_texts.length > 0 ? `
-                                                <div><small><strong>Attribution:</strong> ${source.attribution_texts.join(', ')}</small></div>
+                                                <div><small><strong>Attribution:</strong> ${source.attribution_texts.map(a => escapeHtml(a)).join(', ')}</small></div>
                                             ` : ''}
                                             ${source.position ? `
-                                                <div><small><strong>Position:</strong> ${source.position}</small></div>
+                                                <div><small><strong>Position:</strong> ${escapeHtml(source.position)}</small></div>
                                             ` : source.order ? `
-                                                <div><small><strong>Position:</strong> <em>(#${source.order})</em></small></div>
+                                                <div><small><strong>Position:</strong> <em>(#${escapeHtml(source.order)})</em></small></div>
                                             ` : ''}
                                             ${source.inclusion_notes ? `
-                                                <div><small><strong>Notes:</strong> ${source.inclusion_notes}</small></div>
+                                                <div><small><strong>Notes:</strong> ${escapeHtml(source.inclusion_notes)}</small></div>
                                             ` : ''}
                                         </div>
                                     </div>

@@ -22,6 +22,12 @@ const PgStore = connectPgSimple(session);
 
 const app = express();
 const port = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Refuse to run in production with a guessable secret.
+if (isProduction && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production');
+}
 
 // Trust proxy for Heroku deployment
 app.set('trust proxy', 1);
@@ -33,12 +39,15 @@ app.use(session({
     tableName: 'user_sessions',
     createTableIfMissing: true
   }),
-  secret: process.env.SESSION_SECRET || 'your-super-secret-session-key-change-this-in-production',
+  secret: process.env.SESSION_SECRET || 'insecure-dev-only-session-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    // Heroku terminates TLS at the router; trust proxy above makes
+    // express-session honour X-Forwarded-Proto for the Secure flag.
+    secure: isProduction,
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
   }
 }));

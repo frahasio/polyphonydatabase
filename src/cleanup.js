@@ -49,19 +49,28 @@ export async function runDatabaseCleanup(dbClient = pool, cleanup_type = 'all') 
         results.removed_compositions += orphanedCompositions.rowCount;
         totalRemoved += orphanedCompositions.rowCount;
 
-        // 2. Clean up empty groups (now that compositions are gone)
+        // 2. Clean up empty groups (now that compositions are gone).
+        // Groups with editions or recordings attached are NOT orphans even if
+        // they currently have no compositions — deleting them would destroy
+        // (or FK-block on) that edition/recording data.
         const emptyGroups = await client.query(`
           DELETE FROM groups 
           WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
+            AND id NOT IN (SELECT group_id FROM editions WHERE group_id IS NOT NULL)
+            AND id NOT IN (SELECT group_id FROM recordings WHERE group_id IS NOT NULL)
           RETURNING id, display_title
         `);
         results.removed_groups += emptyGroups.rowCount;
         totalRemoved += emptyGroups.rowCount;
 
-        // 3. Clean up unused titles (now that compositions are gone)
+        // 3. Clean up unused titles (now that compositions are gone).
+        // Titles linked to liturgical functions via functions_titles are still
+        // in use even when no composition references them (the admin
+        // data-quality checks make the same exclusion).
         const unusedTitles = await client.query(`
           DELETE FROM titles 
           WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
+            AND id NOT IN (SELECT title_id FROM functions_titles WHERE title_id IS NOT NULL)
           RETURNING id, text
         `);
         results.removed_titles += unusedTitles.rowCount;
@@ -92,6 +101,7 @@ export async function runDatabaseCleanup(dbClient = pool, cleanup_type = 'all') 
         const unusedTitles = await client.query(`
           DELETE FROM titles 
           WHERE id NOT IN (SELECT title_id FROM compositions WHERE title_id IS NOT NULL)
+            AND id NOT IN (SELECT title_id FROM functions_titles WHERE title_id IS NOT NULL)
           RETURNING id, text
         `);
         results.removed_titles += unusedTitles.rowCount;
@@ -100,6 +110,8 @@ export async function runDatabaseCleanup(dbClient = pool, cleanup_type = 'all') 
         const emptyGroups = await client.query(`
           DELETE FROM groups 
           WHERE id NOT IN (SELECT group_id FROM compositions WHERE group_id IS NOT NULL)
+            AND id NOT IN (SELECT group_id FROM editions WHERE group_id IS NOT NULL)
+            AND id NOT IN (SELECT group_id FROM recordings WHERE group_id IS NOT NULL)
           RETURNING id, display_title
         `);
         results.removed_groups += emptyGroups.rowCount;
