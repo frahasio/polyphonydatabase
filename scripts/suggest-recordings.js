@@ -11,9 +11,14 @@
  */
 import { pool } from '../src/db.js';
 
-const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 300);
+// YouTube's free quota (~100 searches/day) is the real limiter and resets
+// daily; Spotify has no comparable hard cap. Big batches are allowed — once
+// YouTube's quota is exhausted we stop calling it and let Spotify carry the
+// rest of the run.
+const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 2000);
 const MIN_SCORE = 0.5;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let youtubeExhausted = false;
 
 function normalize(text) {
   return String(text || '')
@@ -63,10 +68,19 @@ async function fetchJson(url, options) {
 // ---- YouTube ----
 async function searchYouTube(query) {
   const key = process.env.YOUTUBE_API_KEY;
-  if (!key) return [];
+  if (!key || youtubeExhausted) return [];
   const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=' +
     encodeURIComponent(query) + '&key=' + key;
-  const data = await fetchJson(url);
+  const resp = await fetch(url);
+  if (resp.status === 403) {
+    // Almost always dailyLimitExceeded / quotaExceeded — stop hitting YouTube
+    // for the rest of this run so we don't waste hundreds of failed calls.
+    youtubeExhausted = true;
+    console.warn('YouTube quota reached — skipping YouTube for the rest of this run.');
+    return [];
+  }
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
   return (data.items || []).map((it) => ({
     videoId: it.id.videoId,
     title: it.snippet.title,

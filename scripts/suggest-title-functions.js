@@ -14,7 +14,9 @@
  */
 import { pool } from '../src/db.js';
 
-const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 40, 1), 200);
+// No hard API quota on Cantus Index, so large batches are fine; the only
+// cost is runtime (~1s/request politeness). Cap generously.
+const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 40, 1), 1000);
 const TEXT_API = 'https://cantusindex.org/json-text/';
 const CID_API = 'https://cantusindex.org/json-cid/';
 // json-text returns only {cid, fulltext, genre}; the feast lives in
