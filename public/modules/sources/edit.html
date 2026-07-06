@@ -416,6 +416,9 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div id="headerPagination" class="pagination-in-header"></div>
+                <button type="button" class="btn btn-outline-secondary" id="exportXlsBtn" style="display:none;" title="Download this source as a spreadsheet in the importer format">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Export XLS
+                </button>
                 <button type="button" class="btn btn-success" id="stickySaveBtn">
                     <i class="bi bi-check-lg"></i> Save All Changes
                 </button>
@@ -823,6 +826,10 @@
 
             // Update header with source code
             document.getElementById('headerSourceCode').textContent = `Edit Source: ${sourceData.code}`;
+
+            // A saved source can be exported as a spreadsheet.
+            const exportBtn = document.getElementById('exportXlsBtn');
+            if (exportBtn && sourceData.id) exportBtn.style.display = '';
 
             // Display related data
             displayPublishers();
@@ -3003,6 +3010,18 @@
 
         // Event listeners
         document.getElementById('stickySaveBtn').addEventListener('click', saveAllChanges);
+
+        // Export the current source as an importer-format spreadsheet. Only
+        // shown for saved sources (a new, unsaved source has no id yet).
+        (function () {
+            const exportBtn = document.getElementById('exportXlsBtn');
+            if (!exportBtn) return;
+            exportBtn.addEventListener('click', function () {
+                const id = document.getElementById('source_id').value ||
+                    new URLSearchParams(window.location.search).get('id');
+                if (id) window.location.href = `/api/admin/sources/${encodeURIComponent(id)}/export`;
+            });
+        })();
         
         // Back button warning
         document.getElementById('backBtn').addEventListener('click', function(e) {

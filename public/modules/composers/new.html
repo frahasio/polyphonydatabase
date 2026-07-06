@@ -110,17 +110,18 @@
         document.getElementById('composerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // API uses snake_case field names
             const formData = {
                 name: document.getElementById('name').value,
-                fromYear: document.getElementById('fromYear').value,
-                toYear: document.getElementById('toYear').value,
-                fromYearAnnotation: document.getElementById('fromYearAnnotation').value,
-                toYearAnnotation: document.getElementById('toYearAnnotation').value,
-                birthplace1: document.getElementById('birthplace1').value,
-                birthplace2: document.getElementById('birthplace2').value,
-                deathplace1: document.getElementById('deathplace1').value,
-                deathplace2: document.getElementById('deathplace2').value,
-                imageUrl: document.getElementById('imageUrl').value
+                from_year: document.getElementById('fromYear').value,
+                to_year: document.getElementById('toYear').value,
+                from_year_annotation: document.getElementById('fromYearAnnotation').value,
+                to_year_annotation: document.getElementById('toYearAnnotation').value,
+                birthplace_1: document.getElementById('birthplace1').value,
+                birthplace_2: document.getElementById('birthplace2').value,
+                deathplace_1: document.getElementById('deathplace1').value,
+                deathplace_2: document.getElementById('deathplace2').value,
+                image_url: document.getElementById('imageUrl').value
             };
 
             try {

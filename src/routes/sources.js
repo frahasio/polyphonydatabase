@@ -1,4 +1,5 @@
 import express from 'express';
+import XLSX from 'xlsx';
 import { pool } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { triggerCleanup } from '../cleanup.js';
@@ -7,6 +8,130 @@ const router = express.Router();
 
 // Apply authentication to all routes in this router
 router.use(requireAuth);
+
+// Serialize a stored clef object back into the importer's text notation
+// ([x]=missing, (x)=optional, {x}=incomplete, x>y=transition).
+function serializeClef(c) {
+  if (!c || !c.clef) return '';
+  let token = String(c.clef);
+  if (Array.isArray(c.transitions_to) && c.transitions_to.length) {
+    token = [token, ...c.transitions_to].join('>');
+  }
+  if (c.incomplete) token = `{${token}}`;
+  if (c.optional) token = `(${token})`;
+  if (c.missing) token = `[${token}]`;
+  return token;
+}
+
+function evenOddToText(v) {
+  if (v === 0) return 'even';
+  if (v === 1) return 'odd';
+  if (v === 2) return 'both';
+  return '';
+}
+
+// Export a source as an XLSX in the same format the importer reads, so a
+// source can be round-tripped (edit in a spreadsheet, re-import elsewhere).
+router.get('/:id/export', async (req, res) => {
+  try {
+    const sourceId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(sourceId)) {
+      return res.status(400).json({ error: 'Invalid source id' });
+    }
+
+    const srcResult = await pool.query(`
+      SELECT s.*,
+        COALESCE((SELECT json_agg(p.name ORDER BY p.name)
+                  FROM publishers_sources ps JOIN publishers p ON p.id = ps.publisher_id
+                  WHERE ps.source_id = s.id), '[]') AS publishers,
+        COALESCE((SELECT json_agg(sc.name ORDER BY sc.name)
+                  FROM scribes_sources ss JOIN scribes sc ON sc.id = ss.scribe_id
+                  WHERE ss.source_id = s.id), '[]') AS scribes
+      FROM sources s WHERE s.id = $1
+    `, [sourceId]);
+    if (srcResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+    const s = srcResult.rows[0];
+
+    const inclResult = await pool.query(`
+      SELECT i.position, i.notes, i.attribution_texts, i.clefs, i."order",
+             t.text AS title_text,
+             ct.name AS composition_type_name,
+             c.tone, c.tone_connector, c.even_odd,
+             COALESCE((SELECT json_agg(comp.name ORDER BY comp.id)
+                       FROM composers comp
+                       WHERE comp.id = ANY(
+                         CASE WHEN jsonb_typeof(i.composer_ids) = 'array'
+                           THEN ARRAY(SELECT jsonb_array_elements_text(i.composer_ids)::int)
+                           ELSE '{}'::int[] END)
+                         AND comp.id != 23), '[]') AS composer_names
+      FROM inclusions i
+      LEFT JOIN compositions c ON i.composition_id = c.id
+      LEFT JOIN titles t ON c.title_id = t.id
+      LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+      WHERE i.source_id = $1
+      ORDER BY i."order", i.id
+    `, [sourceId]);
+
+    const imgResult = await pool.query(
+      'SELECT url, label FROM source_images WHERE source_id = $1 ORDER BY id', [sourceId]
+    );
+
+    const wb = XLSX.utils.book_new();
+
+    const sourceHeaders = [
+      'code', 'title', 'type', 'format', 'town', 'rism_link',
+      'notes', 'from_year', 'to_year', 'from_year_annotation',
+      'to_year_annotation', 'catalogued', 'publishers', 'scribes'
+    ];
+    const sourceRow = [
+      s.code || '', s.title || '', s.type || '', s.format || '', s.town || '',
+      s.rism_link || '', s.notes || '', s.from_year ?? '', s.to_year ?? '',
+      s.from_year_annotation || '', s.to_year_annotation || '',
+      s.catalogued ? 'TRUE' : 'FALSE',
+      (s.publishers || []).join('; '), (s.scribes || []).join('; ')
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([sourceHeaders, sourceRow]), 'Source');
+
+    const inclHeaders = [
+      'position', 'title_text', 'composition_type', 'tone', 'tone_connector',
+      'even_odd', 'clefs', 'composer_names', 'attribution_text', 'notes'
+    ];
+    const inclRows = inclResult.rows.map((r) => {
+      const clefs = Array.isArray(r.clefs) ? r.clefs : [];
+      const toneArr = Array.isArray(r.tone) ? r.tone : (r.tone ? [r.tone] : []);
+      const attribution = Array.isArray(r.attribution_texts)
+        ? r.attribution_texts.filter(Boolean).join('; ')
+        : '';
+      return [
+        r.position || '',
+        r.title_text || '',
+        r.composition_type_name || '',
+        toneArr.join(';'),
+        r.tone_connector || '',
+        evenOddToText(r.even_odd),
+        clefs.map(serializeClef).filter(Boolean).join(';'),
+        (r.composer_names || []).join('; '),
+        attribution,
+        r.notes || ''
+      ];
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([inclHeaders, ...inclRows]), 'Inclusions');
+
+    const imageRows = imgResult.rows.map((r) => [r.url || '', r.label || '']);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['url', 'label'], ...imageRows]), 'Images');
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const safeCode = String(s.code || 'source').replace(/[^\w\-]+/g, '_').slice(0, 60);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeCode}.xlsx"`);
+    res.send(Buffer.from(buf));
+  } catch (error) {
+    console.error('Error exporting source:', error);
+    res.status(500).json({ error: 'Failed to export source' });
+  }
+});
 
 // Detect tone column type (cached)
 let _toneIsArray = null;

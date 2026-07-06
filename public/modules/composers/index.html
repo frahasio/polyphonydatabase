@@ -170,8 +170,8 @@
         }
 
         function formatYearRange(composer) {
-            const fromYear = composer.fromYear ? `${composer.fromYearAnnotation || ''}${composer.fromYear}` : '';
-            const toYear = composer.toYear ? `${composer.toYearAnnotation || ''}${composer.toYear}` : '';
+            const fromYear = composer.from_year ? `${composer.from_year_annotation || ''}${composer.from_year}` : '';
+            const toYear = composer.to_year ? `${composer.to_year_annotation || ''}${composer.to_year}` : '';
             
             if (fromYear && toYear) return `${fromYear}–${toYear}`;
             if (fromYear) return fromYear;
@@ -217,8 +217,8 @@
                     <tr class="${isFirstOfLetter ? 'first-of-letter' : ''}">
                         <td>${escapeHtml(composer.name)}</td>
                         <td class="year-range">${escapeHtml(formatYearRange(composer))}</td>
-                        <td>${escapeHtml(composer.birthplace1 || '')}${composer.birthplace2 ? `, ${escapeHtml(composer.birthplace2)}` : ''}</td>
-                        <td>${escapeHtml(composer.deathplace1 || '')}${composer.deathplace2 ? `, ${escapeHtml(composer.deathplace2)}` : ''}</td>
+                        <td>${escapeHtml(composer.birthplace_1 || '')}${composer.birthplace_2 ? `, ${escapeHtml(composer.birthplace_2)}` : ''}</td>
+                        <td>${escapeHtml(composer.deathplace_1 || '')}${composer.deathplace_2 ? `, ${escapeHtml(composer.deathplace_2)}` : ''}</td>
                         <td>
                             <a href="edit.html?id=${composer.id}" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Edit this composer (opens in new tab)">
                                 <i class="bi bi-pencil"></i>

@@ -88,16 +88,16 @@
                 const data = await response.json();
                 const composer = data.composer;
                 
-                // Populate form
+                // Populate form (API uses snake_case field names)
                 document.getElementById('name').value = composer.name || '';
-                document.getElementById('fromYear').value = composer.fromYear || '';
-                document.getElementById('toYear').value = composer.toYear || '';
-                document.getElementById('fromYearAnnotation').value = composer.fromYearAnnotation || '';
-                document.getElementById('toYearAnnotation').value = composer.toYearAnnotation || '';
-                document.getElementById('birthplace1').value = composer.birthplace1 || '';
-                document.getElementById('birthplace2').value = composer.birthplace2 || '';
-                document.getElementById('deathplace1').value = composer.deathplace1 || '';
-                document.getElementById('deathplace2').value = composer.deathplace2 || '';
+                document.getElementById('fromYear').value = composer.from_year || '';
+                document.getElementById('toYear').value = composer.to_year || '';
+                document.getElementById('fromYearAnnotation').value = composer.from_year_annotation || '';
+                document.getElementById('toYearAnnotation').value = composer.to_year_annotation || '';
+                document.getElementById('birthplace1').value = composer.birthplace_1 || '';
+                document.getElementById('birthplace2').value = composer.birthplace_2 || '';
+                document.getElementById('deathplace1').value = composer.deathplace_1 || '';
+                document.getElementById('deathplace2').value = composer.deathplace_2 || '';
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load composer data. Please try again.');
@@ -127,14 +127,14 @@
                     },
                     body: JSON.stringify({
                         name,
-                        fromYear: fromYear || null,
-                        toYear: toYear || null,
-                        fromYearAnnotation: fromYearAnnotation || null,
-                        toYearAnnotation: toYearAnnotation || null,
-                        birthplace1: birthplace1 || null,
-                        birthplace2: birthplace2 || null,
-                        deathplace1: deathplace1 || null,
-                        deathplace2: deathplace2 || null
+                        from_year: fromYear || null,
+                        to_year: toYear || null,
+                        from_year_annotation: fromYearAnnotation || null,
+                        to_year_annotation: toYearAnnotation || null,
+                        birthplace_1: birthplace1 || null,
+                        birthplace_2: birthplace2 || null,
+                        deathplace_1: deathplace1 || null,
+                        deathplace_2: deathplace2 || null
                     })
                 });
 
