@@ -12,7 +12,7 @@
     { label: 'Titles',          icon: 'bi-card-text',      href: '/modules/titles/index.html',          adminOnly: false, permission: 'catalogue' },
     { label: 'Functions',       icon: 'bi-tag',            href: '/modules/functions/index.html',       adminOnly: false, permission: 'catalogue' },
     { label: 'Review queue',    icon: 'bi-inbox',          href: '/modules/suggestions/index.html',     adminOnly: false, permission: 'catalogue' },
-    { label: 'Commissions',     icon: 'bi-cash-coin',      href: '/admin/commissions',                  adminOnly: true },
+    { label: 'Commissions',     icon: 'bi-cash-coin',      href: '/admin/commissions',                  adminOnly: false, permission: 'commissions' },
     { label: 'Import Source',  icon: 'bi-upload',     href: '/modules/import/index.html',       adminOnly: true, permission: 'import_source' },
     { label: 'Groups / Editions / Recordings', icon: 'bi-vinyl', href: '/group-management.html', adminOnly: true, smallLabel: true, permission: 'catalogue' },
     { label: 'Clef / Voicings', icon: 'custom-treble-clef', href: '/modules/clef-voicings/index.html', adminOnly: true },

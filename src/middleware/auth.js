@@ -60,7 +60,7 @@ export const requireAdmin = (req, res, next) => {
 
 // Middleware to require a specific permission (admins bypass)
 export const requirePermission = (permName) => {
-  const validPerms = ['catalogue', 'booklet_creator', 'import_source'];
+  const validPerms = ['catalogue', 'booklet_creator', 'import_source', 'commissions'];
   if (!validPerms.includes(permName)) {
     throw new Error(`Invalid permission name: ${permName}`);
   }
@@ -108,7 +108,7 @@ async function userHasPermission(user, permName) {
 // Like requirePermission, but for HTML page routes: renders a small friendly
 // page instead of raw JSON when the user lacks the permission.
 export const requirePermissionWeb = (permName) => {
-  const validPerms = ['catalogue', 'booklet_creator', 'import_source'];
+  const validPerms = ['catalogue', 'booklet_creator', 'import_source', 'commissions'];
   if (!validPerms.includes(permName)) {
     throw new Error(`Invalid permission name: ${permName}`);
   }

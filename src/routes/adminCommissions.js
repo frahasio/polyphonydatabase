@@ -1,15 +1,31 @@
 import express from 'express';
 import { pool } from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
 import emailService from '../services/emailService.js';
 
-// Admin commission management, mounted at /api/admin/commissions behind
-// requireAuthWeb; guards itself with requireAdmin.
+// Commission management, mounted at /api/admin/commissions behind
+// requireAuthWeb + requirePermission('commissions') (admins bypass the
+// permission). Editing actions are additionally locked to whoever has
+// claimed the commission.
 const router = express.Router();
 
-router.use(requireAdmin);
+// Load a commission and check the current user may edit it. A commission
+// that is claimed by someone else is locked; admins can always edit.
+async function loadEditable(req, res) {
+  const id = parseInt(req.params.id, 10) || 0;
+  const result = await pool.query('SELECT * FROM commissions WHERE id = $1', [id]);
+  if (!result.rows.length) {
+    res.status(404).json({ error: 'Commission not found' });
+    return null;
+  }
+  const c = result.rows[0];
+  if (c.claimed_by && c.claimed_by !== req.user.id && req.user.role !== 'admin') {
+    res.status(423).json({ error: 'This commission is claimed by another user' });
+    return null;
+  }
+  return c;
+}
 
-// List commissions (optionally by status)
+// List commissions (optionally by status), with the claimer's name.
 router.get('/', async (req, res) => {
   try {
     const status = ['enquiry', 'offered', 'paid', 'fulfilled', 'declined', 'cancelled'].includes(req.query.status)
@@ -22,15 +38,58 @@ router.get('/', async (req, res) => {
       where = 'WHERE c.status = $1';
     }
     const result = await pool.query(`
-      SELECT c.*, g.display_title AS group_title
+      SELECT c.*, g.display_title AS group_title,
+             u.name AS claimed_by_name, u.email AS claimed_by_email
       FROM commissions c
       LEFT JOIN groups g ON g.id = c.group_id
+      LEFT JOIN users u ON u.id = c.claimed_by
       ${where}
       ORDER BY c.created_at DESC
     `, params);
-    res.json({ commissions: result.rows });
+    res.json({ commissions: result.rows, currentUserId: req.user.id });
   } catch (error) {
     console.error('List commissions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Claim a commission (take ownership so others can't edit it).
+router.post('/:id/claim', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10) || 0;
+    const result = await pool.query(
+      `UPDATE commissions SET claimed_by = $1, claimed_at = NOW(), updated_at = NOW()
+       WHERE id = $2 AND claimed_by IS NULL
+       RETURNING id`,
+      [req.user.id, id]
+    );
+    if (!result.rows.length) {
+      return res.status(423).json({ error: 'Already claimed by someone else' });
+    }
+    res.json({ message: 'Commission claimed' });
+  } catch (error) {
+    console.error('Commission claim error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Release a commission back into the open list (claimer or admin only).
+router.post('/:id/release', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10) || 0;
+    const whereOwner = req.user.role === 'admin' ? '' : 'AND claimed_by = $2';
+    const params = req.user.role === 'admin' ? [id] : [id, req.user.id];
+    const result = await pool.query(
+      `UPDATE commissions SET claimed_by = NULL, claimed_at = NULL, updated_at = NOW()
+       WHERE id = $1 ${whereOwner} RETURNING id`,
+      params
+    );
+    if (!result.rows.length) {
+      return res.status(403).json({ error: 'You can only release a commission you have claimed' });
+    }
+    res.json({ message: 'Commission released' });
+  } catch (error) {
+    console.error('Commission release error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -45,6 +104,8 @@ router.post('/:id/offer', async (req, res) => {
     if (!Number.isInteger(pricePence) || pricePence < 1) {
       return res.status(400).json({ error: 'A valid price (in pence) is required' });
     }
+
+    if (!(await loadEditable(req, res))) return;
 
     const result = await pool.query(
       `UPDATE commissions
@@ -79,6 +140,8 @@ router.post('/:id/fulfil', async (req, res) => {
       return res.status(400).json({ error: 'Edition URL must be an http(s) link' });
     }
 
+    if (!(await loadEditable(req, res))) return;
+
     const result = await pool.query(
       `UPDATE commissions
          SET status = 'fulfilled', edition_url = $1, fulfilled_at = NOW(), updated_at = NOW()
@@ -104,6 +167,8 @@ router.post('/:id/fulfil', async (req, res) => {
 // Cancel a commission.
 router.post('/:id/cancel', async (req, res) => {
   try {
+    if (!(await loadEditable(req, res))) return;
+
     const result = await pool.query(
       `UPDATE commissions SET status = 'cancelled', updated_at = NOW()
        WHERE id = $1 AND status != 'paid' RETURNING id`,

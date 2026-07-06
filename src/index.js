@@ -202,7 +202,7 @@ app.get('/admin/clef-voicings', requireAuthWeb, (req, res) => {
   res.sendFile('modules/clef-voicings/index.html', { root: 'public' });
 });
 
-app.get('/admin/commissions', requireAuthWeb, (req, res) => {
+app.get('/admin/commissions', requireAuthWeb, requirePermissionWeb('commissions'), (req, res) => {
   res.sendFile('modules/commissions/index.html', { root: 'public' });
 });
 
@@ -229,7 +229,7 @@ app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), gro
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
 app.use('/api/admin/suggestions', requireAuthWeb, requirePermission('catalogue'), suggestionsRouter);
 // User management + commissions (guard themselves with requireAdmin → JSON 401/403)
-app.use('/api/admin/commissions', requireAuthWeb, adminCommissionsRouter);
+app.use('/api/admin/commissions', requireAuthWeb, requirePermission('commissions'), adminCommissionsRouter);
 app.use('/api/admin', adminUsersRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 

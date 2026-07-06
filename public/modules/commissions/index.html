@@ -72,6 +72,7 @@
         let currentStatus = '';
         let offerModal = null;
         let offerId = null;
+        let currentUserId = null;
 
         function fmtPrice(pence, currency) {
             if (!pence) return '';
@@ -89,6 +90,7 @@
                 const res = await fetch('/api/admin/commissions?' + params.toString(), { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to load commissions (' + res.status + ')');
                 const data = await res.json();
+                currentUserId = data.currentUserId;
                 render(data.commissions || []);
             } catch (e) {
                 document.getElementById('list').style.display = 'block';
@@ -108,11 +110,31 @@
             list.style.display = 'block';
             list.innerHTML = items.map(c => {
                 const price = fmtPrice(c.price_pence, c.currency);
-                const canOffer = c.status === 'enquiry' || c.status === 'offered';
-                const canFulfil = c.status === 'paid';
-                const canCancel = c.status !== 'paid' && c.status !== 'fulfilled' && c.status !== 'cancelled';
+                const active = c.status !== 'declined' && c.status !== 'cancelled' && c.status !== 'fulfilled';
+                const claimedByMe = c.claimed_by && String(c.claimed_by) === String(currentUserId);
+                const claimedByOther = c.claimed_by && !claimedByMe;
+                // Editing is only allowed by the claimer (or when unclaimed).
+                const canEdit = !claimedByOther;
+                const canOffer = canEdit && (c.status === 'enquiry' || c.status === 'offered');
+                const canFulfil = canEdit && c.status === 'paid';
+                const canCancel = canEdit && c.status !== 'paid' && c.status !== 'fulfilled' && c.status !== 'cancelled';
+
+                let claimLine = '';
+                if (c.claimed_by) {
+                    claimLine = `<div class="small mt-1"><i class="bi bi-person-fill me-1"></i><strong>Being worked on by:</strong> ${escapeHtml(c.claimed_by_name || c.claimed_by_email || 'a user')}${claimedByMe ? ' (you)' : ''}</div>`;
+                }
+
+                let claimBtn = '';
+                if (active) {
+                    if (!c.claimed_by) {
+                        claimBtn = `<button class="btn btn-outline-primary" onclick="claimCommission(${c.id})"><i class="bi bi-hand-index me-1"></i>Claim</button>`;
+                    } else if (claimedByMe) {
+                        claimBtn = `<button class="btn btn-outline-secondary" onclick="releaseCommission(${c.id})">Release</button>`;
+                    }
+                }
+
                 return `
-                <div class="card commission-card status-${escapeHtml(c.status)} mb-3">
+                <div class="card commission-card status-${escapeHtml(c.status)} mb-3${claimedByOther ? ' border-warning' : ''}">
                     <div class="card-body py-3">
                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                             <div class="flex-grow-1">
@@ -122,12 +144,14 @@
                                     ${c.group_title ? ' · linked: ' + escapeHtml(c.group_title) : ''}
                                 </div>
                                 ${c.requirements ? `<div class="small mt-1"><strong>Requirements:</strong> ${escapeHtml(c.requirements)}</div>` : ''}
-                                ${c.admin_note ? `<div class="small mt-1 text-muted"><strong>Your note:</strong> ${escapeHtml(c.admin_note)}</div>` : ''}
+                                ${c.admin_note ? `<div class="small mt-1 text-muted"><strong>Note to commissioner:</strong> ${escapeHtml(c.admin_note)}</div>` : ''}
                                 ${c.edition_url ? `<div class="small mt-1"><strong>Edition:</strong> ${externalLink(c.edition_url)}</div>` : ''}
+                                ${claimLine}
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-light text-dark mb-2">${escapeHtml(c.status)}${price ? ' · ' + escapeHtml(price) : ''}</span>
                                 <div class="btn-group btn-group-sm d-block">
+                                    ${claimBtn}
                                     ${canOffer ? `<button class="btn btn-primary" onclick="openOffer(${c.id}, ${JSON.stringify(c.piece_description).replace(/"/g, '&quot;')}, ${c.price_pence || 0})">${c.status === 'offered' ? 'Revise price' : 'Set price'}</button>` : ''}
                                     ${canFulfil ? `<button class="btn btn-info" onclick="fulfilCommission(${c.id})">Mark as ready</button>` : ''}
                                     ${canCancel ? `<button class="btn btn-outline-danger" onclick="cancelCommission(${c.id})">Cancel</button>` : ''}
@@ -172,6 +196,22 @@
         function externalLink(url) {
             const u = safeUrl(url);
             return u ? `<a href="${u}" target="_blank" rel="noopener">${u}</a>` : escapeHtml(url);
+        }
+
+        async function postAction(id, action, okReload) {
+            try {
+                const res = await fetch(`/api/admin/commissions/${id}/${action}`, { method: 'POST', credentials: 'include' });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) { if (okReload) load(); return true; }
+                alert(data.error || 'Action failed.');
+            } catch (e) { alert('Network error.'); }
+            return false;
+        }
+
+        function claimCommission(id) { postAction(id, 'claim', true); }
+        function releaseCommission(id) {
+            if (!confirm('Release this commission back into the open list? Others will be able to claim and edit it.')) return;
+            postAction(id, 'release', true);
         }
 
         async function fulfilCommission(id) {

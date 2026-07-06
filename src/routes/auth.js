@@ -241,12 +241,12 @@ router.post('/refresh', requireAuth, (req, res) => {
 
 // Get current user info (including permissions)
 router.get('/me', requireAuth, async (req, res) => {
-  let permissions = { catalogue: true, booklet_creator: true, import_source: true };
+  let permissions = { catalogue: true, booklet_creator: true, import_source: true, commissions: true };
 
   if (req.user.role !== 'admin') {
     await ensureUserPermissions(req.user.id);
     const permResult = await pool.query(
-      'SELECT catalogue, booklet_creator, import_source FROM user_permissions WHERE user_id = $1',
+      'SELECT catalogue, booklet_creator, import_source, commissions FROM user_permissions WHERE user_id = $1',
       [req.user.id]
     );
     if (permResult.rows.length) {

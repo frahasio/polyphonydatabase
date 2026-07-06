@@ -32,7 +32,8 @@ router.get('/users', async (req, res) => {
       SELECT u.id, u.email, u.name, u.status, u.role, u.created_at, u.last_login, u.login_attempts,
              COALESCE(p.catalogue, true) AS perm_catalogue,
              COALESCE(p.booklet_creator, false) AS perm_booklet_creator,
-             COALESCE(p.import_source, false) AS perm_import_source
+             COALESCE(p.import_source, false) AS perm_import_source,
+             COALESCE(p.commissions, false) AS perm_commissions
       FROM users u
       LEFT JOIN user_permissions p ON p.user_id = u.id
       ${whereClause}
@@ -60,7 +61,8 @@ router.get('/users', async (req, res) => {
       permissions: {
         catalogue: row.perm_catalogue,
         booklet_creator: row.perm_booklet_creator,
-        import_source: row.perm_import_source
+        import_source: row.perm_import_source,
+        commissions: row.perm_commissions
       }
     }));
 
@@ -220,10 +222,11 @@ router.put('/users/:id/role', async (req, res) => {
 router.put('/users/:id/permissions', async (req, res) => {
   try {
     const { id } = req.params;
-    const { catalogue, booklet_creator, import_source } = req.body;
+    const { catalogue, booklet_creator, import_source, commissions } = req.body;
 
-    if (typeof catalogue !== 'boolean' || typeof booklet_creator !== 'boolean' || typeof import_source !== 'boolean') {
-      return res.status(400).json({ error: 'catalogue, booklet_creator, and import_source must be booleans' });
+    if (typeof catalogue !== 'boolean' || typeof booklet_creator !== 'boolean' ||
+        typeof import_source !== 'boolean' || typeof commissions !== 'boolean') {
+      return res.status(400).json({ error: 'catalogue, booklet_creator, import_source and commissions must be booleans' });
     }
 
     const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
@@ -235,15 +238,15 @@ router.put('/users/:id/permissions', async (req, res) => {
 
     await pool.query(
       `UPDATE user_permissions
-       SET catalogue = $1, booklet_creator = $2, import_source = $3,
-           updated_at = NOW(), updated_by = $4
-       WHERE user_id = $5`,
-      [catalogue, booklet_creator, import_source, req.user.id, id]
+       SET catalogue = $1, booklet_creator = $2, import_source = $3, commissions = $4,
+           updated_at = NOW(), updated_by = $5
+       WHERE user_id = $6`,
+      [catalogue, booklet_creator, import_source, commissions, req.user.id, id]
     );
 
     res.json({
       message: 'Permissions updated',
-      permissions: { catalogue, booklet_creator, import_source }
+      permissions: { catalogue, booklet_creator, import_source, commissions }
     });
 
   } catch (error) {

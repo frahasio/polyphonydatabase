@@ -37,11 +37,12 @@
                             <th class="text-center">Catalogue</th>
                             <th class="text-center">Booklet Creator</th>
                             <th class="text-center">Import</th>
+                            <th class="text-center">Commissions</th>
                         </tr>
                     </thead>
                     <tbody id="permissionsBody">
                         <tr>
-                            <td colspan="5" class="text-muted text-center py-4">
+                            <td colspan="6" class="text-muted text-center py-4">
                                 <i class="bi bi-hourglass-split me-1"></i>Loading users...
                             </td>
                         </tr>
@@ -100,7 +101,7 @@
         function renderTable() {
             var tbody = document.getElementById('permissionsBody');
             if (!usersCache.length) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-4">No users found</td></tr>';
                 return;
             }
             tbody.innerHTML = usersCache.map(function(u) {
@@ -115,6 +116,7 @@
                     '<td class="text-center">' + makeSwitch(u.id, 'catalogue', isAdmin || p.catalogue, isAdmin) + '</td>' +
                     '<td class="text-center">' + makeSwitch(u.id, 'booklet_creator', isAdmin || p.booklet_creator, isAdmin) + '</td>' +
                     '<td class="text-center">' + makeSwitch(u.id, 'import_source', isAdmin || p.import_source, isAdmin) + '</td>' +
+                    '<td class="text-center">' + makeSwitch(u.id, 'commissions', isAdmin || p.commissions, isAdmin) + '</td>' +
                     '</tr>';
             }).join('');
 
@@ -142,7 +144,8 @@
                     body: JSON.stringify({
                         catalogue: !!perms.catalogue,
                         booklet_creator: !!perms.booklet_creator,
-                        import_source: !!perms.import_source
+                        import_source: !!perms.import_source,
+                        commissions: !!perms.commissions
                     })
                 });
                 if (!res.ok) {
@@ -170,7 +173,7 @@
                 renderTable();
             } catch (e) {
                 document.getElementById('permissionsBody').innerHTML =
-                    '<tr><td colspan="5" class="text-danger text-center py-4">' +
+                    '<tr><td colspan="6" class="text-danger text-center py-4">' +
                     '<i class="bi bi-exclamation-triangle me-1"></i>Error loading users: ' + e.message +
                     '</td></tr>';
             }
