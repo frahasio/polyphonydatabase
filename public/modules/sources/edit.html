@@ -720,6 +720,9 @@
     <script>
         let sourceData = {};
         let inclusionsData = [];
+        // Saved inclusions removed in the editor; deleted server-side on Save
+        // (inside the same transaction as the rest of the changes).
+        let deletedInclusionIds = [];
         let inclusionsPagination = null;
         let currentInclusionsPage = 1;
         const inclusionsPageSize = 100;
@@ -752,6 +755,7 @@
                 
                 sourceData = data.source;
                 inclusionsData = data.inclusions || [];
+                deletedInclusionIds = [];
                 inclusionsPagination = data.inclusions_pagination || null;
                 markAsSaved();
                 
@@ -783,6 +787,7 @@
         async function initNewSource() {
             sourceData = {};
             inclusionsData = [];
+            deletedInclusionIds = [];
             inclusionsPagination = null;
 
             await loadPublishersAndScribes();
@@ -1919,11 +1924,10 @@
             markAsUnsaved();
         }
 
-        async function removeInclusion(index) {
+        function removeInclusion(index) {
             const inclusion = inclusionsData[index];
-            
-            // If this inclusion doesn't have an ID (i.e., it's a new, unsaved inclusion), 
-            // just remove it from the frontend without calling the API
+
+            // New, unsaved rows are just dropped from the editor.
             if (!inclusion || !inclusion.id) {
                 if (confirm('Are you sure you want to remove this inclusion?')) {
                     inclusionsData.splice(index, 1);
@@ -1931,51 +1935,22 @@
                 }
                 return;
             }
-            
-            // For existing inclusions, show a more detailed confirmation
+
+            // Saved inclusions are removed from the editor now and deleted from
+            // the database when the user hits Save (same transaction as all
+            // other changes), so removals aren't silently lost.
             const title = inclusion.composition?.title_text || 'Untitled';
             const position = inclusion.position || '';
             const displayText = position ? `"${title}" (${position})` : `"${title}"`;
-            
-            if (!confirm(`Are you sure you want to permanently delete this inclusion?\n\n${displayText}\n\nThis action cannot be undone.`)) {
+
+            if (!confirm(`Remove this inclusion?\n\n${displayText}\n\nIt will be permanently deleted when you save.`)) {
                 return;
             }
-            
-            try {
-                // Show loading state
-                const deleteButton = document.querySelector(`[data-index="${index}"] .btn-outline-danger`);
-                if (deleteButton) {
-                    deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-                    deleteButton.disabled = true;
-                }
-                
-                // Call the DELETE API endpoint
-                const response = await fetch(`/api/admin/sources/inclusions/${inclusion.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to delete inclusion: ${response.status} ${response.statusText}`);
-                }
-                
-                // Successfully deleted from database - refresh current page
-                fetchSource(currentInclusionsPage);
-                
-            } catch (error) {
-                console.error('Error deleting inclusion:', error);
-                alert(`Failed to delete inclusion: ${error.message}\n\nPlease try again or contact support if the problem persists.`);
-                
-                // Restore delete button
-                const deleteButton = document.querySelector(`[data-index="${index}"] .btn-outline-danger`);
-                if (deleteButton) {
-                    deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
-                    deleteButton.disabled = false;
-                }
-            }
+
+            deletedInclusionIds.push(inclusion.id);
+            inclusionsData.splice(index, 1);
+            displayInclusions();
+            markAsUnsaved();
         }
 
         // Pagination display function
@@ -2667,6 +2642,7 @@
                 const saveData = {
                     source: sourceUpdateData,
                     inclusions: inclusionsData,
+                    deleted_inclusion_ids: deletedInclusionIds,
                     pageOffset: pageOffset
                 };
 

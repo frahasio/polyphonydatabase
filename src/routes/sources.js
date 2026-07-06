@@ -600,9 +600,23 @@ router.delete('/:id', async (req, res) => {
 // Core save logic shared by the save-with-inclusions route and the spreadsheet importer.
 // Operates within a caller-provided transaction client; it does NOT manage
 // BEGIN/COMMIT/ROLLBACK or release the client — that is the caller's responsibility.
-// Returns { processedInclusions } so the caller can decide on cleanup / response.
-export async function saveSourceWithInclusions(client, sourceId, source, inclusions, user) {
+// Returns { processedInclusions, deletedCount } so the caller can decide on cleanup / response.
+export async function saveSourceWithInclusions(client, sourceId, source, inclusions, user, deletedInclusionIds = []) {
     const now = new Date();
+
+    // Delete inclusions the user explicitly removed in the editor. Scoped to
+    // this source so a stale/forged id cannot touch other sources' rows.
+    const deleteIds = (Array.isArray(deletedInclusionIds) ? deletedInclusionIds : [])
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isInteger(n));
+    let deletedCount = 0;
+    if (deleteIds.length > 0) {
+      const deleted = await client.query(
+        'DELETE FROM inclusions WHERE source_id = $1 AND id = ANY($2::int[]) RETURNING id',
+        [sourceId, deleteIds]
+      );
+      deletedCount = deleted.rowCount;
+    }
 
     // Step 1: Update source data first
     const updateSourceQuery = `
@@ -972,7 +986,7 @@ export async function saveSourceWithInclusions(client, sourceId, source, inclusi
     // Database cleanup removed from automatic execution after save
     // Run cleanup manually from time to time to avoid interfering with save operations
 
-    return { processedInclusions };
+    return { processedInclusions, deletedCount };
 }
 
 // Bulk save source with inclusions (with automatic temp_inclusions processing)
@@ -983,22 +997,24 @@ router.post('/:id/save-with-inclusions', async (req, res) => {
     await client.query('BEGIN');
 
     const sourceId = parseInt(req.params.id);
-    const { source, inclusions } = req.body;
+    const { source, inclusions, deleted_inclusion_ids } = req.body;
 
-    const { processedInclusions } = await saveSourceWithInclusions(
-      client, sourceId, source, inclusions, req.user
+    const { processedInclusions, deletedCount } = await saveSourceWithInclusions(
+      client, sourceId, source, inclusions, req.user, deleted_inclusion_ids
     );
 
     await client.query('COMMIT');
 
-    if (processedInclusions.length > 0) {
+    if (processedInclusions.length > 0 || deletedCount > 0) {
       triggerCleanup(true, 'all', 'after source save', 5000);
     }
 
     res.json({
       success: true,
-      message: `Source saved successfully. Processed ${processedInclusions.length} inclusions.`,
-      processedFormInclusions: processedInclusions.length
+      message: `Source saved successfully. Processed ${processedInclusions.length} inclusions` +
+        (deletedCount > 0 ? `, deleted ${deletedCount}.` : '.'),
+      processedFormInclusions: processedInclusions.length,
+      deletedInclusions: deletedCount
     });
 
   } catch (error) {
