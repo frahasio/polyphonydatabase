@@ -187,10 +187,24 @@ app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'),
 app.use('/api/admin', adminUsersRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 
-// Run migrations then start server
-runMigrations().then(() => {
+// Run migrations then start the server. In production a migration failure
+// refuses to start (the Heroku release phase should have caught it first);
+// in development we warn and start anyway so local work without a database
+// connection remains possible.
+function startServer() {
   app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     console.log(`Visit http://localhost:${port} to access the application`);
   });
-}); 
+}
+
+runMigrations()
+  .then(startServer)
+  .catch((error) => {
+    console.error('Migration failure:', error.message);
+    if (isProduction) {
+      process.exit(1);
+    }
+    console.error('Development mode: starting without verified migrations.');
+    startServer();
+  });
