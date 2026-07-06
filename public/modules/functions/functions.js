@@ -115,8 +115,8 @@ function displayFunctions(functionsData) {
     functionsData.forEach(func => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${func.name}</td>
-            <td><span class="badge bg-secondary">${func.title_count}</span></td>
+            <td>${escapeHtml(func.name)}</td>
+            <td><span class="badge bg-secondary">${escapeHtml(func.title_count)}</span></td>
             <td>${new Date(func.created_at).toLocaleDateString()}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary me-2" onclick="editFunction(${func.id})">
@@ -183,7 +183,7 @@ function displayTitles(titles) {
     container.innerHTML = titles.map(title => {
         const languageName = languages.find(l => l.id == title.language)?.name || 'Unknown';
         const functionBadges = title.function_names && title.function_names.length > 0 
-            ? title.function_names.map(name => `<span class="badge bg-info function-badge me-1">${name}</span>`).join('')
+            ? title.function_names.map(name => `<span class="badge bg-info function-badge me-1">${escapeHtml(name)}</span>`).join('')
             : '<span class="text-muted">No functions</span>';
 
         const isSelected = selectedTitles.includes(title.id) || selectedTitlesForMerge.includes(title.id);
@@ -199,9 +199,9 @@ function displayTitles(titles) {
                                 <input class="form-check-input" type="checkbox" ${isSelected ? 'checked' : ''} 
                                        onchange="toggleSelection(${title.id})" onclick="event.stopPropagation()">
                             </div>
-                            <h6 class="card-title">${title.text}</h6>
+                            <h6 class="card-title">${escapeHtml(title.text)}</h6>
                             <div class="mb-2">
-                                <span class="badge bg-primary language-badge">${languageName}</span>
+                                <span class="badge bg-primary language-badge">${escapeHtml(languageName)}</span>
                             </div>
                             <div class="mb-2">
                                 ${functionBadges}
@@ -224,9 +224,9 @@ function displayTitles(titles) {
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card title-card h-100 ${selectionClass}" onclick="selectTitleForMerge(${title.id})">
                         <div class="card-body">
-                            <h6 class="card-title">${title.text}</h6>
+                            <h6 class="card-title">${escapeHtml(title.text)}</h6>
                             <div class="mb-2">
-                                <span class="badge bg-primary language-badge">${languageName}</span>
+                                <span class="badge bg-primary language-badge">${escapeHtml(languageName)}</span>
                             </div>
                             <div class="mb-2">
                                 ${functionBadges}
@@ -268,11 +268,11 @@ function displayTitleGroups(titleGroups) {
 
     container.innerHTML = titleGroups.map(group => {
         const functionBadges = group.allFunctionNames && group.allFunctionNames.length > 0 
-            ? group.allFunctionNames.map(name => `<span class="badge bg-info function-badge me-1">${name}</span>`).join('')
+            ? group.allFunctionNames.map(name => `<span class="badge bg-info function-badge me-1">${escapeHtml(name)}</span>`).join('')
             : '<span class="text-muted">No functions</span>';
 
         const variantsList = group.titles.map(title => 
-            `<li class="small text-muted">${title.text} (${title.composition_count} compositions)</li>`
+            `<li class="small text-muted">${escapeHtml(title.text)} (${escapeHtml(title.composition_count)} compositions)</li>`
         ).join('');
 
         return `
@@ -280,8 +280,8 @@ function displayTitleGroups(titleGroups) {
                 <div class="card title-card h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="card-title mb-0">${group.originalBaseText}</h6>
-                            <span class="badge bg-secondary">${group.variantCount} variants</span>
+                            <h6 class="card-title mb-0">${escapeHtml(group.originalBaseText)}</h6>
+                            <span class="badge bg-secondary">${escapeHtml(group.variantCount)} variants</span>
                         </div>
                         
                         <div class="mb-2">
@@ -300,7 +300,7 @@ function displayTitleGroups(titleGroups) {
                         </div>
                         
                         <div class="mt-2">
-                            <button class="btn btn-sm btn-primary" onclick="editTitleGroup('${encodeURIComponent(group.originalBaseText)}')">
+                            <button class="btn btn-sm btn-primary" onclick="editTitleGroup('${escapeHtml(encodeURIComponent(group.originalBaseText))}')">
                                 <i class="bi bi-pencil"></i> Edit Group
                             </button>
                         </div>
@@ -450,7 +450,7 @@ function updateSelectedTitlesDisplay() {
         const titleText = card ? card.querySelector('.card-title').textContent : `Title ${id}`;
         return `
             <span class="badge bg-primary me-1">
-                ${titleText}
+                ${escapeHtml(titleText)}
                 <button class="btn-close btn-close-white ms-1" onclick="deselectTitle(${id})"></button>
             </span>
         `;
@@ -698,7 +698,7 @@ async function editTitle(titleId) {
                         <input class="form-check-input" type="checkbox" id="${checkboxId}" 
                                value="${func.id}" ${isAssigned ? 'checked' : ''}>
                         <label class="form-check-label" for="${checkboxId}">
-                            ${func.name}
+                            ${escapeHtml(func.name)}
                         </label>
                     </div>
                 `;
@@ -936,7 +936,7 @@ function loadFunctionsDisplay() {
                 <div class="card h-100 ${cardClass}" ${hasNoTitles ? 'style="box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);"' : ''}>
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="card-title mb-0 ${hasNoTitles ? 'text-warning-emphasis' : ''}">${func.name}</h6>
+                            <h6 class="card-title mb-0 ${hasNoTitles ? 'text-warning-emphasis' : ''}">${escapeHtml(func.name)}</h6>
                             <div class="d-flex gap-1">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="editFunction(${func.id})" title="Edit">
                                     <i class="bi bi-pencil"></i>
@@ -1128,8 +1128,8 @@ async function editTitleGroup(baseText) {
         const titlesList = document.getElementById('groupTitlesList');
         titlesList.innerHTML = data.titles.map(title => 
             `<div class="small mb-1">
-                <strong>${title.text}</strong> 
-                <span class="text-muted">(${title.composition_count} compositions)</span>
+                <strong>${escapeHtml(title.text)}</strong> 
+                <span class="text-muted">(${escapeHtml(title.composition_count)} compositions)</span>
             </div>`
         ).join('');
         

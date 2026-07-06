@@ -261,6 +261,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script>
         const registerForm = document.getElementById('registerForm');
         const registerBtn = document.getElementById('registerBtn');
@@ -374,7 +375,7 @@
         }
 
         function showMessage(message, type) {
-            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            messageDiv.innerHTML = `<div class="${type}">${escapeHtml(message)}</div>`;
         }
 
         function clearMessage() {

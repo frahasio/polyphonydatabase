@@ -187,6 +187,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script>
         let allUsers = [];
         let currentFilter = '';
@@ -241,8 +242,8 @@
                 <tr>
                     <td>${escapeHtml(user.name)}</td>
                     <td>${escapeHtml(user.email)}</td>
-                    <td><span class="status-badge status-${user.status}">${user.status}</span></td>
-                    <td>${user.role}</td>
+                    <td><span class="status-badge status-${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+                    <td>${escapeHtml(user.role)}</td>
                     <td>${formatDate(user.created_at)}</td>
                     <td>${generateActionButtons(user)}</td>
                 </tr>
@@ -306,7 +307,7 @@
 
         function showMessage(message, type) {
             const messageDiv = document.getElementById('message');
-            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            messageDiv.innerHTML = `<div class="${type}">${escapeHtml(message)}</div>`;
             setTimeout(() => messageDiv.innerHTML = '', 5000);
         }
 

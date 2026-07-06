@@ -351,6 +351,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script src="/js/auth-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -424,9 +425,9 @@
                         const timeAgo = formatTimeAgo(date);
                         return `<div class="d-flex justify-content-between align-items-start py-1 border-bottom">
                             <div>
-                                <span class="fw-medium">${entry.user_name || 'System'}</span>
-                                <span class="text-muted"> ${entry.action || entry.description || ''}</span>
-                                ${entry.entity_type ? `<span class="badge bg-light text-dark ms-1">${entry.entity_type}</span>` : ''}
+                                <span class="fw-medium">${escapeHtml(entry.user_name || 'System')}</span>
+                                <span class="text-muted"> ${escapeHtml(entry.action || entry.description || '')}</span>
+                                ${entry.entity_type ? `<span class="badge bg-light text-dark ms-1">${escapeHtml(entry.entity_type)}</span>` : ''}
                             </div>
                             <small class="text-muted text-nowrap ms-2">${timeAgo}</small>
                         </div>`;
@@ -450,7 +451,7 @@
                     }
                     container.innerHTML = users.map(user => `
                         <div class="d-flex justify-content-between py-1 border-bottom">
-                            <span>${user.username || user.email}</span>
+                            <span>${escapeHtml(user.username || user.email)}</span>
                             <small class="text-muted">${user.last_login ? formatTimeAgo(new Date(user.last_login)) : 'Never'}</small>
                         </div>
                     `).join('');
@@ -541,13 +542,13 @@
                                 <div class="mt-2">
                                     ${displayImages.map(img => {
                                         const clefName = img.replace('.png', '');
-                                        return `<span class="badge bg-warning text-dark me-1 mb-1" title="${img}">${clefName}</span>`;
+                                        return `<span class="badge bg-warning text-dark me-1 mb-1" title="${escapeHtml(img)}">${escapeHtml(clefName)}</span>`;
                                     }).join('')}
                                     ${hasMore ? `<span class="badge bg-secondary">+${data.missing_images.length - 10} more</span>` : ''}
                                 </div>
                             </div>
                             ${hasMore ? `
-                                <button class="btn btn-sm btn-outline-primary" onclick="showAllMissingClefImages()" data-missing-images='${JSON.stringify(data.missing_images)}'>
+                                <button class="btn btn-sm btn-outline-primary" onclick="showAllMissingClefImages()" data-missing-images='${escapeHtml(JSON.stringify(data.missing_images))}'>
                                     <i class="bi bi-list-ul me-1"></i>View All Missing Images
                                 </button>
                             ` : ''}
@@ -574,8 +575,8 @@
                         const clefName = img.replace('.png', '');
                         return `
                             <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <code>${clefName}</code>
-                                <span class="badge bg-warning text-dark">${img}</span>
+                                <code>${escapeHtml(clefName)}</code>
+                                <span class="badge bg-warning text-dark">${escapeHtml(img)}</span>
                             </div>
                         `;
                     }).join('')}
@@ -661,11 +662,11 @@
                             <div class="card-body">
                                 <h6 class="card-title text-${alert.severity === 'error' ? 'danger' : 'warning'}">
                                     <i class="bi bi-${alert.severity === 'error' ? 'x-circle' : 'exclamation-triangle'} me-2"></i>
-                                    ${alert.title}
+                                    ${escapeHtml(alert.title)}
                                 </h6>
-                                <p class="card-text">${alert.description}</p>
+                                <p class="card-text">${escapeHtml(alert.description)}</p>
                                 <div class="btn-group-vertical w-100">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${alert.type}', 'view_details')">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${escapeHtml(alert.type)}', 'view_details')">
                                         <i class="bi bi-list-ul me-2"></i>View Details
                                     </button>
                                 </div>
@@ -742,11 +743,11 @@
                         ${records.map(record => `
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div class="flex-grow-1">
-                                    <strong>#${record.id}</strong> - ${record.title}
-                                    ${record.composition_titles ? `<br><small class="text-muted">Compositions: ${record.composition_titles}</small>` : ''}
+                                    <strong>#${record.id}</strong> - ${escapeHtml(record.title)}
+                                    ${record.composition_titles ? `<br><small class="text-muted">Compositions: ${escapeHtml(record.composition_titles)}</small>` : ''}
                                 </div>
                                 <button class="btn btn-sm btn-outline-secondary" 
-                                        onclick="ignoreSpecificAlert('${alertType}', '${record.table_name}', ${record.id})">
+                                        onclick="ignoreSpecificAlert('${escapeHtml(alertType)}', '${escapeHtml(record.table_name)}', ${record.id})">
                                     Ignore
                                 </button>
                             </div>
@@ -799,7 +800,7 @@
                 console.error('Error loading groups for correction:', error);
                 content.innerHTML = `
                     <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>Error loading groups: ${error.message}
+                        <i class="bi bi-exclamation-triangle me-2"></i>Error loading groups: ${escapeHtml(error.message)}
                     </div>
                 `;
             } finally {
@@ -881,12 +882,12 @@
                                     <label class="form-check-label w-100" for="group_${group.id}">
                                         <div class="d-flex justify-content-between">
                                             <div class="flex-grow-1">
-                                                <strong>Current:</strong> "${group.display_title}"
-                                                <br><span class="text-success"><strong>Will become:</strong> "${group.suggested_title}"</span>
+                                                <strong>Current:</strong> "${escapeHtml(group.display_title)}"
+                                                <br><span class="text-success"><strong>Will become:</strong> "${escapeHtml(group.suggested_title)}"</span>
                                                 <br><small class="text-muted">
                                                     ${group.composition_count === 1 ? 
-                                                        `Single composition: ${group.compositions[0].title}${group.compositions[0].composers ? ` — ${group.compositions[0].composers}` : ''}` :
-                                                        `${group.composition_count} compositions, all titled: "${group.suggested_title}"`
+                                                        `Single composition: ${escapeHtml(group.compositions[0].title)}${group.compositions[0].composers ? ` — ${escapeHtml(group.compositions[0].composers)}` : ''}` :
+                                                        `${group.composition_count} compositions, all titled: "${escapeHtml(group.suggested_title)}"`
                                                     }
                                                 </small>
                                             </div>
@@ -909,12 +910,12 @@
                             ${nonCorrectable.map(group => `
                                 <div class="border-bottom pb-2 mb-2">
                                     <div>
-                                        <strong>"${group.display_title}"</strong> 
+                                        <strong>"${escapeHtml(group.display_title)}"</strong> 
                                         <span class="badge bg-secondary">${group.composition_count} composition${group.composition_count !== 1 ? 's' : ''}</span>
                                     </div>
                                     ${group.compositions && group.compositions.length > 0 ? `
                                         <small class="text-muted">
-                                            Compositions: ${group.compositions.map(c => c.title).join(', ')}
+                                            Compositions: ${escapeHtml(group.compositions.map(c => c.title).join(', '))}
                                         </small>
                                     ` : '<small class="text-muted">No composition data available</small>'}
                                     <div class="mt-1">
@@ -1277,28 +1278,28 @@
                                     <tr>
                                         <td>
                                             <small class="text-muted">
-                                                ${activity.user_email || 'Unknown User'}
+                                                ${escapeHtml(activity.user_email || 'Unknown User')}
                                             </small>
                                         </td>
                                         <td>
                                             <span class="badge bg-${actionColor}">
-                                                ${activity.action}
+                                                ${escapeHtml(activity.action)}
                                             </span>
                                         </td>
                                         <td>
                                             <span class="badge bg-${typeColor}">
-                                                <i class="bi ${icon} me-1"></i>${activity.type}
+                                                <i class="bi ${icon} me-1"></i>${escapeHtml(activity.type)}
                                             </span>
                                         </td>
                                         <td>
-                                            <strong>${activity.title}</strong>
-                                            <br><small class="text-muted">#${activity.record_id}</small>
+                                            <strong>${escapeHtml(activity.title)}</strong>
+                                            <br><small class="text-muted">#${escapeHtml(activity.record_id)}</small>
                                         </td>
                                         <td>
                                             <small>${new Date(activity.created_at).toLocaleString()}</small>
                                         </td>
                                         <td>
-                                            <small class="text-muted">${details}</small>
+                                            <small class="text-muted">${escapeHtml(details)}</small>
                                         </td>
                                     </tr>
                                 `;
@@ -1445,7 +1446,7 @@
                                     
                                     if (changesSummary) {
                                         const activityIndex = data.activity.findIndex(a => a === item);
-                                        changesDisplay = `<br><small class="text-muted">${changesSummary}</small><br><small><a href="#" onclick="showActivityDetails(${activityIndex})">View detailed changes</a></small>`;
+                                        changesDisplay = `<br><small class="text-muted">${escapeHtml(changesSummary)}</small><br><small><a href="#" onclick="showActivityDetails(${activityIndex})">View detailed changes</a></small>`;
                                     }
                                 }
                             } catch (error) {
@@ -1515,13 +1516,13 @@
                                     <i class="bi bi-${getActivityIcon(item.table_name)} text-${getTypeColor(item.table_name)}"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-medium">${displayTitle}</div>
+                                    <div class="fw-medium">${escapeHtml(displayTitle)}</div>
                                     <small class="text-muted">
                                         <span class="badge bg-${actionColor} me-1" style="font-size: 0.65em;">
-                                            ${item.action || 'MODIFIED'}
+                                            ${escapeHtml(item.action || 'MODIFIED')}
                                         </span>
-                                        ${item.table_name?.toUpperCase() || 'UNKNOWN'} • 
-                                        ${item.user_email || 'Unknown User'} • 
+                                        ${escapeHtml(item.table_name?.toUpperCase() || 'UNKNOWN')} • 
+                                        ${escapeHtml(item.user_email || 'Unknown User')} • 
                                         ${timeAgo}
                                     </small>
                                     ${changesDisplay}
@@ -1916,15 +1917,15 @@
             
             content.innerHTML = `
                 <div class="mb-3">
-                    <strong>User:</strong> ${activity.user_email || 'Unknown'}<br>
-                    <strong>Action:</strong> <span class="badge bg-${actionColor}">${activity.action}</span><br>
-                    <strong>Type:</strong> ${activity.table_name?.toUpperCase() || 'UNKNOWN'}<br>
-                    <strong>Record:</strong> ${activity.record_title || 'Unknown Record'}<br>
+                    <strong>User:</strong> ${escapeHtml(activity.user_email || 'Unknown')}<br>
+                    <strong>Action:</strong> <span class="badge bg-${actionColor}">${escapeHtml(activity.action)}</span><br>
+                    <strong>Type:</strong> ${escapeHtml(activity.table_name?.toUpperCase() || 'UNKNOWN')}<br>
+                    <strong>Record:</strong> ${escapeHtml(activity.record_title || 'Unknown Record')}<br>
                     <strong>Time:</strong> ${new Date(activity.created_at).toLocaleString()}
                 </div>
                 <div>
                     <strong>Changes:</strong>
-                    <pre class="bg-light p-3 mt-2" style="font-size: 0.85em; max-height: 400px; overflow-y: auto;"><code>${changesDisplay}</code></pre>
+                    <pre class="bg-light p-3 mt-2" style="font-size: 0.85em; max-height: 400px; overflow-y: auto;"><code>${escapeHtml(changesDisplay)}</code></pre>
                 </div>
             `;
             

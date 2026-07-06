@@ -70,6 +70,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let searchTimeout;
@@ -102,11 +103,11 @@
                 
                 const html = data.sources.map(source => `
                     <tr class="${source.catalogued ? 'table-success' : ''}">
-                        <td>${source.code}</td>
-                        <td>${source.title || ''}</td>
-                        <td>${source.type || ''}</td>
-                        <td>${source.format || ''}</td>
-                        <td>${source.town || ''}</td>
+                        <td>${escapeHtml(source.code)}</td>
+                        <td>${escapeHtml(source.title || '')}</td>
+                        <td>${escapeHtml(source.type || '')}</td>
+                        <td>${escapeHtml(source.format || '')}</td>
+                        <td>${escapeHtml(source.town || '')}</td>
                         <td>${source.catalogued ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-exclamation-triangle-fill text-warning" title="Needs cataloguing"></i>'}</td>
                         <td>
                             <a href="edit.html?id=${source.id}" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Edit this source (opens in new tab)">
@@ -146,7 +147,7 @@
             const info = `<small class="text-muted">Showing ${start}–${end} of ${total} sources</small>`;
 
             let buttons = '';
-            buttons += `<button class="btn btn-sm btn-outline-secondary" ${page <= 1 ? 'disabled' : ''} onclick="goToPage(${page - 1}, '${searchTerm.replace(/'/g, "\\'")}')"><i class="bi bi-chevron-left"></i></button>`;
+            buttons += `<button class="btn btn-sm btn-outline-secondary" ${page <= 1 ? 'disabled' : ''} onclick="goToPage(${page - 1}, '${escapeHtml(searchTerm.replace(/'/g, "\\'"))}')"><i class="bi bi-chevron-left"></i></button>`;
 
             const maxButtons = 7;
             let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
@@ -156,20 +157,20 @@
             }
 
             if (startPage > 1) {
-                buttons += `<button class="btn btn-sm btn-outline-secondary" onclick="goToPage(1, '${searchTerm.replace(/'/g, "\\'")}')">1</button>`;
+                buttons += `<button class="btn btn-sm btn-outline-secondary" onclick="goToPage(1, '${escapeHtml(searchTerm.replace(/'/g, "\\'"))}')">1</button>`;
                 if (startPage > 2) buttons += `<span class="px-1 text-muted">...</span>`;
             }
 
             for (let i = startPage; i <= endPage; i++) {
-                buttons += `<button class="btn btn-sm ${i === page ? 'btn-primary' : 'btn-outline-secondary'}" onclick="goToPage(${i}, '${searchTerm.replace(/'/g, "\\'")}')">${i}</button>`;
+                buttons += `<button class="btn btn-sm ${i === page ? 'btn-primary' : 'btn-outline-secondary'}" onclick="goToPage(${i}, '${escapeHtml(searchTerm.replace(/'/g, "\\'"))}')">${i}</button>`;
             }
 
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) buttons += `<span class="px-1 text-muted">...</span>`;
-                buttons += `<button class="btn btn-sm btn-outline-secondary" onclick="goToPage(${totalPages}, '${searchTerm.replace(/'/g, "\\'")}')"> ${totalPages}</button>`;
+                buttons += `<button class="btn btn-sm btn-outline-secondary" onclick="goToPage(${totalPages}, '${escapeHtml(searchTerm.replace(/'/g, "\\'"))}')"> ${totalPages}</button>`;
             }
 
-            buttons += `<button class="btn btn-sm btn-outline-secondary" ${page >= totalPages ? 'disabled' : ''} onclick="goToPage(${page + 1}, '${searchTerm.replace(/'/g, "\\'")}')"><i class="bi bi-chevron-right"></i></button>`;
+            buttons += `<button class="btn btn-sm btn-outline-secondary" ${page >= totalPages ? 'disabled' : ''} onclick="goToPage(${page + 1}, '${escapeHtml(searchTerm.replace(/'/g, "\\'"))}')"><i class="bi bi-chevron-right"></i></button>`;
 
             const paginationHtml = `${info}<div class="btn-group">${buttons}</div>`;
 

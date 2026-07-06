@@ -714,6 +714,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -836,7 +837,7 @@
             
             allPublishers.forEach(publisher => {
                 const isSelected = sourceData.publishers && sourceData.publishers.some(p => p.id === publisher.id);
-                html += `<option value="${publisher.id}" ${isSelected ? 'selected' : ''}>${publisher.name}</option>`;
+                html += `<option value="${publisher.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(publisher.name)}</option>`;
             });
             
             html += '</select>';
@@ -857,7 +858,7 @@
             
             allScribes.forEach(scribe => {
                 const isSelected = sourceData.scribes && sourceData.scribes.some(s => s.id === scribe.id);
-                html += `<option value="${scribe.id}" ${isSelected ? 'selected' : ''}>${scribe.name}</option>`;
+                html += `<option value="${scribe.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(scribe.name)}</option>`;
             });
             
             html += '</select>';
@@ -881,11 +882,11 @@
                 sourceData.source_images.forEach((image, index) => {
                     html += `
                         <div class="input-group input-group-sm mb-2 source-image-row">
-                            <input type="text" class="form-control" value="${image.url}" 
+                            <input type="text" class="form-control" value="${escapeHtml(image.url)}" 
                                    onchange="updateSourceImage(${index}, 'url', this.value)" placeholder="Image URL">
-                            <input type="text" class="form-control" value="${image.label || ''}" 
+                            <input type="text" class="form-control" value="${escapeHtml(image.label || '')}" 
                                    onchange="updateSourceImage(${index}, 'label', this.value)" placeholder="Image label (optional)">
-                            <a href="${image.url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View image">
+                            <a href="${safeUrl(image.url)}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View image">
                                 <i class="bi bi-eye"></i>
                             </a>
                             <button type="button" class="btn btn-outline-danger btn-sm" 
@@ -1254,7 +1255,7 @@
                             <div class="mb-2">
                                 <label class="form-label small">Position</label>
                                 <input type="text" class="form-control form-control-sm" 
-                                       value="${inclusion.position || ''}" 
+                                       value="${escapeHtml(inclusion.position || '')}" 
                                        placeholder="f.1r"
                                        onchange="updateInclusionField(${index}, 'position', this.value)">
                             </div>
@@ -1275,7 +1276,7 @@
                             <div class="mb-1">
                                 <label class="form-label small">Title</label>
                                 <input type="text" class="form-control form-control-sm title-autocomplete" 
-                                       value="${inclusion.composition?.title_text || ''}" 
+                                       value="${escapeHtml(inclusion.composition?.title_text || '')}" 
                                        data-index="${index}"
                                        placeholder="Start typing title..."
                                        onchange="updateCompositionField(${index}, 'title_text', this.value)">
@@ -1336,7 +1337,7 @@
                             <label class="form-label small">Notes</label>
                             <textarea class="form-control form-control-sm" rows="2" 
                                       placeholder="Notes about this inclusion..."
-                                      onchange="updateInclusionField(${index}, 'notes', this.value)">${inclusion.notes || ''}</textarea>
+                                      onchange="updateInclusionField(${index}, 'notes', this.value)">${escapeHtml(inclusion.notes || '')}</textarea>
                         </div>
                     </div>
 
@@ -1384,7 +1385,7 @@
                 <div class="mb-1">
                     <div class="input-group input-group-sm">
                         <input type="text" class="form-control" 
-                               value="${attribution || ''}" 
+                               value="${escapeHtml(attribution || '')}" 
                                placeholder="Attribution text"
                                onchange="updateAttribution(${inclusionIndex}, ${attrIndex}, this.value)">
                         ${attributions.length > 1 ? `
@@ -1396,7 +1397,7 @@
                            list="composerDatalist"
                            data-inclusion="${inclusionIndex}" 
                            data-attribution="${attrIndex}"
-                           value="${composerName}"
+                           value="${escapeHtml(composerName)}"
                            placeholder="Select composer..."
                            onchange="handleComposerInputChange(this)">
                 </div>
@@ -1411,7 +1412,7 @@
                 // Prefer matching by ID if available, fall back to name
                 const isSelected = (selectedTypeId && type.id == selectedTypeId) || 
                                  (!selectedTypeId && type.name === selectedType);
-                return `<option value="${type.id}" ${isSelected ? 'selected' : ''}>${type.name}</option>`;
+                return `<option value="${type.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(type.name)}</option>`;
             }).join('');
         }
 
@@ -1441,7 +1442,7 @@
             return `
                 <div class="tone-picker-wrap" data-index="${index}">
                     <div class="form-control form-control-sm tone-picker-display ${displayText ? 'has-value' : ''}"
-                         onclick="openTonePicker(${index})">${displayText || '<span style="color:#adb5bd">Tone...</span>'}</div>
+                         onclick="openTonePicker(${index})">${displayText ? escapeHtml(displayText) : '<span style="color:#adb5bd">Tone...</span>'}</div>
                     <div class="tone-picker-panel" id="tonePanel-${index}">
                         <div class="tone-picker-grid">${numBtns}${specialBtns}</div>
                         ${connectorRow}
@@ -1544,7 +1545,7 @@
                     html += `
                         <input type="text" class="${clefClass}" 
                                style="${getClefInputStyle(clef)}"
-                               value="${displayValue}" 
+                               value="${escapeHtml(displayValue)}" 
                                data-inclusion="${inclusionIndex}" 
                                data-clef="${clefIndex}"
                                data-row="${row}"
@@ -2342,7 +2343,7 @@
                 const createItem = document.createElement('div');
                 createItem.className = 'p-2 cursor-pointer text-success';
                 createItem.style.cursor = 'pointer';
-                createItem.innerHTML = `<i class="bi bi-plus-circle"></i> Create new title: "<strong>${currentValue}</strong>"`;
+                createItem.innerHTML = `<i class="bi bi-plus-circle"></i> Create new title: "<strong>${escapeHtml(currentValue)}</strong>"`;
                 
                 createItem.addEventListener('click', () => {
                     inputElement.value = currentValue;
@@ -2459,9 +2460,9 @@
                         <div class="source-result border rounded p-3 mb-2 cursor-pointer" style="cursor: pointer;" onclick="selectSourceForCopy(${source.id}, '${escapeHtml(source.code)}', '${escapeHtml(source.title || '').replace(/'/g, "\\'")}')">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1">${source.code}</h6>
-                                    ${source.title ? `<p class="mb-1 text-muted">${source.title}</p>` : ''}
-                                    <small class="text-muted">${source.type || 'Unknown type'} • ${source.format || 'Unknown format'}</small>
+                                    <h6 class="mb-1">${escapeHtml(source.code)}</h6>
+                                    ${source.title ? `<p class="mb-1 text-muted">${escapeHtml(source.title)}</p>` : ''}
+                                    <small class="text-muted">${escapeHtml(source.type || 'Unknown type')} • ${escapeHtml(source.format || 'Unknown format')}</small>
                                 </div>
                                 <small class="text-muted">${source.catalogued ? '<span class="badge bg-success">Catalogued</span>' : '<span class="badge bg-secondary">Not catalogued</span>'}</small>
                             </div>
@@ -2488,7 +2489,7 @@
             
             // Update UI
             document.getElementById('selectedSourceDetails').innerHTML = `
-                <strong>${sourceCode}</strong>${sourceTitle ? ` - ${sourceTitle}` : ''}
+                <strong>${escapeHtml(sourceCode)}</strong>${sourceTitle ? ` - ${escapeHtml(sourceTitle)}` : ''}
             `;
             document.getElementById('selectedSourceInfo').style.display = 'block';
             document.getElementById('copyInclusionsBtn').disabled = false;

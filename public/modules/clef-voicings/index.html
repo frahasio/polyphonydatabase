@@ -133,6 +133,7 @@
         </div>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -242,7 +243,7 @@
                     <div class="clef-combo-row" data-combo-id="${combo.id}">
                         <div class="row align-items-center">
                             <div class="col-md-3">
-                                <div class="clef-combo-header">${combo.clef_combination}</div>
+                                <div class="clef-combo-header">${escapeHtml(combo.clef_combination)}</div>
                             </div>
                             <div class="col-md-8">
                                 <select class="form-select voicing-select" 
@@ -250,7 +251,7 @@
                                         multiple="multiple"
                                         data-combo-id="${combo.id}">
                                     ${voicings.map(voicing => 
-                                        `<option value="${voicing.id}" ${assignedVoicings.includes(voicing.id) ? 'selected' : ''}>${voicing.name}</option>`
+                                        `<option value="${voicing.id}" ${assignedVoicings.includes(voicing.id) ? 'selected' : ''}>${escapeHtml(voicing.name)}</option>`
                                     ).join('')}
                                 </select>
                             </div>

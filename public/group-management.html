@@ -633,6 +633,7 @@
         </button>
     </div>
 
+    <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedGroups = [];
@@ -803,12 +804,12 @@
                     ${compositions.map(comp => `
                         <div class="composition-detail">
                             <button class="btn btn-sm btn-outline-danger composition-remove-btn" 
-                                    onclick="event.stopPropagation(); removeCompositionInline(${groupId}, ${comp.id}, '${(comp.title || 'Untitled').replace(/'/g, "\\'")}');" 
+                                    onclick="event.stopPropagation(); removeCompositionInline(${groupId}, ${comp.id}, '${escapeHtml((comp.title || 'Untitled').replace(/'/g, "\\'"))}');" 
                                     title="Remove this composition from group">
                                 <i class="bi bi-x-lg"></i>
                             </button>
-                            <div class="fw-bold">${comp.title || 'Untitled'}</div>
-                            ${comp.composers ? `<div class="text-muted">${comp.composers}</div>` : ''}
+                            <div class="fw-bold">${escapeHtml(comp.title || 'Untitled')}</div>
+                            ${comp.composers ? `<div class="text-muted">${escapeHtml(comp.composers)}</div>` : ''}
                             ${formatSourcesList(comp.sources)}
                         </div>
                     `).join('')}
@@ -824,7 +825,7 @@
             return `
                 <div class="source-list">
                     ${sources.map(source => `
-                        <span class="source-item">${source.code} (${source.position || 'pos?'})</span>
+                        <span class="source-item">${escapeHtml(source.code)} (${escapeHtml(source.position || 'pos?')})</span>
                     `).join('')}
                 </div>
             `;
@@ -876,14 +877,14 @@
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <h6 class="mb-2">
-                                <strong>${group.display_title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.tone_connector)}</span>` : ''}
-                                ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.even_odd] || group.even_odd})</span>` : ''}
+                                <strong>${escapeHtml(group.display_title)}</strong>
+                                ${group.tone ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.tone_connector))}</span>` : ''}
+                                ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.even_odd] || group.even_odd)})</span>` : ''}
                             </h6>
                             <div class="group-info">
-                                <span class="badge bg-secondary me-2">${group.number_of_voices || '?'}vv</span>
-                                <span class="text-muted">${group.composers || 'Anon'}</span>
-                                ${group.composition_type ? `<span class="badge bg-info ms-2">${group.composition_type}</span>` : ''}
+                                <span class="badge bg-secondary me-2">${escapeHtml(group.number_of_voices || '?')}vv</span>
+                                <span class="text-muted">${escapeHtml(group.composers || 'Anon')}</span>
+                                ${group.composition_type ? `<span class="badge bg-info ms-2">${escapeHtml(group.composition_type)}</span>` : ''}
                             </div>
                             <div class="mt-2">
                                 <small class="text-muted">
@@ -1258,11 +1259,11 @@
                 <div class="small">
                     ${compositions.map(comp => `
                         <div class="mb-1">
-                            <strong>${comp.title || 'Untitled'}</strong>
-                            ${comp.composition_type ? `<span class="badge bg-info ms-1">${comp.composition_type}</span>` : ''}
-                            ${comp.tone ? `<span class="text-muted ms-1">${formatToneDisplay(comp.tone, comp.tone_connector)}</span>` : ''}
-                            ${comp.even_odd !== null && comp.even_odd !== undefined ? `<span class="text-muted ms-1">(${evenOddMapping[comp.even_odd] || comp.even_odd})</span>` : ''}
-                            ${comp.composer ? `<span class="text-muted ms-1">— ${comp.composer}</span>` : ''}
+                            <strong>${escapeHtml(comp.title || 'Untitled')}</strong>
+                            ${comp.composition_type ? `<span class="badge bg-info ms-1">${escapeHtml(comp.composition_type)}</span>` : ''}
+                            ${comp.tone ? `<span class="text-muted ms-1">${escapeHtml(formatToneDisplay(comp.tone, comp.tone_connector))}</span>` : ''}
+                            ${comp.even_odd !== null && comp.even_odd !== undefined ? `<span class="text-muted ms-1">(${escapeHtml(evenOddMapping[comp.even_odd] || comp.even_odd)})</span>` : ''}
+                            ${comp.composer ? `<span class="text-muted ms-1">— ${escapeHtml(comp.composer)}</span>` : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -1362,11 +1363,11 @@
             container.innerHTML = editions.map(edition => `
                 <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="edition-${edition.id}">
                     <div>
-                        <strong>${edition.editor_name || 'Unknown Editor'}</strong>
-                        ${edition.voicing ? `<span class="badge bg-secondary ms-2">${edition.voicing}</span>` : ''}
+                        <strong>${escapeHtml(edition.editor_name || 'Unknown Editor')}</strong>
+                        ${edition.voicing ? `<span class="badge bg-secondary ms-2">${escapeHtml(edition.voicing)}</span>` : ''}
                         <br>
                         <small class="text-muted">
-                            <a href="${edition.file_url}" target="_blank" class="text-decoration-none">
+                            <a href="${safeUrl(edition.file_url)}" target="_blank" class="text-decoration-none">
                                 <i class="bi bi-link-45deg me-1"></i>View File
                             </a>
                         </small>
@@ -1389,10 +1390,10 @@
             container.innerHTML = recordings.map(recording => `
                 <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="recording-${recording.id}">
                     <div>
-                        <strong>${recording.performer_name || 'Unknown Performer'}</strong>
+                        <strong>${escapeHtml(recording.performer_name || 'Unknown Performer')}</strong>
                         <br>
                         <small class="text-muted">
-                            <a href="${recording.file_url}" target="_blank" class="text-decoration-none">
+                            <a href="${safeUrl(recording.file_url)}" target="_blank" class="text-decoration-none">
                                 <i class="bi bi-link-45deg me-1"></i>View File
                             </a>
                         </small>
@@ -1521,13 +1522,13 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <h6 class="mb-1">
-                                <strong>${group.title}</strong>
-                                ${group.tone ? ` <span class="text-muted">${formatToneDisplay(group.tone, group.toneConnector)}</span>` : ''}
-                                ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${evenOddMapping[group.evenOdd] || group.evenOdd})</span>` : ''}
+                                <strong>${escapeHtml(group.title)}</strong>
+                                ${group.tone ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.toneConnector))}</span>` : ''}
+                                ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.evenOdd] || group.evenOdd)})</span>` : ''}
                             </h6>
                             <div class="text-muted small">
-                                <span class="badge bg-secondary me-1">${group.voices || '?'}vv</span>
-                                ${group.compositionType ? `<span class="badge bg-info me-1">${group.compositionType}</span>` : ''}
+                                <span class="badge bg-secondary me-1">${escapeHtml(group.voices || '?')}vv</span>
+                                ${group.compositionType ? `<span class="badge bg-info me-1">${escapeHtml(group.compositionType)}</span>` : ''}
                             </div>
                         </div>
                         <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
@@ -1550,15 +1551,15 @@
                 <div class="mt-2">
                     ${compositions.map(comp => `
                         <div class="bg-light p-2 rounded mb-1">
-                            <div class="fw-bold small">${comp.title || 'Untitled'}</div>
-                            ${comp.composers ? `<div class="text-muted small">${comp.composers}</div>` : ''}
+                            <div class="fw-bold small">${escapeHtml(comp.title || 'Untitled')}</div>
+                            ${comp.composers ? `<div class="text-muted small">${escapeHtml(comp.composers)}</div>` : ''}
                             ${comp.sources && comp.sources.length > 0 ? `
                                 <div class="mt-1">
                                     ${comp.sources.map(source => {
                                         // Handle both string sources and object sources
                                         const sourceText = typeof source === 'string' ? source : 
                                                          (source.code ? `${source.code} (${source.position || 'pos?'})` : source);
-                                        return `<span class="badge bg-secondary me-1 small">${sourceText}</span>`;
+                                        return `<span class="badge bg-secondary me-1 small">${escapeHtml(sourceText)}</span>`;
                                     }).join('')}
                                 </div>
                             ` : ''}
@@ -1582,7 +1583,7 @@
 
             statusDiv.innerHTML = `
                 <div class="compatibility-check ${statusClass}">
-                    <i class="bi ${icon} me-2"></i>${compatibilityResult.message}
+                    <i class="bi ${icon} me-2"></i>${escapeHtml(compatibilityResult.message)}
                 </div>
             `;
         }
