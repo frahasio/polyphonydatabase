@@ -13,6 +13,8 @@ audit-log-check.js
 *.dump
 *.sql
 !migration.sql
+# Versioned schema migrations are tracked
+!migrations/*.sql
 
 # Logs
 *.log
