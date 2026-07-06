@@ -12,7 +12,7 @@ router.use(requireAdmin);
 // List commissions (optionally by status)
 router.get('/', async (req, res) => {
   try {
-    const status = ['enquiry', 'offered', 'paid', 'declined', 'cancelled'].includes(req.query.status)
+    const status = ['enquiry', 'offered', 'paid', 'fulfilled', 'declined', 'cancelled'].includes(req.query.status)
       ? req.query.status
       : null;
     const params = [];
@@ -65,6 +65,38 @@ router.post('/:id/offer', async (req, res) => {
     });
   } catch (error) {
     console.error('Commission offer error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mark a paid commission as delivered; emails the commissioner (optionally
+// with a link to the finished edition).
+router.post('/:id/fulfil', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10) || 0;
+    let editionUrl = String(req.body.edition_url || '').trim().slice(0, 1000);
+    if (editionUrl && !/^https?:\/\//i.test(editionUrl)) {
+      return res.status(400).json({ error: 'Edition URL must be an http(s) link' });
+    }
+
+    const result = await pool.query(
+      `UPDATE commissions
+         SET status = 'fulfilled', edition_url = $1, fulfilled_at = NOW(), updated_at = NOW()
+       WHERE id = $2 AND status = 'paid'
+       RETURNING *`,
+      [editionUrl || null, id]
+    );
+    if (!result.rows.length) {
+      return res.status(400).json({ error: 'Commission not found or not in a paid state' });
+    }
+
+    const sent = await emailService.sendCommissionReadyEmail(result.rows[0]);
+    res.json({
+      message: sent ? 'Marked as ready and the commissioner has been notified' : 'Marked as ready, but the email failed to send',
+      commission: result.rows[0],
+    });
+  } catch (error) {
+    console.error('Commission fulfil error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

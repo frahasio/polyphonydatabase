@@ -643,6 +643,22 @@ class EmailService {
     });
   }
 
+  // Tell the commissioner their finished edition is ready.
+  async sendCommissionReadyEmail(commission) {
+    const link = commission.edition_url && /^https?:\/\//i.test(commission.edition_url)
+      ? commission.edition_url
+      : '';
+    return this.sendMail({
+      to: commission.commissioner_email,
+      subject: 'Your commissioned edition is ready',
+      html: `<p>Dear ${esc(commission.commissioner_name)},</p>
+        <p>Your commissioned edition of <strong>${esc(commission.piece_description)}</strong> is now ready.</p>
+        ${link ? `<p>You can download it here:</p><p><a href="${esc(link)}">${esc(link)}</a></p>`
+               : `<p>We will be in touch with the finished edition shortly.</p>`}
+        <p>Thank you for supporting the Polyphony Database.</p>`,
+    });
+  }
+
   // Notify the admin that a commission was paid.
   async sendCommissionPaidAdmin(commission) {
     const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'polyphonydatabase@gmail.com';

@@ -13,6 +13,7 @@
         .commission-card.status-enquiry { border-left: 4px solid #0d6efd; }
         .commission-card.status-offered { border-left: 4px solid #fd7e14; }
         .commission-card.status-paid { border-left: 4px solid #198754; }
+        .commission-card.status-fulfilled { border-left: 4px solid #0dcaf0; }
         .commission-card.status-declined, .commission-card.status-cancelled { border-left: 4px solid #adb5bd; }
     </style>
 </head>
@@ -25,6 +26,7 @@
                 <button type="button" class="btn btn-outline-secondary" data-status="enquiry">Enquiries</button>
                 <button type="button" class="btn btn-outline-secondary" data-status="offered">Offered</button>
                 <button type="button" class="btn btn-outline-secondary" data-status="paid">Paid</button>
+                <button type="button" class="btn btn-outline-secondary" data-status="fulfilled">Delivered</button>
             </div>
         </div>
 
@@ -107,7 +109,8 @@
             list.innerHTML = items.map(c => {
                 const price = fmtPrice(c.price_pence, c.currency);
                 const canOffer = c.status === 'enquiry' || c.status === 'offered';
-                const canCancel = c.status !== 'paid' && c.status !== 'cancelled';
+                const canFulfil = c.status === 'paid';
+                const canCancel = c.status !== 'paid' && c.status !== 'fulfilled' && c.status !== 'cancelled';
                 return `
                 <div class="card commission-card status-${escapeHtml(c.status)} mb-3">
                     <div class="card-body py-3">
@@ -120,11 +123,13 @@
                                 </div>
                                 ${c.requirements ? `<div class="small mt-1"><strong>Requirements:</strong> ${escapeHtml(c.requirements)}</div>` : ''}
                                 ${c.admin_note ? `<div class="small mt-1 text-muted"><strong>Your note:</strong> ${escapeHtml(c.admin_note)}</div>` : ''}
+                                ${c.edition_url ? `<div class="small mt-1"><strong>Edition:</strong> ${externalLink(c.edition_url)}</div>` : ''}
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-light text-dark mb-2">${escapeHtml(c.status)}${price ? ' · ' + escapeHtml(price) : ''}</span>
                                 <div class="btn-group btn-group-sm d-block">
                                     ${canOffer ? `<button class="btn btn-primary" onclick="openOffer(${c.id}, ${JSON.stringify(c.piece_description).replace(/"/g, '&quot;')}, ${c.price_pence || 0})">${c.status === 'offered' ? 'Revise price' : 'Set price'}</button>` : ''}
+                                    ${canFulfil ? `<button class="btn btn-info" onclick="fulfilCommission(${c.id})">Mark as ready</button>` : ''}
                                     ${canCancel ? `<button class="btn btn-outline-danger" onclick="cancelCommission(${c.id})">Cancel</button>` : ''}
                                 </div>
                             </div>
@@ -163,6 +168,27 @@
                 btn.disabled = false;
             }
         });
+
+        function externalLink(url) {
+            const u = safeUrl(url);
+            return u ? `<a href="${u}" target="_blank" rel="noopener">${u}</a>` : escapeHtml(url);
+        }
+
+        async function fulfilCommission(id) {
+            const url = prompt('Optional: paste a link to the finished edition (leave blank to just notify the commissioner it\u2019s ready).');
+            if (url === null) return; // cancelled
+            try {
+                const res = await fetch(`/api/admin/commissions/${id}/fulfil`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ edition_url: url.trim() })
+                });
+                const data = await res.json();
+                if (res.ok) { alert(data.message); load(); }
+                else alert(data.error || 'Could not mark as ready.');
+            } catch (e) { alert('Network error.'); }
+        }
 
         async function cancelCommission(id) {
             if (!confirm('Cancel this commission?')) return;
