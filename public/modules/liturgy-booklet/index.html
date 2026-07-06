@@ -1005,6 +1005,14 @@
                         <input class="form-check-input" type="checkbox" id="chkPageNumberSkipFirst">
                         <label class="form-check-label small ms-1" for="chkPageNumberSkipFirst">No nº on first</label>
                     </div>
+                    <label class="d-flex flex-column gap-0" title="Distance of the page number from the top/bottom edge of the page. Set small to place it out in the margin, independent of the body margins.">
+                        <span>Nº dist. from top/bottom (mm)</span>
+                        <input type="number" id="inpPageNumberVMm" class="form-control form-control-sm" style="width:4.5rem" min="0" max="50" step="1" value="8">
+                    </label>
+                    <label class="d-flex flex-column gap-0" title="Distance of the page number from the outer left/right edge (only used for the 'outer' positions).">
+                        <span>Nº dist. from side (mm)</span>
+                        <input type="number" id="inpPageNumberHMm" class="form-control form-control-sm" style="width:4.5rem" min="0" max="80" step="1" value="12">
+                    </label>
                     <div class="vr"></div>
                     <label class="d-flex flex-column gap-0">
                         <span>Section gap (mm)</span>

@@ -5,6 +5,8 @@
   const STORAGE_KEY = 'liturgyBooklet_autosave_v8';
   const DEFAULT_BOOKLET_MARGIN_MM = 16;
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
+  const DEFAULT_PAGE_NUMBER_V_MM = 8;
+  const DEFAULT_PAGE_NUMBER_H_MM = 12;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
   const GAP_FLEX_PX = 4;
   const MARGIN_TOLERANCE_PX = 10;
@@ -127,6 +129,8 @@
       pageNumbers: 'off',
       pageNumberStart: 1,
       pageNumberSkipFirst: false,
+      pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
+      pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
     },
     blocks: [],
   };
@@ -156,6 +160,8 @@
         pageNumbers: 'off',
         pageNumberStart: 1,
         pageNumberSkipFirst: false,
+        pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
+        pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
       },
       blocks: [],
     };
@@ -197,19 +203,20 @@
     if (cfg.position === 'off') return;
     var isFooter = cfg.position.indexOf('footer') === 0;
     var isCenter = cfg.position.indexOf('center') > 0;
-    var vMarginMm = isFooter ? getBookletMarginBottomMm() : getBookletMarginTopMm();
-    var vOffsetMm = Math.max(2, Math.round(vMarginMm / 2) - 2);
-    var sideMm = Math.max(6, getBookletMarginLeftMm());
+    // Distance of the number from the page edge, set independently of the
+    // body margins so numbers can sit out in the margin area.
+    var vMm = getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
+    var hMm = getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
     pageDivs.forEach(function (page, idx) {
       var n = pageNumberFor(idx);
       if (n == null) return;
       var el = document.createElement('div');
       el.className = 'booklet-page-number' + (isCenter ? ' booklet-page-number--center' : '');
       el.textContent = String(n);
-      el.style[isFooter ? 'bottom' : 'top'] = vOffsetMm + 'mm';
+      el.style[isFooter ? 'bottom' : 'top'] = vMm + 'mm';
       if (!isCenter) {
         // Outer edge: odd page numbers sit recto (right), even verso (left).
-        el.style[n % 2 === 1 ? 'right' : 'left'] = sideMm + 'mm';
+        el.style[n % 2 === 1 ? 'right' : 'left'] = hMm + 'mm';
       }
       page.appendChild(el);
     });
@@ -1858,6 +1865,8 @@
     if (pnStart) pnStart.value = String(pnCfg.start);
     var pnSkip = document.getElementById('chkPageNumberSkipFirst');
     if (pnSkip) pnSkip.checked = pnCfg.skipFirst;
+    syncNum('inpPageNumberVMm', 'pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
+    syncNum('inpPageNumberHMm', 'pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
@@ -5250,6 +5259,8 @@
           pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
           manifest: mh.manifest,
           pageNumbersPosition: mh.pageNumbersPosition,
+          pageNumberVMm: getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM),
+          pageNumberHMm: getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM),
           title: state.projectTitle || '',
         }),
       });
@@ -5434,10 +5445,12 @@
       markLayoutStale();
     });
     document.getElementById('chkPageNumberSkipFirst')?.addEventListener('change', function (e) {
-      state.settings.pageNumberSkipFirst = !!e.target.checked;
-      scheduleAutosave();
-      markLayoutStale();
+        state.settings.pageNumberSkipFirst = !!e.target.checked;
+        scheduleAutosave();
+        markLayoutStale();
     });
+    bindLayoutSetting('inpPageNumberVMm', 'pageNumberVMm', 0, 50, DEFAULT_PAGE_NUMBER_V_MM);
+    bindLayoutSetting('inpPageNumberHMm', 'pageNumberHMm', 0, 80, DEFAULT_PAGE_NUMBER_H_MM);
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
     bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);
     bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);

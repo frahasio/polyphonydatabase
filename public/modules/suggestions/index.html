@@ -16,6 +16,9 @@
         .score-badge { min-width: 3.2rem; }
         .payload-detail { font-size: 0.85rem; }
         .yt-embed { width: 100%; max-width: 480px; aspect-ratio: 16/9; border: 0; }
+        .sp-embed { width: 100%; max-width: 480px; height: 152px; border: 0; }
+        .comp-detail { font-size: 0.82rem; }
+        .comp-attr { display: inline-block; background: #eef; border-radius: 3px; padding: 0 0.35rem; margin: 0 0.2rem 0.2rem 0; }
     </style>
 </head>
 <body>
@@ -66,6 +69,39 @@
             return m ? 'https://www.youtube.com/embed/' + m[1] : '';
         }
 
+        function spotifyEmbedUrl(url) {
+            const m = String(url || '').match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/);
+            return m ? 'https://open.spotify.com/embed/track/' + m[1] : '';
+        }
+
+        const toneMap = { '1':'primi','2':'secundi','3':'tertii','4':'quarti','5':'quinti','6':'sexti','7':'septimi','8':'octavi','mix':'mixti','per':'peregrini','pro':'proprii' };
+        const evenOddMap = { 0:'even', 1:'odd', 2:'even & odd' };
+
+        // Compact, human-readable descriptor of a composition so reviewers can
+        // tell exactly which setting is meant (e.g. which Salve Regina).
+        function compositionDescriptor(c) {
+            const parts = [];
+            if (c.number_of_voices) parts.push(escapeHtml(c.number_of_voices) + 'vv');
+            if (c.type_name) parts.push(escapeHtml(c.type_name));
+            const tones = Array.isArray(c.tone) ? c.tone.filter(Boolean) : (c.tone ? [c.tone] : []);
+            if (tones.length) {
+                const conj = c.tone_connector === 'vel' ? ' vel ' : ' & ';
+                parts.push('tone ' + tones.map(t => escapeHtml(toneMap[t] || t)).join(conj));
+            }
+            if (c.even_odd !== null && c.even_odd !== undefined && evenOddMap[c.even_odd]) parts.push(escapeHtml(evenOddMap[c.even_odd]));
+            return parts.map(p => '<span class="comp-attr">' + p + '</span>').join('');
+        }
+
+        function editionsHtml(editions) {
+            if (!editions || !editions.length) return '';
+            const links = editions.map(e => {
+                const label = (escapeHtml(e.editor_name) || 'Edition') + (e.voicing ? ' ' + escapeHtml(e.voicing) : '');
+                const u = safeUrl(e.file_url);
+                return u ? `<a href="${u}" target="_blank" rel="noopener">${label} <i class="bi bi-file-earmark-pdf"></i></a>` : label;
+            });
+            return `<div class="comp-detail mt-1"><strong>Existing editions:</strong> ${links.join(' · ')}</div>`;
+        }
+
         function payloadHtml(s) {
             const p = s.payload || {};
             if (s.kind === 'title_function') {
@@ -84,7 +120,11 @@
             }
             // Recording suggestions: show source line + inline preview
             const url = safeUrl(p.url);
-            const embed = s.kind === 'recording_youtube' ? youtubeEmbedUrl(p.url) : '';
+            const ytEmbed = s.kind === 'recording_youtube' ? youtubeEmbedUrl(p.url) : '';
+            const spEmbed = s.kind === 'recording_spotify' ? spotifyEmbedUrl(p.url) : '';
+            let embedHtml = '';
+            if (ytEmbed) embedHtml = `<iframe class="yt-embed mt-2" loading="lazy" src="${escapeHtml(ytEmbed)}" allowfullscreen></iframe>`;
+            else if (spEmbed) embedHtml = `<iframe class="sp-embed mt-2" loading="lazy" src="${escapeHtml(spEmbed)}" allow="encrypted-media"></iframe>`;
             return `
                 <div class="payload-detail">
                     <div><strong>${escapeHtml(p.track_title || p.video_title || 'Recording')}</strong>
@@ -92,16 +132,34 @@
                         ${p.duration ? ` <span class="text-muted">(${escapeHtml(p.duration)})</span>` : ''}
                     </div>
                     ${url ? `<div><a href="${url}" target="_blank" rel="noopener">${url} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
-                    ${embed ? `<iframe class="yt-embed mt-2" loading="lazy" src="${escapeHtml(embed)}" allowfullscreen></iframe>` : ''}
+                    ${embedHtml}
                 </div>`;
         }
 
         function contextHtml(s) {
             if (s.kind === 'title_function') {
-                return `<span class="fw-semibold">${escapeHtml(s.title_text || '(title missing)')}</span>`;
+                // Show every setting that carries this title so the reviewer can
+                // see which pieces the function would apply to.
+                const comps = (s.compositions || []).slice(0, 6).map(c => {
+                    const who = c.composers ? escapeHtml(c.composers) : 'Anon';
+                    const grp = c.group_title ? escapeHtml(c.group_title) : '';
+                    const edn = c.edition_count > 0 ? ` <span class="text-success" title="has an edition"><i class="bi bi-file-earmark-pdf"></i>${c.edition_count}</span>` : '';
+                    return `<div class="comp-detail">• ${who}${grp ? ' — ' + grp : ''} ${compositionDescriptor(c)}${edn}</div>`;
+                }).join('');
+                const more = (s.compositions || []).length > 6 ? `<div class="comp-detail text-muted">…and ${(s.compositions.length - 6)} more setting(s)</div>` : '';
+                return `<span class="fw-semibold">${escapeHtml(s.title_text || '(title missing)')}</span>
+                        ${comps ? `<div class="mt-1">${comps}${more}</div>` : ''}`;
             }
+            // Recording suggestion: identify the exact group/piece and show
+            // its distinguishing attributes + any editions to check against.
+            const comps = (s.compositions || []).slice(0, 4).map(c => {
+                const who = c.composers ? escapeHtml(c.composers) : 'Anon';
+                return `<div class="comp-detail">• ${who} ${compositionDescriptor(c)}</div>`;
+            }).join('');
             return `<span class="fw-semibold">${escapeHtml(s.group_title || '(group missing)')}</span>
-                    ${s.group_composers ? `<span class="text-muted"> — ${escapeHtml(s.group_composers)}</span>` : ''}`;
+                    ${s.group_composers ? `<span class="text-muted"> — ${escapeHtml(s.group_composers)}</span>` : ''}
+                    ${comps ? `<div class="mt-1">${comps}</div>` : ''}
+                    ${editionsHtml(s.editions)}`;
         }
 
         async function load() {

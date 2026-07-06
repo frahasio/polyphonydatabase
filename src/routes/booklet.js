@@ -227,7 +227,11 @@ router.post('/pdf', requireAuth, async (req, res) => {
         : null;
       const pnFont = pnPosition ? await finalDoc.embedFont(StandardFonts.TimesRoman) : null;
       const PN_SIZE = 11; // ≈ 9pt visual weight of the HTML stamp
-      const PN_EDGE = 28; // ~10 mm in PDF points
+      const MM_TO_PT = 2.83465;
+      // Distances from the page edge, matching the on-screen page-number
+      // margins (fall back to sensible defaults).
+      const vPt = (Number(req.body.pageNumberVMm) >= 0 ? Number(req.body.pageNumberVMm) : 8) * MM_TO_PT;
+      const hPt = (Number(req.body.pageNumberHMm) >= 0 ? Number(req.body.pageNumberHMm) : 12) * MM_TO_PT;
 
       function stampEditionPageNumber(page, pageNumber) {
         if (!pnFont || !Number.isInteger(pageNumber)) return;
@@ -235,13 +239,13 @@ router.post('/pdf', requireAuth, async (req, res) => {
         const text = String(pageNumber);
         const textWidth = pnFont.widthOfTextAtSize(text, PN_SIZE);
         const isFooter = pnPosition.startsWith('footer');
-        const y = isFooter ? PN_EDGE - PN_SIZE / 2 : height - PN_EDGE;
+        const y = isFooter ? vPt : height - vPt - PN_SIZE;
         let x;
         if (pnPosition.endsWith('center')) {
           x = (width - textWidth) / 2;
         } else {
           // Outer edge: odd numbers recto (right), even verso (left).
-          x = pageNumber % 2 === 1 ? width - PN_EDGE - textWidth : PN_EDGE;
+          x = pageNumber % 2 === 1 ? width - hPt - textWidth : hPt;
         }
         page.drawText(text, { x, y, size: PN_SIZE, font: pnFont, color: rgb(0.2, 0.2, 0.2) });
       }

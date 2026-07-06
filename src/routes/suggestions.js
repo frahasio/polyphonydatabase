@@ -9,6 +9,67 @@ const router = express.Router();
 const KINDS = ['title_function', 'recording_youtube', 'recording_spotify'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
+// Attach disambiguating context to each suggestion so reviewers can tell
+// exactly which piece is meant: the distinguishing composition attributes
+// (voices, type, tone, even/odd, composer) and any existing editions to
+// check a recording against. Group-based suggestions (recordings) use the
+// group's compositions + editions; title-based (title_function) use every
+// composition that carries that title, so multiple settings are visible.
+async function enrichWithContext(rows) {
+  const groupIds = [...new Set(rows.filter((r) => r.group_id).map((r) => r.group_id))];
+  const titleIds = [...new Set(rows.filter((r) => r.title_id).map((r) => r.title_id))];
+
+  const compQuery = `
+    SELECT c.number_of_voices, c.tone, c.tone_connector, c.even_odd,
+           ct.name AS type_name,
+           (SELECT string_agg(DISTINCT comp.name, ', ')
+              FROM composers comp
+              WHERE comp.id = ANY(c.composer_id_list) AND comp.id != 23) AS composers`;
+
+  const editionsByGroup = {};
+  const compsByGroup = {};
+  if (groupIds.length) {
+    const ed = await pool.query(
+      `SELECT e.group_id, ed.name AS editor_name, e.voicing, e.file_url
+       FROM editions e LEFT JOIN editors ed ON ed.id = e.editor_id
+       WHERE e.group_id = ANY($1)`,
+      [groupIds]
+    );
+    ed.rows.forEach((r) => { (editionsByGroup[r.group_id] ||= []).push(r); });
+
+    const comps = await pool.query(
+      `${compQuery}, c.group_id
+       FROM compositions c LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
+       WHERE c.group_id = ANY($1)`,
+      [groupIds]
+    );
+    comps.rows.forEach((r) => { (compsByGroup[r.group_id] ||= []).push(r); });
+  }
+
+  const compsByTitle = {};
+  if (titleIds.length) {
+    const comps = await pool.query(
+      `${compQuery}, c.title_id, g.display_title AS group_title,
+              (SELECT COUNT(*) FROM editions e WHERE e.group_id = c.group_id) AS edition_count
+       FROM compositions c
+       LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
+       LEFT JOIN groups g ON g.id = c.group_id
+       WHERE c.title_id = ANY($1)`,
+      [titleIds]
+    );
+    comps.rows.forEach((r) => { (compsByTitle[r.title_id] ||= []).push(r); });
+  }
+
+  rows.forEach((r) => {
+    if (r.group_id) {
+      r.editions = editionsByGroup[r.group_id] || [];
+      r.compositions = compsByGroup[r.group_id] || [];
+    } else if (r.title_id) {
+      r.compositions = compsByTitle[r.title_id] || [];
+    }
+  });
+}
+
 // List queue items with joined display context
 router.get('/', async (req, res) => {
   try {
@@ -47,13 +108,16 @@ router.get('/', async (req, res) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
+    const rows = result.rows;
+    await enrichWithContext(rows);
+
     const counts = await pool.query(`
       SELECT kind, COUNT(*) AS pending
       FROM suggestions WHERE status = 'pending' GROUP BY kind
     `);
 
     res.json({
-      suggestions: result.rows,
+      suggestions: rows,
       pendingCounts: Object.fromEntries(counts.rows.map((r) => [r.kind, parseInt(r.pending)])),
     });
   } catch (error) {
