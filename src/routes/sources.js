@@ -94,33 +94,74 @@ router.get('/:id/export', async (req, res) => {
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([sourceHeaders, sourceRow]), 'Source');
 
+    // Mirror the import template exactly: base columns, then clef_1..clef_16
+    // individual-clef columns whose values feed a TEXTJOIN formula in the
+    // "clefs" column (so users can edit clefs cell-by-cell after exporting).
+    const CLEF_COLS = 16;
+    const clefHeaders = Array.from({ length: CLEF_COLS }, (_, i) => `clef_${i + 1}`);
     const inclHeaders = [
       'position', 'title_text', 'composition_type', 'tone', 'tone_connector',
-      'even_odd', 'clefs', 'composer_names', 'attribution_text', 'notes'
+      'even_odd', 'clefs', 'composer_names', 'attribution_text', 'notes',
+      ...clefHeaders
     ];
+
     const inclRows = inclResult.rows.map((r) => {
-      const clefs = Array.isArray(r.clefs) ? r.clefs : [];
+      const clefTokens = (Array.isArray(r.clefs) ? r.clefs : []).map(serializeClef).filter(Boolean);
       const toneArr = Array.isArray(r.tone) ? r.tone : (r.tone ? [r.tone] : []);
       const attribution = Array.isArray(r.attribution_texts)
         ? r.attribution_texts.filter(Boolean).join('; ')
         : '';
+      const clefCells = Array.from({ length: CLEF_COLS }, (_, i) => clefTokens[i] || '');
+      // If somehow more than 16 clefs, keep the full joined string in "clefs"
+      // (formula would only cover 16); otherwise leave "clefs" for the formula.
+      const clefsOverflow = clefTokens.length > CLEF_COLS ? clefTokens.join(';') : '';
+      const connector = toneArr.length >= 2 ? (r.tone_connector || '') : '';
       return [
         r.position || '',
         r.title_text || '',
         r.composition_type_name || '',
         toneArr.join(';'),
-        r.tone_connector || '',
+        connector,
         evenOddToText(r.even_odd),
-        clefs.map(serializeClef).filter(Boolean).join(';'),
+        clefsOverflow,
         (r.composer_names || []).join('; '),
         attribution,
-        r.notes || ''
+        r.notes || '',
+        ...clefCells
       ];
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([inclHeaders, ...inclRows]), 'Inclusions');
+
+    const inclSheet = XLSX.utils.aoa_to_sheet([inclHeaders, ...inclRows]);
+    const clefsColIdx = inclHeaders.indexOf('clefs');
+    const firstClefColLetter = XLSX.utils.encode_col(inclHeaders.indexOf('clef_1'));
+    const lastClefColLetter = XLSX.utils.encode_col(inclHeaders.indexOf(`clef_${CLEF_COLS}`));
+    // Put the TEXTJOIN formula in each data row's "clefs" cell, except overflow
+    // rows which already hold a static joined value.
+    inclResult.rows.forEach((r, idx) => {
+      const clefTokens = (Array.isArray(r.clefs) ? r.clefs : []).map(serializeClef).filter(Boolean);
+      if (clefTokens.length > CLEF_COLS) return; // keep static overflow value
+      const excelRow = idx + 2; // row 1 is the header
+      const cellRef = XLSX.utils.encode_cell({ c: clefsColIdx, r: idx + 1 });
+      inclSheet[cellRef] = {
+        t: 's',
+        v: clefTokens.join(';'), // cached value so programmatic re-import works without Excel
+        f: `_xlfn.TEXTJOIN(";",TRUE,${firstClefColLetter}${excelRow}:${lastClefColLetter}${excelRow})`
+      };
+    });
+    inclSheet['!cols'] = inclHeaders.map((h) => {
+      if (h === 'title_text' || h === 'composer_names') return { wch: 30 };
+      if (h === 'clefs') return { wch: 25 };
+      if (h.startsWith('clef_')) return { wch: 8 };
+      return { wch: 16 };
+    });
+    XLSX.utils.book_append_sheet(wb, inclSheet, 'Inclusions');
 
     const imageRows = imgResult.rows.map((r) => [r.url || '', r.label || '']);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['url', 'label'], ...imageRows]), 'Images');
+
+    // Recalculate the clefs TEXTJOIN formulas when the file opens.
+    wb.Workbook = wb.Workbook || {};
+    wb.Workbook.CalcPr = { fullCalcOnLoad: true };
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     const safeCode = String(s.code || 'source').replace(/[^\w\-]+/g, '_').slice(0, 60);
