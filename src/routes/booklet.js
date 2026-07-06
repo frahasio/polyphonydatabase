@@ -4,7 +4,7 @@ import { lookup } from 'dns/promises';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { requireAuth } from '../middleware/auth.js';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 const router = express.Router();
 
@@ -219,6 +219,33 @@ router.post('/pdf', requireAuth, async (req, res) => {
       finalDoc.setCreator('Polyphony Database — Liturgy booklet');
       const editionCache = {};
 
+      // Content pages carry their page numbers in the rendered HTML; merged
+      // edition pages need theirs stamped here to keep one sequence.
+      const pnPosition = typeof req.body.pageNumbersPosition === 'string' &&
+        ['footer-center', 'footer-outer', 'header-center', 'header-outer'].includes(req.body.pageNumbersPosition)
+        ? req.body.pageNumbersPosition
+        : null;
+      const pnFont = pnPosition ? await finalDoc.embedFont(StandardFonts.TimesRoman) : null;
+      const PN_SIZE = 11; // ≈ 9pt visual weight of the HTML stamp
+      const PN_EDGE = 28; // ~10 mm in PDF points
+
+      function stampEditionPageNumber(page, pageNumber) {
+        if (!pnFont || !Number.isInteger(pageNumber)) return;
+        const { width, height } = page.getSize();
+        const text = String(pageNumber);
+        const textWidth = pnFont.widthOfTextAtSize(text, PN_SIZE);
+        const isFooter = pnPosition.startsWith('footer');
+        const y = isFooter ? PN_EDGE - PN_SIZE / 2 : height - PN_EDGE;
+        let x;
+        if (pnPosition.endsWith('center')) {
+          x = (width - textWidth) / 2;
+        } else {
+          // Outer edge: odd numbers recto (right), even verso (left).
+          x = pageNumber % 2 === 1 ? width - PN_EDGE - textWidth : PN_EDGE;
+        }
+        page.drawText(text, { x, y, size: PN_SIZE, font: pnFont, color: rgb(0.2, 0.2, 0.2) });
+      }
+
       for (const entry of manifest) {
         if (entry.type === 'content') {
           const idx = Number(entry.puppeteerPageIndex);
@@ -239,7 +266,8 @@ router.post('/pdf', requireAuth, async (req, res) => {
             const pageIdx = Math.max(0, (parseInt(entry.pdfPage, 10) || 1) - 1);
             if (pageIdx < editionDoc.getPageCount()) {
               const [copied] = await finalDoc.copyPages(editionDoc, [pageIdx]);
-              finalDoc.addPage(copied);
+              const added = finalDoc.addPage(copied);
+              stampEditionPageNumber(added, parseInt(entry.pageNumber, 10));
             }
           } catch (edErr) {
             console.warn('booklet pdf: edition page merge failed for', entry.url, edErr.message);

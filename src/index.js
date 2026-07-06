@@ -2,7 +2,7 @@ import express from 'express';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { pool, runMigrations } from './db.js';
-import { requireAuthWeb, requirePermission } from './middleware/auth.js';
+import { requireAuthWeb, requirePermission, requirePermissionWeb } from './middleware/auth.js';
 import sourcesRouter from './routes/sources.js';
 import composersRouter from './routes/composers.js';
 import editorsRouter from './routes/editors.js';
@@ -79,7 +79,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).send());
 app.use('/api/auth', authRouter);
 
 // Liturgy booklet (requires booklet_creator permission)
-app.get('/booklet', requireAuthWeb, requirePermission('booklet_creator'), (req, res) => {
+app.get('/booklet', requireAuthWeb, requirePermissionWeb('booklet_creator'), (req, res) => {
   res.sendFile('modules/liturgy-booklet/index.html', { root: 'public' });
 });
 

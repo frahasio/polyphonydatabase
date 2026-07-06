@@ -359,6 +359,20 @@
             display: flex;
             flex-direction: column;
         }
+        /* Page numbers: absolutely positioned inside the margin band so they
+           never affect pagination. Position variants set inline from JS. */
+        .booklet-page-number {
+            position: absolute;
+            font-size: 9pt;
+            line-height: 1;
+            color: #333;
+            z-index: 3;
+        }
+        .booklet-page-number--center {
+            left: 0;
+            right: 0;
+            text-align: center;
+        }
         .booklet-page[data-size="A4"] {
             width: 210mm;
             height: 297mm;
@@ -973,6 +987,25 @@
                         <input type="number" id="inpMarginRight" class="form-control form-control-sm" style="width:4.5rem" min="4" max="50" step="1" value="16">
                     </label>
                     <div class="vr"></div>
+                    <label class="d-flex flex-column gap-0" title="Print page numbers on every page. 'Outer' places them on the outside edge of each page for double-sided booklets.">
+                        <span>Page numbers</span>
+                        <select id="selPageNumbers" class="form-select form-select-sm" style="width:auto">
+                            <option value="off">Off</option>
+                            <option value="footer-center">Bottom centre</option>
+                            <option value="footer-outer">Bottom outer</option>
+                            <option value="header-center">Top centre</option>
+                            <option value="header-outer">Top outer</option>
+                        </select>
+                    </label>
+                    <label class="d-flex flex-column gap-0" title="The number printed on the first page (useful when the booklet continues from other material).">
+                        <span>First number</span>
+                        <input type="number" id="inpPageNumberStart" class="form-control form-control-sm" style="width:4rem" min="1" max="999" step="1" value="1">
+                    </label>
+                    <div class="form-check d-flex align-items-end mb-0" title="Leave the first page unnumbered (e.g. a cover), numbering continues from the second page.">
+                        <input class="form-check-input" type="checkbox" id="chkPageNumberSkipFirst">
+                        <label class="form-check-label small ms-1" for="chkPageNumberSkipFirst">No nº on first</label>
+                    </div>
+                    <div class="vr"></div>
                     <label class="d-flex flex-column gap-0">
                         <span>Section gap (mm)</span>
                         <input type="number" id="inpSectionGap" class="form-control form-control-sm" style="width:4.5rem" min="0" max="40" step="1" value="8">
@@ -1012,11 +1045,13 @@
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="reading"><i class="bi bi-text-paragraph me-2"></i>Text</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="title"><i class="bi bi-text-center me-2"></i>Title rule</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="chant_gabc"><i class="bi bi-music-note-beamed me-2"></i>Chant (GABC)</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="abc_notation"><i class="bi bi-music-note-list me-2"></i>Music (ABC notation)</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="image"><i class="bi bi-image me-2"></i>Image</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="edition_pdf"><i class="bi bi-file-earmark-pdf me-2"></i>Polyphony edition PDF</button></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="page_break"><i class="bi bi-file-earmark-break me-2"></i>Force page break</button></li>
                         <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="spacer"><i class="bi bi-arrows-expand me-2"></i>Vertical spacer</button></li>
+                        <li><button type="button" class="dropdown-item sidebar-add-btn" data-add-type="hr"><i class="bi bi-hr me-2"></i>Horizontal rule</button></li>
                 </ul>
             </div>
             <div id="blockList"></div>

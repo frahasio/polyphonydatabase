@@ -124,6 +124,9 @@
       previewDisplay: 'scroll',
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
+      pageNumbers: 'off',
+      pageNumberStart: 1,
+      pageNumberSkipFirst: false,
     },
     blocks: [],
   };
@@ -150,9 +153,66 @@
         previewDisplay: 'scroll',
         fontFamilyKey: BOOKLET_DEFAULT_FONT,
         rubricColor: '#8b1538',
+        pageNumbers: 'off',
+        pageNumberStart: 1,
+        pageNumberSkipFirst: false,
       },
       blocks: [],
     };
+  }
+
+  var PAGE_NUMBER_POSITIONS = ['off', 'footer-center', 'footer-outer', 'header-center', 'header-outer'];
+
+  function getPageNumberConfig() {
+    var pos = String(state.settings.pageNumbers || 'off');
+    if (PAGE_NUMBER_POSITIONS.indexOf(pos) < 0) pos = 'off';
+    var start = parseInt(state.settings.pageNumberStart, 10);
+    if (!Number.isFinite(start) || start < 1) start = 1;
+    return {
+      position: pos,
+      start: start,
+      skipFirst: !!state.settings.pageNumberSkipFirst,
+    };
+  }
+
+  /**
+   * The number printed on page pageIdx (0-based), or null when numbering is
+   * off / suppressed for that page. Shared by the preview stamp and the PDF
+   * manifest so edition pages merged server-side get the same sequence.
+   */
+  function pageNumberFor(pageIdx) {
+    var cfg = getPageNumberConfig();
+    if (cfg.position === 'off') return null;
+    if (cfg.skipFirst && pageIdx === 0) return null;
+    return cfg.start + pageIdx;
+  }
+
+  /** Stamp .booklet-page-number divs onto rendered pages (preview + export HTML). */
+  function applyPageNumbers(pageDivs) {
+    var cfg = getPageNumberConfig();
+    pageDivs.forEach(function (page) {
+      var old = page.querySelector('.booklet-page-number');
+      if (old) old.remove();
+    });
+    if (cfg.position === 'off') return;
+    var isFooter = cfg.position.indexOf('footer') === 0;
+    var isCenter = cfg.position.indexOf('center') > 0;
+    var vMarginMm = isFooter ? getBookletMarginBottomMm() : getBookletMarginTopMm();
+    var vOffsetMm = Math.max(2, Math.round(vMarginMm / 2) - 2);
+    var sideMm = Math.max(6, getBookletMarginLeftMm());
+    pageDivs.forEach(function (page, idx) {
+      var n = pageNumberFor(idx);
+      if (n == null) return;
+      var el = document.createElement('div');
+      el.className = 'booklet-page-number' + (isCenter ? ' booklet-page-number--center' : '');
+      el.textContent = String(n);
+      el.style[isFooter ? 'bottom' : 'top'] = vOffsetMm + 'mm';
+      if (!isCenter) {
+        // Outer edge: odd page numbers sit recto (right), even verso (left).
+        el.style[n % 2 === 1 ? 'right' : 'left'] = sideMm + 'mm';
+      }
+      page.appendChild(el);
+    });
   }
 
   function hasUnsavedWork() {
@@ -1791,6 +1851,13 @@
     syncNum('inpMarginLeft', 'marginLeftMm', DEFAULT_BOOKLET_MARGIN_MM);
     syncNum('inpMarginRight', 'marginRightMm', DEFAULT_BOOKLET_MARGIN_MM);
     syncNum('inpSectionGap', 'sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
+    var pnCfg = getPageNumberConfig();
+    var pnSel = document.getElementById('selPageNumbers');
+    if (pnSel) pnSel.value = pnCfg.position;
+    var pnStart = document.getElementById('inpPageNumberStart');
+    if (pnStart) pnStart.value = String(pnCfg.start);
+    var pnSkip = document.getElementById('chkPageNumberSkipFirst');
+    if (pnSkip) pnSkip.checked = pnCfg.skipFirst;
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
@@ -3490,6 +3557,7 @@
       });
 
       appendCreditsFooterToLastPage(pageDivs);
+      applyPageNumbers(pageDivs);
 
       exportPageElements = pageDivs;
 
@@ -5137,13 +5205,22 @@
     var manifest = [];
     var contentPages = [];
     var puppeteerIdx = 0;
+    var pnConfig = getPageNumberConfig();
     for (var i = 0; i < pages.length; i++) {
       var p = pages[i];
       if (p.classList.contains('booklet-page--pdf-full')) {
         var body = p.querySelector('.booklet-page-body');
         var unit = body && body.querySelector('.booklet-pdf-page-unit[data-edition-url]');
         if (unit) {
-          manifest.push({ type: 'edition', url: unit.dataset.editionUrl, pdfPage: parseInt(unit.dataset.editionPage, 10) || 1 });
+          // Content pages carry their number in the rendered HTML; edition
+          // pages are merged from external PDFs server-side, so the server
+          // stamps these numbers with pdf-lib.
+          manifest.push({
+            type: 'edition',
+            url: unit.dataset.editionUrl,
+            pdfPage: parseInt(unit.dataset.editionPage, 10) || 1,
+            pageNumber: pageNumberFor(i),
+          });
         } else {
           contentPages.push(p);
           manifest.push({ type: 'content', puppeteerPageIndex: puppeteerIdx++ });
@@ -5154,7 +5231,7 @@
       }
     }
     var html = buildBookletServerPdfHtml(contentPages);
-    return { html: html, manifest: manifest };
+    return { html: html, manifest: manifest, pageNumbersPosition: pnConfig.position };
   }
 
   async function downloadPdf() {
@@ -5168,7 +5245,13 @@
       var mh = buildPdfManifestAndHtml(pages);
       var r = await fetch('/api/booklet/pdf', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ html: mh.html, pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4', manifest: mh.manifest, title: state.projectTitle || '' }),
+        body: JSON.stringify({
+          html: mh.html,
+          pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
+          manifest: mh.manifest,
+          pageNumbersPosition: mh.pageNumbersPosition,
+          title: state.projectTitle || '',
+        }),
       });
       if (!r.ok) {
         var msg = 'Server PDF export failed (status ' + r.status + ').';
@@ -5337,6 +5420,24 @@
     bindLayoutSetting('inpMarginLeft', 'marginLeftMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
     bindLayoutSetting('inpMarginRight', 'marginRightMm', 4, 50, DEFAULT_BOOKLET_MARGIN_MM);
     bindLayoutSetting('inpSectionGap', 'sectionGapMm', 0, 40, DEFAULT_SECTION_GAP_AFTER_MM);
+    document.getElementById('selPageNumbers')?.addEventListener('change', function (e) {
+      var v = String(e.target.value);
+      state.settings.pageNumbers = PAGE_NUMBER_POSITIONS.indexOf(v) >= 0 ? v : 'off';
+      scheduleAutosave();
+      markLayoutStale();
+    });
+    document.getElementById('inpPageNumberStart')?.addEventListener('change', function (e) {
+      var raw = parseInt(String(e.target.value).trim(), 10);
+      state.settings.pageNumberStart = Number.isFinite(raw) ? Math.min(999, Math.max(1, raw)) : 1;
+      e.target.value = String(state.settings.pageNumberStart);
+      scheduleAutosave();
+      markLayoutStale();
+    });
+    document.getElementById('chkPageNumberSkipFirst')?.addEventListener('change', function (e) {
+      state.settings.pageNumberSkipFirst = !!e.target.checked;
+      scheduleAutosave();
+      markLayoutStale();
+    });
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);
     bindLayoutSetting('inpMarginTolerance', 'marginTolerancePx', 0, 30, MARGIN_TOLERANCE_PX);
     bindLayoutSetting('inpOrphanLines', 'minOrphanLines', 1, 10, 3);
