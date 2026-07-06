@@ -1,3 +1,8 @@
+// NOTE: this ~5,500-line file is a candidate for decomposition (state/store,
+// migrate, renderers, paginator, pdf export, ui) + undo, but it is a complex
+// renderer with no tests - split incrementally and keep the v8 project
+// schema. Known rough edges: silent localStorage-quota autosave failure with
+// big base64 images; one Chrome per PDF request (no queue). See AGENTS.md.
 (function () {
   'use strict';
 

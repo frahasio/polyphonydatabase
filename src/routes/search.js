@@ -1,3 +1,7 @@
+// NOTE: the main group search below is a correlated-subquery wall (~10+
+// subqueries per result row). A query-builder + two-phase hydration would be
+// faster, but this is the public-facing core with no test suite - rebuild
+// incrementally while touching it, not as a big-bang. See AGENTS.md.
 import express from 'express';
 import { pool } from '../db.js';
 import { CLEF_DISPLAY_ORDER } from '../constants.js';
