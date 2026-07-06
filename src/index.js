@@ -16,6 +16,7 @@ import bookletApiRouter from './routes/booklet.js';
 import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
 import adminUsersRouter from './routes/adminUsers.js';
+import suggestionsRouter from './routes/suggestions.js';
 import importRouter from './routes/import.js';
 import path from 'path';
 
@@ -183,6 +184,7 @@ app.use('/api/admin/scribes', requireAuthWeb, requirePermission('catalogue'), sc
 app.use('/api/admin/functions', requireAuthWeb, requirePermission('catalogue'), functionsRouter);
 app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), groupsRouter);
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
+app.use('/api/admin/suggestions', requireAuthWeb, requirePermission('catalogue'), suggestionsRouter);
 // User management (guards itself with requireAdmin → JSON 401/403, no redirects)
 app.use('/api/admin', adminUsersRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);

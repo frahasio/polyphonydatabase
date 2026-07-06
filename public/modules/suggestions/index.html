@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Queue - Polyphony Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .suggestion-card { border-left: 4px solid #0d6efd; }
+        .suggestion-card.kind-title_function { border-left-color: #6f42c1; }
+        .suggestion-card.kind-recording_youtube { border-left-color: #dc3545; }
+        .suggestion-card.kind-recording_spotify { border-left-color: #198754; }
+        .score-badge { min-width: 3.2rem; }
+        .payload-detail { font-size: 0.85rem; }
+        .yt-embed { width: 100%; max-width: 480px; aspect-ratio: 16/9; border: 0; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h1 class="mb-0">Review queue</h1>
+            <div class="btn-group btn-group-sm" id="kindFilter">
+                <button type="button" class="btn btn-outline-secondary active" data-kind="">All</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="title_function">Title functions</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
+            </div>
+        </div>
+        <p class="text-muted small">
+            Automatically matched suggestions awaiting a human decision. <strong>Accept</strong> writes the
+            link to the catalogue, <strong>Reject</strong> hides it permanently, <strong>Skip</strong> leaves it for later.
+            Nothing is applied without your say-so.
+        </p>
+
+        <div id="pendingSummary" class="mb-3"></div>
+        <div id="loading" class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+        <div id="queue" style="display:none"></div>
+        <div id="emptyState" class="text-center text-muted py-5" style="display:none">
+            <i class="bi bi-check2-circle" style="font-size:2rem"></i>
+            <p class="mt-2">Nothing waiting for review. The daily matcher will top this up as it works through the catalogue.</p>
+        </div>
+    </div>
+
+    <script>
+        let currentKind = '';
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function safeUrl(value) {
+            const s = String(value || '').trim();
+            return /^https?:\/\//i.test(s) ? escapeHtml(s) : '';
+        }
+
+        function youtubeEmbedUrl(url) {
+            const m = String(url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,20})/);
+            return m ? 'https://www.youtube.com/embed/' + m[1] : '';
+        }
+
+        function payloadHtml(s) {
+            const p = s.payload || {};
+            if (s.kind === 'title_function') {
+                const feasts = (p.feasts || []).map(escapeHtml).join('; ');
+                const genres = (p.genres || []).map(escapeHtml).join(', ');
+                return `
+                    <div class="payload-detail">
+                        <div><strong>Proposed function:</strong>
+                            <span class="badge bg-primary">${escapeHtml(p.function_name)}</span>
+                            <span class="text-muted ms-2">${p.concordances || 0} of ${p.total_results || 0} Cantus concordances</span>
+                        </div>
+                        ${feasts ? `<div class="text-muted">Cantus feasts: ${feasts}</div>` : ''}
+                        ${genres ? `<div class="text-muted">Genres: ${genres}</div>` : ''}
+                        ${p.cantus_id ? `<div><a href="https://cantusindex.org/id/${encodeURIComponent(p.cantus_id)}" target="_blank" rel="noopener">Cantus ID ${escapeHtml(p.cantus_id)} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
+                    </div>`;
+            }
+            // Recording suggestions: show source line + inline preview
+            const url = safeUrl(p.url);
+            const embed = s.kind === 'recording_youtube' ? youtubeEmbedUrl(p.url) : '';
+            return `
+                <div class="payload-detail">
+                    <div><strong>${escapeHtml(p.track_title || p.video_title || 'Recording')}</strong>
+                        ${p.performer_name ? ` — ${escapeHtml(p.performer_name)}` : ''}
+                        ${p.duration ? ` <span class="text-muted">(${escapeHtml(p.duration)})</span>` : ''}
+                    </div>
+                    ${url ? `<div><a href="${url}" target="_blank" rel="noopener">${url} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
+                    ${embed ? `<iframe class="yt-embed mt-2" loading="lazy" src="${escapeHtml(embed)}" allowfullscreen></iframe>` : ''}
+                </div>`;
+        }
+
+        function contextHtml(s) {
+            if (s.kind === 'title_function') {
+                return `<span class="fw-semibold">${escapeHtml(s.title_text || '(title missing)')}</span>`;
+            }
+            return `<span class="fw-semibold">${escapeHtml(s.group_title || '(group missing)')}</span>
+                    ${s.group_composers ? `<span class="text-muted"> — ${escapeHtml(s.group_composers)}</span>` : ''}`;
+        }
+
+        async function load() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('queue').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            try {
+                const params = new URLSearchParams({ status: 'pending', limit: 25 });
+                if (currentKind) params.set('kind', currentKind);
+                const res = await fetch('/api/admin/suggestions?' + params.toString(), { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load suggestions (' + res.status + ')');
+                const data = await res.json();
+                renderSummary(data.pendingCounts || {});
+                renderQueue(data.suggestions || []);
+            } catch (e) {
+                document.getElementById('queue').style.display = 'block';
+                document.getElementById('queue').innerHTML =
+                    '<div class="alert alert-danger">' + escapeHtml(e.message) + '</div>';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderSummary(counts) {
+            const labels = {
+                title_function: 'title functions',
+                recording_youtube: 'YouTube recordings',
+                recording_spotify: 'Spotify recordings'
+            };
+            const parts = Object.entries(counts)
+                .map(([k, n]) => `<span class="badge bg-secondary me-2">${n} ${escapeHtml(labels[k] || k)}</span>`);
+            document.getElementById('pendingSummary').innerHTML =
+                parts.length ? 'Waiting: ' + parts.join('') : '';
+        }
+
+        function renderQueue(items) {
+            const queue = document.getElementById('queue');
+            if (!items.length) {
+                document.getElementById('emptyState').style.display = 'block';
+                queue.style.display = 'none';
+                return;
+            }
+            queue.style.display = 'block';
+            queue.innerHTML = items.map(s => `
+                <div class="card suggestion-card kind-${escapeHtml(s.kind)} mb-3" id="suggestion-${s.id}">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div class="flex-grow-1">
+                                <div class="mb-1">${contextHtml(s)}</div>
+                                ${payloadHtml(s)}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-light text-dark score-badge mb-2" title="Match confidence">${Math.round((s.score || 0) * 100)}%</span>
+                                <div class="btn-group btn-group-sm d-block">
+                                    <button class="btn btn-success" onclick="review(${s.id}, 'accept')" title="Apply to the catalogue"><i class="bi bi-check-lg"></i> Accept</button>
+                                    <button class="btn btn-outline-danger" onclick="review(${s.id}, 'reject')" title="Never show again"><i class="bi bi-x-lg"></i> Reject</button>
+                                    <button class="btn btn-outline-secondary" onclick="review(${s.id}, 'skip')" title="Decide later"><i class="bi bi-arrow-right"></i> Skip</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function review(id, action) {
+            const card = document.getElementById('suggestion-' + id);
+            if (card) card.style.opacity = '0.5';
+            try {
+                const res = await fetch(`/api/admin/suggestions/${id}/${action}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Action failed');
+                }
+                if (card) card.remove();
+                if (!document.querySelector('.suggestion-card')) load();
+            } catch (e) {
+                if (card) card.style.opacity = '1';
+                alert('Error: ' + e.message);
+            }
+        }
+
+        document.querySelectorAll('#kindFilter button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#kindFilter button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentKind = btn.dataset.kind;
+                load();
+            });
+        });
+
+        load();
+    </script>
+    <script src="/js/admin-layout.js"></script>
+</body>
+</html>
