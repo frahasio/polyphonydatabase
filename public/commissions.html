@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commission an edition - Polyphony Database</title>
+    <script src="/js/dom-utils.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+    <div class="container py-5" style="max-width: 640px;">
+        <div class="mb-4">
+            <a href="/" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Back to the database</a>
+        </div>
+        <h1 class="h3 mb-3">Commission an edition</h1>
+        <p class="text-muted">
+            Tell us what you'd like edited and any requirements (for example, a transposition for your choir).
+            This is just an enquiry — we'll email you an agreed price before any payment is taken.
+        </p>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div id="message"></div>
+                <form id="enquiryForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Your name</label>
+                        <input type="text" class="form-control" id="name" maxlength="200" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" maxlength="200" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="piece" class="form-label">What would you like edited?</label>
+                        <input type="text" class="form-control" id="piece" maxlength="2000" placeholder="e.g. Victoria — O magnum mysterium" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="requirements" class="form-label">Requirements / comments <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control" id="requirements" rows="4" maxlength="4000" placeholder="e.g. Please transpose down a tone for my choir; SATB; modern clefs."></textarea>
+                    </div>
+                    <input type="hidden" id="group_id">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Send enquiry</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Optional deep link: /commissions?group_id=123&piece=...
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('group_id')) document.getElementById('group_id').value = params.get('group_id');
+        if (params.get('piece')) document.getElementById('piece').value = params.get('piece');
+
+        const form = document.getElementById('enquiryForm');
+        const messageDiv = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function showMessage(text, type) {
+            messageDiv.innerHTML = `<div class="alert alert-${type === 'error' ? 'danger' : 'success'}">${escapeHtml(text)}</div>`;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            messageDiv.innerHTML = '';
+            try {
+                const body = {
+                    name: document.getElementById('name').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    piece_description: document.getElementById('piece').value.trim(),
+                    requirements: document.getElementById('requirements').value.trim(),
+                    group_id: document.getElementById('group_id').value || null
+                };
+                const res = await fetch('/api/commissions/enquiry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    form.style.display = 'none';
+                    showMessage(data.message || 'Enquiry received.', 'success');
+                } else {
+                    showMessage(data.error || 'Something went wrong.', 'error');
+                    submitBtn.disabled = false;
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

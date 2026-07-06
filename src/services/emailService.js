@@ -1,5 +1,16 @@
 import nodemailer from 'nodemailer';
 
+// Escape user-supplied text before embedding in notification email HTML.
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Email service for sending password reset emails
 // Force deployment update
 class EmailService {
@@ -574,6 +585,76 @@ class EmailService {
       console.error('Failed to send account rejected email:', error);
       return false;
     }
+  }
+
+  // Generic send helper (used by the commissions module).
+  async sendMail({ to, subject, html }) {
+    if (!this.transporter) {
+      console.error('Email service not configured. Check your environment variables.');
+      return false;
+    }
+    try {
+      const info = await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to,
+        subject,
+        html,
+      });
+      console.log('Email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      return false;
+    }
+  }
+
+  // Notify the admin that a new commission enquiry arrived.
+  async sendCommissionEnquiryAdmin(commission) {
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'polyphonydatabase@gmail.com';
+    const base = process.env.BASE_URL || 'http://localhost:3000';
+    return this.sendMail({
+      to: adminEmail,
+      subject: 'New edition commission enquiry',
+      html: `<p>A new commission enquiry has arrived.</p>
+        <ul>
+          <li><strong>From:</strong> ${esc(commission.commissioner_name)} (${esc(commission.commissioner_email)})</li>
+          <li><strong>Piece:</strong> ${esc(commission.piece_description)}</li>
+          <li><strong>Requirements:</strong> ${esc(commission.requirements) || '—'}</li>
+        </ul>
+        <p><a href="${esc(base)}/admin/commissions">Open the commissions admin</a> to set a price.</p>`,
+    });
+  }
+
+  // Tell the commissioner their offer is ready (with the signed link).
+  async sendCommissionOffer(commission) {
+    const base = process.env.BASE_URL || 'http://localhost:3000';
+    const link = `${base}/commission/${commission.access_token}`;
+    const price = (commission.price_pence / 100).toLocaleString('en-GB', { style: 'currency', currency: commission.currency || 'GBP' });
+    return this.sendMail({
+      to: commission.commissioner_email,
+      subject: 'Your edition commission — price and next steps',
+      html: `<p>Dear ${esc(commission.commissioner_name)},</p>
+        <p>Thank you for your commission enquiry for <strong>${esc(commission.piece_description)}</strong>.</p>
+        <p>We can prepare this edition for <strong>${esc(price)}</strong>.</p>
+        ${commission.admin_note ? `<p>${esc(commission.admin_note)}</p>` : ''}
+        <p>To accept and pay, or to decline, please visit:</p>
+        <p><a href="${esc(link)}">${esc(link)}</a></p>
+        <p>If you'd like to discuss changes first, just reply to this email.</p>`,
+    });
+  }
+
+  // Notify the admin that a commission was paid.
+  async sendCommissionPaidAdmin(commission) {
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || 'polyphonydatabase@gmail.com';
+    const price = (commission.price_pence / 100).toLocaleString('en-GB', { style: 'currency', currency: commission.currency || 'GBP' });
+    return this.sendMail({
+      to: adminEmail,
+      subject: `Commission paid: ${price} — ${commission.piece_description}`,
+      html: `<p>${esc(commission.commissioner_name)} has paid ${esc(price)} for an edition of
+        <strong>${esc(commission.piece_description)}</strong>.</p>
+        <p><strong>Requirements / comments:</strong> ${esc(commission.requirements) || '—'}</p>
+        <p><strong>Contact:</strong> ${esc(commission.commissioner_email)}</p>`,
+    });
   }
 
   // Test the email configuration

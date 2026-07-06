@@ -17,6 +17,8 @@ import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
 import adminUsersRouter from './routes/adminUsers.js';
 import suggestionsRouter from './routes/suggestions.js';
+import commissionsRouter, { getStripe, markCommissionPaid } from './routes/commissions.js';
+import adminCommissionsRouter from './routes/adminCommissions.js';
 import importRouter from './routes/import.js';
 import path from 'path';
 
@@ -53,6 +55,32 @@ app.use(session({
     maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
   }
 }));
+
+// Stripe webhook must see the raw body to verify the signature, so it is
+// mounted BEFORE express.json(). Marks commissions paid on checkout success.
+app.post('/api/commissions/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const stripe = await getStripe();
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!stripe || !secret) return res.status(503).send('Webhook not configured');
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], secret);
+    } catch (err) {
+      console.error('Stripe webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      await markCommissionPaid(event.data.object);
+    }
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Stripe webhook error:', error);
+    res.status(500).send('Webhook handler failed');
+  }
+});
 
 // Middleware
 app.use(express.json({ limit: '25mb' }));
@@ -125,6 +153,17 @@ app.get('/', (req, res) => {
 // Public API routes for search
 app.use('/api/search', searchRouter);
 
+// Public commissions API (enquiry + commissioner actions; no login)
+app.use('/api/commissions', commissionsRouter);
+
+// Public commission pages
+app.get('/commissions', (req, res) => {
+  res.sendFile('commissions.html', { root: 'public' });
+});
+app.get('/commission/:token', (req, res) => {
+  res.sendFile('commission-view.html', { root: 'public' });
+});
+
 // Booklet helpers (requires booklet_creator permission)
 app.use('/api/booklet', requireAuthWeb, requirePermission('booklet_creator'), bookletApiRouter);
 
@@ -163,6 +202,10 @@ app.get('/admin/clef-voicings', requireAuthWeb, (req, res) => {
   res.sendFile('modules/clef-voicings/index.html', { root: 'public' });
 });
 
+app.get('/admin/commissions', requireAuthWeb, (req, res) => {
+  res.sendFile('modules/commissions/index.html', { root: 'public' });
+});
+
 // Admin module pages
 app.get('/admin/sources*', requireAuthWeb, (req, res, next) => {
   req.url = req.url.replace('/admin', '');
@@ -185,7 +228,8 @@ app.use('/api/admin/functions', requireAuthWeb, requirePermission('catalogue'), 
 app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), groupsRouter);
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
 app.use('/api/admin/suggestions', requireAuthWeb, requirePermission('catalogue'), suggestionsRouter);
-// User management (guards itself with requireAdmin → JSON 401/403, no redirects)
+// User management + commissions (guard themselves with requireAdmin → JSON 401/403)
+app.use('/api/admin/commissions', requireAuthWeb, adminCommissionsRouter);
 app.use('/api/admin', adminUsersRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 

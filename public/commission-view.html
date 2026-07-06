@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your commission - Polyphony Database</title>
+    <script src="/js/dom-utils.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+    <div class="container py-5" style="max-width: 640px;">
+        <div id="loading" class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+        <div id="content" style="display:none">
+            <h1 class="h3 mb-3">Your edition commission</h1>
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Piece</dt><dd class="col-sm-8" id="piece"></dd>
+                        <dt class="col-sm-4">Requirements</dt><dd class="col-sm-8" id="requirements"></dd>
+                        <dt class="col-sm-4">Status</dt><dd class="col-sm-8" id="status"></dd>
+                    </dl>
+                    <div id="offerBlock" style="display:none">
+                        <hr>
+                        <p class="mb-1">Agreed price:</p>
+                        <p class="h4" id="price"></p>
+                        <p id="adminNote" class="text-muted"></p>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-success" id="payBtn"><i class="bi bi-credit-card me-1"></i>Accept &amp; pay</button>
+                            <button class="btn btn-outline-secondary" id="declineBtn">Decline</button>
+                        </div>
+                        <p class="text-muted small mt-2">Or reply to our email if you'd like to discuss changes first.</p>
+                    </div>
+                    <div id="statusMessage"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = window.location.pathname.split('/').pop();
+        const params = new URLSearchParams(window.location.search);
+
+        const statusLabels = {
+            enquiry: 'Enquiry received — we\u2019ll email you a price soon',
+            offered: 'Price offered — awaiting your decision',
+            paid: 'Paid — thank you! We\u2019ll be in touch.',
+            declined: 'Declined',
+            cancelled: 'Cancelled'
+        };
+
+        function fmtPrice(pence, currency) {
+            return (pence / 100).toLocaleString('en-GB', { style: 'currency', currency: currency || 'GBP' });
+        }
+
+        async function load() {
+            try {
+                const res = await fetch('/api/commissions/view/' + encodeURIComponent(token));
+                if (!res.ok) throw new Error('Commission not found');
+                const { commission } = await res.json();
+                render(commission);
+            } catch (e) {
+                document.getElementById('loading').innerHTML =
+                    '<div class="alert alert-danger">This commission link is invalid or has expired.</div>';
+            }
+        }
+
+        function render(c) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('piece').textContent = c.piece_description || '';
+            document.getElementById('requirements').textContent = c.requirements || '—';
+            document.getElementById('status').textContent = statusLabels[c.status] || c.status;
+
+            if (params.get('paid') === '1' && c.status !== 'paid') {
+                document.getElementById('statusMessage').innerHTML =
+                    '<div class="alert alert-info mt-3">Your payment is being confirmed — this page will update shortly.</div>';
+            }
+
+            if (c.status === 'offered') {
+                document.getElementById('offerBlock').style.display = 'block';
+                document.getElementById('price').textContent = fmtPrice(c.price_pence, c.currency);
+                document.getElementById('adminNote').textContent = c.admin_note || '';
+            } else if (c.status === 'paid') {
+                document.getElementById('statusMessage').innerHTML =
+                    '<div class="alert alert-success mt-3">Payment received — thank you! We\u2019ll email you about your edition.</div>';
+            }
+        }
+
+        document.getElementById('payBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('payBtn');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/commissions/view/' + encodeURIComponent(token) + '/checkout', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert(data.error || 'Could not start payment.');
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                alert('Network error.');
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('declineBtn').addEventListener('click', async () => {
+            if (!confirm('Decline this commission offer?')) return;
+            try {
+                const res = await fetch('/api/commissions/view/' + encodeURIComponent(token) + '/decline', { method: 'POST' });
+                if (res.ok) load();
+                else alert('Could not decline.');
+            } catch (e) {
+                alert('Network error.');
+            }
+        });
+
+        load();
+    </script>
+</body>
+</html>
