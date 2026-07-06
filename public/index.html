@@ -135,6 +135,21 @@
             background: #8b1538;
             color: white;
         }
+
+        /* Subtle prompt shown only on pieces that have no edition yet. */
+        .commission-link {
+            display: inline-block;
+            margin: 0.2rem 0;
+            font-size: 0.78rem;
+            color: #8b7500;
+            text-decoration: none;
+            opacity: 0.8;
+        }
+        .commission-link:hover {
+            opacity: 1;
+            text-decoration: underline;
+            color: #6b5a00;
+        }
         
         .admin-link {
             color: white;
@@ -475,7 +490,7 @@
                         
                         <p>The database was founded by Francis Bevan in 2014 as an outlet for his editing hobby and is regularly updated by him and a small team of enthusiasts. If you would like to contribute some cataloguing time, recordings or editions, submit corrections, commission an edition or just donate some cash, please get in touch with Francis via email: <a href="mailto:polyphonydatabase@gmail.com">polyphonydatabase@gmail.com</a>.</p>
                         
-                        <p><strong>The best way to help fund the project is to commission performing editions. New editions can be made quickly for as little as £10.</strong></p>
+                        <p><strong>The best way to help fund the project is to <a href="/commissions">commission performing editions</a>. New editions can be made quickly for as little as £10.</strong></p>
                         
                         <hr>
 
@@ -2346,6 +2361,14 @@
                                 ${externalLinkHtml(recording.file_url, `<i class="bi bi-play-circle me-1"></i>${escapeHtml(recording.performer_name) || 'Unknown Performer'}`, 'recording-link')}
                             </div>
                         `).join('')}
+                        ${(group.editions || []).length === 0 ? `
+                            <div class="mt-1">
+                                <a href="/commissions?group_id=${encodeURIComponent(group.id)}&piece=${encodeURIComponent(((group.composer_display && group.composer_display !== 'Anon' ? group.composer_display + ' — ' : '') + (group.display_title || '')).trim())}"
+                                   class="commission-link" title="Request a performing edition of this piece">
+                                    <i class="bi bi-feather me-1"></i>Commission an edition
+                                </a>
+                            </div>
+                        ` : ''}
                     </td>
                     <td>
                         ${(group.function_names || []).map(name => escapeHtml(name)).join(', ')}
