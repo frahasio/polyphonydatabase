@@ -168,7 +168,10 @@ router.post('/:id/:action', async (req, res) => {
         }
       } else if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
         const url = String(payload.url || '').trim();
-        const performerName = String(payload.performer_name || '').trim();
+        // The reviewer may correct the performer name at accept time (the API
+        // guess is often wrong or inconsistently spelt vs existing records).
+        const override = typeof req.body.performer_name === 'string' ? req.body.performer_name.trim() : '';
+        const performerName = (override || String(payload.performer_name || '').trim()).slice(0, 300);
         if (!s.group_id || !url) {
           throw new Error('Suggestion payload missing group/url');
         }

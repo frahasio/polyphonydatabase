@@ -38,6 +38,7 @@
             Nothing is applied without your say-so.
         </p>
 
+        <datalist id="performersDatalist"></datalist>
         <div id="pendingSummary" class="mb-3"></div>
         <div id="loading" class="text-center py-5">
             <div class="spinner-border text-primary"></div>
@@ -128,11 +129,14 @@
             return `
                 <div class="payload-detail">
                     <div><strong>${escapeHtml(p.track_title || p.video_title || 'Recording')}</strong>
-                        ${p.performer_name ? ` — ${escapeHtml(p.performer_name)}` : ''}
                         ${p.duration ? ` <span class="text-muted">(${escapeHtml(p.duration)})</span>` : ''}
                     </div>
                     ${url ? `<div><a href="${url}" target="_blank" rel="noopener">${url} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
                     ${embedHtml}
+                    <div class="mt-2" style="max-width:480px">
+                        <label class="form-label small mb-1" for="perf-${s.id}">Performer (saved on accept — correct spelling / match an existing one)</label>
+                        <input type="text" class="form-control form-control-sm" id="perf-${s.id}" list="performersDatalist" value="${escapeHtml(p.performer_name || '')}" placeholder="Performer / ensemble name">
+                    </div>
                 </div>`;
         }
 
@@ -162,7 +166,22 @@
                     ${editionsHtml(s.editions)}`;
         }
 
+        let performersLoaded = false;
+        async function loadPerformersDatalist() {
+            if (performersLoaded) return;
+            performersLoaded = true;
+            try {
+                const res = await fetch('/api/admin/performers', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                const dl = document.getElementById('performersDatalist');
+                dl.innerHTML = (data.performers || [])
+                    .map(p => `<option value="${escapeHtml(p.name)}"></option>`).join('');
+            } catch (e) { /* autocomplete is a nicety; ignore failures */ }
+        }
+
         async function load() {
+            loadPerformersDatalist();
             document.getElementById('loading').style.display = 'block';
             document.getElementById('queue').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
@@ -228,10 +247,19 @@
         async function review(id, action) {
             const card = document.getElementById('suggestion-' + id);
             if (card) card.style.opacity = '0.5';
+            // On accept, send the (possibly corrected) performer name for
+            // recording suggestions.
+            let body = null;
+            const perfInput = document.getElementById('perf-' + id);
+            if (action === 'accept' && perfInput) {
+                body = JSON.stringify({ performer_name: perfInput.value.trim() });
+            }
             try {
                 const res = await fetch(`/api/admin/suggestions/${id}/${action}`, {
                     method: 'POST',
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                    body: body || undefined
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
