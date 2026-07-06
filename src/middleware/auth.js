@@ -1,33 +1,49 @@
-import jwt from 'jsonwebtoken';
 import { pool, ensureUserPermissions } from '../db.js';
 
-// Refuse to run in production with a guessable secret.
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in production');
-}
-const JWT_SECRET = process.env.JWT_SECRET || 'insecure-dev-only-jwt-secret';
+// Session-based authentication: the server-side session (PostgreSQL-backed)
+// is the single credential. req.session.userId is set at login and cleared
+// by logout / password reset. No tokens are issued to the client.
 
-// Middleware to require authentication
+// Load the session's user. Returns null when not logged in or not approved.
+async function getSessionUser(req) {
+  const userId = req.session?.userId;
+  if (!userId) return null;
+  const user = await getUserById(userId);
+  if (!user || user.status !== 'approved') return null;
+  return user;
+}
+
+// Middleware to require authentication (JSON APIs)
 export const requireAuth = async (req, res, next) => {
   try {
-    const token = req.session?.token || req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
+    const user = await getSessionUser(req);
+    if (!user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await getUserById(decoded.userId);
-    
-    if (!user || user.status !== 'approved') {
-      return res.status(401).json({ error: 'Account not approved or invalid' });
-    }
-
     req.user = user;
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+};
+
+// Middleware for web pages: redirects to login instead of returning JSON
+export const requireAuthWeb = async (req, res, next) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) {
+      if (req.session?.userId) {
+        // Session references a missing/unapproved user — drop it.
+        req.session.destroy(() => {});
+      }
+      return res.redirect('/admin/login');
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.redirect('/admin/login');
   }
 };
 
@@ -40,31 +56,6 @@ export const requireAdmin = (req, res, next) => {
     }
     next();
   });
-};
-
-// Middleware to redirect to login page for web routes
-export const requireAuthWeb = async (req, res, next) => {
-  try {
-    const token = req.session?.token;
-    
-    if (!token) {
-      return res.redirect('/admin/login');
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await getUserById(decoded.userId);
-    
-    if (!user || user.status !== 'approved') {
-      req.session.destroy();
-      return res.redirect('/admin/login');
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    req.session.destroy();
-    return res.redirect('/admin/login');
-  }
 };
 
 // Middleware to require a specific permission (admins bypass)
@@ -117,12 +108,7 @@ async function getUserById(id) {
   }
 }
 
-// Generate JWT token
-export function generateToken(userId) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '365d' });
-}
-
 // Check if user account is locked
 export function isAccountLocked(user) {
   return user.locked_until && new Date(user.locked_until) > new Date();
-} 
+}

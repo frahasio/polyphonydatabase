@@ -135,7 +135,7 @@
 
             input.disabled = true;
             try {
-                var res = await fetch('/api/auth/admin/users/' + userId + '/permissions', {
+                var res = await fetch('/api/admin/users/' + userId + '/permissions', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -161,7 +161,7 @@
 
         async function loadUsers() {
             try {
-                var res = await fetch('/api/auth/admin/users', { credentials: 'include' });
+                var res = await fetch('/api/admin/users', { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to load users');
                 var data = await res.json();
                 usersCache = (data.users || []).filter(function(u) {

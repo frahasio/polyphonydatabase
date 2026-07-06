@@ -215,7 +215,7 @@
 
         async function loadUsers() {
             try {
-                const response = await fetch('/api/auth/admin/users');
+                const response = await fetch('/api/admin/users', { credentials: 'include' });
                 if (response.ok) {
                     const data = await response.json();
                     allUsers = data.users;
@@ -275,9 +275,10 @@
             if (!confirm(`Are you sure you want to ${status} this user?`)) return;
 
             try {
-                const response = await fetch(`/api/auth/admin/users/${userId}/status`, {
+                const response = await fetch(`/api/admin/users/${userId}/status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ status })
                 });
 

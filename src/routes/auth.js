@@ -4,7 +4,7 @@ import validator from 'validator';
 import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { pool } from '../db.js';
-import { generateToken, isAccountLocked, requireAuth, requireAdmin } from '../middleware/auth.js';
+import { isAccountLocked, requireAuth } from '../middleware/auth.js';
 import { ensureUserPermissions } from '../db.js';
 import emailService from '../services/emailService.js';
 
@@ -182,22 +182,23 @@ router.post('/login', loginLimiter, async (req, res) => {
       [user.id]
     );
 
-    // Generate token
-    const token = generateToken(user.id);
-
-    // Store token in session
-    req.session.token = token;
-    req.session.userId = user.id;
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+    // Regenerate the session id at login (prevents session fixation), then
+    // record the user. The session cookie is the only credential.
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('Session regenerate error:', err);
+        return res.status(500).json({ error: 'Internal server error during login' });
       }
+      req.session.userId = user.id;
+      res.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      });
     });
 
   } catch (error) {
@@ -219,38 +220,23 @@ router.post('/logout', (req, res) => {
 
 // Check authentication status (no authentication required)
 router.get('/status', (req, res) => {
-  // Check if user has a valid session token
-  const authenticated = !!(req.session?.token && req.session?.userId);
+  const authenticated = !!req.session?.userId;
   res.json({ authenticated });
 });
 
-// Refresh token endpoint - extends session without requiring re-login
-router.post('/refresh', requireAuth, async (req, res) => {
-  try {
-    // Generate new token
-    const newToken = generateToken(req.user.id);
-    
-    // Update session with new token
-    req.session.token = newToken;
-    req.session.userId = req.user.id;
-    
-    // Touch the session to extend its expiration
-    req.session.touch();
-    
-    res.json({
-      message: 'Token refreshed successfully',
-      token: newToken,
-      user: {
-        id: req.user.id,
-        email: req.user.email,
-        name: req.user.name,
-        role: req.user.role
-      }
-    });
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({ error: 'Internal server error during token refresh' });
-  }
+// Extend the session without requiring re-login (kept for older clients;
+// sessions no longer carry tokens)
+router.post('/refresh', requireAuth, (req, res) => {
+  req.session.touch();
+  res.json({
+    message: 'Session refreshed successfully',
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      role: req.user.role
+    }
+  });
 });
 
 // Get current user info (including permissions)
@@ -415,289 +401,4 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   }
 });
 
-// Admin: Get all users
-router.get('/admin/users', requireAdmin, async (req, res) => {
-  try {
-    const { status, page = 1, limit = 50 } = req.query;
-    const offset = (page - 1) * limit;
-
-    let whereClause = '';
-    const params = [limit, offset];
-    
-    if (status && ['pending', 'approved', 'rejected', 'suspended'].includes(status)) {
-      whereClause = 'WHERE u.status = $3';
-      params.push(status);
-    }
-
-    const result = await pool.query(`
-      SELECT u.id, u.email, u.name, u.status, u.role, u.created_at, u.last_login, u.login_attempts,
-             COALESCE(p.catalogue, true) AS perm_catalogue,
-             COALESCE(p.booklet_creator, false) AS perm_booklet_creator,
-             COALESCE(p.import_source, false) AS perm_import_source
-      FROM users u
-      LEFT JOIN user_permissions p ON p.user_id = u.id
-      ${whereClause}
-      ORDER BY u.created_at DESC 
-      LIMIT $1 OFFSET $2
-    `, params);
-
-    const countWhereClause = status ? 'WHERE status = $1' : '';
-    const countResult = await pool.query(`
-      SELECT COUNT(*) as total FROM users ${countWhereClause}
-    `, status ? [status] : []);
-
-    const total = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(total / limit);
-
-    const users = result.rows.map(row => ({
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      status: row.status,
-      role: row.role,
-      created_at: row.created_at,
-      last_login: row.last_login,
-      login_attempts: row.login_attempts,
-      permissions: {
-        catalogue: row.perm_catalogue,
-        booklet_creator: row.perm_booklet_creator,
-        import_source: row.perm_import_source
-      }
-    }));
-
-    res.json({
-      users,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
-
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Admin: Update user status
-router.put('/admin/users/:id/status', requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!['pending', 'approved', 'rejected', 'suspended'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
-    }
-
-    // Don't allow changing own status
-    if (parseInt(id) === req.user.id) {
-      return res.status(400).json({ error: 'Cannot change your own status' });
-    }
-
-    // Get current user details before updating
-    const currentUserResult = await pool.query(
-      'SELECT email, name, status FROM users WHERE id = $1',
-      [id]
-    );
-
-    if (currentUserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const currentUser = currentUserResult.rows[0];
-    const previousStatus = currentUser.status;
-
-    // Update user status
-    const result = await pool.query(
-      'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, email, name, status',
-      [status, id]
-    );
-
-    const updatedUser = result.rows[0];
-
-    // Send email notification if status changed
-    if (previousStatus !== status) {
-      let emailSent = false;
-      
-             switch (status) {
-         case 'approved':
-           // Check if this is a reactivation (from suspended to approved)
-           const isReactivation = previousStatus === 'suspended';
-           emailSent = await emailService.sendAccountApprovedEmail(updatedUser.email, updatedUser.name, isReactivation);
-           if (emailSent) {
-             const emailType = isReactivation ? 'reactivated' : 'approved';
-             console.log(`Account ${emailType} email sent to ${updatedUser.email}`);
-           } else {
-             console.error(`Failed to send account approved email to ${updatedUser.email}`);
-           }
-           break;
-          
-        case 'suspended':
-          emailSent = await emailService.sendAccountSuspendedEmail(updatedUser.email, updatedUser.name);
-          if (emailSent) {
-            console.log(`Account suspended email sent to ${updatedUser.email}`);
-          } else {
-            console.error(`Failed to send account suspended email to ${updatedUser.email}`);
-          }
-          break;
-          
-        case 'rejected':
-          emailSent = await emailService.sendAccountRejectedEmail(updatedUser.email, updatedUser.name);
-          if (emailSent) {
-            console.log(`Account rejected email sent to ${updatedUser.email}`);
-          } else {
-            console.error(`Failed to send account rejected email to ${updatedUser.email}`);
-          }
-          break;
-          
-        default:
-          // No email for 'pending' status
-          break;
-      }
-    }
-
-    res.json({
-      message: `User status updated to ${status}`,
-      user: updatedUser
-    });
-
-  } catch (error) {
-    console.error('Update user status error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Admin: Update user role
-router.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role } = req.body;
-
-    if (!['user', 'admin'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    // Don't allow changing own role
-    if (parseInt(id) === req.user.id) {
-      return res.status(400).json({ error: 'Cannot change your own role' });
-    }
-
-    const result = await pool.query(
-      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, name, role',
-      [role, id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
-      message: `User role updated to ${role}`,
-      user: result.rows[0]
-    });
-
-  } catch (error) {
-    console.error('Update user role error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Admin: Update user permissions
-router.put('/admin/users/:id/permissions', requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { catalogue, booklet_creator, import_source } = req.body;
-
-    if (typeof catalogue !== 'boolean' || typeof booklet_creator !== 'boolean' || typeof import_source !== 'boolean') {
-      return res.status(400).json({ error: 'catalogue, booklet_creator, and import_source must be booleans' });
-    }
-
-    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    await ensureUserPermissions(parseInt(id));
-
-    await pool.query(
-      `UPDATE user_permissions
-       SET catalogue = $1, booklet_creator = $2, import_source = $3,
-           updated_at = NOW(), updated_by = $4
-       WHERE user_id = $5`,
-      [catalogue, booklet_creator, import_source, req.user.id, id]
-    );
-
-    res.json({
-      message: 'Permissions updated',
-      permissions: { catalogue, booklet_creator, import_source }
-    });
-
-  } catch (error) {
-    console.error('Update permissions error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// SECURE Admin user promotion system
-router.post('/admin/promote-user', requireAdmin, async (req, res) => {
-  try {
-    const { userId, makeAdmin } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
-
-    // Prevent self-demotion
-    if (parseInt(userId) === req.user.id && !makeAdmin) {
-      return res.status(400).json({ error: 'Cannot demote yourself from admin' });
-    }
-
-    // Update user admin status and role
-    const newRole = makeAdmin ? 'admin' : 'user';
-    const result = await pool.query(
-      'UPDATE users SET role = $1, is_admin = $2 WHERE id = $3 RETURNING id, email, name, role, is_admin',
-      [newRole, makeAdmin, userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const user = result.rows[0];
-    
-    // Log this critical action in audit trail
-    await pool.query(
-      `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        req.user.id,
-        req.user.email, 
-        'UPDATE',
-        'users',
-        parseInt(userId),
-        JSON.stringify({ role: user.role, is_admin: !makeAdmin }),
-        JSON.stringify({ role: newRole, is_admin: makeAdmin })
-      ]
-    );
-
-    res.json({
-      message: `User ${makeAdmin ? 'promoted to' : 'demoted from'} admin successfully`,
-      user: {
-        id: user.id,
-        email: user.email, 
-        name: user.name,
-        role: user.role,
-        is_admin: user.is_admin
-      }
-    });
-
-  } catch (error) {
-    console.error('Promote user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-export default router; 
+export default router;

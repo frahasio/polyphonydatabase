@@ -15,6 +15,7 @@ import searchRouter from './routes/search.js';
 import bookletApiRouter from './routes/booklet.js';
 import groupsRouter from './routes/groups.js';
 import adminRouter from './routes/admin.js';
+import adminUsersRouter from './routes/adminUsers.js';
 import importRouter from './routes/import.js';
 import path from 'path';
 
@@ -54,6 +55,22 @@ app.use(session({
 
 // Middleware
 app.use(express.json({ limit: '25mb' }));
+
+// CSRF protection for session-authenticated APIs: browsers send an Origin
+// header on cross-site requests; reject mutating API calls whose Origin does
+// not match the request host. Same-origin requests (and non-browser clients,
+// which omit Origin) pass through. Complements the sameSite=lax cookie.
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const origin = req.headers.origin;
+  if (!origin) return next();
+  try {
+    if (new URL(origin).host === req.headers.host) return next();
+  } catch {
+    /* malformed Origin falls through to rejection */
+  }
+  return res.status(403).json({ error: 'Cross-origin request rejected' });
+});
 
 // Simple favicon handler to prevent 404s
 app.get('/favicon.ico', (req, res) => res.status(204).send());
@@ -166,6 +183,8 @@ app.use('/api/admin/scribes', requireAuthWeb, requirePermission('catalogue'), sc
 app.use('/api/admin/functions', requireAuthWeb, requirePermission('catalogue'), functionsRouter);
 app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), groupsRouter);
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
+// User management (guards itself with requireAdmin → JSON 401/403, no redirects)
+app.use('/api/admin', adminUsersRouter);
 app.use('/api/admin', requireAuthWeb, adminRouter);
 
 // Run migrations then start server

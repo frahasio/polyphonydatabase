@@ -234,9 +234,9 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Store token in localStorage as backup
-                    if (data.token) {
-                        localStorage.setItem('authToken', data.token);
+                    // Auth lives in the httpOnly session cookie; keep only
+                    // display data (name) locally for the admin header.
+                    if (data.user) {
                         localStorage.setItem('userInfo', JSON.stringify(data.user));
                     }
                     showMessage('Login successful! Redirecting...', 'success');
