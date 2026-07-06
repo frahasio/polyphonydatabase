@@ -1,7 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { runDatabaseCleanup, triggerCleanup } from '../cleanup.js';
+import { triggerCleanup } from '../cleanup.js';
 
 const router = express.Router();
 
@@ -235,25 +235,6 @@ router.get('/titles/autocomplete', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching titles:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Composer autocomplete (MUST be before /:id route)
-router.get('/composers/autocomplete', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.length < 2) {
-      return res.json([]);
-    }
-    
-    const result = await pool.query(
-      'SELECT id, name FROM composers WHERE name ILIKE $1 ORDER BY name LIMIT 20',
-      [`${q}%`]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching composers:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

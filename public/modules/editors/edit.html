@@ -59,8 +59,8 @@
                 
                 // Populate form
                 document.getElementById('name').value = editor.name || '';
-                if (editor.dateOfBirth) {
-                    const date = new Date(editor.dateOfBirth);
+                if (editor.date_of_birth) {
+                    const date = new Date(editor.date_of_birth);
                     document.getElementById('dateOfBirth').value = date.toISOString().split('T')[0];
                 }
             } catch (error) {
@@ -75,7 +75,7 @@
             
             const formData = {
                 name: document.getElementById('name').value,
-                dateOfBirth: document.getElementById('dateOfBirth').value || null
+                date_of_birth: document.getElementById('dateOfBirth').value || null
             };
 
             try {

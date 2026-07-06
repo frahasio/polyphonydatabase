@@ -1076,45 +1076,6 @@ router.post('/:groupId/bulk-update-compositions', async (req, res) => {
     }
 });
 
-// GET /api/admin/groups/:id/compositions - Get compositions for group splitting
-router.get('/:id/compositions', async (req, res) => {
-    try {
-        const groupId = parseInt(req.params.id);
-
-        const result = await pool.query(`
-            SELECT 
-                c.id,
-                t.text as title,
-                c.number_of_voices,
-                ct.name as composition_type,
-                c.tone,
-                c.tone_connector,
-                c.even_odd,
-                (
-                  SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
-                  FROM composers comp
-                  WHERE comp.id = ANY(c.composer_id_list)
-                ) as composers,
-                (
-                  SELECT COUNT(*)
-                  FROM inclusions i
-                  WHERE i.composition_id = c.id
-                ) as inclusion_count
-            FROM compositions c
-            LEFT JOIN titles t ON c.title_id = t.id
-            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
-            WHERE c.group_id = $1
-            ORDER BY t.text
-        `, [groupId]);
-
-        res.json(result.rows);
-
-    } catch (error) {
-        console.error('Get group compositions error:', error);
-        res.status(500).json({ error: 'Failed to get group compositions' });
-    }
-});
-
 // POST /api/admin/groups/bulk-update-titles - Bulk update display titles for multiple groups
 router.post('/bulk-update-titles', async (req, res) => {
     const client = await pool.connect();

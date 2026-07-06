@@ -28,6 +28,22 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiting for password reset flows (prevents email bombing and
+// brute-forcing of reset tokens)
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: { error: 'Too many password reset attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Reset tokens are stored hashed so a database leak cannot be used to take
+// over accounts; the raw token only ever exists in the reset email.
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 // User registration
 router.post('/register', registerLimiter, async (req, res) => {
   try {
@@ -304,7 +320,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
 });
 
 // Request password reset
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -319,13 +335,13 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ message: 'If an account with that email exists, a password reset link has been sent' });
     }
 
-    // Generate reset token
+    // Generate reset token; only the hash is persisted
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await pool.query(
       'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
-      [resetToken, resetTokenExpires, user.rows[0].id]
+      [hashResetToken(resetToken), resetTokenExpires, user.rows[0].id]
     );
 
     // Send password reset email
@@ -346,7 +362,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // Reset password with token
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
@@ -358,10 +374,10 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 8 characters long' });
     }
 
-    // Find user with valid reset token
+    // Find user with valid reset token (tokens are stored hashed)
     const result = await pool.query(
       'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expires > CURRENT_TIMESTAMP',
-      [token]
+      [hashResetToken(String(token))]
     );
 
     if (result.rows.length === 0) {
@@ -379,6 +395,17 @@ router.post('/reset-password', async (req, res) => {
       'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
       [passwordHash, userId]
     );
+
+    // Invalidate the user's existing sessions so a stolen session cookie
+    // does not survive a password reset.
+    try {
+      await pool.query(
+        `DELETE FROM user_sessions WHERE (sess::jsonb ->> 'userId')::int = $1`,
+        [userId]
+      );
+    } catch (sessionErr) {
+      console.error('Failed to clear sessions after password reset:', sessionErr.message);
+    }
 
     res.json({ message: 'Password reset successfully' });
 

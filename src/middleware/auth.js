@@ -31,19 +31,15 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-// Middleware to require admin role
-export const requireAdmin = async (req, res, next) => {
-  try {
-    await requireAuth(req, res, () => {});
-    
+// Middleware to require admin role. Delegates to requireAuth, which only
+// invokes the continuation on success — so exactly one response is ever sent.
+export const requireAdmin = (req, res, next) => {
+  requireAuth(req, res, () => {
     if (req.user?.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
     next();
-  } catch (error) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
+  });
 };
 
 // Middleware to redirect to login page for web routes

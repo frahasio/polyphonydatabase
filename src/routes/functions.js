@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from '../db.js';
-import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 import { triggerCleanup } from '../cleanup.js';
 
 const router = express.Router();
@@ -102,49 +102,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Test endpoint to verify title base extraction
-router.get('/titles/test-extraction', async (req, res) => {
-  try {
-    const testTitles = [
-      'Salve Regina [I]',
-      'Salve Regina [II]',
-      'Salve regina [I] - Eia ergo',
-      'Salve regina [II] - O clemens',
-      'Ave Maria [I]',
-      'Ave Maria [II]',
-      'Pange lingua [III]',
-      'Te Deum',
-      'Kyrie [IV] from Mass',
-      '[I] Gloria in excelsis'
-    ];
-
-    const results = testTitles.map(title => ({
-      original: title,
-      baseText: extractBaseTitle(title),
-      groupKey: extractBaseTitle(title).toLowerCase()
-    }));
-
-    // Group them to show how they would be grouped
-    const grouped = {};
-    results.forEach(result => {
-      const key = result.groupKey;
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
-      grouped[key].push(result.original);
-    });
-
-    res.json({
-      individual: results,
-      grouped: grouped,
-      note: "This endpoint helps verify that title base extraction and grouping works correctly"
-    });
-  } catch (error) {
-    console.error('Error in test extraction:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Get languages - MUST come before /:id route!
 router.get('/languages', async (req, res) => {
   try {
@@ -189,74 +146,6 @@ router.get('/languages', async (req, res) => {
         { id: 8, name: 'Portuguese' }
       ]
     });
-  }
-});
-
-// Get dashboard alerts for data quality issues
-router.get('/dashboard/alerts', async (req, res) => {
-  try {
-    const alerts = [];
-
-    // Check for titles with no functions assigned
-    const titlesNoFunctions = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM titles t
-      LEFT JOIN functions_titles ft ON t.id = ft.title_id
-      WHERE ft.title_id IS NULL
-    `);
-
-    if (parseInt(titlesNoFunctions.rows[0].count) > 0) {
-      alerts.push({
-        type: 'warning',
-        title: 'Titles without Functions',
-        count: parseInt(titlesNoFunctions.rows[0].count),
-        description: 'titles have no functions assigned',
-        action_url: '/modules/functions/index.html?filter=no_functions',
-        action_text: 'Assign Functions'
-      });
-    }
-
-    // Check for functions with no titles assigned
-    const functionsNoTitles = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM functions f
-      LEFT JOIN functions_titles ft ON f.id = ft.function_id
-      WHERE ft.function_id IS NULL
-    `);
-
-    if (parseInt(functionsNoTitles.rows[0].count) > 0) {
-      alerts.push({
-        type: 'info',
-        title: 'Functions without Titles',
-        count: parseInt(functionsNoTitles.rows[0].count),
-        description: 'functions have no titles assigned',
-        action_url: '/modules/functions/index.html?filter=empty_functions',
-        action_text: 'Add Titles'
-      });
-    }
-
-    // Check for titles with null language
-    const titlesNoLanguage = await pool.query(`
-      SELECT COUNT(*) as count
-      FROM titles
-      WHERE language IS NULL
-    `);
-
-    if (parseInt(titlesNoLanguage.rows[0].count) > 0) {
-      alerts.push({
-        type: 'warning',
-        title: 'Titles without Language',
-        count: parseInt(titlesNoLanguage.rows[0].count),
-        description: 'titles have no language assigned',
-        action_url: '/modules/functions/index.html?filter=no_language',
-        action_text: 'Assign Languages'
-      });
-    }
-
-    res.json({ alerts });
-  } catch (error) {
-    console.error('Error fetching dashboard alerts:', error);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1100,45 +989,6 @@ router.put('/titles/group/bulk-update', async (req, res) => {
     });
   } finally {
     client.release();
-  }
-});
-
-// Create new title
-router.post('/titles', async (req, res) => {
-  try {
-    const { text, language } = req.body;
-
-    const query = `
-      INSERT INTO titles (text, language, created_at, updated_at)
-      VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING *
-    `;
-
-    const result = await pool.query(query, [text, language || null]);
-    const newTitle = result.rows[0];
-
-    // Log audit entry for title creation
-    try {
-      await pool.query(
-        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          req.user?.id || null,
-          req.user?.email || 'unknown@system.local',
-          'CREATE',
-          'titles',
-          newTitle.id,
-          null,
-          JSON.stringify({ text: newTitle.text, language: newTitle.language })
-        ]
-      );
-    } catch (auditError) {
-      console.log('Audit logging skipped (audit system may not be set up):', auditError.message);
-    }
-
-    res.status(201).json(newTitle);
-  } catch (error) {
-    console.error('Error creating title:', error);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

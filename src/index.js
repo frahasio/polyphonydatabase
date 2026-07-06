@@ -66,6 +66,25 @@ app.get('/booklet', requireAuthWeb, requirePermission('booklet_creator'), (req, 
   res.sendFile('modules/liturgy-booklet/index.html', { root: 'public' });
 });
 
+// Admin-only static content: the plain static mount below serves everything
+// in public/, so without this gate the whole admin UI (module pages, booklet,
+// dashboards) is downloadable anonymously. APIs enforce their own auth; this
+// closes the UI exposure. Login/register/reset pages and public assets
+// (css/js/images/vendor) remain unauthenticated.
+const protectedStaticPrefixes = ['/modules/'];
+const protectedStaticPages = new Set([
+  '/admin-dashboard.html',
+  '/user-management.html',
+  '/group-management.html',
+]);
+app.use((req, res, next) => {
+  const p = req.path;
+  if (protectedStaticPrefixes.some((prefix) => p.startsWith(prefix)) || protectedStaticPages.has(p)) {
+    return requireAuthWeb(req, res, next);
+  }
+  next();
+});
+
 // Serve static files. Fonts get a CORS header: unlike CSS/images, web fonts
 // are blocked for cross/null-origin documents without it. The PDF export
 // renders pages via Puppeteer setContent() (null origin), so without this the
@@ -123,7 +142,7 @@ app.get('/admin/groups', requireAuthWeb, (req, res) => {
 });
 
 app.get('/admin/clef-voicings', requireAuthWeb, (req, res) => {
-  res.sendFile('admin-clef-voicings.html', { root: 'public' });
+  res.sendFile('modules/clef-voicings/index.html', { root: 'public' });
 });
 
 // Admin module pages

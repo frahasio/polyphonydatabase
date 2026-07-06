@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs';
+import { lookup } from 'dns/promises';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { requireAuth } from '../middleware/auth.js';
@@ -228,8 +229,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
         } else if (entry.type === 'edition' && entry.url) {
           try {
             if (!editionCache[entry.url]) {
-              const resp = await fetch(entry.url, {
-                redirect: 'follow',
+              const resp = await safeFetch(entry.url, {
                 headers: { 'User-Agent': 'PolyphonyDatabase-Booklet/1' },
               });
               if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
@@ -274,16 +274,67 @@ router.post('/pdf', requireAuth, async (req, res) => {
   }
 });
 
+function isPrivateIp(ip) {
+  const a = String(ip || '').toLowerCase();
+  if (!a) return true;
+  // IPv4 loopback, RFC1918, link-local (cloud metadata), 0.0.0.0/8, CGNAT
+  if (/^127\./.test(a)) return true;
+  if (/^10\./.test(a)) return true;
+  if (/^192\.168\./.test(a)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(a)) return true;
+  if (/^169\.254\./.test(a)) return true;
+  if (/^0\./.test(a)) return true;
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a)) return true;
+  // IPv6 loopback, link-local, unique-local, unspecified, v4-mapped
+  if (a === '::1' || a === '::') return true;
+  if (a.startsWith('fe80:') || a.startsWith('fc') || a.startsWith('fd')) return true;
+  if (a.startsWith('::ffff:')) return isPrivateIp(a.slice(7));
+  return false;
+}
+
 function isBlockedHost(hostname) {
   const h = String(hostname || '').toLowerCase();
   if (!h) return true;
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
-  if (h === '0.0.0.0') return true;
-  if (/^127\.\d+\.\d+\.\d+$/.test(h)) return true;
-  if (/^10\.\d+\.\d+\.\d+$/.test(h)) return true;
-  if (/^192\.168\.\d+\.\d+$/.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(h)) return true;
-  return false;
+  return isPrivateIp(h.replace(/^\[|\]$/g, ''));
+}
+
+/**
+ * True when the URL may be fetched server-side. Rejects non-http(s) schemes,
+ * blocked hostnames, and — via DNS resolution — hostnames that point at
+ * private/loopback/link-local addresses (SSRF, incl. DNS-rebinding names).
+ */
+async function isAllowedFetchUrl(u) {
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  if (isBlockedHost(u.hostname)) return false;
+  try {
+    const addrs = await lookup(u.hostname.replace(/^\[|\]$/g, ''), { all: true });
+    return addrs.length > 0 && addrs.every((a) => !isPrivateIp(a.address));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * fetch() that validates every redirect hop against the SSRF rules, so a
+ * public URL cannot redirect the server into an internal address.
+ */
+async function safeFetch(rawUrl, options = {}, maxRedirects = 3) {
+  let current = new URL(rawUrl);
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    if (!(await isAllowedFetchUrl(current))) {
+      throw new Error('URL target not allowed');
+    }
+    const resp = await fetch(current.href, { ...options, redirect: 'manual' });
+    if ([301, 302, 303, 307, 308].includes(resp.status)) {
+      const location = resp.headers.get('location');
+      if (!location) return resp;
+      current = new URL(location, current);
+      continue;
+    }
+    return resp;
+  }
+  throw new Error('Too many redirects');
 }
 
 function isPdfContentType(ct) {
@@ -318,14 +369,17 @@ router.get('/pdf-proxy', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Only http(s) URLs are allowed' });
     }
 
-    if (isBlockedHost(u.hostname)) {
-      return res.status(403).json({ error: 'This URL host is not allowed' });
+    let upstream;
+    try {
+      upstream = await safeFetch(u.href, {
+        headers: { 'User-Agent': 'PolyphonyDatabase-Booklet/1' },
+      });
+    } catch (fetchErr) {
+      if (String(fetchErr.message).includes('not allowed')) {
+        return res.status(403).json({ error: 'This URL host is not allowed' });
+      }
+      throw fetchErr;
     }
-
-    const upstream = await fetch(u.href, {
-      redirect: 'follow',
-      headers: { 'User-Agent': 'PolyphonyDatabase-Booklet/1' },
-    });
 
     if (!upstream.ok) {
       return res.status(502).json({ error: `Upstream returned ${upstream.status}` });

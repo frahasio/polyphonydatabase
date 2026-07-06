@@ -51,8 +51,12 @@ router.get('/groups', async (req, res) => {
       page_size = 25
     } = req.query;
 
-    const limit = parseInt(page_size);
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    // Clamp pagination: invalid input falls back to defaults, page_size is
+    // capped so the public API cannot request unbounded result sets.
+    const MAX_PAGE_SIZE = 100;
+    const limit = Math.min(Math.max(parseInt(page_size, 10) || 25, 1), MAX_PAGE_SIZE);
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (pageNumber - 1) * limit;
     const isArray = await toneIsArray();
     
     // Parse multi-select parameters (comma-separated)
@@ -1115,11 +1119,7 @@ router.get('/groups', async (req, res) => {
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    // Ensure limit and offset are valid integers
-    const finalLimit = parseInt(limit) || 25;
-    const finalOffset = parseInt(offset) || 0;
-    
-        queryParams.push(finalLimit, finalOffset);
+    queryParams.push(limit, offset);
 
     const [countResult, searchResult] = await Promise.all([
       pool.query(countQuery, queryParams.slice(0, -2)),
@@ -1127,17 +1127,17 @@ router.get('/groups', async (req, res) => {
     ]);
 
     const total = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(total / parseInt(limit));
+    const totalPages = Math.ceil(total / limit);
 
     res.json({
       groups: searchResult.rows,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNumber,
+        limit,
         totalPages,
-        hasNextPage: parseInt(page) < totalPages,
-        hasPrevPage: parseInt(page) > 1
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1
       }
     });
 
