@@ -29,6 +29,11 @@ function normalize(text) {
     .trim();
 }
 
+// Fold i/j and u/v so Latin spelling variants match ("Iubilate"/"Jubilate").
+function foldSpelling(s) {
+  return String(s || '').replace(/j/g, 'i').replace(/v/g, 'u');
+}
+
 // Composer names are stored "Surname, Forenames"; the surname is the strong
 // signal (e.g. "Victoria", "Palestrina").
 function composerSurname(composerDisplay) {
@@ -39,24 +44,21 @@ function composerSurname(composerDisplay) {
 }
 
 /**
- * Score a candidate 0..1. Requires BOTH the composer surname AND at least one
- * title word to appear — composer-only matches (right composer, wrong piece,
- * e.g. a stray "Palestrina: Panis angelicus") score 0 and are dropped. The
- * score is the fraction of title words present, lightly boosted so a solid
- * multi-word match lands near 1.
+ * Score a candidate: 1 or 0. STRICT — the composer surname AND every
+ * distinctive title word (length >= 3, spelling-folded) must appear in the
+ * candidate text. Partial title matches caused false positives like the
+ * Missa pro defunctis being offered for a Missa de feria (both matched
+ * "missa" + composer), so partial credit is gone: precision over recall.
  */
 function scoreCandidate(title, composerDisplay, candidateText) {
-  const text = normalize(candidateText);
-  const surname = composerSurname(composerDisplay);
-  const composerPresent = surname && text.includes(surname);
-  if (!composerPresent) return 0;
+  const text = foldSpelling(normalize(candidateText));
+  const surname = foldSpelling(composerSurname(composerDisplay));
+  if (!surname || !text.includes(surname)) return 0;
 
-  const titleWords = normalize(title).split(' ').filter((w) => w.length >= 3);
+  const titleWords = foldSpelling(normalize(title)).split(' ').filter((w) => w.length >= 3);
   if (!titleWords.length) return 0; // nothing distinctive to confirm the piece
   const matched = titleWords.filter((w) => text.includes(w)).length;
-  if (matched === 0) return 0; // composer alone is not enough
-  const frac = matched / titleWords.length;
-  return Math.round(Math.min(1, 0.4 + 0.6 * frac) * 100) / 100;
+  return matched === titleWords.length ? 1 : 0;
 }
 
 async function fetchJson(url, options) {

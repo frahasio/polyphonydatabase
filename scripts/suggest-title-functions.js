@@ -17,13 +17,19 @@ import { pool } from '../src/db.js';
 // No hard API quota on Cantus Index, so large batches are fine; the only
 // cost is runtime (~0.8s/request politeness). Cap generously.
 const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 40, 1), 1000);
-// Minimum share of feast votes for a suggestion (reviewers filter the rest).
-const MIN_SCORE = 0.2;
+// Quality bars: a chant only counts as evidence when at least 75% of the
+// title's words appear in its incipit region, and a function is only
+// suggested when at least 3 distinct Cantus records support it. A title CAN
+// yield several functions (multiple genuine liturgical uses) if each clears
+// both bars. Overridable via env for tuning without a code change.
+const TEXT_MATCH_MIN = Number(process.env.CANTUS_TEXT_MATCH_MIN) || 0.75;
+const MIN_RECORDS = parseInt(process.env.CANTUS_MIN_RECORDS, 10) || 3;
+const MAX_SUGGESTIONS_PER_TITLE = 3;
 const TEXT_API = 'https://cantusindex.org/json-text/';
 const CID_API = 'https://cantusindex.org/json-cid/';
 // json-text returns only {cid, fulltext, genre}; the feast lives in
 // json-cid/{cid} → info.field_feast, so matching is two-stage.
-const MAX_CIDS_PER_TITLE = 4;
+const MAX_CIDS_PER_TITLE = 8;
 
 // Cantus feast names (and stems) → function names in this catalogue.
 // Checked with startsWith against the lowercase Cantus feast string, so
@@ -55,6 +61,7 @@ const FEAST_MAP = new Map(Object.entries({
   'dominica in palmis': 'Palm Sunday',
   'feria 4 cinerum': 'Ash Wednesday',
   'feria 5 in cena domini': 'Maundy Thursday',
+  'ad mandatum': 'Maundy Thursday',
   'feria 6 in parasceve': 'Good Friday',
   'sabbato sancto': 'Holy Saturday',
   'dominica resurrectionis': 'Easter',
@@ -121,6 +128,26 @@ const FEAST_MAP = new Map(Object.entries({
   'innocentium': 'Holy Innocents',
   'nominis jesu': 'Holy Name of Jesus',
   'nominis iesu': 'Holy Name of Jesus',
+  // Commons of saints ("Commune ..." after expansion). These MUST outrank
+  // specific saints when Cantus labels the chant as a common, so texts
+  // proper to e.g. the Common of Virgins are not pinned to one saint.
+  'commune virginis': 'Comm. Virgins',
+  'commune virginum': 'Comm. Virgins',
+  'commune plurimorum virginum': 'Comm. Virgins',
+  'commune martyris': 'Comm. Martyrs',
+  'commune martyrum': 'Comm. Martyrs',
+  'commune plurimorum martyrum': 'Comm. Martyrs',
+  'commune unius martyris': 'Comm. Martyrs',
+  'commune apostolorum': 'Comm. Apostles & Evangelists',
+  'commune evangelistarum': 'Comm. Apostles & Evangelists',
+  'commune confessoris pontificis': 'Comm. Pontiffs',
+  'commune confessoris': 'Comm. Confessors',
+  'commune confessorum': 'Comm. Confessors',
+  'commune doctorum': 'Comm. Doctors',
+  'commune abbatis': 'Comm. Abbots',
+  'commune abbatum': 'Comm. Abbots',
+  'commune sanctarum mulierum': 'Comm. Holy Women',
+  'commune non virginum': 'Comm. Holy Women',
 }));
 
 // Substring matching must prefer the most specific (longest) key.
@@ -166,9 +193,19 @@ function normalizeFeast(feast) {
     [/\bdom\./g, 'dominica'],
     [/\bnat\./g, 'nativitas'],
     [/\bfer\./g, 'feria'],
+    [/\bp\./g, 'post'],
     [/\bvig\./g, 'vigilia'],
     [/\boct\./g, 'octava'],
-    [/\bcomm?\./g, 'commemoratio'],
+    // "Comm." in Cantus feast names is the COMMON of saints (Commune), not a
+    // commemoration — critical for routing common texts to Comm.* functions.
+    [/\bcomm?\./g, 'commune'],
+    [/\bconf\./g, 'confessoris'],
+    [/\bmart\./g, 'martyris'],
+    [/\bapost\./g, 'apostolorum'],
+    [/\bevang\./g, 'evangelistarum'],
+    [/\bpont\./g, 'pontificis'],
+    [/\bvirg\./g, 'virginis'],
+    [/\babb\./g, 'abbatis'],
     [/\bconv\./g, 'conversio'],
     [/\bexalt\./g, 'exaltatio'],
     [/\binv\./g, 'inventio'],
@@ -278,7 +315,7 @@ async function main() {
     const parts = splitIncipitParts(title.text);
     if (!parts.length) continue;
 
-    const tally = new Map(); // functionName → { count, cantusIds:Set, feasts:Set, genres:Set, parts:Set }
+    const tally = new Map(); // functionName → { count, matchSum, cantusIds:Set, feasts:Set, genres:Set, parts:Set }
     let total = 0;
     const seenCids = new Set();
 
@@ -286,18 +323,36 @@ async function main() {
       const chants = await searchTextCandidates(part);
       if (!chants.length) continue;
 
-      // Prefer chants whose folded full text starts with the folded part
-      // (spelling-tolerant); fall back to any hit.
+      // A chant only counts as evidence when at least TEXT_MATCH_MIN of the
+      // part's words appear in the chant's INCIPIT REGION (first ~15 words,
+      // spelling-folded). Scanning the whole text let long chants match on
+      // scattered words; no weak "any hit" fallback either.
       const folded = foldSpelling(part);
-      const starts = chants.filter(
-        (c) => c.cid && foldSpelling(normalizeIncipit(c.fulltext)).startsWith(folded)
-      );
-      const pool_ = (starts.length ? starts : chants.filter((c) => c.cid)).slice(0, MAX_CIDS_PER_TITLE * 2);
-      const cids = Array.from(new Set(pool_.map((c) => String(c.cid))))
+      const partWords = folded.split(' ');
+      const textMatch = (fulltext) => {
+        const ft = foldSpelling(normalizeIncipit(fulltext));
+        if (ft.startsWith(folded)) return 1;
+        const ftWords = new Set(ft.split(' ').slice(0, 15));
+        const matched = partWords.filter((w) => ftWords.has(w)).length;
+        return Math.round((matched / partWords.length) * 100) / 100;
+      };
+
+      const matchByCid = new Map();
+      for (const c of chants) {
+        if (!c.cid) continue;
+        const m = textMatch(c.fulltext);
+        if (m < TEXT_MATCH_MIN) continue;
+        const cid = String(c.cid);
+        if (!matchByCid.has(cid) || matchByCid.get(cid).match < m) {
+          matchByCid.set(cid, { match: m, genre: c.genre || '' });
+        }
+      }
+
+      const cids = Array.from(matchByCid.keys())
         .filter((cid) => !seenCids.has(cid))
+        .sort((a, b) => matchByCid.get(b).match - matchByCid.get(a).match)
         .slice(0, MAX_CIDS_PER_TITLE);
       cids.forEach((cid) => seenCids.add(cid));
-      const genresByCid = new Map(pool_.map((c) => [String(c.cid), c.genre || '']));
 
       // Stage 2: per Cantus ID, fetch the canonical record for its feast.
       for (const cid of cids) {
@@ -311,16 +366,17 @@ async function main() {
         }
         await sleep(800);
         const feast = record && record.info ? record.info.field_feast : null;
-        const genre = (record && record.info && record.info.field_genre) || genresByCid.get(cid) || '';
+        const genre = (record && record.info && record.info.field_genre) || matchByCid.get(cid).genre || '';
         if (!feast) continue;
         total++;
         const fnName = mapFeast(feast);
         if (!fnName || !functionIds.has(fnName)) continue;
         if (!tally.has(fnName)) {
-          tally.set(fnName, { count: 0, cantusIds: new Set(), feasts: new Set(), genres: new Set(), parts: new Set() });
+          tally.set(fnName, { count: 0, matchSum: 0, cantusIds: new Set(), feasts: new Set(), genres: new Set(), parts: new Set() });
         }
         const t = tally.get(fnName);
         t.count++;
+        t.matchSum += matchByCid.get(cid).match;
         t.cantusIds.add(cid);
         t.feasts.add(feast);
         t.parts.add(part);
@@ -328,15 +384,16 @@ async function main() {
       }
     }
 
-    // Suggest up to 2 functions per title, scored by how dominant the feast
-    // is among the candidate chants (0..1).
+    // Emit every function backed by MIN_RECORDS+ distinct Cantus records —
+    // multiple genuine liturgical uses are welcome. Score = average text
+    // match of the supporting records (>= TEXT_MATCH_MIN by construction).
     const ranked = Array.from(tally.entries())
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 2);
+      .filter(([, info]) => info.count >= MIN_RECORDS)
+      .sort((a, b) => b[1].count - a[1].count || b[1].matchSum - a[1].matchSum)
+      .slice(0, MAX_SUGGESTIONS_PER_TITLE);
 
     for (const [fnName, info] of ranked) {
-      const score = total > 0 ? Math.round((info.count / total) * 100) / 100 : 0;
-      if (score < MIN_SCORE) continue;
+      const score = Math.round((info.matchSum / info.count) * 100) / 100;
       const functionId = functionIds.get(fnName);
       const result = await pool.query(
         `INSERT INTO suggestions (kind, title_id, payload, score, source, dedupe_key)
