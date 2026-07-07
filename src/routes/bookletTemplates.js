@@ -86,7 +86,9 @@ router.post('/:id/build', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, description, season, official, owner_id, owner_name, published, project FROM booklet_templates WHERE id = $1',
+      `SELECT id, name, description, season, official, owner_id, owner_name, published,
+              office_type, feast_month, feast_day, easter_offset, project
+       FROM booklet_templates WHERE id = $1`,
       [parseInt(req.params.id, 10) || 0]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Template not found' });
@@ -202,9 +204,11 @@ router.put('/:id', async (req, res) => {
       UPDATE booklet_templates
       SET name = $1, description = $2, season = $3, office_type = $4,
           feast_month = $5, feast_day = $6, easter_offset = $7, published = $8,
-          project = COALESCE($9::jsonb, project), updated_at = NOW()
-      WHERE id = $10
-    `, [name, description, season, officeType, feastMonth, feastDay, easterOffset, published, projectJson, t.id]);
+          project = COALESCE($9::jsonb, project),
+          curated = (curated OR $10), updated_at = NOW()
+      WHERE id = $11
+    `, [name, description, season, officeType, feastMonth, feastDay, easterOffset, published,
+      projectJson, projectJson !== null, t.id]);
 
     res.json({ message: 'Template updated' });
   } catch (error) {

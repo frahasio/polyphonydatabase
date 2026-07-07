@@ -347,8 +347,8 @@ export function buildFromCore(core, rawOptions = {}) {
   if (opts.credo !== 'none') {
     const wantCredo = opts.credo === 'auto' ? meta.credo !== false : true;
     if (wantCredo) {
-      const id = opts.credo === 'auto' ? 'III' : String(opts.credo);
-      const def = ordinaryData().adLib.credo.find((c) => c.name === `Credo ${id}`) || ordinaryData().adLib.credo[2];
+      const id = opts.credo === 'auto' ? 'I' : String(opts.credo);
+      const def = ordinaryData().adLib.credo.find((c) => c.name === `Credo ${id}`) || ordinaryData().adLib.credo[0];
       const gabc = def && gabcById(def.id);
       if (gabc) credoBlock = chantBlock(bid, gabc, { chantTranslation: CREDO_TRANSLATION });
     }
@@ -391,16 +391,27 @@ export function buildFromCore(core, rawOptions = {}) {
 
   const out = [];
   const push = (...items) => { for (const it of items) if (it) out.push(it); };
-  // Placeholder heading where a polyphonic/spoken ordinary part will go.
-  const placeholder = (label) => titleBlock(bid, label);
+  // Where a polyphonic/spoken ordinary part will go: a "Missa <setting>"
+  // note when a setting name was given, else a plain placeholder heading.
+  const settingName = String(opts.settingName || '').trim().slice(0, 120);
+  const settingNote = () => clone(sk.settingNote, {
+    text: `<div style="text-align:justify">Missa ${settingName || '—'}</div>`,
+    translation: '',
+  });
+  const placeholder = (label) => (settingName ? null : titleBlock(bid, label));
   const noKyriale = !mass;
 
   push(...grp('head'));
   if (fw) push(clone(sk.rubricStandBell));
 
   push(...grp('introit'));
-  push(kyChant('kyrie') || (noKyriale ? placeholder('Kyrie') : null));
-  if (meta.gloria !== false) push(kyChant('gloria') || (noKyriale ? placeholder('Gloria') : null));
+  if (noKyriale && settingName) {
+    // One note covers Kyrie + Gloria, as in the hand-made booklets.
+    push(settingNote());
+  } else {
+    push(kyChant('kyrie') || (noKyriale ? placeholder('Kyrie') : null));
+    if (meta.gloria !== false) push(kyChant('gloria') || (noKyriale ? placeholder('Gloria') : null));
+  }
 
   const collect = grp('collect');
   if (collect.length) {
@@ -442,7 +453,7 @@ export function buildFromCore(core, rawOptions = {}) {
     if (fw) push(clone(sk.rubricStandCredo));
     push(credoBlock);
   } else if (opts.credo === 'none' && meta.credo !== false) {
-    push(placeholder('Credo'));
+    push(titleBlock(bid, 'Credo'));
   }
 
   const offertory = grp('offertory');
@@ -462,7 +473,7 @@ export function buildFromCore(core, rawOptions = {}) {
     push(clone(sk.prefaceChant));
     push(clone(sk.prefaceText));
   }
-  push(kyChant('sanctus') || (noKyriale ? placeholder('Sanctus') : null));
+  push(kyChant('sanctus') || (noKyriale ? (settingName ? settingNote() : placeholder('Sanctus')) : null));
   if (fw) {
     push(clone(sk.rubricKneel));
     push(titleBlock(bid, 'Canon'));
@@ -475,11 +486,12 @@ export function buildFromCore(core, rawOptions = {}) {
     push(clone(sk.perOmniaPax));
     push(clone(sk.paxChant));
   }
-  push(kyChant('agnus') || (noKyriale ? placeholder('Agnus Dei') : null));
 
   const communion = grp('communion');
+  // Agnus follows the "All kneel" rubric, as in the hand-made booklets.
+  if (fw) push(clone(sk.rubricKneelCommunion));
+  push(kyChant('agnus') || (noKyriale ? (settingName ? settingNote() : placeholder('Agnus Dei')) : null));
   if (fw) {
-    push(clone(sk.rubricKneelCommunion));
     push(...communion.filter((b) => b.type === 'title'));
     push(clone(sk.panemCaelestem));
     push(clone(sk.rubricBreast));
@@ -505,10 +517,7 @@ export function buildFromCore(core, rawOptions = {}) {
     if (fw) push(clone(sk.domVobIte));
     push(kyChant('ite') || (fw ? clone(sk.iteChant) : null));
   }
-  if (fw) {
-    push({ id: bid(), type: 'spacer' });
-    push(clone(sk.lastGospel));
-  }
+  if (fw) push(clone(sk.lastGospel));
   if (marianBlock) {
     push(marianBlock);
   }

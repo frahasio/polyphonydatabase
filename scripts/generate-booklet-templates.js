@@ -72,13 +72,13 @@ function seasonFor(key) {
 const HOUSE_SETTINGS = {
   pageSize: 'A5',
   marginMm: 16,
-  marginTopMm: 14,
+  marginTopMm: 10,
   marginBottomMm: 6,
   marginLeftMm: 10,
   marginRightMm: 10,
   sectionGapMm: 5,
-  gapTolerancePx: 6,
-  marginTolerancePx: 6,
+  gapTolerancePx: 8,
+  marginTolerancePx: 8,
   minOrphanLines: 3,
   descClipPx: 3,
   ascClipPx: 3,
@@ -86,6 +86,9 @@ const HOUSE_SETTINGS = {
   previewDisplay: 'scroll',
   fontFamilyKey: 'EB Garamond',
   rubricColor: '#8b1538',
+  pageNumbers: 'footer-center',
+  pageNumberVMm: 6,
+  pageNumberSkipFirst: true,
 };
 
 // Propers style (from the hand-made Mass booklets): large initial drop caps
@@ -247,8 +250,12 @@ function buildProperCore(key, dayTitle, subtitle, chants, doLa, doEn, skeleton, 
   }
 
   if (la.Lectio) {
+    // Strip the "Léctio Epístolæ…" announcement line (the citation lives in
+    // the source ref), as in the hand-made booklets.
+    const lessonLa = la.Lectio.text.replace(/^L[ée]ctio[^\n]*\n+/i, '');
+    const lessonEn = (en.Lectio?.text || '').replace(/^(Lesson|Reading|Epistle|Continuation)[^\n]*\n+/i, '');
     blocks.push(b.title('Lesson', 'lesson'));
-    blocks.push(b.reading('lessonReadingStyle', la.Lectio.text, en.Lectio?.text, la.Lectio.citation, 'lesson'));
+    blocks.push(b.reading('lessonReadingStyle', lessonLa, lessonEn, la.Lectio.citation, 'lesson'));
   }
 
   // Between the readings: gradual/alleluia/tract/sequence as available.
@@ -334,10 +341,12 @@ async function upsert({ name, description, season, key, project, feastMonth, fea
     return;
   }
   // Seeded templates are drafts until an admin reviews and publishes them;
-  // preserve that decision across re-runs.
+  // preserve that decision across re-runs, and NEVER overwrite a template an
+  // admin has hand-curated.
   const prev = await pool.query(
-    'SELECT published FROM booklet_templates WHERE feast_key = $1 AND official = true LIMIT 1', [key]
+    'SELECT published, curated FROM booklet_templates WHERE feast_key = $1 AND official = true LIMIT 1', [key]
   );
+  if (prev.rows.length && prev.rows[0].curated) return;
   const published = prev.rows.length ? prev.rows[0].published : false;
   await pool.query('DELETE FROM booklet_templates WHERE feast_key = $1 AND official = true', [key]);
   await pool.query(`

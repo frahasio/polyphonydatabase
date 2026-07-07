@@ -5302,7 +5302,7 @@
   // House margin sets per page size (from the hand-made booklets), applied
   // when loading a template at a different size than it was saved at.
   const TPL_SIZE_SETTINGS = {
-    A5: { pageSize: 'A5', marginTopMm: 14, marginBottomMm: 6, marginLeftMm: 10, marginRightMm: 10 },
+    A5: { pageSize: 'A5', marginTopMm: 10, marginBottomMm: 6, marginLeftMm: 10, marginRightMm: 10 },
     A4: { pageSize: 'A4', marginTopMm: 14, marginBottomMm: 6, marginLeftMm: 14, marginRightMm: 14 },
   };
 
@@ -5619,7 +5619,7 @@
     });
   }
 
-  function applySizeAndLoad(project, name, size) {
+  function applySizeAndLoad(project, name, size, sourceId) {
     // Apply the requested page size; when it differs from the template's
     // saved size, swap in the house margins for the target size too.
     const overrides = TPL_SIZE_SETTINGS[size];
@@ -5632,6 +5632,9 @@
       }
     }
     applyTemplateProject(project, name);
+    // Remember provenance so "Publish" can offer updating the original
+    // template in place instead of creating a copy.
+    if (state) state.sourceTemplateId = sourceId || null;
     bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
   }
 
@@ -5650,6 +5653,9 @@
       data.kyriale.map(function (k) {
         return '<option value="' + k.id + '"' + (k.id === 8 ? ' selected' : '') + '>' + escapeHtml(k.label) + '</option>';
       }).join('');
+    ky.addEventListener('change', function () {
+      document.getElementById('buildSettingWrap')?.classList.toggle('d-none', ky.value !== 'none');
+    });
     const cr = document.getElementById('buildCredo');
     cr.innerHTML = '<option value="auto" selected>Automatic (when the day calls for it)</option>' +
       '<option value="none">None</option>' +
@@ -5684,6 +5690,7 @@
         body: JSON.stringify({
           framework: document.getElementById('buildFramework').checked,
           kyriale: document.getElementById('buildKyriale').value,
+          settingName: document.getElementById('buildSettingName')?.value.trim() || '',
           credo: document.getElementById('buildCredo').value,
           readings: document.getElementById('buildReadings').value,
           marian: document.getElementById('buildMarian').value,
@@ -5692,7 +5699,7 @@
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Build failed');
       bootstrap.Modal.getInstance(document.getElementById('modalBuildTemplate'))?.hide();
-      applySizeAndLoad(data.template.project, data.template.name, buildTarget.size);
+      applySizeAndLoad(data.template.project, data.template.name, buildTarget.size, data.template.id);
     } catch (e) {
       alert(e.message || 'Could not build the booklet.');
     }
@@ -5707,7 +5714,7 @@
       const r = await fetch('/api/booklet/templates/' + row.id, { credentials: 'include' });
       if (!r.ok) throw new Error('Failed to load template');
       const data = await r.json();
-      applySizeAndLoad(data.template.project || {}, data.template.name, size);
+      applySizeAndLoad(data.template.project || {}, data.template.name, size, data.template.id);
     } catch (e) {
       alert(e.message || 'Could not load template.');
     }
@@ -5761,6 +5768,20 @@
   // When set, the publish modal is editing an existing template's details
   // (name, season, dates…) via PUT instead of publishing the current project.
   let tplEditId = null;
+  // Source template of the current project (for save-back in place).
+  let tplUpdateSource = null;
+
+  async function ensureTplIdentity() {
+    if (tplCurrentUserId != null) return;
+    try {
+      const r = await fetch('/api/booklet/templates', { credentials: 'include' });
+      if (!r.ok) return;
+      const d = await r.json();
+      tplIsAdmin = !!d.isAdmin;
+      tplCurrentUserId = d.currentUserId;
+      tplAll = d.templates || tplAll;
+    } catch (e) { /* publish still works without identity */ }
+  }
 
   function readPublishForm() {
     const eoRaw = document.getElementById('tplPubEasterOffset')?.value;
@@ -5775,46 +5796,94 @@
     };
   }
 
-  function openPublishModal(editTemplate) {
-    tplEditId = editTemplate ? editTemplate.id : null;
-    document.getElementById('tplPubModalTitle').textContent = editTemplate ? 'Edit template details' : 'Publish as template';
-    document.getElementById('tplPubName').value = editTemplate ? editTemplate.name : (state.projectTitle || '');
-    document.getElementById('tplPubSeason').value = editTemplate ? (editTemplate.season || '') : '';
-    document.getElementById('tplPubDesc').value = editTemplate ? (editTemplate.description || '') : '';
+  function fillPublishForm(pre) {
+    document.getElementById('tplPubName').value = pre ? pre.name : (state.projectTitle || '');
+    document.getElementById('tplPubSeason').value = pre ? (pre.season || '') : '';
+    document.getElementById('tplPubDesc').value = pre ? (pre.description || '') : '';
     const ot = document.getElementById('tplPubOfficeType');
-    if (ot) ot.value = editTemplate ? (editTemplate.office_type || 'mass') : 'mass';
+    if (ot) ot.value = pre ? (pre.office_type || 'mass') : 'mass';
     const fm = document.getElementById('tplPubFeastMonth');
-    if (fm) fm.value = editTemplate && editTemplate.feast_month ? String(editTemplate.feast_month) : '';
+    if (fm) fm.value = pre && pre.feast_month ? String(pre.feast_month) : '';
     const fd = document.getElementById('tplPubFeastDay');
-    if (fd) fd.value = editTemplate && editTemplate.feast_day ? String(editTemplate.feast_day) : '';
+    if (fd) fd.value = pre && pre.feast_day ? String(pre.feast_day) : '';
     const eo = document.getElementById('tplPubEasterOffset');
-    if (eo) eo.value = editTemplate && editTemplate.easter_offset != null ? String(editTemplate.easter_offset) : '';
+    if (eo) eo.value = pre && pre.easter_offset != null ? String(pre.easter_offset) : '';
     const official = document.getElementById('tplPubOfficial');
-    if (official) official.checked = editTemplate ? !!editTemplate.official : false;
+    if (official) official.checked = pre ? !!pre.official : false;
+  }
+
+  async function openPublishModal(editTemplate) {
+    await ensureTplIdentity();
+    tplEditId = editTemplate ? editTemplate.id : null;
+    tplUpdateSource = null;
+
+    // Save-back: does the current project come from a template this user
+    // may update in place?
+    if (!editTemplate && state.sourceTemplateId) {
+      try {
+        const r = await fetch('/api/booklet/templates/' + state.sourceTemplateId, { credentials: 'include' });
+        if (r.ok) {
+          const src = (await r.json()).template;
+          const canUpdate = tplIsAdmin || (!src.official && String(src.owner_id) === String(tplCurrentUserId));
+          if (canUpdate) tplUpdateSource = src;
+        }
+      } catch (e) { /* source template gone; publish as new */ }
+    }
+
+    const upWrap = document.getElementById('tplPubUpdateWrap');
+    const upCheck = document.getElementById('tplPubUpdate');
+    if (upWrap && upCheck) {
+      upWrap.classList.toggle('d-none', !tplUpdateSource);
+      upCheck.checked = !!tplUpdateSource;
+      if (tplUpdateSource) {
+        document.getElementById('tplPubUpdateLabel').textContent =
+          'Update the existing template \u201c' + tplUpdateSource.name + '\u201d' + (tplUpdateSource.official ? ' (official)' : '') + ' \u2014 untick to save a copy';
+      }
+    }
+
+    const updating = !!(tplUpdateSource && upCheck && upCheck.checked);
+    document.getElementById('tplPubModalTitle').textContent =
+      editTemplate ? 'Edit template details' : (updating ? 'Save template' : 'Publish as template');
+    fillPublishForm(editTemplate || (updating ? tplUpdateSource : null));
     // "Official" only applies when publishing something new.
-    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || !!editTemplate);
+    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || !!editTemplate || updating);
     new bootstrap.Modal(document.getElementById('modalPublishTemplate')).show();
+  }
+
+  function onPublishUpdateToggle() {
+    const checked = !!document.getElementById('tplPubUpdate')?.checked;
+    fillPublishForm(checked ? tplUpdateSource : null);
+    document.getElementById('tplPubModalTitle').textContent = checked ? 'Save template' : 'Publish as template';
+    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || checked);
   }
 
   async function publishTemplate() {
     const form = readPublishForm();
     if (!form.name) { alert('Give the template a name.'); return; }
     try {
-      const isEdit = tplEditId != null;
-      const url = isEdit ? '/api/booklet/templates/' + tplEditId : '/api/booklet/templates';
-      const body = isEdit
-        ? form
-        : { ...form, official: !!document.getElementById('tplPubOfficial')?.checked, project: state };
+      const isEdit = tplEditId != null; // pencil: details only, no project
+      const isUpdate = !isEdit && tplUpdateSource && !!document.getElementById('tplPubUpdate')?.checked;
+      const targetId = isEdit ? tplEditId : (isUpdate ? tplUpdateSource.id : null);
+      const url = targetId != null ? '/api/booklet/templates/' + targetId : '/api/booklet/templates';
+      let body;
+      if (isEdit) body = form;
+      else if (isUpdate) body = { ...form, project: state };
+      else body = { ...form, official: !!document.getElementById('tplPubOfficial')?.checked, project: state };
       const r = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
+        method: targetId != null ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error || (isEdit ? 'Update failed' : 'Publish failed'));
+      if (!r.ok) throw new Error(data.error || (targetId != null ? 'Update failed' : 'Publish failed'));
       bootstrap.Modal.getInstance(document.getElementById('modalPublishTemplate'))?.hide();
       tplEditId = null;
+      // New copies become the project's source, so the next save updates them.
+      if (!isEdit && !isUpdate && data.template && data.template.id && state) {
+        state.sourceTemplateId = data.template.id;
+        scheduleAutosave();
+      }
       loadTemplateList(document.getElementById('tplSearch')?.value.trim());
     } catch (e) {
       alert(e.message || 'Could not save template.');
@@ -5864,6 +5933,7 @@
     });
     document.getElementById('btnPublishTemplateConfirm')?.addEventListener('click', publishTemplate);
     document.getElementById('btnBuildConfirm')?.addEventListener('click', buildAndLoad);
+    document.getElementById('tplPubUpdate')?.addEventListener('change', onPublishUpdateToggle);
   }
 
   function bindUi() {
