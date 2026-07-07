@@ -19,6 +19,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from '../src/db.js';
 import { getMassSections, doPathForKey, doRuleFlags, COMMONS_DO } from './lib/do-texts.js';
+import { normalizeLatinText, normalizeGabcLyrics, formatChantTranslation } from '../src/services/latinNormalize.js';
 
 const DRY = process.argv.includes('--dry');
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -164,7 +165,7 @@ function makeBuilder(key, skeleton) {
         ...base,
         id: bid(),
         tplSlot: slot,
-        text: textToHtml(latin),
+        text: textToHtml(normalizeLatinText(latin)),
         translation: english ? textToHtml(english) : '',
         sectionTitle: '',
         sectionSourceRef: sourceRef || '',
@@ -183,9 +184,9 @@ function makeBuilder(key, skeleton) {
   };
 }
 
-/** DO English section text -> chant translation box (plain text). */
+/** DO English section text -> chant translation box (phrase-per-line). */
 function chantTranslationFrom(section) {
-  return section && section.text ? section.text : '';
+  return section && section.text ? formatChantTranslation(section.text) : '';
 }
 
 // Which DO section translates which proper slot label.
@@ -206,7 +207,7 @@ function loadProperChants(propers) {
     if (!idField) continue;
     const gabcPath = path.join(JGABC, 'gabc', `${propers[idField]}.gabc`);
     if (!fs.existsSync(gabcPath)) continue;
-    const gabc = readText(gabcPath);
+    const gabc = normalizeGabcLyrics(readText(gabcPath));
     const nameM = gabc.match(/^name:\s*([^;]+);/mi);
     found.push({ label, gabc, chantName: nameM ? nameM[1].trim() : '' });
   }

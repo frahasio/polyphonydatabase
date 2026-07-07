@@ -18,6 +18,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from '../src/db.js';
 import { loadPsalmtone } from './lib/psalmtone-loader.js';
+import { normalizeLatinText, normalizeGabcLyrics } from '../src/services/latinNormalize.js';
 
 const DRY = process.argv.includes('--dry');
 const GREGOBASE = process.argv[2];
@@ -163,18 +164,20 @@ function doSections(relPath) {
 }
 
 /** Parse '[Ant Vespera]' lines -> [{text, psalm}] */
-function parseAntiphons(lines) {
+function parseAntiphons(lines, lang = 'la') {
   return (lines || []).filter((l) => l.trim() && !l.startsWith('!'))
     .map((l) => {
       const [text, ps] = l.split(';;');
-      return { text: text.replace(/\s*\*\s*/, ' * ').trim(), psalm: (ps || '').trim() };
+      const t = text.replace(/\s*\*\s*/, ' * ').trim();
+      return { text: lang === 'la' ? normalizeLatinText(t) : t, psalm: (ps || '').trim() };
     })
     .filter((a) => a.text);
 }
 
-function sectionText(lines) {
-  return (lines || []).filter((l) => l.trim() && !l.startsWith('!') && !l.startsWith('$') && !l.startsWith('&') && !l.startsWith('@'))
+function sectionText(lines, lang = 'la') {
+  const text = (lines || []).filter((l) => l.trim() && !l.startsWith('!') && !l.startsWith('$') && !l.startsWith('&') && !l.startsWith('@'))
     .map((l) => l.replace(/^v\.\s*/, '').replace(/~$/, '').trim()).join('\n').trim();
+  return lang === 'la' ? normalizeLatinText(text) : text;
 }
 
 // ---------- psalm pointing ----------
@@ -245,13 +248,13 @@ function verseHtml(verse, tone, verseNumber) {
 function loadPsalm(psalmNum) {
   const p = path.join(JGABC, 'psalms', `${psalmNum}.txt`);
   if (!fs.existsSync(p)) return null;
-  return pt.normalizePsalm(readText(p).trim(), true); // + Gloria Patri
+  return normalizeLatinText(pt.normalizePsalm(readText(p).trim(), true)); // + Gloria Patri
 }
 
 function loadCanticle(name) {
   const p = path.join(JGABC, 'psalms', `${name}.txt`);
   if (!fs.existsSync(p)) return null;
-  return pt.normalizePsalm(readText(p).trim(), true);
+  return normalizeLatinText(pt.normalizePsalm(readText(p).trim(), true));
 }
 
 // Douay psalms: tab-separated "psalm<TAB>verse<TAB>text"
@@ -274,7 +277,7 @@ const GLORIA_EN = 'Glory be to the Father, and to the Son, and to the Holy Ghost
 // ---------- antiphon helpers ----------
 
 function antiphonGabc(chant, { annotationNum, translation, repeat }) {
-  let body = chant.gabc;
+  let body = normalizeGabcLyrics(chant.gabc);
   // GregoBase files may carry their own headers; take the notation only.
   const pct = body.indexOf('%%');
   if (pct >= 0) body = body.slice(pct + 2).trim();
@@ -344,7 +347,7 @@ async function main() {
   const en = doSections('horas/English/Sancti/12-08.txt');
 
   const antsLa = parseAntiphons(la['Ant Vespera']);
-  const antsEn = parseAntiphons(en['Ant Vespera']);
+  const antsEn = parseAntiphons(en['Ant Vespera'], 'en');
   if (antsLa.length !== 5) throw new Error(`Expected 5 Vespers antiphons, got ${antsLa.length}`);
 
   let n = 0;
@@ -415,7 +418,7 @@ async function main() {
   blocks.push(titleBlock('Capitulum'));
   blocks.push(clone(skeleton.rubricStand));
   const capLa = sectionText(la['Capitulum Laudes']);
-  const capEn = sectionText(en['Capitulum Laudes']);
+  const capEn = sectionText(en['Capitulum Laudes'], 'en');
   if (capLa) {
     blocks.push({ ...clone(skeleton.psalmVerseStyle), text: `<div style="text-align:justify">${escHtml(capLa)} <b>R.</b> Deo grátias.</div>`, translation: capEn ? `<div style="text-align:justify">${escHtml(capEn)} <b>R.</b> Thanks be to God.</div>` : '', sectionTitle: '', sectionSourceRef: 'Prov 8:22-24' });
   }
@@ -432,14 +435,14 @@ async function main() {
   // Versicle
   blocks.push(titleBlock('Versus'));
   const versLa = sectionText(la['Versum 1']);
-  const versEn = sectionText(en['Versum 1']);
+  const versEn = sectionText(en['Versum 1'], 'en');
   if (versLa) {
     blocks.push({ ...clone(skeleton.psalmVerseStyle), text: `<div>${escHtml(versLa).replace(/^V\./m, '<b>V.</b>').replace(/\nR\./, '<br><b>R.</b>')}</div>`, translation: versEn ? `<div>${escHtml(versEn).replace(/^V\./m, '<b>V.</b>').replace(/\nR\./, '<br><b>R.</b>')}</div>` : '', sectionTitle: '', sectionSourceRef: '' });
   }
 
   // Magnificat
   blocks.push(titleBlock('Ad Magnificat'));
-  const magAntLa = (la['Ant 3'] || []).filter((l) => l.trim() && !l.startsWith('!')).join(' ').trim();
+  const magAntLa = normalizeLatinText((la['Ant 3'] || []).filter((l) => l.trim() && !l.startsWith('!')).join(' ').trim());
   const magAntEn = (en['Ant 3'] || []).filter((l) => l.trim() && !l.startsWith('!')).join(' ').trim();
   const magChant = findChant(magAntLa.replace(/\s*\*\s*/, ' '), ['an']);
   if (magChant) {
@@ -462,7 +465,7 @@ async function main() {
   blocks.push(titleBlock('Oratio'));
   blocks.push(clone(skeleton.rubricStand));
   const orLa = sectionText(la.Oratio);
-  const orEn = sectionText(en.Oratio);
+  const orEn = sectionText(en.Oratio, 'en');
   if (orLa) {
     blocks.push({ ...clone(skeleton.psalmVerseStyle), text: `<div style="text-align:justify">${escHtml(orLa)} Per eúndem Dóminum nostrum Iesum Christum Fílium tuum, qui tecum vivit et regnat in unitáte Spíritus Sancti, Deus, per ómnia sǽcula sæculórum. <b>R.</b> Amen.</div>`, translation: orEn ? `<div style="text-align:justify">${escHtml(orEn)}</div>` : '', sectionTitle: '', sectionSourceRef: '' });
   }

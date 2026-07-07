@@ -18,6 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { normalizeGabcLyrics } from './latinNormalize.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const JGABC = path.join(ROOT, 'public', 'vendor', 'jgabc');
@@ -182,8 +183,87 @@ export function marianOptions() {
 
 function gabcById(id) {
   const p = path.join(JGABC, 'gabc', `${id}.gabc`);
-  return fs.existsSync(p) ? readText(p) : null;
+  return fs.existsSync(p) ? normalizeGabcLyrics(readText(p)) : null;
 }
+
+// Traditional English translations for the builder-inserted chants, with
+// phrase-per-line breaks so the translation column reads consistently.
+const ORDINARY_TRANSLATIONS = {
+  kyrie: 'Lord, have mercy.\nChrist, have mercy.\nLord, have mercy.',
+  gloria: [
+    'Glory be to God on high, and on earth peace to men of good will.',
+    'We praise thee, we bless thee,//we adore thee, we glorify thee.',
+    'We give thee thanks for thy great glory.',
+    'O Lord God, heavenly King,//God the Father almighty.',
+    'O Lord Jesus Christ, the only-begotten Son.',
+    'O Lord God, Lamb of God, Son of the Father.',
+    'Who takest away the sins of the world,//have mercy upon us.',
+    'Who takest away the sins of the world,//receive our prayer.',
+    'Who sittest at the right hand of the Father,//have mercy upon us.',
+    'For thou only art holy, thou only art the Lord,//thou only, O Jesus Christ, art most high.',
+    'With the Holy Ghost, in the glory of God the Father. Amen.',
+  ].join('\n'),
+  sanctus: [
+    'Holy, holy, holy, Lord God of hosts.',
+    'Heaven and earth are full of thy glory.//Hosanna in the highest.',
+    'Blessed is he that cometh in the name of the Lord.//Hosanna in the highest.',
+  ].join('\n'),
+  agnus: [
+    'Lamb of God, who takest away the sins of the world,//have mercy upon us.',
+    'Lamb of God, who takest away the sins of the world,//have mercy upon us.',
+    'Lamb of God, who takest away the sins of the world,//grant us peace.',
+  ].join('\n'),
+  ite: 'V. Go, the Mass is ended.//R. Thanks be to God.',
+  benedicamus: 'V. Let us bless the Lord.//R. Thanks be to God.',
+};
+
+const CREDO_TRANSLATION = [
+  'I believe in one God, the Father almighty,//maker of heaven and earth,//and of all things visible and invisible.',
+  'And in one Lord Jesus Christ, the only-begotten Son of God,//born of the Father before all ages.',
+  'God of God, light of light, true God of true God.',
+  'Begotten, not made, consubstantial with the Father://by whom all things were made.',
+  'Who for us men, and for our salvation,//came down from heaven.',
+  'And was incarnate by the Holy Ghost of the Virgin Mary://and was made man.',
+  'He was crucified also for us,//suffered under Pontius Pilate, and was buried.',
+  'And the third day he rose again//according to the Scriptures.',
+  'And ascended into heaven,//and sitteth at the right hand of the Father.',
+  'And he shall come again with glory//to judge both the living and the dead://of whose kingdom there shall be no end.',
+  'And in the Holy Ghost, the Lord and giver of life,//who proceedeth from the Father and the Son.',
+  'Who together with the Father and the Son//is adored and glorified://who spoke by the prophets.',
+  'And in one, holy, catholic and apostolic Church.',
+  'I confess one baptism//for the remission of sins.',
+  'And I look for the resurrection of the dead,//and the life of the world to come. Amen.',
+].join('\n');
+
+const MARIAN_TRANSLATIONS = {
+  salve: [
+    'Hail, holy Queen, Mother of mercy,//our life, our sweetness and our hope.',
+    'To thee do we cry,//poor banished children of Eve.',
+    'To thee do we send up our sighs,//mourning and weeping in this vale of tears.',
+    'Turn then, most gracious advocate,//thine eyes of mercy toward us.',
+    'And after this our exile show unto us//the blessed fruit of thy womb, Jesus.',
+    'O clement, O loving,//O sweet Virgin Mary.',
+  ].join('\n'),
+  alma: [
+    'Loving Mother of the Redeemer,//gate of heaven, star of the sea,',
+    'assist thy people who have fallen//yet strive to rise again.',
+    'Thou who broughtest forth thy holy Creator,//all creation wondering,',
+    'yet remainest ever Virgin,//taking from Gabriel\u2019s lips that joyful \u201cHail!\u201d:',
+    'be merciful to us sinners.',
+  ].join('\n'),
+  ave_regina: [
+    'Hail, Queen of heaven;//hail, Mistress of the Angels.',
+    'Hail, root of Jesse; hail, the gate//through which the Light rose over the earth.',
+    'Rejoice, Virgin most renowned//and of unsurpassed beauty.',
+    'Farewell, most beautiful maiden,//and pray for us to Christ.',
+  ].join('\n'),
+  regina_caeli: [
+    'Queen of heaven, rejoice, alleluia.',
+    'For he whom thou didst merit to bear, alleluia,',
+    'hath risen as he said, alleluia.',
+    'Pray for us to God, alleluia.',
+  ].join('\n'),
+};
 
 // ---- assembly --------------------------------------------------------------
 
@@ -222,7 +302,7 @@ export function buildFromCore(core, rawOptions = {}) {
     if (!mass || !mass[part]) return null;
     const def = Array.isArray(mass[part]) ? mass[part][0] : mass[part];
     const gabc = gabcById(def.id);
-    return gabc ? chantBlock(bid, gabc) : null;
+    return gabc ? chantBlock(bid, gabc, { chantTranslation: ORDINARY_TRANSLATIONS[part] || '' }) : null;
   };
 
   let credoBlock = null;
@@ -232,7 +312,7 @@ export function buildFromCore(core, rawOptions = {}) {
       const id = opts.credo === 'auto' ? 'III' : String(opts.credo);
       const def = ordinaryData().adLib.credo.find((c) => c.name === `Credo ${id}`) || ordinaryData().adLib.credo[2];
       const gabc = def && gabcById(def.id);
-      if (gabc) credoBlock = chantBlock(bid, gabc);
+      if (gabc) credoBlock = chantBlock(bid, gabc, { chantTranslation: CREDO_TRANSLATION });
     }
   }
 
@@ -240,8 +320,9 @@ export function buildFromCore(core, rawOptions = {}) {
   if (opts.marian && opts.marian !== 'none') {
     const def = marianOptions().find((m) => m.id === opts.marian);
     if (def) {
-      const gabc = readText(path.join(JGABC, 'gabc', def.file));
-      marianBlock = chantBlock(bid, gabc);
+      const gabc = normalizeGabcLyrics(readText(path.join(JGABC, 'gabc', def.file)));
+      const baseId = def.id.replace(/_simple$/, '');
+      marianBlock = chantBlock(bid, gabc, { chantTranslation: MARIAN_TRANSLATIONS[baseId] || '' });
     }
   }
 
