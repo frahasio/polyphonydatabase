@@ -15,15 +15,27 @@ function validProject(project) {
   return project && typeof project === 'object' && Array.isArray(project.blocks);
 }
 
+/** Page size attribute: whole documents carry their size, buildable cores are size-free. */
+function pageSizeOf(project) {
+  if (!project || (project.meta && project.meta.buildable)) return null;
+  const s = String(project.settings?.pageSize || '').toUpperCase();
+  return s === 'A4' || s === 'A5' ? s : null;
+}
+
 // Browse/search: no project payloads (they can be large)
 router.get('/', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
+    const feastKey = String(req.query.feast_key || '').trim();
     const params = [];
     const conds = [];
     if (q) {
       params.push(`%${q}%`);
       conds.push(`(t.name ILIKE $${params.length} OR t.description ILIKE $${params.length} OR t.season ILIKE $${params.length} OR t.owner_name ILIKE $${params.length})`);
+    }
+    if (feastKey) {
+      params.push(feastKey);
+      conds.push(`t.feast_key = $${params.length}`);
     }
     // Drafts (unpublished) are only listed for admins and their owners.
     if (req.user.role !== 'admin') {
@@ -34,7 +46,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
              t.office_type, t.feast_month, t.feast_day, t.easter_offset, t.published,
-             t.owner_id, t.owner_name, t.updated_at,
+             t.owner_id, t.owner_name, t.updated_at, t.page_size, t.curated,
              t.project->'meta'->>'buildable' AS buildable
       FROM booklet_templates t
       ${where}
@@ -87,7 +99,7 @@ router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, name, description, season, official, owner_id, owner_name, published,
-              office_type, feast_month, feast_day, easter_offset, project
+              office_type, feast_month, feast_day, easter_offset, feast_key, page_size, project
        FROM booklet_templates WHERE id = $1`,
       [parseInt(req.params.id, 10) || 0]
     );
@@ -128,12 +140,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Template too large' });
     }
 
+    // Admins may attach the copy to a feast so it groups with its siblings
+    // on the calendar (e.g. the A4 version of a curated Sunday).
+    const feastKey = req.user.role === 'admin' && req.body.feast_key
+      ? String(req.body.feast_key).slice(0, 50) : null;
+
     const result = await pool.query(`
-      INSERT INTO booklet_templates (name, description, season, office_type, official, owner_id, owner_name, project, feast_month, feast_day, easter_offset)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO booklet_templates (name, description, season, office_type, official, owner_id, owner_name, project, feast_month, feast_day, easter_offset, feast_key, page_size, curated)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id, name, official
     `, [name, description, season, officeType, official, req.user.id, official ? '' : (req.user.name || req.user.email), JSON.stringify(project),
-      hasDate ? feastMonth : null, hasDate ? feastDay : null, easterOffset]);
+      hasDate ? feastMonth : null, hasDate ? feastDay : null, easterOffset, feastKey, pageSizeOf(project), !!feastKey]);
 
     res.status(201).json({ message: 'Template published', template: result.rows[0] });
   } catch (error) {
@@ -205,10 +222,11 @@ router.put('/:id', async (req, res) => {
       SET name = $1, description = $2, season = $3, office_type = $4,
           feast_month = $5, feast_day = $6, easter_offset = $7, published = $8,
           project = COALESCE($9::jsonb, project),
-          curated = (curated OR $10), updated_at = NOW()
-      WHERE id = $11
+          page_size = CASE WHEN $9::jsonb IS NULL THEN page_size ELSE $10 END,
+          curated = (curated OR $11), updated_at = NOW()
+      WHERE id = $12
     `, [name, description, season, officeType, feastMonth, feastDay, easterOffset, published,
-      projectJson, projectJson !== null, t.id]);
+      projectJson, projectJson !== null ? pageSizeOf(req.body.project) : null, projectJson !== null, t.id]);
 
     res.json({ message: 'Template updated' });
   } catch (error) {

@@ -1131,10 +1131,6 @@
                             <button type="button" class="btn btn-outline-secondary" data-office="office">Office</button>
                             <button type="button" class="btn btn-outline-secondary" data-office="">All</button>
                         </div>
-                        <div class="btn-group btn-group-sm ms-auto" id="tplSizePref" title="Page size to load templates at">
-                            <button type="button" class="btn btn-outline-secondary active" data-size="A5">A5</button>
-                            <button type="button" class="btn btn-outline-secondary" data-size="A4">A4</button>
-                        </div>
                     </div>
                     <div id="tplCalendarWrap">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1214,9 +1210,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-check form-switch mb-2 d-none" id="tplPubUpdateWrap">
-                        <input class="form-check-input" type="checkbox" id="tplPubUpdate" checked>
-                        <label class="form-check-label small" for="tplPubUpdate" id="tplPubUpdateLabel">Update the existing template</label>
+                    <div class="mb-2 d-none" id="tplPubTargetWrap">
+                        <label class="form-label small mb-1">Save to</label>
+                        <select class="form-select form-select-sm" id="tplPubTarget"></select>
+                        <div class="form-text small" id="tplPubTargetHint"></div>
                     </div>
                     <div class="mb-2">
                         <label class="form-label small mb-1">Template name</label>

@@ -5295,7 +5295,6 @@
   let tplCurrentUserId = null;
   let tplAll = [];            // cached list rows
   let tplOfficeFilter = 'mass';
-  let tplSizePref = 'A5';
   let tplCalYear = new Date().getFullYear();
   let tplCalMonth = new Date().getMonth(); // 0-based
 
@@ -5463,12 +5462,15 @@
     const cal = document.getElementById('tplCalendar');
     const label = document.getElementById('tplCalLabel');
     if (!cal) return;
-    const byKey = new Map();
+    const byKey = new Map(); // feast_key -> [templates] (a feast can have A5/A4/core versions)
     const byDate = new Map(); // 'M-D' -> [templates] (sanctorale + custom feasts)
     const byIso = new Map(); // 'YYYY-MM-DD' -> [templates] (Easter-relative)
     const easterMs = tplEaster(tplCalYear);
     templates.forEach((t) => {
-      if (t.feast_key) byKey.set(t.feast_key, t);
+      if (t.feast_key) {
+        if (!byKey.has(t.feast_key)) byKey.set(t.feast_key, []);
+        byKey.get(t.feast_key).push(t);
+      }
       if (t.feast_month && t.feast_day) {
         const k = t.feast_month + '-' + t.feast_day;
         if (!byDate.has(k)) byDate.set(k, []);
@@ -5501,7 +5503,7 @@
       const iso = tplIso(Date.UTC(tplCalYear, tplCalMonth, d));
       // Moveable feasts first (temporale outranks most sanctorale for display),
       // then fixed-date templates; dedupe by id.
-      const moveable = (dates[iso] || []).map((k) => byKey.get(k)).filter(Boolean);
+      const moveable = (dates[iso] || []).flatMap((k) => byKey.get(k) || []);
       const easterRel = byIso.get(iso) || [];
       const fixed = byDate.get((tplCalMonth + 1) + '-' + d) || [];
       const seen = new Set();
@@ -5512,22 +5514,118 @@
       num.className = 'tpl-day-num';
       num.textContent = d;
       cell.appendChild(num);
-      dayTpls.slice(0, 2).forEach(function (tpl) {
+      // Show distinct feast names (versions collapse); click lists them all.
+      const seenNames = new Set();
+      dayTpls.forEach(function (tpl) {
+        const short = tpl.name.replace(/ — Mass( propers)?$/, '').replace(/\s*\(A[45]\)\s*$/, '');
+        if (seenNames.has(short) || seenNames.size >= 2) return;
+        seenNames.add(short);
         const feast = document.createElement('div');
         feast.className = 'tpl-day-feast' + (tpl.published === false ? ' tpl-draft' : '');
-        feast.textContent = tpl.name.replace(/ — Mass( propers)?$/, '');
-        feast.title = tpl.name + (tpl.published === false ? ' (draft)' : '') + ' — click to load (' + tplSizePref + ')';
-        feast.addEventListener('click', function (e) {
-          e.stopPropagation();
-          loadTemplate(tpl, tpl.name, tplSizePref);
-        });
+        feast.textContent = short;
         cell.appendChild(feast);
       });
-      if (dayTpls.length === 1) {
-        cell.addEventListener('click', function () { loadTemplate(dayTpls[0], dayTpls[0].name, tplSizePref); });
+      if (dayTpls.length) {
+        const monthName = new Date(Date.UTC(tplCalYear, tplCalMonth, d)).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+        cell.title = dayTpls.length + ' template' + (dayTpls.length > 1 ? 's' : '') + ' — click to list';
+        cell.addEventListener('click', function () { renderDayPanel(monthName, dayTpls); });
       }
       cal.appendChild(cell);
     }
+  }
+
+  function badge(text, cls) {
+    const el = document.createElement('span');
+    el.className = 'badge ' + cls + ' ms-2';
+    el.textContent = text;
+    return el;
+  }
+
+  function buildTemplateRow(t) {
+    const row = document.createElement('div');
+    row.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
+    const info = document.createElement('div');
+    info.className = 'flex-grow-1';
+    const nm = document.createElement('div');
+    nm.textContent = t.name;
+    // Size: whole documents are laid out for one size; cores build at any.
+    if (t.buildable) nm.appendChild(badge('any size', 'text-bg-light border'));
+    else if (t.page_size) nm.appendChild(badge(t.page_size, 'text-bg-info'));
+    if (t.official) nm.appendChild(badge('official', 'text-bg-secondary'));
+    if (t.published === false) nm.appendChild(badge('draft', 'text-bg-warning'));
+    info.appendChild(nm);
+    const meta = document.createElement('div');
+    meta.className = 'text-muted';
+    meta.textContent = [
+      t.description || '',
+      t.official ? '' : (t.owner_name ? 'by ' + t.owner_name : ''),
+    ].filter(Boolean).join(' — ');
+    if (meta.textContent) info.appendChild(meta);
+    row.appendChild(info);
+
+    const btns = document.createElement('div');
+    btns.className = 'btn-group btn-group-sm flex-shrink-0';
+    if (t.buildable) {
+      // Propers core: build at either size.
+      ['A5', 'A4'].forEach(function (size) {
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'btn btn-primary';
+        loadBtn.textContent = size;
+        loadBtn.title = 'Build this template at ' + size;
+        loadBtn.addEventListener('click', function () { loadTemplate(t, t.name, size); });
+        btns.appendChild(loadBtn);
+      });
+    } else {
+      // Whole document: load as saved, or converted as a starting point
+      // for the other size.
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'btn btn-primary';
+      loadBtn.textContent = 'Load';
+      loadBtn.title = 'Load this template' + (t.page_size ? ' (' + t.page_size + ')' : '');
+      loadBtn.addEventListener('click', function () { loadTemplate(t, t.name, null); });
+      btns.appendChild(loadBtn);
+      if (t.page_size === 'A5' || t.page_size === 'A4') {
+        const other = t.page_size === 'A5' ? 'A4' : 'A5';
+        const convBtn = document.createElement('button');
+        convBtn.type = 'button';
+        convBtn.className = 'btn btn-outline-primary';
+        convBtn.textContent = 'as ' + other;
+        convBtn.title = 'Load converted to ' + other + ' (house margins) as a starting point for the ' + other + ' version';
+        convBtn.addEventListener('click', function () { loadTemplate(t, t.name, other); });
+        btns.appendChild(convBtn);
+      }
+    }
+
+    const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
+    if (tplIsAdmin && t.official) {
+      const pubBtn = document.createElement('button');
+      pubBtn.type = 'button';
+      pubBtn.className = t.published === false ? 'btn btn-outline-success' : 'btn btn-outline-warning';
+      pubBtn.title = t.published === false ? 'Publish (make visible to all users)' : 'Unpublish (back to admin-only draft)';
+      pubBtn.innerHTML = t.published === false ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+      pubBtn.addEventListener('click', function () { setTemplatePublished(t.id, t.published === false); });
+      btns.appendChild(pubBtn);
+    }
+    if (canEdit) {
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn-outline-secondary';
+      editBtn.title = 'Edit name, season and calendar placement';
+      editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+      editBtn.addEventListener('click', function () { openPublishModal(t); });
+      btns.appendChild(editBtn);
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-outline-danger';
+      delBtn.title = 'Delete this template';
+      delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      delBtn.addEventListener('click', function () { deleteTemplate(t.id, t.name); });
+      btns.appendChild(delBtn);
+    }
+    row.appendChild(btns);
+    return row;
   }
 
   function renderTemplateList(templates) {
@@ -5547,76 +5645,32 @@
         h.textContent = group;
         listEl.appendChild(h);
       }
-      const row = document.createElement('div');
-      row.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
-      const info = document.createElement('div');
-      info.className = 'flex-grow-1';
-      const nm = document.createElement('div');
-      nm.textContent = t.name;
-      if (t.published === false) {
-        const badge = document.createElement('span');
-        badge.className = 'badge text-bg-warning ms-2';
-        badge.textContent = 'draft';
-        nm.appendChild(badge);
-      }
-      info.appendChild(nm);
-      const meta = document.createElement('div');
-      meta.className = 'text-muted';
-      meta.textContent = [
-        t.description || '',
-        t.official ? '' : (t.owner_name ? 'by ' + t.owner_name : ''),
-      ].filter(Boolean).join(' — ');
-      if (meta.textContent) info.appendChild(meta);
-      row.appendChild(info);
-
-      const btns = document.createElement('div');
-      btns.className = 'btn-group btn-group-sm flex-shrink-0';
-      ['A5', 'A4'].forEach(function (size) {
-        const loadBtn = document.createElement('button');
-        loadBtn.type = 'button';
-        loadBtn.className = 'btn btn-primary';
-        loadBtn.textContent = size;
-        loadBtn.title = 'Load this template at ' + size;
-        loadBtn.addEventListener('click', function () { loadTemplate(t, t.name, size); });
-        btns.appendChild(loadBtn);
-      });
-
-      const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
-      if (tplIsAdmin && t.official) {
-        const pubBtn = document.createElement('button');
-        pubBtn.type = 'button';
-        pubBtn.className = t.published === false ? 'btn btn-outline-success' : 'btn btn-outline-warning';
-        pubBtn.title = t.published === false ? 'Publish (make visible to all users)' : 'Unpublish (back to admin-only draft)';
-        pubBtn.innerHTML = t.published === false ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
-        pubBtn.addEventListener('click', function () { setTemplatePublished(t.id, t.published === false); });
-        btns.appendChild(pubBtn);
-      }
-      if (canEdit) {
-        const editBtn = document.createElement('button');
-        editBtn.type = 'button';
-        editBtn.className = 'btn btn-outline-secondary';
-        editBtn.title = 'Edit name, season and calendar placement';
-        editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
-        editBtn.addEventListener('click', function () { openPublishModal(t); });
-        btns.appendChild(editBtn);
-        const owBtn = document.createElement('button');
-        owBtn.type = 'button';
-        owBtn.className = 'btn btn-outline-secondary';
-        owBtn.title = 'Overwrite this template with your current booklet';
-        owBtn.innerHTML = '<i class="bi bi-save"></i>';
-        owBtn.addEventListener('click', function () { overwriteTemplate(t.id, t.name); });
-        btns.appendChild(owBtn);
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn btn-outline-danger';
-        delBtn.title = 'Delete this template';
-        delBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        delBtn.addEventListener('click', function () { deleteTemplate(t.id, t.name); });
-        btns.appendChild(delBtn);
-      }
-      row.appendChild(btns);
-      listEl.appendChild(row);
+      listEl.appendChild(buildTemplateRow(t));
     });
+  }
+
+  // Day panel: clicking a calendar day lists every template for that date
+  // (all sizes and statuses the current user is allowed to see).
+  function renderDayPanel(dateLabel, dayTpls) {
+    const listEl = document.getElementById('tplList');
+    listEl.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'list-group-item bg-light d-flex justify-content-between align-items-center py-1';
+    const lbl = document.createElement('span');
+    lbl.className = 'fw-semibold';
+    lbl.textContent = dateLabel;
+    head.appendChild(lbl);
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'btn btn-sm btn-outline-secondary py-0';
+    back.textContent = 'Show all';
+    back.addEventListener('click', function () {
+      renderTemplateViews(document.getElementById('tplSearch')?.value.trim());
+    });
+    head.appendChild(back);
+    listEl.appendChild(head);
+    dayTpls.forEach(function (t) { listEl.appendChild(buildTemplateRow(t)); });
+    listEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function applySizeAndLoad(project, name, size, sourceId) {
@@ -5769,7 +5823,6 @@
   // (name, season, dates…) via PUT instead of publishing the current project.
   let tplEditId = null;
   // Source template of the current project (for save-back in place).
-  let tplUpdateSource = null;
 
   async function ensureTplIdentity() {
     if (tplCurrentUserId != null) return;
@@ -5812,49 +5865,103 @@
     if (official) official.checked = pre ? !!pre.official : false;
   }
 
+  // Overwritable save targets for the current project: the template it was
+  // loaded from plus any siblings on the same feast (e.g. the A5 and A4
+  // versions of a Sunday), so a corrected A5 can be converted and saved
+  // straight over the A4 sibling.
+  let tplSaveTargets = [];
+  let tplSaveFeastKey = null;
+
+  const canEditRow = (t) => tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
+
+  async function collectSaveTargets() {
+    tplSaveTargets = [];
+    tplSaveFeastKey = null;
+    if (!state.sourceTemplateId) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + state.sourceTemplateId, { credentials: 'include' });
+      if (!r.ok) return;
+      const src = (await r.json()).template;
+      if (canEditRow(src)) tplSaveTargets.push(src);
+      if (src.feast_key) {
+        tplSaveFeastKey = src.feast_key;
+        const rl = await fetch('/api/booklet/templates?feast_key=' + encodeURIComponent(src.feast_key), { credentials: 'include' });
+        if (rl.ok) {
+          const rows = (await rl.json()).templates || [];
+          rows.forEach(function (t) {
+            if (t.id !== src.id && canEditRow(t)) tplSaveTargets.push(t);
+          });
+        }
+      }
+    } catch (e) { /* source gone: publish as new */ }
+  }
+
+  function selectedSaveTarget() {
+    const sel = document.getElementById('tplPubTarget');
+    if (!sel || sel.closest('.d-none') || sel.value === 'new') return null;
+    return tplSaveTargets.find(function (t) { return String(t.id) === sel.value; }) || null;
+  }
+
+  function refreshSaveTargetUi() {
+    const target = selectedSaveTarget();
+    const hint = document.getElementById('tplPubTargetHint');
+    const curSize = (state.settings && state.settings.pageSize) || '?';
+    if (target) {
+      const tSize = target.buildable ? null : target.page_size;
+      hint.textContent = tSize && tSize !== curSize
+        ? '\u26a0 This document is ' + curSize + ' but the selected template is the ' + tSize + ' version.'
+        : 'Overwrites \u201c' + target.name + '\u201d in place (calendar placement kept).';
+      fillPublishForm(target);
+    } else {
+      hint.textContent = tplSaveFeastKey
+        ? 'Creates a new ' + curSize + ' template on the same feast day.'
+        : 'Creates a new template.';
+      const src = tplSaveTargets[0];
+      if (src) {
+        fillPublishForm(src);
+        const base = src.name.replace(/\s*\(A[45]\)\s*$/, '');
+        document.getElementById('tplPubName').value = base + ' (' + curSize + ')';
+      } else {
+        fillPublishForm(null);
+      }
+    }
+    document.getElementById('tplPubModalTitle').textContent = target ? 'Save template' : 'Publish as template';
+    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || !!target);
+  }
+
   async function openPublishModal(editTemplate) {
     await ensureTplIdentity();
     tplEditId = editTemplate ? editTemplate.id : null;
-    tplUpdateSource = null;
 
-    // Save-back: does the current project come from a template this user
-    // may update in place?
-    if (!editTemplate && state.sourceTemplateId) {
-      try {
-        const r = await fetch('/api/booklet/templates/' + state.sourceTemplateId, { credentials: 'include' });
-        if (r.ok) {
-          const src = (await r.json()).template;
-          const canUpdate = tplIsAdmin || (!src.official && String(src.owner_id) === String(tplCurrentUserId));
-          if (canUpdate) tplUpdateSource = src;
-        }
-      } catch (e) { /* source template gone; publish as new */ }
-    }
-
-    const upWrap = document.getElementById('tplPubUpdateWrap');
-    const upCheck = document.getElementById('tplPubUpdate');
-    if (upWrap && upCheck) {
-      upWrap.classList.toggle('d-none', !tplUpdateSource);
-      upCheck.checked = !!tplUpdateSource;
-      if (tplUpdateSource) {
-        document.getElementById('tplPubUpdateLabel').textContent =
-          'Update the existing template \u201c' + tplUpdateSource.name + '\u201d' + (tplUpdateSource.official ? ' (official)' : '') + ' \u2014 untick to save a copy';
+    const targetWrap = document.getElementById('tplPubTargetWrap');
+    if (editTemplate) {
+      targetWrap?.classList.add('d-none');
+      document.getElementById('tplPubModalTitle').textContent = 'Edit template details';
+      fillPublishForm(editTemplate);
+      document.getElementById('tplPubOfficialWrap')?.classList.add('d-none');
+    } else {
+      await collectSaveTargets();
+      const sel = document.getElementById('tplPubTarget');
+      if (tplSaveTargets.length) {
+        sel.innerHTML = tplSaveTargets.map(function (t) {
+          const size = t.buildable ? 'any size' : (t.page_size || 'no size');
+          return '<option value="' + t.id + '">Overwrite: ' + escapeHtml(t.name) + ' \u2014 ' + size +
+            (t.published === false ? ', draft' : '') + (t.official ? ', official' : '') + '</option>';
+        }).join('') + '<option value="new">Save as a new template\u2026</option>';
+        // Preselect the same-size version, else the buildable core; if the
+        // only targets are laid out for the OTHER size, default to a new
+        // template rather than clobbering them.
+        const curSize = (state.settings && state.settings.pageSize) || '';
+        const match = tplSaveTargets.find(function (t) { return !t.buildable && t.page_size === curSize; })
+          || tplSaveTargets.find(function (t) { return t.buildable || !t.page_size; });
+        sel.value = match ? String(match.id) : 'new';
+        targetWrap?.classList.remove('d-none');
+      } else {
+        targetWrap?.classList.add('d-none');
       }
+      refreshSaveTargetUi();
     }
-
-    const updating = !!(tplUpdateSource && upCheck && upCheck.checked);
-    document.getElementById('tplPubModalTitle').textContent =
-      editTemplate ? 'Edit template details' : (updating ? 'Save template' : 'Publish as template');
-    fillPublishForm(editTemplate || (updating ? tplUpdateSource : null));
-    // "Official" only applies when publishing something new.
-    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || !!editTemplate || updating);
     new bootstrap.Modal(document.getElementById('modalPublishTemplate')).show();
-  }
-
-  function onPublishUpdateToggle() {
-    const checked = !!document.getElementById('tplPubUpdate')?.checked;
-    fillPublishForm(checked ? tplUpdateSource : null);
-    document.getElementById('tplPubModalTitle').textContent = checked ? 'Save template' : 'Publish as template';
-    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || checked);
   }
 
   async function publishTemplate() {
@@ -5862,13 +5969,24 @@
     if (!form.name) { alert('Give the template a name.'); return; }
     try {
       const isEdit = tplEditId != null; // pencil: details only, no project
-      const isUpdate = !isEdit && tplUpdateSource && !!document.getElementById('tplPubUpdate')?.checked;
-      const targetId = isEdit ? tplEditId : (isUpdate ? tplUpdateSource.id : null);
+      const target = isEdit ? null : selectedSaveTarget();
+      // Overwriting a template laid out for a different size is almost
+      // certainly a mistake — confirm it.
+      const curSize = (state.settings && state.settings.pageSize) || '';
+      if (target && !target.buildable && target.page_size && curSize && target.page_size !== curSize) {
+        if (!confirm('This document is ' + curSize + ' but "' + target.name + '" is the ' + target.page_size +
+          ' version. Overwrite it with the ' + curSize + ' layout anyway?')) return;
+      }
+      const targetId = isEdit ? tplEditId : (target ? target.id : null);
       const url = targetId != null ? '/api/booklet/templates/' + targetId : '/api/booklet/templates';
       let body;
       if (isEdit) body = form;
-      else if (isUpdate) body = { ...form, project: state };
-      else body = { ...form, official: !!document.getElementById('tplPubOfficial')?.checked, project: state };
+      else if (target) body = { ...form, project: state };
+      else {
+        body = { ...form, official: !!document.getElementById('tplPubOfficial')?.checked, project: state };
+        // Keep new versions grouped with their feast day (admin only, server-enforced).
+        if (tplSaveFeastKey) body.feast_key = tplSaveFeastKey;
+      }
       const r = await fetch(url, {
         method: targetId != null ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5879,9 +5997,10 @@
       if (!r.ok) throw new Error(data.error || (targetId != null ? 'Update failed' : 'Publish failed'));
       bootstrap.Modal.getInstance(document.getElementById('modalPublishTemplate'))?.hide();
       tplEditId = null;
-      // New copies become the project's source, so the next save updates them.
-      if (!isEdit && !isUpdate && data.template && data.template.id && state) {
-        state.sourceTemplateId = data.template.id;
+      // Whatever we saved to becomes the project's source template.
+      const savedId = target ? target.id : (data.template && data.template.id);
+      if (!isEdit && savedId && state) {
+        state.sourceTemplateId = savedId;
         scheduleAutosave();
       }
       loadTemplateList(document.getElementById('tplSearch')?.value.trim());
@@ -5910,13 +6029,6 @@
         renderTemplateViews(document.getElementById('tplSearch')?.value.trim());
       });
     });
-    document.querySelectorAll('#tplSizePref button').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        document.querySelectorAll('#tplSizePref button').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        tplSizePref = btn.dataset.size;
-      });
-    });
     document.getElementById('tplCalPrev')?.addEventListener('click', function () {
       tplCalMonth--;
       if (tplCalMonth < 0) { tplCalMonth = 11; tplCalYear--; }
@@ -5933,7 +6045,7 @@
     });
     document.getElementById('btnPublishTemplateConfirm')?.addEventListener('click', publishTemplate);
     document.getElementById('btnBuildConfirm')?.addEventListener('click', buildAndLoad);
-    document.getElementById('tplPubUpdate')?.addEventListener('change', onPublishUpdateToggle);
+    document.getElementById('tplPubTarget')?.addEventListener('change', refreshSaveTargetUi);
   }
 
   function bindUi() {
