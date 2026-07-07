@@ -1,0 +1,7 @@
+[Rank]
+Octave of the Immaculate Conception of the Blessed Virgin Mary;;Duplex majus;;4;;vide Sancti/12-08
+
+[Rule]
+vide Sancti/12-08;
+Gloria
+Credo

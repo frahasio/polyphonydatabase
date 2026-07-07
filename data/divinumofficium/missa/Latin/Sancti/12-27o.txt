@@ -1,0 +1,25 @@
+@Sancti/12-27
+
+[Rank]
+S. Johanni Apostoli;;Duplex II Class cum octava;;5.3;;ex C1
+
+[Rule]
+Gloria
+Credo
+Prefatio=Nat
+
+[Graduale]
+!Joann 21:23; 21:19
+Exiit sermo inter fratres, quod discípulus ille non móritur: et non dixit Jesus: Non móritur,
+V. Sed: Sic eum volo manére, donec véniam: tu me séquere. Allelúja, allelúja.
+!Joann 21:24
+V. Hic est discípulus ille, qui testimónium pérhibet de his: et scimus, quia verum est testimónium ejus. Allelúja.
+
+[Evangelium]
+Sequéntia ++ sancti Evangélii secundum Joánnem.
+!Joann 21:19-24
+In illo témpore: Dixit Jesus Petro: Séquere me. Convérsus Petrus vidit illum discípulum, quem diligébat Jesus, sequéntem, qui et recúbuit in cena super pectus ejus, et dixit: Dómine, quis est qui tradet te ? Hunc ergo cum vidísset Petrus, dixit Jesu: Dómine, hic autem quid? Dicit ei Jesus: Sic eum volo manére, donec véniam, quid ad te? tu me séquere. Exiit ergo sermo iste inter fratres, quia discípulus ille non móritur. Et non dixit ei Jesus: Non móritur; sed: Sic eum volo manére, donec véniam: quid ad te? Hic est discípulus ille, qui testimónium pérhibet de his, et scripsit hæc: et scimus, quia verum est testimónium ejus.
+
+[Communio]
+!Joann 21:23
+Exiit sermo inter fratres, quod discípulus ille non móritur: et non dixit Jesus: Non móritur; sed: Sic eum volo manére, donec véniam.

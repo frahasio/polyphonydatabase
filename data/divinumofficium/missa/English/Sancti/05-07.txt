@@ -1,0 +1,9 @@
+[Officium]
+St. Stanislaus, Bishop and Martyr
+
+[Name]
+Stanislaus
+
+[Oratio]
+O God, in defense of Whose honor Stanislaus, the glorious Bishop, died by the swords of wicked men, grant, we beseech You, that all who seek his help may obtain salvation as a result of his prayers.
+$Per Dominum

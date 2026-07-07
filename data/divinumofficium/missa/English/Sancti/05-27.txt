@@ -1,0 +1,9 @@
+[Officium]
+St. Bede the Venerable, Confessor and Doctor of the Church
+
+[Name]
+Bede
+
+[Oratio]
+O God, Who enlightened Your Church with the learning of blessed Bede, Your Confessor and Doctor, graciously grant that Your servants may ever be enlightened by his wisdom and helped by his merits.
+$Per Dominum

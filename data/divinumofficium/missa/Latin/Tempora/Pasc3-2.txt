@@ -1,0 +1,12 @@
+[Officium]
+Die VII infra Octavam Patrocinii St Joseph
+
+[Rank]
+;;Semiduplex;;2;;vide Tempora/Pasc2-3
+
+[Rule]
+vide Tempora/Pasc2-3
+Gloria
+Credo
+Prefatio=Joseph
+Suffragium=Maria3;Ecclesiæ,Papa;;

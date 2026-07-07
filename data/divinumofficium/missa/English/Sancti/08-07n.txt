@@ -1,0 +1,13 @@
+[Officium]
+St. Sixtus II, Pope, and Companions, Martyrs
+
+[Rule]
+vide C3;
+
+[Oratio]
+O God, Who permits us to celebrate the anniversary of the death of Your holy Martyrs, Saints Sixtus, Felicissimus and Agapitus, grant that we may enjoy their companionship in everlasting happiness.
+$Per Dominum
+
+[Postcommunio]
+Grant, we beseech You, O almighty and merciful God, that through the intercession of Your holy Martyrs, Sixtus, Felicissimus, and Agapitus, what we take into our mouths we may eat with pure heart.
+$Per Dominum

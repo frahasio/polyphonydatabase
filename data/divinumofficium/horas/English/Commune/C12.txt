@@ -1,0 +1,112 @@
+[Officium]
+Little Office of Our Lady
+
+[Commemoratio]
+!Commemoration of the Saints
+Ant. All ye saints of God, vouchsafe to plead for our salvation and for that of all mankind.
+V. Be glad in the Lord and rejoice, ye just.
+R. And be joyful, all ye that are upright of heart.
+$Oremus
+v. Shield, O Lord, thy people, and ever keep them in thy care, who put their trust in the pleading of thy Apostles Peter and Paul, and of the other Apostles.
+v. May all thy saints, we beseech thee, O Lord, everywhere come to our help, that while we do honor to their merits, we may also enjoy their intercession: grant thy own peace unto our times, and drive away all wickedness from thy Church; direct our way, our actions, and our wishes and those of all thy servants in the way of salvation; to our benefactors render everlasting blessings, and to all the faithful departed grant eternal rest.
+$Per Dominum
+(sed rubrica 1955 aut rubrica 196 omittitur)
+
+[Hymnus minor_]
+
+#Hymnus
+v. Remember, O creator Lord,
+That in the Virgin's sacred womb
+Thou wast conceived, and of her flesh
+Didst our mortality assume.
+_
+r. Mother of grace, O Mary blest,
+To thee, sweet fount of love, we fly;
+Shield us through life, and take us hence
+To thy dear bosom when we die.
+_
+r. O Jesu, born of Virgin bright,
+Immortal glory be to thee;
+Praise to the Father infinite,
+And Holy Ghost eternally.
+Amen.
+
+[Lectio1]
+!Sir 24:11-13
+11 And by my power I have trodden under my feet the hearts of all the high and low: and in all these I sought rest, and I shall abide in the inheritance of the Lord.
+12 Then the creator of all things commanded, and said to me: and he that made me, rested in my tabernacle,
+13 And he said to me: Let thy dwelling be in Jacob, and thy inheritance in Israel, and take root in my elect.
+
+[Lectio2]
+!Sir 24:15-16
+15 And so was I established in Sion, and in the holy city likewise I rested, and my power was in Jerusalem.
+16 And I took root in an honourable people, and in the portion of my God his inheritance, and my abode is in the full assembly of saints.
+
+[Responsory2]
+R. Blessed art thou, O Virgin Mary, who hast carried the Lord, the Maker of the world.
+* Thou hast borne Him Who created thee, and thou abidest a virgin for ever.
+V. Hail, Mary, full of grace, the Lord is with thee.
+R. Thou hast borne him who created thee, and thou abidest a virgin for ever.
+
+[Lectio3]
+!Sir 24:17-20
+17 I was exalted like a cedar in Libanus, and as a cypress tree on mount Sion.
+18 I was exalted like a palm tree in Cades, and as a rose plant in Jericho:
+19 As a fair olive tree in the plains, and as a plane tree by the water in the streets, was I exalted.
+20 I gave a sweet smell like cinnamon. and aromatical balm: I yielded a sweet odour like the best myrrh:
+&teDeum
+
+[Responsory3]
+@Commune/C11:Responsory7:s/May all that are keeping this thine holy Feast day/Let all that are making this holy memorial of thee/ s/(R. For out of thee rose the Sun of righteousness), (even Christ our God.)/$1.\n&Gloria\nR. \u$2/
+
+[Ant Laudes]
+Mary hath been taken to heaven; * the Angels rejoice; they praise and bless the Lord.
+The Virgin Mary hath been taken into the chamber on high, * where the King of kings sitteth on a throne amid the stars.
+We run after thee, on the scent of thy perfumes * the virgins love thee heartily.
+Blessed of the Lord art thou, O daughter, * for by thee we have been given to eat of the fruit of the tree of Life.
+Fair and comely art thou, O daughter of Jerusalem, * terrible as a fenced camp set in battle array.
+
+[Capitulum Laudes]
+!Song 6:8
+v. The daughters of Zion saw her, and called her blessed; the queens also, and they praised her.
+$Deo gratias
+
+[Oratio 2]
+v. O God, who didst will that, at the announcement of an Angel, thy Word should take flesh in the womb of the Blessed Virgin Mary, grant to us thy suppliants, that we who believe her to be truly the Mother of God may be helped by her intercession with thee.
+$Per eumdem
+
+[Capitulum Prima]
+!Song 6:9
+v. Who is she that cometh forth like the rising dawn, fair as the moon, clear as the sun, terrible as a fenced camp set in battle array?
+$Deo gratias
+
+[Oratio Prima]
+v. O God, Who wast pleased to choose for thy dwelling-place the maiden palace of Blessed Mary, grant, we beseech thee, that her protection may shield us, and make us glad in her commemoration.
+$Qui vivis
+
+[Oratio Sexta]
+v. Most merciful God, grant, we beseech thee, a succour unto the frailty of our nature, that as we keep ever alive the memory of the holy Mother of God, so by the help of her intercession we may be raised up from the bondage of our sins.
+$Per eumdem
+
+[Oratio Nona]
+v. O Lord, we beseech thee, forgive the transgressions of thy servants, and, forasmuch as by our own deeds we cannot please thee, may we find safety through the prayers of the Mother of thy Son and our Lord.
+$Qui tecum
+
+[Verse Nona]
+V. After thy delivery, thou still remainest a Virgin undefiled.
+R. Mother of God, pray for us.
+
+[Ant Completorium]
+Ant. We take refuge * under thy protection, O holy Mother of God! Despise not our supplications in our need, but deliver us always from all dangers, O Virgin, glorious and blessed!
+
+[Capitulum Completorium_]
+!Sir 24:24
+v. I am mother of fair love, and fear, and knowledge, and holy hope.
+$Deo gratias
+_
+V. Pray for us, O holy Mother of God.
+R. That we may be made worthy of the promises of Christ.
+
+[Oratio Completorium]
+v. O Lord, we pray thee, that the glorious intercession of Mary, blessed, and glorious, and everlastingly Virgin, may shield us and bring us on toward eternal life.
+$Per Dominum

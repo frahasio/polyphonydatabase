@@ -1,0 +1,10 @@
+[Officium]
+Die tertia infra Octavam Nativitatis S. Joannis Baptistæ
+
+[Rank]
+;;Semiduplex;;2;;ex Sancti/06-24
+
+[Rule]
+ex Sancti/06-24;
+Gloria
+Suffr=Maria3;Ecclesiæ,Papa;;

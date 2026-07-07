@@ -1,0 +1,9 @@
+[Officium]
+St. Boniface, Martyr
+
+[Name]
+Boniface
+
+[Oratio]
+Grant, almighty God, we beseech You, that we who keep the feast of Your blessed Martyr Boniface may be helped by his intercession with You.
+$Per Dominum

@@ -1,0 +1,35 @@
+[Rank]
+In Vigilia Epiphaniae;;Semiduplex;;5;;ex Sancti/01-01
+
+[Introitus]
+!Wis 18:14-15.
+@Tempora/Nat1-0
+
+[Oratio]
+O Almighty and everlasting God, do Thou order all our actions in conformity with thy good pleasure, that through the name of thy well-beloved Son, we may worthily abound in all good works.
+$Qui tecum
+
+[Lectio]
+@Tempora/Nat1-0
+
+[Graduale]
+@Tempora/Nat1-0
+
+[Evangelium]
+Continuation + of the Holy Gospel according to Matthew
+!Matt 2:19-23.
+v. But when Herod was dead, behold; an angel of the Lord appeared in sleep to Joseph in Egypt, saying: Arise, and take the child and his mother, and go into the land of Israel. For they are dead that sought the life of the child. Who arose, and took the child and his mother, and came into the land of Israel. But hearing that Archelaus reigned in Judea in the room of Herod his father, he was afraid to go thither: and being warned in sleep retired into the quarters of Galilee. And coming he dwelt in a city called Nazareth: that it might be fulfilled which was said by prophets: That he shall be called a Nazarene.
+
+[Offertorium]
+@Tempora/Nat1-0
+
+[Secreta]
+Grant, we beseech Thee, almighty God, that the offering made in the sight of Thy Majesty may obtain for us the grace of loving devotion, and the reward of a blessed eternity.
+$Per Dominum
+
+[Communio]
+@Tempora/Nat1-0
+
+[Postcommunio]
+By the working of this Mystery, O Lord, may our vices be removed, and our just desires fulfilled.
+$Per Dominum

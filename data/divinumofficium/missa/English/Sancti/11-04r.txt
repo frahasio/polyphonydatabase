@@ -1,0 +1,19 @@
+[Introitus]
+@Commune/C2
+
+[Lectio]
+@Commune/C4
+
+[Graduale]
+!Sir 44:16, 20
+Behold, a great priest, who in his days pleased God.
+V. There was not found the like to him, who kept the law of the Most High. Alleluia, alleluia.
+!Ps 109:4
+V. You are a priest forever, according to the order of Melchisedec. Alleluia.
+
+[Evangelium]
+@Commune/C4
+
+[Offertorium]
+!Ps 88:21-22
+I have found David, my servant; with My holy oil I have anointed him, that My hand may be always with him, and that My arm may make him strong.

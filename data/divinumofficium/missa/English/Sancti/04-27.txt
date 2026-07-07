@@ -1,0 +1,9 @@
+[Officium]
+St. Peter Canisius, Confessor and Doctor of the Church
+
+[Name]
+Peter
+
+[Oratio]
+O God, who didst give strength and learning to blessed Peter thy Confessor for the defense of the Catholic faith, mercifully grant, that by his example and teaching the erring may be saved and the faithful remain constant in the confession of truth. 
+$Per Dominum

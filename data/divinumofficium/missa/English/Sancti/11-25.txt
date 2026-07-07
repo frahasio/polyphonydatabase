@@ -1,0 +1,9 @@
+[Officium]
+St. Catharine of Alexandria, Virgin and Martyr
+
+[Name]
+Catharine
+
+[Oratio]
+O God, Who gave the law to Moses on Sinai's height and through your holy angels miraculously placed there the body of blessed Catherine, Your Virgin and Martyr; grant, we beseech You, that by her merits and intercession we may reach that towering eminence which is Christ.
+$Qui tecum

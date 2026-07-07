@@ -1,0 +1,7 @@
+[Officium]
+St. Hilary, Bishop of Poitiers, Confessor and Doctor of the Church
+(sed rubrica 1570 aut rubrica 1617)
+St. Hilary, Bishop of Poitiers, Confessor
+
+[Name]
+Hilary

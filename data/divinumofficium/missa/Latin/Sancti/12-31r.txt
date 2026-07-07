@@ -1,0 +1,8 @@
+[Officium]
+S. Silvestri Papæ et Confessoris
+
+[Rank]
+;;Simplex;;1.1;;vide C4b
+
+[Name]
+@Sancti/12-31

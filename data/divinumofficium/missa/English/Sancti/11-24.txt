@@ -1,0 +1,14 @@
+[Officium]
+St. John of the Cross, Confessor and Doctor of the Church
+
+[Name]
+John
+
+[Oratio_]
+O God, Who made blessed John, Your Confessor and Teacher, an extraordinary lover of perfect self-denial and the Cross, grant that, by continually striving to imitate him, we may reach everlasting glory.
+$Per Dominum
+
+[Oratio]
+@:Oratio_
+(sed rubrica tridentina)
+@:Oratio_:s/ and Doctor//

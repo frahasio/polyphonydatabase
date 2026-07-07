@@ -1,0 +1,9 @@
+[Officium]
+St. Gregory VII, Pope and Confessor
+
+[Name]
+Gregory
+
+[Oratio]
+O God, the strength of those who trust in You, Who fortified blessed Gregory, Your Confessor and Pontiff, with the virtue of firmness to protect the freedom of the Church, grant us, by his example and intercession, bravely to overcome all evil.
+$Per Dominum

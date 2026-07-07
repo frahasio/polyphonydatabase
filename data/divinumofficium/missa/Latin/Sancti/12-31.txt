@@ -1,0 +1,47 @@
+[Officium]
+S. Silvestri Papæ et Confessoris
+
+[Rank]
+;;Duplex;;3;;vide C4b
+
+[Rule]
+vide C4b;
+Gloria
+Credo
+Prefatio=Nat
+Evangelium non appropriatum
+
+[Name]
+Silvéstri
+(sed rubrica 196)
+Silvéstrum
+Postcommunio=Silvéstro
+
+[Oratio]
+@Commune/C4b
+
+[Lectio]
+@Commune/C4a:Lectio
+
+[Graduale]
+!Eccli 44:16
+Ecce sacérdos magnus, qui in diébus suis plácuit Deo.
+!Eccli 44:20
+V. Non est invéntus símilis illi, qui conserváret legem Excélsi. Allelúja, allelúja.
+!Ps 88:21
+V. Invéni David servum meum: óleo sancto meo unxi eum. Allelúja.
+
+[GradualeP]
+@Commune/C4:GradualeP
+
+[Evangelium]
+@Commune/C5:Evangelium
+
+[Offertorium]
+@Commune/C4
+
+[Secreta]
+@Commune/C4b
+
+[Postcommunio]
+@Commune/C4b

@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     }
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
-             t.office_type, t.owner_id, t.owner_name, t.updated_at
+             t.office_type, t.feast_month, t.feast_day, t.owner_id, t.owner_name, t.updated_at
       FROM booklet_templates t
       ${where}
       ORDER BY t.official DESC, t.season, t.name
@@ -63,6 +63,9 @@ router.post('/', async (req, res) => {
     const officeType = ['mass', 'office', 'other'].includes(req.body.office_type) ? req.body.office_type : 'mass';
     const project = req.body.project;
     const official = req.user.role === 'admin' && !!req.body.official;
+    const feastMonth = parseInt(req.body.feast_month, 10) || null;
+    const feastDay = parseInt(req.body.feast_day, 10) || null;
+    const hasDate = feastMonth >= 1 && feastMonth <= 12 && feastDay >= 1 && feastDay <= 31;
 
     if (!name) return res.status(400).json({ error: 'A template name is required' });
     if (!validProject(project)) return res.status(400).json({ error: 'Invalid project payload' });
@@ -71,10 +74,11 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO booklet_templates (name, description, season, office_type, official, owner_id, owner_name, project)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO booklet_templates (name, description, season, office_type, official, owner_id, owner_name, project, feast_month, feast_day)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id, name, official
-    `, [name, description, season, officeType, official, req.user.id, official ? '' : (req.user.name || req.user.email), JSON.stringify(project)]);
+    `, [name, description, season, officeType, official, req.user.id, official ? '' : (req.user.name || req.user.email), JSON.stringify(project),
+      hasDate ? feastMonth : null, hasDate ? feastDay : null]);
 
     res.status(201).json({ message: 'Template published', template: result.rows[0] });
   } catch (error) {
@@ -113,6 +117,16 @@ router.put('/:id', async (req, res) => {
     const name = req.body.name !== undefined ? String(req.body.name).trim().slice(0, 200) : t.name;
     const description = req.body.description !== undefined ? String(req.body.description).trim().slice(0, 1000) : t.description;
     const season = req.body.season !== undefined ? String(req.body.season).trim().slice(0, 100) : t.season;
+    const officeType = ['mass', 'office', 'other'].includes(req.body.office_type) ? req.body.office_type : t.office_type;
+    let feastMonth = t.feast_month;
+    let feastDay = t.feast_day;
+    if (req.body.feast_month !== undefined || req.body.feast_day !== undefined) {
+      const fm = parseInt(req.body.feast_month, 10) || null;
+      const fd = parseInt(req.body.feast_day, 10) || null;
+      const ok = fm >= 1 && fm <= 12 && fd >= 1 && fd <= 31;
+      feastMonth = ok ? fm : null;
+      feastDay = ok ? fd : null;
+    }
     let projectJson = null;
     if (req.body.project !== undefined) {
       if (!validProject(req.body.project)) return res.status(400).json({ error: 'Invalid project payload' });
@@ -122,10 +136,11 @@ router.put('/:id', async (req, res) => {
 
     await pool.query(`
       UPDATE booklet_templates
-      SET name = $1, description = $2, season = $3,
-          project = COALESCE($4::jsonb, project), updated_at = NOW()
-      WHERE id = $5
-    `, [name, description, season, projectJson, t.id]);
+      SET name = $1, description = $2, season = $3, office_type = $4,
+          feast_month = $5, feast_day = $6,
+          project = COALESCE($7::jsonb, project), updated_at = NOW()
+      WHERE id = $8
+    `, [name, description, season, officeType, feastMonth, feastDay, projectJson, t.id]);
 
     res.json({ message: 'Template updated' });
   } catch (error) {

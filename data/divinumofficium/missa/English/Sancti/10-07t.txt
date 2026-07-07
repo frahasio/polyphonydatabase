@@ -1,0 +1,10 @@
+[Officium]
+St. Mark, Pope and Confessor
+
+[Oratio] (nisi rubrica 196)
+Graciously hear our supplications, O Lord, and for the sake of thy Blessed Confessor and Bishop Mark, grant to us in thy mercy both pardon and peace.
+$Per Dominum
+
+[Postcommunio] (nisi rubrica 196)
+Grant, O Lord, we beseech thee, that thy faithful people may always joyfully honour thy saints, and ever be protected by their prayers.
+$Per Dominum

@@ -1,0 +1,14 @@
+[Officium]
+St. Peter of Alcantara, Confessor
+
+[Name]
+Peter
+
+[Oratio]
+O God, Who graciously made blessed Peter, Your Confessor, glorious by the gift of remarkable penance and sublime contemplation, grant, we beseech You, that, by the merit of his prayers, we may the more easily understand the things of heaven by curbing our passions.
+$Per Dominum
+
+[Evangelium]
+Continuation + of the Holy Gospel according to Luke
+!Luke 12:32-34
+At that time, Jesus said to His disciples, Do not be afraid, little flock, for it has pleased your Father to give you the kingdom. Sell what you have and give alms. Make for yourselves purses that do not grow old, a treasure unfailing in heaven, where neither thief draws near nor moth destroys. For where your treasure is, there also will your heart be.

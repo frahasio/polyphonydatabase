@@ -1,0 +1,12 @@
+[Officium]
+St. Lawrence Justinian, Bishop and Confessor
+
+[Name]
+Laurence
+
+[Evangelium]
+@Commune/C4
+
+[Offertorium]
+!Ps 88:21-22
+I have found David, My servant; with My holy oil I have anointed him, that My hand may be always with him, and that My arm may make him strong.

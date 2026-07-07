@@ -1,0 +1,10 @@
+[Officium]
+St. Anacletus, Pope and Martyr
+
+[Rule]
+OPapaM=Anacletus;
+vide C4D;
+Gloria
+
+[Name]
+Anacletus

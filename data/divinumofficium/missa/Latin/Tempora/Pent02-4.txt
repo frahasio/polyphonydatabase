@@ -1,0 +1,18 @@
+[Officium]
+In Octava Sanctissimi Corporis Christi
+
+[Officium] (rubrica 196 aut rubrica 1955)
+Feria V infra Hebdomadam II post Octavam Pentecostes
+
+[Rank]
+;;Duplex majus;;6.3;;ex Tempora/Pent01-4
+(sed rubrica 196 aut rubrica 1955)
+;;Feria;;1
+
+[Rule]
+ex Tempora/Pent01-4;
+Oratio Dominica
+Prefatio=Nat
+(sed rubrica 1960)
+Prefatio=Communis
+Comkey=20

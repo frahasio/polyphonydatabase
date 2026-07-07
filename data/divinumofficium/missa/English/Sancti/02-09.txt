@@ -1,0 +1,17 @@
+[Officium]
+St. Cyril of Alexandria, Bishop, Confessor, and Doctor of the Church
+
+[Name]
+Cyrille
+
+[Oratio]
+O God, Who made Cyril, Your Confessor and Bishop, an unconquerable champion of the most Blessed Virgin Mary’s divine motherhood, grant that we who believe that she is truly the Mother of God may be saved by her motherly protection.
+$Per eumdem
+
+[Secreta]
+Look graciously, almighty God, upon our gifts and, through the intercession of blessed Cyril, grant that we may receive worthily into our hearts, Your only-begotten Son, Jesus Christ, our Lord, Who is with You co-eternal in Your glory.
+$Qui tecum
+
+[Postcommunio]
+Strengthened by the Blessed Sacrament, we humbly beseech You, O Lord, that, helped by the example and merits of the blessed Bishop Cyril, we may be worthy servants of the most holy Mother of Your only-begotten Son.
+$Qui tecum

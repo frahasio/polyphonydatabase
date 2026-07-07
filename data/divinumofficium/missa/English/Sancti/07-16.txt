@@ -1,0 +1,52 @@
+[Rank]
+In Commemoratione Beatae Mariae Virgine de Monte Carmelo.;;Duplex majus;;4;;ex C11
+
+[Rank1960]
+In Commemoratione Beatae Mariae Virgine de Monte Carmelo.;;Simplex;;1.1;;vide C11
+
+[Rule]
+ex C11;
+Gloria
+CredoDA
+Prefatio=Maria=Commemoratione;
+
+[Introitus]
+!  
+v. Let us all rejoice in the Lord, celebrating a festival in honor of the Blessed Virgin Mary, for whose solemnity the angels rejoice, and join in praising the Son of God.
+!Ps 44:2
+My heart overflows with a goodly theme; as I sing my ode to the King.
+&Gloria
+v. Let us all rejoice in the Lord, celebrating a festival in honor of the Blessed Virgin Mary, for whose solemnity the angels rejoice, and join in praising the Son of God.
+
+[Oratio]
+O God, Who honored the Order of Carmel with the special title of the most blessed Mary, ever Virgin, Your mother, graciously grant, that we who this day honor her commemoration with solemn rites, defended by her care, may be found worthy to attain everlasting happiness.
+$Qui vivis
+
+[Lectio]
+Lesson from the book of Ecclesiasticus
+!Sir 24:23-31
+I bud forth delights like the vine, my blossoms become fruit fair and rich. I am the mother of fair love, and of fear, and of knowledge, and of holy hope. In me is all grace of the way and of the truth, in me is all hope of life and of virtue. Come to me, all you that yearn for me, and be filled with my fruits; for my spirit is sweeter than honey, and my inheritance better to have than honey and the honeycomb. My memory is to everlasting generations. They who eat of me will hunger still, and they who drink of me will thirst for more. He who obeys me will not be put to shame, they who serve me will never fail. They who explain me shall have life everlasting.
+
+[Graduale]
+O Virgin Mary, blessed and venerable art thou: who without blemish to thy maidenhood, didst become the Mother of the Savior.
+V. O Virgin Mother of God, He whom the whole world cannot contain, enclosed Himself within thy womb, and became man.
+V. Joyful art thou, holy Virgin Mary, and worthy of all praise: for of thee hast risen the Son of Justice, Christ our Lord.
+_
+Alleluia, alleluia.
+Through thee, O Mother of God, has the life we had lost been
+restored: from heaven didst thou beget thy Child, to the world brought forth a Savior. Alleluia.
+
+[Offertorium]
+!Jer 18:20
+Remember, O Virgin Mother, to speak good things before God’s face in our behalf, so that He may turn away His wrath from us.
+
+[Secreta]
+O Lord, we beseech You, make holy the sacrificial gifts we offer, and by the most powerful prayers of blessed Mary, Mother of God, grant they may be helpful to our salvation.
+$Per eundem
+
+[Communio]
+Most worthy Queen of the world, Mary ever Virgin, who have borne Christ the Lord, the Saviour of all, intercede for our peace and salvation.
+
+[Postcommunio]
+May the venerable intercession of Your glorious Mother Mary, ever Virgin, help us, O Lord, that those whom she has ladened with lasting benefits may be delivered from all dangers and be made of one mind by her godliness.
+$Qui vivis

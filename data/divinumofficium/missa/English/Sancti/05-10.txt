@@ -1,0 +1,9 @@
+[Officium]
+St. Antoninus, Bishop and Confessor
+
+[Name]
+Antonius
+
+[Oratio]
+O Lord, may the merits of St. Antoninus, Your Confessor and Bishop, help us; and just as we praise You for the wonders You have wrought in him, so may we glory in Your mercy toward us.
+$Per Dominum

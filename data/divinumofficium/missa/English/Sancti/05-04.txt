@@ -1,0 +1,9 @@
+[Officium]
+St. Monica, Widow
+
+[Name]
+Monica
+
+[Oratio] (nisi rubrica cisterciensis)
+O God, the consoler of those Who mourn and the safety of those who put their trust in You; Who mercifully accepted the holy tears of blessed Monica for the conversion of Augustine, her son; grant us through the intercession of both to bewail our sins and to obtain the grace of Your forgiveness.
+$Per Dominum

@@ -5445,7 +5445,12 @@
     listEl.classList.remove('d-none');
     if (showCalendar) {
       renderTemplateCalendar(filtered);
-      renderTemplateList(filtered.filter((t) => !t.feast_key));
+      // Below the calendar: templates with no calendar placement
+      // (commons, votives, undated hand-made booklets).
+      const placedKeys = new Set(Object.values(tplFeastDates(tplCalYear)).flat());
+      renderTemplateList(filtered.filter(
+        (t) => !(t.feast_month && t.feast_day) && !(t.feast_key && placedKeys.has(t.feast_key))
+      ));
     } else {
       renderTemplateList(filtered);
     }
@@ -5456,7 +5461,15 @@
     const label = document.getElementById('tplCalLabel');
     if (!cal) return;
     const byKey = new Map();
-    templates.forEach((t) => { if (t.feast_key) byKey.set(t.feast_key, t); });
+    const byDate = new Map(); // 'M-D' -> [templates] (sanctorale + custom feasts)
+    templates.forEach((t) => {
+      if (t.feast_key) byKey.set(t.feast_key, t);
+      if (t.feast_month && t.feast_day) {
+        const k = t.feast_month + '-' + t.feast_day;
+        if (!byDate.has(k)) byDate.set(k, []);
+        byDate.get(k).push(t);
+      }
+    });
     const dates = tplFeastDates(tplCalYear);
 
     const first = Date.UTC(tplCalYear, tplCalMonth, 1);
@@ -5476,21 +5489,31 @@
 
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = tplIso(Date.UTC(tplCalYear, tplCalMonth, d));
-      const keys = dates[iso] || [];
-      const tpl = keys.map((k) => byKey.get(k)).find(Boolean);
+      // Moveable feasts first (temporale outranks most sanctorale for display),
+      // then fixed-date templates; dedupe by id.
+      const moveable = (dates[iso] || []).map((k) => byKey.get(k)).filter(Boolean);
+      const fixed = byDate.get((tplCalMonth + 1) + '-' + d) || [];
+      const seen = new Set();
+      const dayTpls = moveable.concat(fixed).filter((t) => !seen.has(t.id) && seen.add(t.id));
       const cell = document.createElement('div');
-      cell.className = 'tpl-day' + (tpl ? ' has-template' : '');
+      cell.className = 'tpl-day' + (dayTpls.length ? ' has-template' : '');
       const num = document.createElement('div');
       num.className = 'tpl-day-num';
       num.textContent = d;
       cell.appendChild(num);
-      if (tpl) {
+      dayTpls.slice(0, 2).forEach(function (tpl) {
         const feast = document.createElement('div');
         feast.className = 'tpl-day-feast';
-        feast.textContent = tpl.name.replace(/ — Mass propers$/, '');
+        feast.textContent = tpl.name.replace(/ — Mass( propers)?$/, '');
+        feast.title = tpl.name + ' — click to load (' + tplSizePref + ')';
+        feast.addEventListener('click', function (e) {
+          e.stopPropagation();
+          loadTemplate(tpl.id, tpl.name, tplSizePref);
+        });
         cell.appendChild(feast);
-        cell.title = tpl.name + ' — click to load (' + tplSizePref + ')';
-        cell.addEventListener('click', function () { loadTemplate(tpl.id, tpl.name, tplSizePref); });
+      });
+      if (dayTpls.length === 1) {
+        cell.addEventListener('click', function () { loadTemplate(dayTpls[0].id, dayTpls[0].name, tplSizePref); });
       }
       cal.appendChild(cell);
     }
@@ -5630,6 +5653,9 @@
           season: document.getElementById('tplPubSeason').value.trim(),
           description: document.getElementById('tplPubDesc').value.trim(),
           official: !!document.getElementById('tplPubOfficial')?.checked,
+          office_type: document.getElementById('tplPubOfficeType')?.value || 'mass',
+          feast_month: parseInt(document.getElementById('tplPubFeastMonth')?.value, 10) || null,
+          feast_day: parseInt(document.getElementById('tplPubFeastDay')?.value, 10) || null,
           project: state,
         }),
       });

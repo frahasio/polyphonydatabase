@@ -1,0 +1,9 @@
+[Officium]
+St. Thomas of Villanova, Bishop and Confessor
+
+[Name]
+Thomas
+
+[Oratio]
+O God, Who endowed blessed Bishop Thomas with the virtue of special pity for the poor, we beseech You, through his intercession, generously to pour forth the riches of Your mercy upon all those who pray to You.
+$Per Dominum

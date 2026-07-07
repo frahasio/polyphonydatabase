@@ -1,0 +1,14 @@
+[Officium]
+St. George, Martyr
+
+[Oratio]
+O God, Who dost gladden us through the worthy deeds and prayers of thy blessed martyr George, mercifully grant that all they which seek thy mercy through him may effectually obtain the gift of thy grace. 
+$Per Dominum
+
+[Secreta]
+Hallow, O Lord, the gifts we offer, and through the intercession of blessed George, thy Martyr, clease us by their means from the stains of our sins.
+$Per Dominum
+
+[Postcommunio]
+We humbly beseech thee, almighty God, wouchsafe to grant that we, whom thou hast refreshed by thy sacraments, may be able, through the intercession of blessed George, thy martyr, to serve thee, by conduct well pleasing to thee.
+$Per Dominum

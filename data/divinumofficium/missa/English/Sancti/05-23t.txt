@@ -1,0 +1,6 @@
+[Officium]
+St. John Baptist de Rossi, Confessor
+
+[Rule]
+vide C5;
+Gloria

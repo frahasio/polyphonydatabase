@@ -1,0 +1,45 @@
+[Officium]
+Cathedræ S. Petri Romæ
+
+[Rank]
+;;Duplex majus;;4;;ex C4
+
+[Rule]
+ex C4;
+Gloria
+Credo
+!Prefatio Apostolis
+Sub unica conclusione
+
+[Introitus]
+@Commune/C2a
+
+[Oratio]
+@Sancti/02-22
+
+[Lectio]
+@Commune/Coronatio
+
+[Graduale]
+@Commune/C4b
+
+[GradualeP]
+@Commune/Coronatio
+
+[Tractus]
+@Commune/Coronatio
+
+[Evangelium]
+@Commune/Coronatio
+
+[Offertorium]
+@Commune/Coronatio
+
+[Secreta]
+@Sancti/02-22
+
+[Communio]
+@Commune/C4b
+
+[Postcommunio]
+@Sancti/02-22

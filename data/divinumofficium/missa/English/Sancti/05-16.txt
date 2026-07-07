@@ -1,0 +1,9 @@
+[Officium]
+St. Ubald, Bishop and Confessor
+
+[Name]
+Ubaldus
+
+[Oratio]
+Mercifully give us Your help, we beseech You, O Lord, and by the intercession of blessed Ubaldus, Your Confessor and Bishop, stretch over us the right hand of Your mercy against all wickedness of the devil.
+$Per Dominum
