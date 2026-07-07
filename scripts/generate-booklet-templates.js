@@ -96,14 +96,16 @@ const HOUSE_SETTINGS = {
   rubricColor: '#8b1538',
 };
 
+// Propers style (from the hand-made Mass booklets): large initial drop caps
+// and generous horizontal spacing, unlike dialogue/tone chants.
 const HOUSE_CHANT_STYLE = {
-  chantNeumeSize: 22,
+  chantNeumeSize: 23,
   chantGlyphScale: 1,
   chantStaffColor: '',
-  chantHorizSpacing: 1.3,
+  chantHorizSpacing: 1.7,
   chantVertSpacing: 1.4,
   chantDropCapScale: 1,
-  chantUseDropCap: false,
+  chantUseDropCap: true,
   chantLyricLanguage: 'latin',
   chantTextFont: 'crimson',
   chantRubricColor: '',

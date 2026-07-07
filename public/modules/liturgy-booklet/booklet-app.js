@@ -5293,6 +5293,106 @@
 
   let tplIsAdmin = false;
   let tplCurrentUserId = null;
+  let tplAll = [];            // cached list rows
+  let tplOfficeFilter = 'mass';
+  let tplSizePref = 'A5';
+  let tplCalYear = new Date().getFullYear();
+  let tplCalMonth = new Date().getMonth(); // 0-based
+
+  // House margin sets per page size (from the hand-made booklets), applied
+  // when loading a template at a different size than it was saved at.
+  const TPL_SIZE_SETTINGS = {
+    A5: { pageSize: 'A5', marginTopMm: 14, marginBottomMm: 6, marginLeftMm: 10, marginRightMm: 10 },
+    A4: { pageSize: 'A4', marginTopMm: 14, marginBottomMm: 6, marginLeftMm: 14, marginRightMm: 14 },
+  };
+
+  // --- Traditional (1962) calendar: map jgabc day keys to dates ---------
+
+  function tplEaster(year) {
+    // Anonymous Gregorian computus
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return Date.UTC(year, month - 1, day);
+  }
+
+  const TPL_DAY_MS = 86400000;
+  function tplIso(ms) { return new Date(ms).toISOString().slice(0, 10); }
+
+  /** Map of 'YYYY-MM-DD' -> [jgabc day keys] for one civil year. */
+  function tplFeastDates(year) {
+    const map = {};
+    const add = (ms, key) => { if (ms == null) return; (map[tplIso(ms)] ||= []).push(key); };
+    const E = tplEaster(year);
+    const D = (n) => E + n * TPL_DAY_MS;
+    const WEEKDAY_SUFFIXES = ['m', 't', 'w', 'h', 'f', 's'];
+
+    add(D(-63), '7a'); add(D(-56), '6a'); add(D(-49), '5a');
+    add(D(-46), '5aw'); add(D(-45), '5ah'); add(D(-44), '5af'); add(D(-43), '5as');
+    for (let w = 1; w <= 6; w++) {
+      const sun = D(-49 + 7 * w);
+      add(sun, 'Quad' + w);
+      WEEKDAY_SUFFIXES.forEach((s, i) => add(sun + (i + 1) * TPL_DAY_MS, 'Quad' + w + s));
+    }
+    add(D(0), 'Pasc0');
+    WEEKDAY_SUFFIXES.forEach((s, i) => add(D(i + 1), 'Pasc0' + s));
+    add(D(7), 'Pasc1'); add(D(14), 'Pasc2'); add(D(17), 'Pasc2w');
+    add(D(21), 'Pasc3'); add(D(28), 'Pasc4'); add(D(35), 'Pasc5');
+    add(D(39), 'Asc'); add(D(42), 'Pasc6'); add(D(48), 'Pasc6s');
+    add(D(49), 'Pent0');
+    WEEKDAY_SUFFIXES.forEach((s, i) => add(D(50 + i), 'Pent0' + s));
+    add(D(56), 'Pent1'); add(D(59), 'Pent1w'); add(D(60), 'CorpusChristi'); add(D(68), 'SCJ');
+    for (let n = 2; n <= 23; n++) add(D(49 + 7 * n), 'Pent' + n);
+
+    // Advent: Adv1 is the Sunday nearest Nov 30
+    const nov30 = Date.UTC(year, 10, 30);
+    const dowN = new Date(nov30).getUTCDay();
+    const adv1 = nov30 + (dowN <= 3 ? -dowN : 7 - dowN) * TPL_DAY_MS;
+    add(adv1, 'Adv1'); add(adv1 + 7 * TPL_DAY_MS, 'Adv2');
+    const adv3 = adv1 + 14 * TPL_DAY_MS;
+    add(adv3, 'Adv3'); add(adv3 + 3 * TPL_DAY_MS, 'Adv3w');
+    add(adv3 + 5 * TPL_DAY_MS, 'Adv3f'); add(adv3 + 6 * TPL_DAY_MS, 'Adv3s');
+    add(adv1 + 21 * TPL_DAY_MS, 'Adv4');
+
+    add(Date.UTC(year, 11, 24), 'Dec24');
+    add(Date.UTC(year, 11, 25), 'Dec25_1'); add(Date.UTC(year, 11, 25), 'Dec25_2'); add(Date.UTC(year, 11, 25), 'Dec25_3');
+    add(Date.UTC(year, 0, 1), 'Jan1');
+    add(Date.UTC(year, 0, 6), 'Epi');
+    for (let d = 26; d <= 31; d++) {
+      const ms = Date.UTC(year, 11, d);
+      if (new Date(ms).getUTCDay() === 0) { add(ms, 'Nat1'); break; }
+    }
+    let nat2 = null;
+    for (let d = 2; d <= 5; d++) {
+      const ms = Date.UTC(year, 0, d);
+      if (new Date(ms).getUTCDay() === 0) { nat2 = ms; break; }
+    }
+    add(nat2 != null ? nat2 : Date.UTC(year, 0, 2), 'Nat2');
+    // Sundays after Epiphany (until Septuagesima)
+    const jan6 = Date.UTC(year, 0, 6);
+    const dow6 = new Date(jan6).getUTCDay();
+    const epi1 = jan6 + ((7 - dow6) % 7 || 7) * TPL_DAY_MS;
+    for (let n = 1; n <= 6; n++) {
+      const ms = epi1 + 7 * (n - 1) * TPL_DAY_MS;
+      if (ms < D(-63)) add(ms, 'Epi' + n);
+    }
+    // September Ember days: Wed/Fri/Sat after the Sunday following Sept 14
+    const sept14 = Date.UTC(year, 8, 14);
+    const dowS = new Date(sept14).getUTCDay();
+    const sunAfter = sept14 + (((7 - dowS) % 7) || 7) * TPL_DAY_MS;
+    add(sunAfter + 3 * TPL_DAY_MS, 'EmbWedSept');
+    add(sunAfter + 5 * TPL_DAY_MS, 'EmbFriSept');
+    add(sunAfter + 6 * TPL_DAY_MS, 'EmbSatSept');
+    // Christ the King: last Sunday of October
+    const oct31 = Date.UTC(year, 9, 31);
+    add(oct31 - new Date(oct31).getUTCDay() * TPL_DAY_MS, 'ChristusRex');
+
+    return map;
+  }
 
   function applyTemplateProject(project, name) {
     const m = migrateProject(project);
@@ -5324,11 +5424,75 @@
       const data = await r.json();
       tplIsAdmin = !!data.isAdmin;
       tplCurrentUserId = data.currentUserId;
+      tplAll = data.templates || [];
       const officialWrap = document.getElementById('tplPubOfficialWrap');
       if (officialWrap) officialWrap.classList.toggle('d-none', !tplIsAdmin);
-      renderTemplateList(data.templates || []);
+      renderTemplateViews(query);
     } catch (e) {
+      listEl.classList.remove('d-none');
       listEl.innerHTML = '<div class="text-danger text-center py-3">' + escapeHtml(e.message) + '</div>';
+    }
+  }
+
+  // Calendar when browsing Mass templates without a search; flat list
+  // otherwise. Undated templates always appear in the list area.
+  function renderTemplateViews(query) {
+    const calWrap = document.getElementById('tplCalendarWrap');
+    const listEl = document.getElementById('tplList');
+    const filtered = tplAll.filter((t) => !tplOfficeFilter || (t.office_type || 'mass') === tplOfficeFilter);
+    const showCalendar = !query && tplOfficeFilter === 'mass';
+    calWrap.classList.toggle('d-none', !showCalendar);
+    listEl.classList.remove('d-none');
+    if (showCalendar) {
+      renderTemplateCalendar(filtered);
+      renderTemplateList(filtered.filter((t) => !t.feast_key));
+    } else {
+      renderTemplateList(filtered);
+    }
+  }
+
+  function renderTemplateCalendar(templates) {
+    const cal = document.getElementById('tplCalendar');
+    const label = document.getElementById('tplCalLabel');
+    if (!cal) return;
+    const byKey = new Map();
+    templates.forEach((t) => { if (t.feast_key) byKey.set(t.feast_key, t); });
+    const dates = tplFeastDates(tplCalYear);
+
+    const first = Date.UTC(tplCalYear, tplCalMonth, 1);
+    const monthName = new Date(first).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    label.textContent = monthName;
+
+    cal.innerHTML = '';
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (d) {
+      const el = document.createElement('div');
+      el.className = 'tpl-dow';
+      el.textContent = d;
+      cal.appendChild(el);
+    });
+    const firstDow = (new Date(first).getUTCDay() + 6) % 7; // Monday-first
+    for (let i = 0; i < firstDow; i++) cal.appendChild(document.createElement('div'));
+    const daysInMonth = new Date(Date.UTC(tplCalYear, tplCalMonth + 1, 0)).getUTCDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = tplIso(Date.UTC(tplCalYear, tplCalMonth, d));
+      const keys = dates[iso] || [];
+      const tpl = keys.map((k) => byKey.get(k)).find(Boolean);
+      const cell = document.createElement('div');
+      cell.className = 'tpl-day' + (tpl ? ' has-template' : '');
+      const num = document.createElement('div');
+      num.className = 'tpl-day-num';
+      num.textContent = d;
+      cell.appendChild(num);
+      if (tpl) {
+        const feast = document.createElement('div');
+        feast.className = 'tpl-day-feast';
+        feast.textContent = tpl.name.replace(/ — Mass propers$/, '');
+        cell.appendChild(feast);
+        cell.title = tpl.name + ' — click to load (' + tplSizePref + ')';
+        cell.addEventListener('click', function () { loadTemplate(tpl.id, tpl.name, tplSizePref); });
+      }
+      cal.appendChild(cell);
     }
   }
 
@@ -5367,12 +5531,15 @@
 
       const btns = document.createElement('div');
       btns.className = 'btn-group btn-group-sm flex-shrink-0';
-      const loadBtn = document.createElement('button');
-      loadBtn.type = 'button';
-      loadBtn.className = 'btn btn-primary';
-      loadBtn.textContent = 'Load';
-      loadBtn.addEventListener('click', function () { loadTemplate(t.id, t.name); });
-      btns.appendChild(loadBtn);
+      ['A5', 'A4'].forEach(function (size) {
+        const loadBtn = document.createElement('button');
+        loadBtn.type = 'button';
+        loadBtn.className = 'btn btn-primary';
+        loadBtn.textContent = size;
+        loadBtn.title = 'Load this template at ' + size;
+        loadBtn.addEventListener('click', function () { loadTemplate(t.id, t.name, size); });
+        btns.appendChild(loadBtn);
+      });
 
       const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
       if (canEdit) {
@@ -5396,13 +5563,25 @@
     });
   }
 
-  async function loadTemplate(id, name) {
+  async function loadTemplate(id, name, size) {
     if (hasUnsavedWork() && !confirm('Loading "' + name + '" will replace your current project. Continue?')) return;
     try {
       const r = await fetch('/api/booklet/templates/' + id, { credentials: 'include' });
       if (!r.ok) throw new Error('Failed to load template');
       const data = await r.json();
-      applyTemplateProject(data.template.project, data.template.name);
+      const project = data.template.project || {};
+      // Apply the requested page size; when it differs from the template's
+      // saved size, swap in the house margins for the target size too.
+      const overrides = TPL_SIZE_SETTINGS[size];
+      if (overrides) {
+        project.settings = project.settings || {};
+        if ((project.settings.pageSize || 'A4') !== size) {
+          Object.assign(project.settings, overrides);
+        } else {
+          project.settings.pageSize = size;
+        }
+      }
+      applyTemplateProject(project, data.template.name);
       bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
     } catch (e) {
       alert(e.message || 'Could not load template.');
@@ -5474,6 +5653,31 @@
     document.getElementById('tplSearch')?.addEventListener('input', function (e) {
       clearTimeout(tplSearchTimer);
       tplSearchTimer = setTimeout(function () { loadTemplateList(e.target.value.trim()); }, 300);
+    });
+    document.querySelectorAll('#tplOfficeType button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('#tplOfficeType button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        tplOfficeFilter = btn.dataset.office;
+        renderTemplateViews(document.getElementById('tplSearch')?.value.trim());
+      });
+    });
+    document.querySelectorAll('#tplSizePref button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('#tplSizePref button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        tplSizePref = btn.dataset.size;
+      });
+    });
+    document.getElementById('tplCalPrev')?.addEventListener('click', function () {
+      tplCalMonth--;
+      if (tplCalMonth < 0) { tplCalMonth = 11; tplCalYear--; }
+      renderTemplateViews(document.getElementById('tplSearch')?.value.trim());
+    });
+    document.getElementById('tplCalNext')?.addEventListener('click', function () {
+      tplCalMonth++;
+      if (tplCalMonth > 11) { tplCalMonth = 0; tplCalYear++; }
+      renderTemplateViews(document.getElementById('tplSearch')?.value.trim());
     });
     document.getElementById('btnPublishTemplate')?.addEventListener('click', function () {
       if (!state.blocks.length) { alert('Add some content before publishing a template.'); return; }

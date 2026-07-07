@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     }
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
-             t.owner_id, t.owner_name, t.updated_at
+             t.office_type, t.owner_id, t.owner_name, t.updated_at
       FROM booklet_templates t
       ${where}
       ORDER BY t.official DESC, t.season, t.name
@@ -60,6 +60,7 @@ router.post('/', async (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 200);
     const description = String(req.body.description || '').trim().slice(0, 1000);
     const season = String(req.body.season || '').trim().slice(0, 100);
+    const officeType = ['mass', 'office', 'other'].includes(req.body.office_type) ? req.body.office_type : 'mass';
     const project = req.body.project;
     const official = req.user.role === 'admin' && !!req.body.official;
 
@@ -70,10 +71,10 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO booklet_templates (name, description, season, official, owner_id, owner_name, project)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO booklet_templates (name, description, season, office_type, official, owner_id, owner_name, project)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, name, official
-    `, [name, description, season, official, req.user.id, official ? '' : (req.user.name || req.user.email), JSON.stringify(project)]);
+    `, [name, description, season, officeType, official, req.user.id, official ? '' : (req.user.name || req.user.email), JSON.stringify(project)]);
 
     res.status(201).json({ message: 'Template published', template: result.rows[0] });
   } catch (error) {
