@@ -5427,6 +5427,8 @@
       tplAll = data.templates || [];
       const officialWrap = document.getElementById('tplPubOfficialWrap');
       if (officialWrap) officialWrap.classList.toggle('d-none', !tplIsAdmin);
+      const easterWrap = document.getElementById('tplPubEasterWrap');
+      if (easterWrap) easterWrap.classList.toggle('d-none', !tplIsAdmin);
       renderTemplateViews(query);
     } catch (e) {
       listEl.classList.remove('d-none');
@@ -5449,7 +5451,8 @@
       // (commons, votives, undated hand-made booklets).
       const placedKeys = new Set(Object.values(tplFeastDates(tplCalYear)).flat());
       renderTemplateList(filtered.filter(
-        (t) => !(t.feast_month && t.feast_day) && !(t.feast_key && placedKeys.has(t.feast_key))
+        (t) => !(t.feast_month && t.feast_day) && t.easter_offset == null
+          && !(t.feast_key && placedKeys.has(t.feast_key))
       ));
     } else {
       renderTemplateList(filtered);
@@ -5462,12 +5465,19 @@
     if (!cal) return;
     const byKey = new Map();
     const byDate = new Map(); // 'M-D' -> [templates] (sanctorale + custom feasts)
+    const byIso = new Map(); // 'YYYY-MM-DD' -> [templates] (Easter-relative)
+    const easterMs = tplEaster(tplCalYear);
     templates.forEach((t) => {
       if (t.feast_key) byKey.set(t.feast_key, t);
       if (t.feast_month && t.feast_day) {
         const k = t.feast_month + '-' + t.feast_day;
         if (!byDate.has(k)) byDate.set(k, []);
         byDate.get(k).push(t);
+      }
+      if (t.easter_offset != null) {
+        const iso = tplIso(easterMs + t.easter_offset * TPL_DAY_MS);
+        if (!byIso.has(iso)) byIso.set(iso, []);
+        byIso.get(iso).push(t);
       }
     });
     const dates = tplFeastDates(tplCalYear);
@@ -5492,9 +5502,10 @@
       // Moveable feasts first (temporale outranks most sanctorale for display),
       // then fixed-date templates; dedupe by id.
       const moveable = (dates[iso] || []).map((k) => byKey.get(k)).filter(Boolean);
+      const easterRel = byIso.get(iso) || [];
       const fixed = byDate.get((tplCalMonth + 1) + '-' + d) || [];
       const seen = new Set();
-      const dayTpls = moveable.concat(fixed).filter((t) => !seen.has(t.id) && seen.add(t.id));
+      const dayTpls = easterRel.concat(moveable, fixed).filter((t) => !seen.has(t.id) && seen.add(t.id));
       const cell = document.createElement('div');
       cell.className = 'tpl-day' + (dayTpls.length ? ' has-template' : '');
       const num = document.createElement('div');
@@ -5566,6 +5577,13 @@
 
       const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
       if (canEdit) {
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'btn btn-outline-secondary';
+        editBtn.title = 'Edit name, season and calendar placement';
+        editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+        editBtn.addEventListener('click', function () { openPublishModal(t); });
+        btns.appendChild(editBtn);
         const owBtn = document.createElement('button');
         owBtn.type = 'button';
         owBtn.className = 'btn btn-outline-secondary';
@@ -5640,31 +5658,66 @@
     }
   }
 
+  // When set, the publish modal is editing an existing template's details
+  // (name, season, dates…) via PUT instead of publishing the current project.
+  let tplEditId = null;
+
+  function readPublishForm() {
+    const eoRaw = document.getElementById('tplPubEasterOffset')?.value;
+    return {
+      name: document.getElementById('tplPubName').value.trim(),
+      season: document.getElementById('tplPubSeason').value.trim(),
+      description: document.getElementById('tplPubDesc').value.trim(),
+      office_type: document.getElementById('tplPubOfficeType')?.value || 'mass',
+      feast_month: parseInt(document.getElementById('tplPubFeastMonth')?.value, 10) || null,
+      feast_day: parseInt(document.getElementById('tplPubFeastDay')?.value, 10) || null,
+      easter_offset: eoRaw === '' || eoRaw == null ? null : parseInt(eoRaw, 10),
+    };
+  }
+
+  function openPublishModal(editTemplate) {
+    tplEditId = editTemplate ? editTemplate.id : null;
+    document.getElementById('tplPubModalTitle').textContent = editTemplate ? 'Edit template details' : 'Publish as template';
+    document.getElementById('tplPubName').value = editTemplate ? editTemplate.name : (state.projectTitle || '');
+    document.getElementById('tplPubSeason').value = editTemplate ? (editTemplate.season || '') : '';
+    document.getElementById('tplPubDesc').value = editTemplate ? (editTemplate.description || '') : '';
+    const ot = document.getElementById('tplPubOfficeType');
+    if (ot) ot.value = editTemplate ? (editTemplate.office_type || 'mass') : 'mass';
+    const fm = document.getElementById('tplPubFeastMonth');
+    if (fm) fm.value = editTemplate && editTemplate.feast_month ? String(editTemplate.feast_month) : '';
+    const fd = document.getElementById('tplPubFeastDay');
+    if (fd) fd.value = editTemplate && editTemplate.feast_day ? String(editTemplate.feast_day) : '';
+    const eo = document.getElementById('tplPubEasterOffset');
+    if (eo) eo.value = editTemplate && editTemplate.easter_offset != null ? String(editTemplate.easter_offset) : '';
+    const official = document.getElementById('tplPubOfficial');
+    if (official) official.checked = editTemplate ? !!editTemplate.official : false;
+    // "Official" only applies when publishing something new.
+    document.getElementById('tplPubOfficialWrap')?.classList.toggle('d-none', !tplIsAdmin || !!editTemplate);
+    new bootstrap.Modal(document.getElementById('modalPublishTemplate')).show();
+  }
+
   async function publishTemplate() {
-    const name = document.getElementById('tplPubName').value.trim();
-    if (!name) { alert('Give the template a name.'); return; }
+    const form = readPublishForm();
+    if (!form.name) { alert('Give the template a name.'); return; }
     try {
-      const r = await fetch('/api/booklet/templates', {
-        method: 'POST',
+      const isEdit = tplEditId != null;
+      const url = isEdit ? '/api/booklet/templates/' + tplEditId : '/api/booklet/templates';
+      const body = isEdit
+        ? form
+        : { ...form, official: !!document.getElementById('tplPubOfficial')?.checked, project: state };
+      const r = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name,
-          season: document.getElementById('tplPubSeason').value.trim(),
-          description: document.getElementById('tplPubDesc').value.trim(),
-          official: !!document.getElementById('tplPubOfficial')?.checked,
-          office_type: document.getElementById('tplPubOfficeType')?.value || 'mass',
-          feast_month: parseInt(document.getElementById('tplPubFeastMonth')?.value, 10) || null,
-          feast_day: parseInt(document.getElementById('tplPubFeastDay')?.value, 10) || null,
-          project: state,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Publish failed');
+      if (!r.ok) throw new Error(data.error || (isEdit ? 'Update failed' : 'Publish failed'));
       bootstrap.Modal.getInstance(document.getElementById('modalPublishTemplate'))?.hide();
+      tplEditId = null;
       loadTemplateList(document.getElementById('tplSearch')?.value.trim());
     } catch (e) {
-      alert(e.message || 'Could not publish template.');
+      alert(e.message || 'Could not save template.');
     }
   }
 
@@ -5707,8 +5760,7 @@
     });
     document.getElementById('btnPublishTemplate')?.addEventListener('click', function () {
       if (!state.blocks.length) { alert('Add some content before publishing a template.'); return; }
-      document.getElementById('tplPubName').value = state.projectTitle || '';
-      new bootstrap.Modal(document.getElementById('modalPublishTemplate')).show();
+      openPublishModal(null);
     });
     document.getElementById('btnPublishTemplateConfirm')?.addEventListener('click', publishTemplate);
   }

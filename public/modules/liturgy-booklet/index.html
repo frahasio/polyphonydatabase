@@ -1162,7 +1162,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h6 class="modal-title">Publish as template</h6>
+                    <h6 class="modal-title" id="tplPubModalTitle">Publish as template</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -1200,6 +1200,10 @@
                             </select>
                             <input type="number" class="form-control form-control-sm" id="tplPubFeastDay" min="1" max="31" placeholder="day" style="max-width: 6rem;">
                         </div>
+                    </div>
+                    <div class="mb-2 d-none" id="tplPubEasterWrap">
+                        <label class="form-label small mb-1">Easter-relative date <span class="text-muted">(admin — days from Easter Sunday, e.g. −2 = Good Friday, −3 = Maundy Thursday, 49 = Pentecost; overrides nothing else, just places it on the calendar each year)</span></label>
+                        <input type="number" class="form-control form-control-sm" id="tplPubEasterOffset" min="-100" max="200" placeholder="e.g. -2" style="max-width: 8rem;">
                     </div>
                     <div class="form-check d-none" id="tplPubOfficialWrap">
                         <input class="form-check-input" type="checkbox" id="tplPubOfficial">
