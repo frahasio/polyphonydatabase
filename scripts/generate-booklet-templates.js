@@ -75,14 +75,84 @@ function gabcHeaderValue(gabc, field) {
   return m ? m[1].trim() : '';
 }
 
+// House style, lifted from the hand-made A5 booklets (Spode 2026) so seeded
+// templates open looking like the real thing rather than bare defaults.
+const HOUSE_SETTINGS = {
+  pageSize: 'A5',
+  marginMm: 16,
+  marginTopMm: 14,
+  marginBottomMm: 6,
+  marginLeftMm: 10,
+  marginRightMm: 10,
+  sectionGapMm: 5,
+  gapTolerancePx: 6,
+  marginTolerancePx: 6,
+  minOrphanLines: 3,
+  descClipPx: 3,
+  ascClipPx: 3,
+  dropCapOffsetEm: 0.05,
+  previewDisplay: 'scroll',
+  fontFamilyKey: 'EB Garamond',
+  rubricColor: '#8b1538',
+};
+
+const HOUSE_CHANT_STYLE = {
+  chantNeumeSize: 22,
+  chantGlyphScale: 1,
+  chantStaffColor: '',
+  chantHorizSpacing: 1.3,
+  chantVertSpacing: 1.4,
+  chantDropCapScale: 1,
+  chantUseDropCap: false,
+  chantLyricLanguage: 'latin',
+  chantTextFont: 'crimson',
+  chantRubricColor: '',
+  chantAnnotationSizeAdj: 0,
+  chantAnnotationYAdj: 0,
+  chantTranslationLeftPct: 70,
+  chantTranslationGapMm: 4,
+  chantTranslationBorder: false,
+  chantTranslationFontSizePt: 10,
+  chantTranslationVAlign: 'middle',
+  chantTranslationTextAlign: 'right',
+  chantLineGap: 1,
+  sectionGapAfterMm: 8,
+};
+
+const HOUSE_TITLE_STYLE = {
+  titleFontKey: '',
+  titleTextColor: '#212529',
+  titleLineColor: '#adb5bd',
+  titleBold: false,
+  titleItalic: false,
+  titleSmallCaps: true,
+  sectionGapAfterMm: 8,
+};
+
+const HOUSE_RUBRIC_STYLE = {
+  sectionTitle: '',
+  sectionSourceRef: '',
+  rubricColor: '#c80000',
+  bodyFontSizePt: 11,
+  lineHeightPt: 16,
+  titleFontSizePt: 11,
+  sourceFontSizePt: 9,
+  fontScale: 1,
+  sectionGapAfterMm: 8,
+  sourceColor: '',
+};
+
 function buildProject(entry, propers, key) {
   const blocks = [];
   let n = 0;
   const bid = () => `tpl_${key}_${n++}`;
 
-  blocks.push({ id: bid(), type: 'title', text: entry.title || entry.en || key });
+  blocks.push({
+    id: bid(), type: 'title', text: entry.title || entry.en || key,
+    ...HOUSE_TITLE_STYLE, titleFontSizePt: 18,
+  });
   if (entry.en && entry.en !== entry.title) {
-    blocks.push({ id: bid(), type: 'rubric', text: entry.en });
+    blocks.push({ id: bid(), type: 'rubric', text: entry.en, ...HOUSE_RUBRIC_STYLE });
   }
 
   let chants = 0;
@@ -97,8 +167,9 @@ function buildProject(entry, propers, key) {
       id: bid(),
       type: 'title',
       text: label + (chantName ? ` · ${chantName}` : ''),
+      ...HOUSE_TITLE_STYLE, titleFontSizePt: 12,
     });
-    blocks.push({ id: bid(), type: 'chant_gabc', gabc });
+    blocks.push({ id: bid(), type: 'chant_gabc', gabc, ...HOUSE_CHANT_STYLE });
     chants++;
   }
   if (!chants) return null;
@@ -106,7 +177,7 @@ function buildProject(entry, propers, key) {
   return {
     schemaVersion: 8,
     projectTitle: entry.en || entry.title || key,
-    settings: {},
+    settings: { ...HOUSE_SETTINGS },
     blocks,
   };
 }

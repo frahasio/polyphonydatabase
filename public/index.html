@@ -136,6 +136,14 @@
             color: white;
         }
 
+        /* Secondary titles/functions: other texts set to the same music
+           (contrafacta, translations) shown de-emphasised. */
+        .secondary-titles, .secondary-functions {
+            font-size: 0.78rem;
+            color: #9aa0a6;
+            margin-top: 0.15rem;
+        }
+
         /* Subtle prompt shown only on pieces that have no edition yet. */
         .commission-link {
             display: inline-block;
@@ -2351,6 +2359,12 @@
                         <strong>${escapeHtml(group.display_title) || 'Untitled'}</strong>
                         ${group.tone && group.tone.length ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.tone_connector))}</span>` : ''}
                         ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.even_odd] || group.even_odd)})</span>` : ''}
+                        ${(group.other_titles || []).length ? `
+                            <div class="secondary-titles" title="Other texts set to this music (contrafacta / translations)">
+                                ${(group.other_titles || []).slice(0, 4).map(t => `<div>also: ${escapeHtml(t)}</div>`).join('')}
+                                ${(group.other_titles || []).length > 4 ? `<div>…and ${group.other_titles.length - 4} more</div>` : ''}
+                            </div>
+                        ` : ''}
                         ${(group.editions || []).map(edition => `
                             <div class="mt-1">
                                 ${externalLinkHtml(edition.file_url, `<i class="bi bi-file-earmark-pdf me-1"></i>${escapeHtml(edition.editor_name) || 'Unknown Editor'} ${escapeHtml(edition.voicing)}`, 'edition-link')}
@@ -2371,7 +2385,17 @@
                         ` : ''}
                     </td>
                     <td>
-                        ${(group.function_names || []).map(name => escapeHtml(name)).join(', ')}
+                        ${(() => {
+                            const primary = group.function_names || [];
+                            const secondary = (group.secondary_function_names || []).filter(n => !primary.includes(n));
+                            // If the display title matches no title exactly (e.g.
+                            // retitled group), show everything at full strength.
+                            if (!primary.length) return secondary.map(n => escapeHtml(n)).join(', ');
+                            return escapeHtml(primary.join(', ')) + (secondary.length ? `
+                                <div class="secondary-functions" title="Functions of other texts set to this music">
+                                    ${secondary.map(n => escapeHtml(n)).join(', ')}
+                                </div>` : '');
+                        })()}
                     </td>
                     <td>
                         ${escapeHtml(group.composer_display) || 'Anon'}

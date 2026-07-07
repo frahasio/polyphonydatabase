@@ -988,6 +988,7 @@ router.get('/groups', async (req, res) => {
           LIMIT 1
         ) as even_odd,
         (
+          -- Functions of the group's OWN title (title text = display title)
           SELECT array_agg(func_name ORDER BY func_name)
           FROM (
             SELECT DISTINCT 
@@ -1003,9 +1004,39 @@ router.get('/groups', async (req, res) => {
             LEFT JOIN functions_titles ft ON t.id = ft.title_id
             LEFT JOIN functions func ON ft.function_id = func.id
             WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+              AND t.text = g.display_title
           ) funcs
           WHERE func_name IS NOT NULL
         ) as function_names,
+        (
+          -- Functions carried only by SECONDARY titles in the group
+          -- (contrafacta/translations); shown de-emphasised on the client
+          SELECT array_agg(func_name ORDER BY func_name)
+          FROM (
+            SELECT DISTINCT 
+              CASE 
+                WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                WHEN func.name IS NOT NULL THEN func.name
+                ELSE NULL
+              END as func_name
+            FROM compositions c
+            LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+            JOIN titles t ON c.title_id = t.id
+            LEFT JOIN functions_titles ft ON t.id = ft.title_id
+            LEFT JOIN functions func ON ft.function_id = func.id
+            WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+              AND t.text != g.display_title
+          ) funcs
+          WHERE func_name IS NOT NULL
+        ) as secondary_function_names,
+        (
+          -- Other title texts within the group (contrafacta/translations)
+          SELECT array_agg(DISTINCT t.text ORDER BY t.text)
+          FROM compositions c
+          JOIN titles t ON t.id = c.title_id
+          WHERE c.group_id = g.id AND t.text != g.display_title
+        ) as other_titles,
         -- Get editions for this group
         (
           SELECT json_agg(json_build_object(
