@@ -186,6 +186,44 @@ function gabcById(id) {
   return fs.existsSync(p) ? normalizeGabcLyrics(readText(p)) : null;
 }
 
+// Sung gospel dialogue (recitation with two-note cadence), modelled on the
+// hand-made booklet; evangelist snippets carry the cadence themselves.
+const EVANGELIST_GABC = {
+  matthaeum: 'Mat(h)thǽ(g.)um.(g.)',
+  marcum: 'Mar(g.)cum.(g.)',
+  lucam: 'Lu(g.)cam.(g.)',
+  ioannem: 'Jo(h)án(g.)nem.(g.)',
+};
+const EVANGELIST_EN = { matthaeum: 'Matthew', marcum: 'Mark', lucam: 'Luke', ioannem: 'John' };
+
+function evangelistKey(name) {
+  const k = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/^j/, 'i');
+  return Object.keys(EVANGELIST_GABC).find((e) => k.startsWith(e.slice(0, 4))) || null;
+}
+
+function gospelDialogueChant(bid, intro) {
+  const key = evangelistKey(intro.evangelist);
+  if (!key) return null;
+  const isInitium = intro.type === 'initium';
+  const introGabc = isInitium
+    ? 'I(h)ní(h)ti(h)um(h) san(h)cti(f) E(h)van(g)gé(g)li(h)i(h.)'
+    : 'Se(h)quén(h)ti(h)a(h) san(h)cti(f) E(h)van(g)gé(g)li(h)i(h.)';
+  const gabc = [
+    'office-part: R;',
+    'name: Gospel dialogue;',
+    '%%',
+    '(c4)<sp>V/</sp>. Dó(g)mi(h)nus(h) vo(gh)bí(hg)scum.(g.) (::)',
+    '<sp>R/</sp>. Et(g) cum(h) spí(h)ri(g)tu(g) tu(h)o.(h.) (::)',
+    `<sp>V/</sp>. ${introGabc} (,) se(h)cún(h)dum(h) ${EVANGELIST_GABC[key]} (::)`,
+    '<sp>R/</sp>. Gló(h)ri(h)a(h) ti(h)bi(h) Dó(g)mi(g)ne.(g.) (::)',
+  ].join('\n');
+  const translation = [
+    '\\V. The Lord be with you.//\\R. And with thy spirit.',
+    `\\V. ${isInitium ? 'The beginning' : 'A continuation'} of the Holy Gospel according to ${EVANGELIST_EN[key]}.//\\R. Glory be to thee, O Lord.`,
+  ].join('\n');
+  return chantBlock(bid, gabc, { chantTranslation: translation, chantUseDropCap: false });
+}
+
 // Traditional English translations for the builder-inserted chants, with
 // phrase-per-line breaks so the translation column reads consistently.
 const ORDINARY_TRANSLATIONS = {
@@ -276,7 +314,7 @@ function titleBlock(bid, text, sizePt = 12) {
 }
 
 export function defaultBuildOptions() {
-  return { framework: true, kyriale: 8, credo: 'auto', readings: 'both', marian: 'salve' };
+  return { framework: true, kyriale: 8, credo: 'auto', readings: 'both', marian: 'salve_simple' };
 }
 
 /**
@@ -353,14 +391,16 @@ export function buildFromCore(core, rawOptions = {}) {
 
   const out = [];
   const push = (...items) => { for (const it of items) if (it) out.push(it); };
-  const pageBreak = () => ({ id: bid(), type: 'page_break' });
+  // Placeholder heading where a polyphonic/spoken ordinary part will go.
+  const placeholder = (label) => titleBlock(bid, label);
+  const noKyriale = !mass;
 
   push(...grp('head'));
   if (fw) push(clone(sk.rubricStandBell));
 
   push(...grp('introit'));
-  push(kyChant('kyrie'));
-  if (meta.gloria !== false) push(kyChant('gloria'));
+  push(kyChant('kyrie') || (noKyriale ? placeholder('Kyrie') : null));
+  if (meta.gloria !== false) push(kyChant('gloria') || (noKyriale ? placeholder('Gloria') : null));
 
   const collect = grp('collect');
   if (collect.length) {
@@ -380,9 +420,16 @@ export function buildFromCore(core, rawOptions = {}) {
   push(...grp('between'));
 
   const gospel = grp('gospel');
+  const gospelIntro = grp('gospel_intro');
   if (gospel.length) {
     push(...gospel.filter((b) => b.type === 'title'));
     if (fw) push(clone(sk.rubricStand));
+    if (fw && meta.gospelIntro && meta.gospelIntro.evangelist) {
+      // Sung dialogue replaces the spoken introduction text.
+      push(gospelDialogueChant(bid, meta.gospelIntro) || gospelIntro.map(transformReading)[0]);
+    } else {
+      push(...gospelIntro.map(transformReading));
+    }
     push(...gospel.filter((b) => b.type !== 'title').map(transformReading));
   }
 
@@ -394,6 +441,8 @@ export function buildFromCore(core, rawOptions = {}) {
     push(titleBlock(bid, 'Credo'));
     if (fw) push(clone(sk.rubricStandCredo));
     push(credoBlock);
+  } else if (opts.credo === 'none' && meta.credo !== false) {
+    push(placeholder('Credo'));
   }
 
   const offertory = grp('offertory');
@@ -413,10 +462,9 @@ export function buildFromCore(core, rawOptions = {}) {
     push(clone(sk.prefaceChant));
     push(clone(sk.prefaceText));
   }
-  push(kyChant('sanctus'));
+  push(kyChant('sanctus') || (noKyriale ? placeholder('Sanctus') : null));
   if (fw) {
     push(clone(sk.rubricKneel));
-    push(pageBreak());
     push(titleBlock(bid, 'Canon'));
     push(clone(sk.perOmniaCanon));
     push(titleBlock(bid, 'Pater noster'));
@@ -427,8 +475,7 @@ export function buildFromCore(core, rawOptions = {}) {
     push(clone(sk.perOmniaPax));
     push(clone(sk.paxChant));
   }
-  push(kyChant('agnus'));
-  if (fw) push(pageBreak());
+  push(kyChant('agnus') || (noKyriale ? placeholder('Agnus Dei') : null));
 
   const communion = grp('communion');
   if (fw) {
@@ -454,7 +501,6 @@ export function buildFromCore(core, rawOptions = {}) {
   }
 
   if (fw || mass) {
-    push(pageBreak());
     push(titleBlock(bid, 'Conclusion'));
     if (fw) push(clone(sk.domVobIte));
     push(kyChant('ite') || (fw ? clone(sk.iteChant) : null));
@@ -464,7 +510,6 @@ export function buildFromCore(core, rawOptions = {}) {
     push(clone(sk.lastGospel));
   }
   if (marianBlock) {
-    push(pageBreak());
     push(marianBlock);
   }
 

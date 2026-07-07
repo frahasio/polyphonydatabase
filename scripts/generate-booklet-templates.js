@@ -230,18 +230,20 @@ function buildProperCore(key, dayTitle, subtitle, chants, doLa, doEn, skeleton, 
   const chantBy = (label) => chants.find((c) => c.label === label);
   const translationFor = (label) => chantTranslationFrom(en[SLOT_DO_SECTION[label]]);
 
+  // Prayers flow as a single paragraph (the ending formula runs straight on).
+  const flow = (s) => (s ? String(s).replace(/\s*\n+\s*/g, ' ').trim() : s);
+
   blocks.push(b.title(dayTitle, 'head', 18));
-  if (subtitle) blocks.push(b.rubric(escHtml(subtitle), 'head'));
 
   const introit = chantBy('Introit');
   if (introit) {
-    blocks.push(b.title(`Introit${introit.chantName ? ' · ' + introit.chantName : ''}`, 'introit'));
+    blocks.push(b.title('Introit', 'introit'));
     blocks.push(b.chant(introit.gabc, translationFor('Introit'), 'introit'));
   }
 
   if (la.Oratio) {
     blocks.push(b.title('Collect', 'collect'));
-    blocks.push(b.reading('prayerReadingStyle', la.Oratio.text, en.Oratio?.text, '', 'collect'));
+    blocks.push(b.reading('prayerReadingStyle', flow(la.Oratio.text), flow(en.Oratio?.text), '', 'collect'));
   }
 
   if (la.Lectio) {
@@ -260,38 +262,64 @@ function buildProperCore(key, dayTitle, subtitle, chants, doLa, doEn, skeleton, 
     for (const c of between) blocks.push(b.chant(c.gabc, translationFor(c.label), 'between'));
   }
 
+  // Gospel: split the "Sequéntia/Inítium sancti Evangélii…" introduction
+  // into its own slot so the builder can notate it, and record the
+  // evangelist for the sung dialogue.
+  let gospelIntro = null;
   if (la.Evangelium) {
-    blocks.push(b.title('Gospel', 'gospel'));
-    blocks.push(b.reading('lessonReadingStyle', la.Evangelium.text, en.Evangelium?.text, la.Evangelium.citation, 'gospel'));
+    let gospelLa = la.Evangelium.text;
+    let gospelEn = en.Evangelium?.text || '';
+    const mIntro = gospelLa.match(/^((?:Sequéntia|Inítium)[^\n]*)\n+/i);
+    if (mIntro) {
+      const introLa = mIntro[1].trim();
+      gospelLa = gospelLa.slice(mIntro[0].length);
+      let introEn = '';
+      const mIntroEn = gospelEn.match(/^((?:Continuation|The continuation|Beginning|The beginning)[^\n]*)\n+/i);
+      if (mIntroEn) {
+        introEn = mIntroEn[1].trim();
+        gospelEn = gospelEn.slice(mIntroEn[0].length);
+      }
+      const mEv = introLa.match(/secúndum\s+([A-ZÀ-Þ]\S+?)\.?$/u);
+      gospelIntro = {
+        type: /^Inítium/i.test(introLa) ? 'initium' : 'sequentia',
+        evangelist: mEv ? mEv[1].replace(/[.,;]+$/, '') : '',
+      };
+      blocks.push(b.title('Gospel', 'gospel'));
+      blocks.push(b.reading('prayerReadingStyle', introLa, introEn, '', 'gospel_intro'));
+      blocks.push(b.reading('lessonReadingStyle', gospelLa, gospelEn, la.Evangelium.citation, 'gospel'));
+    } else {
+      blocks.push(b.title('Gospel', 'gospel'));
+      blocks.push(b.reading('lessonReadingStyle', gospelLa, gospelEn, la.Evangelium.citation, 'gospel'));
+    }
   }
 
   const offertory = chantBy('Offertory');
   if (offertory) {
-    blocks.push(b.title(`Offertory${offertory.chantName ? ' · ' + offertory.chantName : ''}`, 'offertory'));
+    blocks.push(b.title('Offertory', 'offertory'));
     blocks.push(b.chant(offertory.gabc, translationFor('Offertory'), 'offertory'));
   }
 
   if (la.Secreta) {
     blocks.push(b.title('Secret', 'secret'));
-    blocks.push(b.reading('prayerReadingStyle', la.Secreta.text, en.Secreta?.text, '', 'secret'));
+    blocks.push(b.reading('prayerReadingStyle', flow(la.Secreta.text), flow(en.Secreta?.text), '', 'secret'));
   }
 
   const communio = chantBy('Communion');
   if (communio) {
-    blocks.push(b.title(`Communion${communio.chantName ? ' · ' + communio.chantName : ''}`, 'communion'));
+    blocks.push(b.title('Communion', 'communion'));
     blocks.push(b.chant(communio.gabc, translationFor('Communion'), 'communion'));
   }
 
   if (la.Postcommunio) {
     blocks.push(b.title('Postcommunion', 'postcommunion'));
-    blocks.push(b.reading('prayerReadingStyle', la.Postcommunio.text, en.Postcommunio?.text, '', 'postcommunion'));
+    blocks.push(b.reading('prayerReadingStyle', flow(la.Postcommunio.text), flow(en.Postcommunio?.text), '', 'postcommunion'));
   }
 
   return {
     schemaVersion: 8,
     projectTitle: dayTitle,
     settings: { ...HOUSE_SETTINGS },
-    meta: { gloria: flags.gloria, credo: flags.credo, buildable: 'mass' },
+    meta: { gloria: flags.gloria, credo: flags.credo, buildable: 'mass', gospelIntro },
     blocks,
   };
 }

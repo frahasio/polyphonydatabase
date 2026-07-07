@@ -23,19 +23,21 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const DO_DIR = path.join(ROOT, 'data', 'divinumofficium');
 
 // Standard ending formulas, keyed by the start of the $-macro text.
+// They stop with an ellipsis before "per ómnia sǽcula sæculórum", which is
+// carried by the notated "Per omnia" chant that follows in the booklet.
 const ENDINGS_LA = {
-  'per dominum': 'Per Dóminum nostrum Iesum Christum, Fílium tuum: qui tecum vivit et regnat in unitáte Spíritus Sancti Deus, per ómnia sǽcula sæculórum. Amen.',
-  'per eundem': 'Per eúndem Dóminum nostrum Iesum Christum Fílium tuum, qui tecum vivit et regnat in unitáte Spíritus Sancti, Deus, per ómnia sǽcula sæculórum. Amen.',
-  'qui vivis': 'Qui vivis et regnas cum Deo Patre, in unitáte Spíritus Sancti, Deus, per ómnia sǽcula sæculórum. Amen.',
-  'qui tecum': 'Qui tecum vivit et regnat in unitáte Spíritus Sancti, Deus, per ómnia sǽcula sæculórum. Amen.',
-  'in unitate spiritus': 'In unitáte Spíritus Sancti, Deus, per ómnia sǽcula sæculórum. Amen.',
+  'per dominum': 'Per Dóminum nostrum Iesum Christum, Fílium tuum: qui tecum vivit et regnat in unitáte Spíritus Sancti Deus…',
+  'per eundem': 'Per eúndem Dóminum nostrum Iesum Christum, Fílium tuum: qui tecum vivit et regnat in unitáte Spíritus Sancti Deus…',
+  'qui vivis': 'Qui vivis et regnas cum Deo Patre in unitáte Spíritus Sancti Deus…',
+  'qui tecum': 'Qui tecum vivit et regnat in unitáte Spíritus Sancti Deus…',
+  'in unitate spiritus': 'In unitáte Spíritus Sancti Deus…',
 };
 const ENDINGS_EN = {
-  'per dominum': 'Through Jesus Christ, thy Son our Lord, Who liveth and reigneth with thee, in the unity of the Holy Ghost, God, world without end. Amen.',
-  'per eundem': 'Through the same Jesus Christ, thy Son, Our Lord, Who liveth and reigneth with thee in the unity of the Holy Ghost, God, world without end. Amen.',
-  'qui vivis': 'Who livest and reignest with God the Father, in the unity of the Holy Ghost, God, world without end. Amen.',
-  'qui tecum': 'Who liveth and reigneth with thee, in the unity of the Holy Ghost, God, world without end. Amen.',
-  'in unitate spiritus': 'In the unity of the Holy Ghost, God, world without end. Amen.',
+  'per dominum': 'Through Jesus Christ, thy Son our Lord, who liveth and reigneth with thee in the unity of the Holy Ghost, God…',
+  'per eundem': 'Through the same Jesus Christ, thy Son our Lord, who liveth and reigneth with thee in the unity of the Holy Ghost, God…',
+  'qui vivis': 'Who livest and reignest with God the Father in the unity of the Holy Ghost, God…',
+  'qui tecum': 'Who liveth and reigneth with thee in the unity of the Holy Ghost, God…',
+  'in unitate spiritus': 'In the unity of the Holy Ghost, God…',
 };
 
 function readDoFile(relPath, lang) {
@@ -84,6 +86,7 @@ function renderSection(lines, lang) {
       continue;
     }
     if (line.startsWith('!')) {
+      flush(); // citations/rubrics separate paragraphs (e.g. intro line vs body)
       const t = line.replace(/^!+\s*/, '');
       // Scripture citations are short "Book 1:2" strings; longer ! lines are rubrics.
       if (/^[A-Za-z0-9 .]{1,30}\d/.test(t) && t.length <= 40) citations.push(t);
@@ -161,7 +164,7 @@ export function doPathForKey(key) {
     return `missa/<lang>/Sancti/${MONTHS[m[1]]}-${String(m[2]).padStart(2, '0')}.txt`;
   }
   m = key.match(/^Dec25_(\d)$/);
-  if (m) return m[1] === '3' ? 'missa/<lang>/Sancti/12-25.txt' : `missa/<lang>/Sancti/12-25m${m[1]}.txt`;
+  if (m) return `missa/<lang>/Sancti/12-25m${m[1]}.txt`;
 
   const W = { m: 1, t: 2, w: 3, h: 4, f: 5, s: 6, ss: 6 };
   const week = (base, suffix) => `missa/<lang>/Tempora/${base}-${suffix ? W[suffix] : 0}.txt`;

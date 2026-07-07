@@ -5657,7 +5657,7 @@
     const ma = document.getElementById('buildMarian');
     ma.innerHTML = '<option value="none">None</option>' +
       data.marian.map(function (m) {
-        return '<option value="' + escapeHtml(m.id) + '"' + (m.id === 'salve' ? ' selected' : '') + '>' + escapeHtml(m.label) + '</option>';
+        return '<option value="' + escapeHtml(m.id) + '"' + (m.id === 'salve_simple' ? ' selected' : '') + '>' + escapeHtml(m.label) + '</option>';
       }).join('');
     buildOptionsLoaded = true;
   }
