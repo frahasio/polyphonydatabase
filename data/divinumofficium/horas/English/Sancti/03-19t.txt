@@ -1,0 +1,8 @@
+[Lectio4]
+@Sancti/03-19::s/$/~/
+@Sancti/03-19:Lectio5:s/ To.*//s
+
+[Lectio5]
+@Sancti/03-19::s/.*To/To/s s/$/~/
+@Sancti/03-19:Lectio6:s/$/~/
+Huc accedit quod dicitur fuísse de domo David. Vere enim de domo David, vere de regia stirpe descenditur iste vir Joseph nobili genere, mente nobilior: plane filius David non degerans a patre suo David.

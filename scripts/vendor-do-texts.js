@@ -30,6 +30,10 @@ const FOLDERS = [
   ['web/www/missa/English/Ordo', 'missa/English/Ordo'],
   ['web/www/horas/Latin/Commune', 'horas/Latin/Commune'],
   ['web/www/horas/English/Commune', 'horas/English/Commune'],
+  ['web/www/horas/Latin/Tempora', 'horas/Latin/Tempora'],
+  ['web/www/horas/English/Tempora', 'horas/English/Tempora'],
+  ['web/www/horas/Latin/Sancti', 'horas/Latin/Sancti'],
+  ['web/www/horas/English/Sancti', 'horas/English/Sancti'],
 ];
 
 let copied = 0;

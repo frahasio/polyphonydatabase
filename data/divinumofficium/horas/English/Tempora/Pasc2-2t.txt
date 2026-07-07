@@ -1,0 +1,16 @@
+[Lectio1]
+Lesson from the Acts of the Apostles
+!Acts 17:22-28
+22 But Paul standing in the midst of the Areopagus, said: Ye men of Athens, I perceive that in all things you are too superstitious.
+23 For passing by, and seeing your idols, I found an altar also, on which was written: To the unknown God. What therefore you worship, without knowing it, that I preach to you:
+24 God, who made the world, and all things therein; he, being Lord of heaven and earth, dwelleth not in temples made with hands;
+25 Neither is he served with men's hands, as though he needed any thing; seeing it is he who giveth to all life, and breath, and all things:
+26 And hath made of one, all mankind, to dwell upon the whole face of the earth, determining appointed times, and the limits of their habitation.
+27 That they should seek God, if happily they may feel after him or find him, although he be not far from every one of us:
+28 For in him we live, and move, and are; as some also of your own poets said: For we are also his offspring.
+
+[Lectio3]
+@Tempora/Pasc2-2::1 s/17.*/18:1-6/
+@Tempora/Pasc2-2::3-6
+5 And when Silas and Timothy were come from Macedonia, Paul was earnest in preaching, testifying to the Jews, that Jesus is the Christ.
+6 But they gainsaying and blaspheming, he shook his garments, and said to them: Your blood be upon your own heads; I am clean: from henceforth I will go unto the Gentiles.

@@ -1,0 +1,30 @@
+[Ant Vespera]
+@Sancti/09-08::s/born/visitation/ s/Birthday/Visitation/g
+
+[Responsory1]
+@Sancti/09-08::s/was/Elizabeth was visited by/ s/born// s/Birthday/Visitation/
+
+[Responsory2]
+@Sancti/09-08::s/Birthday/Visitation/
+
+[Responsory3]
+@Sancti/09-08::s/Birth\S* /Visitation /g
+
+[Responsory4]
+@Sancti/09-08::s/born/visitation/ s/was the/Elizabeth was visited by/ s/born//
+
+[Responsory5]
+@Sancti/09-08::s/Birthday/Visitation/
+
+[Responsory6]
+@Sancti/09-08::s/Birth/Visitation/
+
+[Lectio7]
+@Sancti/07-02::1-4
+@Sancti/07-02:Lectio4
+
+[Responsory8]
+@Commune/C12:Responsory3:s/this holy memorial/Visitation/
+
+[Ant Laudes]
+@Sancti/09-08:Ant Vespera:s/born/visitation/ s/Birthday/Visitation/g s/;;.*//g

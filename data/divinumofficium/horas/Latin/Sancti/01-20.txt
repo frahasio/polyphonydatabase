@@ -1,0 +1,36 @@
+[Officium]
+Ss. Fabiani et Sebastiani Martyrum
+
+[Rank]
+;;Duplex;;3;;vide C3
+(sed rubrica innovata)
+;;Duplex optional;;2;;vide C3
+
+[Rule]
+vide C3;
+9 lectiones
+
+[Oratio]
+@Commune/C2::s/beáti N\. Mártyris tui atque Pontíficis/beatórum Mártyrum tuórum Fabiáni et Sebastiáni/
+
+[Lectio4]
+Fabiánus Románus, a Maximíno usque ad Décium regens Ecclésiam, septem diáconis regiónes divísit, qui páuperum curam habérent. Tótidem subdiáconos creávit, qui res gestas Mártyrum a septem notáriis scriptas collígerent. Idem státuit, ut quotánnis féria quinta in Cœna Dómini, vétere combústo, chrisma renovarétur. Dénique décimo tértio Kaléndas Februárii in persecutióne Décii martýrio coronátus, in cœmetério Callísti via Appia sepelítur, cum sedísset annos quíndecim, dies quátuor. Hic fecit ordinatiónes quinque mense Decémbri, quibus creávit presbýteros vigínti duos, diáconos septem, epíscopos per divérsa loca úndecim.
+
+[Lectio5]
+Sebastiánus ex patre Narbonénsi, matre Mediolanénsi natus, ob géneris nobilitátem et virtútem Diocletiáno carus fuit. Dux primæ cohórtis, Christiános, quorum fidem clam colébat, ópera et facultátibus adjuvábat; et qui ex eis tormentórum vim reformidáre videbántur, cohortatióne sic confirmábat, ut pro Jesu Christo multi se ultro tortóribus offérrent. In illis fuére Marcus et Marcelliánus fratres, qui Romæ in custódia erant apud Nicóstratum: cujus uxor Zoë vocem, quam amíserat, Sebastiáni oratióne recuperávit. Quibus Diocletiáno delátis, Sebastiánum accérsit, et veheméntius objurgátum ómnibus artifíciis a Christi fide conátur avértere. Sed cum nihil nec pollicéndo, nec terréndo profíceret, ad palum alligátum sagíttis confígi jubet.
+
+[Lectio6]
+Quem ómnium opinióne mórtuum noctu sancta múlier Iréne sepeliéndi grátia jussit auférri; sed vivum repértum domi suæ curávit. Itaque paulo post confirmáta valetúdine, Diocletiáno óbviam factus, ejus impietátem libérius accusávit. Cujus aspéctu cum ille primum obstupuísset, quod mórtuum créderet; rei novitáte et acri Sebastiáni reprehensióne excandéscens, eum támdiu virgis cædi imperávit, donec ánimam Deo rédderet. Ejus corpus in cloácam dejéctum Lucína, a Sebastiáno in somnis admónita ubi esset et quo loco humári vellet, ad Catacúmbas sepelívit, ubi sancti Sebastiáni nómine célebris ecclésia est ædificáta.
+
+[Lectio94]
+Fabiánus Románus, a Maximíno usque ad Décium regens Ecclésiam, septem diáconis regiónes divísit, qui páuperum curam habérent. Tótidem subdiáconos creávit, qui res gestas Mártyrum a septem notáriis scriptas collígerent. Idem státuit, ut quotánnis féria quinta in Cœna Dómini, vétere combústo, Chrisma renovarétur. Dénique décimo tértio kaléndas februárii martýrio coronátus, in cœmetério Callísti via Appia sepelítur. Sebastiánus, ob géneris nobilitátem et virtútem Diocletiáno carus, dux primæ cohórtis, Christiános, quorum fidem clam colébat, ópera et facultátibus adjuvábat, et in Christi confessióne confirmábat. Quibus Diocletiáno delátis, Sebastiánum ómnibus artifíciis a Christi fide conátur avértere. Sed cum nihil nec pollicéndo, nec terréndo profíceret, ad palum alligátum sagíttis confígi jubet. Verum Dei servus, ómnium opinióne mórtuus judicátus, cum paulo post, sanus Diocletiáno óbviam factus, ejus impietátem libérius accusáret, jussu tyránni támdiu virgis cæsus est, donec spíritum rédderet.
+&teDeum
+
+[Lectio7]
+@Commune/C3:Lectio7 in 2 loco
+
+[Lectio8]
+@Commune/C3:Lectio8 in 2 loco
+
+[Lectio9]
+@Commune/C3:Lectio9 in 2 loco

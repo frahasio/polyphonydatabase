@@ -1,0 +1,13 @@
+[Rank]
+Finding of the Holy Cross;;Duplex II classis;;5.2;;
+
+[Lectio3]
+@Sancti/05-03::s/9-/8-/ s/9 /8 Beware lest any man cheat you by philosophy and vain deceit: according to the tradition of men according to the elements of the world and not according to Christ.\n9 /
+
+[Lectio7]
+@Sancti/05-03::s/$/~/
+@Sancti/05-03:Lectio8:s/ “Jesus answered.*//
+
+[Lectio8]
+@Sancti/05-03::s/.*“Jesus answered/“Jesus answered/ s/$/~/
+Therefore, since Nicodemus was of that number, he came to the Lord, but came by night; and this perhaps pertains to the matter. Came to the Lord, and came by night; came to the Light, and came in the darkness. But what do they that are born again of water and of the Spirit hear from the apostle? You were once darkness, but now light in the Lord; walk as children of light.

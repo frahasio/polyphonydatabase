@@ -1,0 +1,363 @@
+[Officium]
+Septem Dolorum Beatæ Mariæ Virginis
+
+[Rank]
+;;Duplex majus;;4
+
+[Rank] (rubrica 1960)
+;;Commemoratio;;1
+
+[Rule]
+Psalmi Dominica
+Antiphonas horas
+9 lectiones
+Gloria responsory
+
+[Ant Vespera]
+Vadam ad montem * myrrhæ et ad collem thuris.;;115
+Diléctus meus * cándidus et rubicúndus: comæ cápitis ejus sicut púrpura regis vincta canálibus.;;119
+Quo ábiit * diléctus tuus, o pulchérrima mulíerum? quo diléctus tuus declinávit.;;139
+Fascículus myrrhæ * diléctus meus mihi inter úbera mea commorábitur.;;140
+Fulcíte me flóribus * stipáte me malis, quia amóre lángueo.;;141
+
+[Hymnus Vespera]
+{:H-Stabatmater:}v. Stabat Mater dolorósa
+Juxta crucem lacrimósa,
+Dum pendébat Fílius.
+_
+Cujus ánimam geméntem,
+Contristátam et doléntem,
+Pertransívit gládius.
+_
+O quam tristis et afflícta
+Fuit illa benedícta
+Mater Unigéniti!
+_
+Quæ mœrébat, et dolébat,
+Pia Mater dum vidébat
+Nati pœnas ínclyti.
+_
+Quis est homo qui non fleret,
+Matrem Christi si vidéret
+In tanto supplício?
+_
+Quis non posset contristári,
+Christi Matrem contemplári
+Doléntem cum Fílio?
+_
+Pro peccátis suæ gentis
+Vidit Jesum in torméntis,
+Et flagéllis súbditum.
+_
+Vidit suum dulcem natum,
+Moriéndo desolátum,
+Dum emísit spíritum.
+_
+Eja, Mater, fons amóris,
+Me sentíre vim dolóris
+Fac, ut tecum lúgeam:
+_
+Fac ut árdeat cor meum
+In amándo Christum Deum,
+Ut sibi compláceam.
+Amen.
+
+[Doxology] (nisi rubrica cisterciensis)
+Jesu, tibi sit glória,
+Qui passus es pro sérvulis,
+Cum Patre et almo Spíritu,
+In sempitérna sǽcula.
+Amen.
+
+[Versum 1]
+V. Ora pro nobis, Virgo dolorosíssima.
+R. Ut digni efficiámur promissiónibus Christi.
+
+[Ant 1]
+Tuam ipsíus ánimam * (ait ad Maríam Símeon) pertransíbit gládius.
+
+[Oratio]
+Deus, in cujus passióne, secúndum Simeónis prophetíam, dulcíssimam ánimam gloriósæ Vírginis et Matris Maríæ dolóris gládius pertransívit: concéde, propítius; ut qui transfixiónem ejus et passiónem venerándo recólimus, gloriósis méritis et précibus ómnium Sanctórum cruci fidéliter astántium intercedéntibus, passiónis tuæ efféctum felícem consequámur:
+$Qui vivis
+
+[Commemoratio 1]
+!Commemoratio Feriæ Quintæ
+Ant. Desidério desiderávi * hoc Pascha manducáre vobíscum, ántequam pátiar.
+(sed rubrica cisterciensis)
+Ant. Mittens hæc múlier * in corpus meum hoc unguéntum, ad sepeliéndum me fecit.
+_
+V. Eripe me Dómine ab hómine malo.
+R. A viro iníquo éripe me.
+_
+$Oremus
+Esto, quǽsumus Dómine, propítius plebi tuæ: ut, quæ tibi non placent, respuéntes, tuórum pótius repleántur delectatiónibus mandatórum.
+$Per Dominum.
+
+[Invit]
+Dolóres gloriósæ recoléntes Vírginis, Dóminum pro nobis passum * Veníte adorémus.
+
+[Hymnus Matutinum]
+v. Sancta Mater, istud agas,
+Crucifíxi fige plagas
+Cordi meo válide:
+_
+Tui nati vulneráti,
+Tam dignáti pro me pati,
+Pœnas mecum dívide.
+_
+Fac me tecum pie flere,
+Crucifíxo condolére,
+Donec ego víxero:
+_
+Juxta crucem tecum stare,
+Et me tibi sociáre
+In planctu desídero.
+Amen.
+
+[Ant Matutinum]
+Astitérunt reges terræ, * et príncipes convenérunt in unum advérsus Dóminum, et advérsus Christum ejus.;;2
+Voce mea * ad Dóminum clamávi, et exaudívit me de monte sancto suo.;;3
+Factum est cor meum * tamquam cera liquéscens in médio ventris mei.;;12
+Inimíci mei * dixérunt mala mihi: Quando moriétur, et períbit nomen ejus?;;40
+Deus, vitam meam * annuntiávi tibi: posuísti lácrimas meas in conspéctu tuo.;;55
+Fílii hóminum, * dentes eórum arma et sagíttæ: et lingua eórum gládius acútus.;;56
+Intendérunt arcum, * rem amáram, ut sagíttent in occúltis immaculátum.;;63
+Factus sum * sicut homo sine adjutório, inter mórtuos liber.;;87
+Replévit me amaritúdine, * inebriávit me absýnthio.;;108
+
+[Nocturn 1 Versum]
+V. Pósuit me desolátam.
+R. Tota die mæróre conféctam.
+
+[Nocturn 2 Versum]
+V. Fácies mea intúmuit a fletu.
+R. Et pálpebræ meæ caligavérunt.
+
+[Nocturn 3 Versum]
+V. Deus vitam meam annuntiávi tibi.
+R. Posuísti lácrimas meas in conspéctu tuo.
+
+[Lectio1]
+De Isaía Prophéta
+!Isa 53:1-5
+1 Quis crédidit audítui nostro? et bráchium Dómini cui revelátum est?
+2 Et ascéndet sicut virgúltum coram eo, et sicut radix de terra sitiénti. Non est spécies ei, neque decor, et vídimus eum, et non erat aspéctus, et desiderávimus eum:
+3 despéctum, et novíssimum virórum, virum dolórum, et sciéntem infirmitátem, et quasi abscónditus vultus ejus et despéctus, unde nec reputávimus eum.
+4 Vere languóres nostros ipse tulit, et dolóres nostros ipse portávit; et nos putávimus eum quasi leprósum, et percússum a Deo, et humiliátum.
+5 Ipse autem vulnerátus est propter iniquitátes nostras; attrítus est propter scélera nostra: disciplína pacis nostræ super eum, et livóre ejus sanáti sumus.
+
+[Responsory1]
+R. Diléctus meus cándidus, et rubicúndus, et totus desiderábilis:
+* Omnis enim figúra ejus amórem spirat, et ad redamándum próvocat caput inclinátum, manus expánsæ, pectus apértum.
+V. Piis, o Virgo, spectas eum óculis, contémplans in eo non tam vúlnerum livórem, quam mundi salútem.
+R. Omnis enim figúra ejus amórem spirat, et ad redamándum próvocat caput inclinátum, manus expánsæ, pectus apértum.
+
+[Lectio2]
+!Isa 53:6-9
+6 Omnes nos quasi oves errávimus, unusquísque in viam suam declinávit: et pósuit Dóminus in eo iniquitátem ómnium nostrum.
+7 Oblátus est quia ipse vóluit, et non apéruit os suum; sicut ovis ad occisiónem ducétur, et quasi agnus coram tondénte se obmutéscet, et non apériet os suum.
+8 De angústia, et de judício sublátus est. Generatiónem ejus quis enarrábit? quia abscíssus est de terra vivéntium: propter scelus pópuli mei percússi eum.
+9 Et dabit ímpios pro sepultúra, et dívitem pro morte sua, eo quod iniquitátem non fécerit, neque dolus fúerit in ore ejus.
+
+[Responsory2]
+R. Manus ejus tornátiles, clavórum cúspide terebrátæ,
+* Humánæ salútis prétio quasi hyacínthis refértæ.
+V. Córnua in mánibus ejus: ibi abscóndita est fortitúdo ejus: sunt enim manus ejus.
+R. Humánæ salútis prétio quasi hyacínthis refértæ.
+
+[Lectio3]
+!Isa 53:10-12
+10 Et Dóminus vóluit contérere eum in infirmitáte. Si posúerit pro peccáto ánimam suam, vidébit semen longǽvum, et volúntas Dómini in manu ejus dirigétur.
+11 Pro eo quod laborávit ánima ejus, vidébit et saturábitur. In sciéntia sua justificábit ipse justus servus meus multos, et iniquitátes eórum ipse portábit.
+12 Ideo dispértiam ei plúrimos, et fórtium dívidet spólia, pro eo quod trádidit in mortem ánimam suam, et cum scelerátis reputátus est, et ipse peccáta multórum tulit, et pro transgressóribus rogávit.
+
+[Responsory3]
+R. Diligébat Jesus Joánnem, quóniam speciális prærogatíva castitátis amplióri dilectióne fécerat dignum:
+* Quia virgo eléctus ab ipso, virgo in ævum permánsit.
+V. In cruce dénique moritúrus huic Matrem suam vírginem vírgini commendávit.
+R. Quia virgo eléctus ab ipso, virgo in ævum permánsit.
+&Gloria
+R. Quia virgo eléctus ab ipso, virgo in ævum permánsit.
+
+[Lectio4]
+Sermo sancti Bernárdi Abbátis
+!Sermo de duodecim stellis
+Martýrium Vírginis tam in Simeónis prophetía, quam in ipsa Domínicæ passiónis história commendátur. Pósitus est hic (ait sanctus senex de púero Jesu) in signum cui contradicétur; et tuam ipsíus ánimam (ad Maríam autem dicébat) pertransíbit gládius. Vere tuam, o beáta Mater, ánimam pertransívit. Alióquin non nisi eam pertránsiens, carnem Fílii tui penetráret. Et quidem posteáquam emísit spíritum tuus ille Jesus, ipsíus plane non áttigit ánimam crudélis láncea, quæ ipsíus apéruit latus, sed tuam útique ánimam pertransívit. Ipsíus nimírum ánima jam ibi non erat, sed tua plane inde nequíbat avélli.
+
+[Responsory4]
+R. Ténebræ factæ sunt, dum crucifixíssent Jesum Judǽi, et circa horam nonam exclamávit Jesus voce magna: Deus meus, ut quid dereliquísti me?
+* Et inclináto cápite emísit spíritum.
+V. Quis tibi nunc sensus, dum cernis tália, Virgo?
+R. Et inclináto cápite emísit spíritum.
+
+[Lectio5]
+Tuam ergo pertransívit ánimam vis dolóris, ut plusquam Mártyrem non immérito prædicémus, in qua nimírum corpóreæ sensum passiónis excésserit compassiónis afféctus. An non tibi plusquam gládius fuit sermo ille, revéra pertránsiens ánimam, et pertíngens usque ad divisiónem ánimæ et spíritus: Múlier, ecce fílius tuus? O commutatiónem! Joánnes tibi pro Jesu tráditur, servus pro Dómino, discípulus pro Magístro, fílius Zebedǽi pro Fílio Dei, homo purus pro Deo vero. Quómodo non tuam affectuosíssimam ánimam pertransíret hæc audítio, quando et nostra, licet sáxea, licet férrea péctora, sola recordátio scindit?
+
+[Responsory5]
+R. Pássio Dómini,
+* Ipsam ejus Matrem, carnáli orbitáte gráviter percússam, vehementíssime contristávit.
+V. Ferrum lánceæ militáris, latus quidem Salvatóris, ánimam vero transívit Vírginis Matris.
+R. Ipsam ejus Matrem, carnáli orbitáte gráviter percússam, vehementíssime contristávit.
+
+[Lectio6]
+Non mirémini, fratres, quod María Martyr in ánima fuísse dicátur. Mirétur qui non memínerit se audivísse Paulum inter máxima géntium crímina memorántem, quod sine affectióne fuíssent. Longe id fuit a Maríæ viscéribus, longe sit a sérvulis ejus. Sed forte quis dicat: Numquid non eum præscíerat moritúrum? Et indubitánter. Numquid non sperábat contínuo resurrectúrum? Et fidéliter. Super hæc dóluit crucifíxum? Et veheménter. Alióquin quisnam tu, frater, aut unde tibi hæc sapiéntia, ut miréris plus Maríæ Fílium patiéntem? Ille étiam mori córpore pótuit; ista cómmori corde non pótuit? Fecit illud cáritas, qua majórem nemo hábuit; fecit et hoc cáritas, cui post illam símilis áltera non fuit.
+
+[Responsory6]
+R. Quis mihi det te fratrem meum sugéntem úbera matris meæ, et inhæréndo láteri tuo, ut sanguis tuus sánguinem meum tangat, et tergat:
+* Ut fons aquæ tuæ de scaturígine recti cordis, per venas boni óperis, in finem ætérnæ felicitátis exsíliat?
+V. Fílii tui de longe vénient, et fíliæ tuæ de látere surgent.
+R. Ut fons aquæ tuæ de scaturígine recti cordis, per venas boni óperis, in finem ætérnæ felicitátis exsíliat?
+&Gloria
+R. Ut fons aquæ tuæ de scaturígine recti cordis, per venas boni óperis, in finem ætérnæ felicitátis exsíliat?
+
+[Lectio7]
+Léctio sancti Evangélii secúndum Joánnem.
+!Joannes 19:25-27.
+In illo témpore: Stabant juxta crucem Jesu Mater ejus, et soror Matris ejus Maria Cleophæ, et Maria Magdalene. Et réliqua.
+_
+Homilía sancti Augustíni Epíscopi.
+!Tract. 119 in Joánnem.
+Hæc nimírum est illa hora, de qua Jesus, aquam conversúrus in vinum, díxerat Matri: Quid mihi et tibi est múlier? nondum venit hora mea. Hanc ítaque horam prædíxerat, quæ tunc nondum vénerat, in qua debéret agnóscere moritúrus, de qua fúerat mortáliter natus. Tunc ergo divína factúrus, non divinitátis, sed infirmitátis matrem velut incógnitam repellébat. nunc autem humána jam pátiens, ex qua fúerat factus homo, afféctu commendábat humáno. Morális ígitur insinuátur locus. Facit quod faciéndum ádmonet, et exémplo suo suos minístros instrúxit præcéptor bonus, ut a fíliis piis impendátur cura paréntibus: tamquam lignum illud, ubi fixa erant membra moriéntis, étiam cáthedra fúerit magístri docéntis.
+
+[Responsory7]
+R. Dóleo super te fili mi Jesu, decórus nimis, et amábilis super amórem mulíerum!
+* Sicut enim mater únicum díligit fílium, ita ego te diligébam.
+V. Defécit in dolóre vita mea, et anni mei in gemítibus.
+R. Sicut enim mater únicum díligit fílium, ita ego te diligébam.
+
+[Lectio8]
+Ex hac sana doctrína didícerat Paulus Apóstolus quod docébat quando dicébat: Si quis autem suis, et máxime domésticis non próvidet, fidem negávit, et est infidéli detérior, Quid autem tam cuíque domésticum, quam paréntes fíliis, aut paréntibus fílii? Hujus ítaque salubérrimi præcépti ipse Magíster Sanctórum de seípso constituébat exémplum: quando non ut fámulæ Deus, quam creáverat, et regébat; sed ut matri homo, de qua creátus fúerat, et quam relinquébat, álterum pro se quodámmodo fílium providébat.
+
+[Responsory8]
+R. Eja, Mater fons amóris, fac nos sentíre vim dolóris, ut tecum lugeámus:
+* Et Domínicæ passiónis fructum sentiámus.
+V. Ut sicut Fílius tuus Jesus pro nobis mórtuus est, et resurréxit; ita et nos commórtui cum eódem resurgámus.
+R. Et Domínicæ passiónis fructum sentiámus.
+&Gloria
+R. Et Domínicæ passiónis fructum sentiámus.
+
+[Lectio9]
+!de Homilía Feriæ.
+@Tempora/Quad5-5Feria:Lectio1
+&teDeum
+
+[Ant Laudes]
+@:Ant Vespera:s/;;.*//g
+
+[Capitulum Laudes]
+!Isa 53:1-2
+v. Quis crédidit audítui nostro? et bráchium Dómini cui revelátum est? Et ascéndet sicut virgúltum coram eo, et sicut radix de terra sitiénti.
+$Deo gratias
+
+[Responsory Laudes] (rubrica cisterciensis)
+@:Responsory Breve Nona:1-4
+
+[Hymnus Laudes]
+{:H-Stabatmater:}v. Virgo vírginum præclára,
+Mihi jam non sis amára,
+Fac me tecum plángere.
+_
+Fac ut portem Christi mortem,
+Passiónis fac consórtem,
+Et plagas recólere.
+_
+Fac me plagis vulnerári,
+Fac me cruce inebriári,
+Et cruóre Fílii.
+_
+Flammis ne urar succénsus,
+Per te Virgo sim defénsus
+In die judícii.
+_
+Christe, cum sit hinc exíre,
+Da per Matrem me veníre
+Ad palmam victóriæ.
+_
+Quando corpus moriétur,
+Fac ut ánimæ donétur
+Paradísi glória.
+Amen.
+
+[Versum 2]
+@:Versum 1
+
+[Ant 2]
+Cum vidísset Jesus * matrem stantem juxta crucem, et discípulum quem diligébat, dicit matri suæ: Múlier, ecce fílius tuus. Deínde dicit discípulo: Ecce Mater tua.
+
+[Commemoratio 2]
+!Commemoratio Feria Sexta
+Ant. Appropinquábat autem * dies festus Judæórum: et quærébant príncipes sacerdótum quómodo Jesum interfícerent, sed timébant plebem.
+_
+V. Eripe me de inimícis meis Deus meus.
+R. Et ab insurgéntibus in me líbera me.
+_
+$Oremus
+Córdibus nostris, quǽsumus, Dómine, grátiam tuam benígnus infúnde: ut peccáta nostra castigatióne voluntária cohibéntes, temporáliter pótius macerémur, quam supplíciis deputémur ætérnis.
+$Per Dominum
+
+[Lectio Prima]
+!Isa 53:8
+Generatiónem ejus quis enarrábit, quia abscíssus est de terra vivéntium; propter scelus pópuli mei percússi eum.
+
+[Versum Prima]
+Qui passus es propter nostram salútem.
+
+[Responsory Breve Tertia]
+R.br. Pósuit me * Desolátam.
+R. Pósuit me * Desolátam.
+V. Tota die mæróre conféctam.
+R. Desolátam.
+&Gloria
+R. Pósuit me * Desolátam.
+
+[Versum Tertia]
+@:Nocturn 2 Versum
+
+[Capitulum Sexta]
+!Isa 53:5
+v. Ipse vulnerátus est propter iniquitátes nostras, attrítus est propter scélera nostra: disciplína pacis nostræ super eum, et livóre ejus sanáti sumus.
+$Deo gratias
+
+[Responsory Breve Sexta]
+R.br. Fácies mea * Intúmuit a fletu.
+R. Fácies mea * Intúmuit a fletu.
+V. Et pálpebræ meæ caligavérunt.
+R. Intúmuit a fletu.
+&Gloria
+R. Fácies mea * Intúmuit a fletu.
+
+[Versum Sexta]
+@:Nocturn 3 Versum
+
+[Capitulum Nona]
+!Isa 53:8
+v. Generatiónem ejus quis enarrábit, quia abscíssus est de terra vivéntium; propter scelus pópuli mei percússi eum.
+$Deo gratias
+
+[Responsory Breve Nona]
+R.br. Deus vitam meam * Annuntiávi tibi.
+R. Deus vitam meam * Annuntiávi tibi.
+V. Posuísti lácrimas meas in conspéctu tuo.
+R. Annuntiávi tibi.
+&Gloria
+R. Deus vitam meam * Annuntiávi tibi.
+
+[Versum Nona]
+@:Versum 1
+
+[Versum 3]
+@:Versum 1
+
+[Ant 3]
+@:Ant 2
+
+[Commemoratio 3]
+!Commemoratio Feriæ Sextæ
+Ant. Príncipes sacerdótum * consílium fecérunt ut Jesum occíderent: dicébant autem: Non in die festo, ne forte tumúltus fíeret in pópulo.
+_
+V. Eripe me de inimícis meis Deus meus.
+R. Et ab insurgéntibus in me líbera me.
+_
+$Oremus
+Concéde, quǽsumus, omnípotens Deus: ut qui protectiónis tuæ grátiam quǽrimus, liberáti a malis ómnibus, secúra tibi mente serviámus.
+$Per Dominum
