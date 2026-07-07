@@ -93,14 +93,15 @@
             return parts.map(p => '<span class="comp-attr">' + p + '</span>').join('');
         }
 
-        function editionsHtml(editions) {
+        function editionsHtml(editions, withGroup) {
             if (!editions || !editions.length) return '';
             const links = editions.map(e => {
-                const label = (escapeHtml(e.editor_name) || 'Edition') + (e.voicing ? ' ' + escapeHtml(e.voicing) : '');
+                let label = (escapeHtml(e.editor_name) || 'Edition') + (e.voicing ? ' ' + escapeHtml(e.voicing) : '');
+                if (withGroup && e.group_title) label = escapeHtml(e.group_title) + ': ' + label;
                 const u = safeUrl(e.file_url);
                 return u ? `<a href="${u}" target="_blank" rel="noopener">${label} <i class="bi bi-file-earmark-pdf"></i></a>` : label;
             });
-            return `<div class="comp-detail mt-1"><strong>Existing editions:</strong> ${links.join(' · ')}</div>`;
+            return `<div class="comp-detail mt-1"><strong>Editions to check:</strong> ${links.join(' · ')}</div>`;
         }
 
         function payloadHtml(s) {
@@ -152,7 +153,8 @@
                 }).join('');
                 const more = (s.compositions || []).length > 6 ? `<div class="comp-detail text-muted">…and ${(s.compositions.length - 6)} more setting(s)</div>` : '';
                 return `<span class="fw-semibold">${escapeHtml(s.title_text || '(title missing)')}</span>
-                        ${comps ? `<div class="mt-1">${comps}${more}</div>` : ''}`;
+                        ${comps ? `<div class="mt-1">${comps}${more}</div>` : ''}
+                        ${editionsHtml(s.editions, true)}`;
             }
             // Recording suggestion: identify the exact group/piece and show
             // its distinguishing attributes + any editions to check against.

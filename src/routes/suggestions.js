@@ -47,6 +47,7 @@ async function enrichWithContext(rows) {
   }
 
   const compsByTitle = {};
+  const editionsByTitle = {};
   if (titleIds.length) {
     const comps = await pool.query(
       `${compQuery}, c.title_id, g.display_title AS group_title,
@@ -58,6 +59,20 @@ async function enrichWithContext(rows) {
       [titleIds]
     );
     comps.rows.forEach((r) => { (compsByTitle[r.title_id] ||= []).push(r); });
+
+    // Editions of any setting carrying the title — useful for checking what
+    // the text actually is when reviewing a title->function suggestion.
+    const eds = await pool.query(
+      `SELECT DISTINCT c.title_id, e.id, ed.name AS editor_name, e.voicing, e.file_url,
+              g.display_title AS group_title
+       FROM compositions c
+       JOIN editions e ON e.group_id = c.group_id
+       LEFT JOIN editors ed ON ed.id = e.editor_id
+       LEFT JOIN groups g ON g.id = c.group_id
+       WHERE c.title_id = ANY($1)`,
+      [titleIds]
+    );
+    eds.rows.forEach((r) => { (editionsByTitle[r.title_id] ||= []).push(r); });
   }
 
   rows.forEach((r) => {
@@ -66,6 +81,7 @@ async function enrichWithContext(rows) {
       r.compositions = compsByGroup[r.group_id] || [];
     } else if (r.title_id) {
       r.compositions = compsByTitle[r.title_id] || [];
+      r.editions = (editionsByTitle[r.title_id] || []).slice(0, 8);
     }
   });
 }
