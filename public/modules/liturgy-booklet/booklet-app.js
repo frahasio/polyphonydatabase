@@ -5514,9 +5514,9 @@
       cell.appendChild(num);
       dayTpls.slice(0, 2).forEach(function (tpl) {
         const feast = document.createElement('div');
-        feast.className = 'tpl-day-feast';
+        feast.className = 'tpl-day-feast' + (tpl.published === false ? ' tpl-draft' : '');
         feast.textContent = tpl.name.replace(/ — Mass( propers)?$/, '');
-        feast.title = tpl.name + ' — click to load (' + tplSizePref + ')';
+        feast.title = tpl.name + (tpl.published === false ? ' (draft)' : '') + ' — click to load (' + tplSizePref + ')';
         feast.addEventListener('click', function (e) {
           e.stopPropagation();
           loadTemplate(tpl.id, tpl.name, tplSizePref);
@@ -5553,6 +5553,12 @@
       info.className = 'flex-grow-1';
       const nm = document.createElement('div');
       nm.textContent = t.name;
+      if (t.published === false) {
+        const badge = document.createElement('span');
+        badge.className = 'badge text-bg-warning ms-2';
+        badge.textContent = 'draft';
+        nm.appendChild(badge);
+      }
       info.appendChild(nm);
       const meta = document.createElement('div');
       meta.className = 'text-muted';
@@ -5576,6 +5582,15 @@
       });
 
       const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
+      if (tplIsAdmin && t.official) {
+        const pubBtn = document.createElement('button');
+        pubBtn.type = 'button';
+        pubBtn.className = t.published === false ? 'btn btn-outline-success' : 'btn btn-outline-warning';
+        pubBtn.title = t.published === false ? 'Publish (make visible to all users)' : 'Unpublish (back to admin-only draft)';
+        pubBtn.innerHTML = t.published === false ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+        pubBtn.addEventListener('click', function () { setTemplatePublished(t.id, t.published === false); });
+        btns.appendChild(pubBtn);
+      }
       if (canEdit) {
         const editBtn = document.createElement('button');
         editBtn.type = 'button';
@@ -5626,6 +5641,22 @@
       bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
     } catch (e) {
       alert(e.message || 'Could not load template.');
+    }
+  }
+
+  async function setTemplatePublished(id, publish) {
+    try {
+      const r = await fetch('/api/booklet/templates/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ published: publish }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Update failed');
+      loadTemplateList(document.getElementById('tplSearch')?.value.trim());
+    } catch (e) {
+      alert(e.message || 'Could not update template.');
     }
   }
 

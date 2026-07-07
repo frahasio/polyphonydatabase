@@ -375,11 +375,17 @@ async function upsert({ name, description, season, key, project, feastMonth, fea
     console.log(`[dry] ${key} -> "${name}" (${season}, ${project.blocks.length} blocks)`);
     return;
   }
+  // Seeded templates are drafts until an admin reviews and publishes them;
+  // preserve that decision across re-runs.
+  const prev = await pool.query(
+    'SELECT published FROM booklet_templates WHERE feast_key = $1 AND official = true LIMIT 1', [key]
+  );
+  const published = prev.rows.length ? prev.rows[0].published : false;
   await pool.query('DELETE FROM booklet_templates WHERE feast_key = $1 AND official = true', [key]);
   await pool.query(`
-    INSERT INTO booklet_templates (name, description, season, feast_key, official, owner_name, project, office_type, feast_month, feast_day)
-    VALUES ($1, $2, $3, $4, true, '', $5, 'mass', $6, $7)
-  `, [name, description, season, key, JSON.stringify(project), feastMonth || null, feastDay || null]);
+    INSERT INTO booklet_templates (name, description, season, feast_key, official, owner_name, project, office_type, feast_month, feast_day, published)
+    VALUES ($1, $2, $3, $4, true, '', $5, 'mass', $6, $7, $8)
+  `, [name, description, season, key, JSON.stringify(project), feastMonth || null, feastDay || null, published]);
 }
 
 async function main() {

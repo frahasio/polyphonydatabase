@@ -19,14 +19,20 @@ router.get('/', async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const params = [];
-    let where = '';
+    const conds = [];
     if (q) {
       params.push(`%${q}%`);
-      where = `WHERE (t.name ILIKE $1 OR t.description ILIKE $1 OR t.season ILIKE $1 OR t.owner_name ILIKE $1)`;
+      conds.push(`(t.name ILIKE $${params.length} OR t.description ILIKE $${params.length} OR t.season ILIKE $${params.length} OR t.owner_name ILIKE $${params.length})`);
     }
+    // Drafts (unpublished) are only listed for admins and their owners.
+    if (req.user.role !== 'admin') {
+      params.push(req.user.id);
+      conds.push(`(t.published = true OR t.owner_id = $${params.length})`);
+    }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
-             t.office_type, t.feast_month, t.feast_day, t.easter_offset,
+             t.office_type, t.feast_month, t.feast_day, t.easter_offset, t.published,
              t.owner_id, t.owner_name, t.updated_at
       FROM booklet_templates t
       ${where}
@@ -44,11 +50,15 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, description, season, official, owner_name, project FROM booklet_templates WHERE id = $1',
+      'SELECT id, name, description, season, official, owner_id, owner_name, published, project FROM booklet_templates WHERE id = $1',
       [parseInt(req.params.id, 10) || 0]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Template not found' });
-    res.json({ template: result.rows[0] });
+    const t = result.rows[0];
+    if (!t.published && req.user.role !== 'admin' && t.owner_id !== req.user.id) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    res.json({ template: t });
   } catch (error) {
     console.error('Get template error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -139,6 +149,12 @@ router.put('/:id', async (req, res) => {
       const eo = parseInt(req.body.easter_offset, 10);
       easterOffset = Number.isInteger(eo) && eo >= -100 && eo <= 200 ? eo : null;
     }
+    // Only admins publish/unpublish official templates; owners' community
+    // templates are always published.
+    let published = t.published;
+    if (req.user.role === 'admin' && typeof req.body.published === 'boolean') {
+      published = req.body.published;
+    }
     let projectJson = null;
     if (req.body.project !== undefined) {
       if (!validProject(req.body.project)) return res.status(400).json({ error: 'Invalid project payload' });
@@ -149,10 +165,10 @@ router.put('/:id', async (req, res) => {
     await pool.query(`
       UPDATE booklet_templates
       SET name = $1, description = $2, season = $3, office_type = $4,
-          feast_month = $5, feast_day = $6, easter_offset = $7,
-          project = COALESCE($8::jsonb, project), updated_at = NOW()
-      WHERE id = $9
-    `, [name, description, season, officeType, feastMonth, feastDay, easterOffset, projectJson, t.id]);
+          feast_month = $5, feast_day = $6, easter_offset = $7, published = $8,
+          project = COALESCE($9::jsonb, project), updated_at = NOW()
+      WHERE id = $10
+    `, [name, description, season, officeType, feastMonth, feastDay, easterOffset, published, projectJson, t.id]);
 
     res.json({ message: 'Template updated' });
   } catch (error) {
