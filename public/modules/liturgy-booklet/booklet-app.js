@@ -5748,6 +5748,7 @@
           credo: document.getElementById('buildCredo').value,
           readings: document.getElementById('buildReadings').value,
           marian: document.getElementById('buildMarian').value,
+          size: buildTarget.size || 'A5',
         }),
       });
       const data = await r.json();

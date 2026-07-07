@@ -314,7 +314,113 @@ function titleBlock(bid, text, sizePt = 12) {
 }
 
 export function defaultBuildOptions() {
-  return { framework: true, kyriale: 8, credo: 'auto', readings: 'both', marian: 'salve_simple' };
+  return { framework: true, kyriale: 8, credo: 'auto', readings: 'both', marian: 'salve_simple', size: 'A5' };
+}
+
+// ---- per-size tuning, extracted from the hand-curated 8th Sunday pair -----
+
+// Page-layout settings per size (A5 matches the seeded house settings).
+const SIZE_SETTINGS = {
+  A5: { pageSize: 'A5', marginTopMm: 10, marginBottomMm: 6, marginLeftMm: 10, marginRightMm: 10, sectionGapMm: 5, gapTolerancePx: 8, marginTolerancePx: 8 },
+  A4: { pageSize: 'A4', marginTopMm: 14, marginBottomMm: 6, marginLeftMm: 14, marginRightMm: 14, sectionGapMm: 6, gapTolerancePx: 2, marginTolerancePx: 6 },
+};
+
+// Horizontal spacing per framework chant per size (hand-tuned values).
+const FRAMEWORK_HS = {
+  domVobiscum: { A5: 1.1, A4: 1.75 },
+  domVobPostcomm: { A5: 1.1, A4: 1.5 },
+  domVobIte: { A5: 1.1, A4: 1.7 },
+  perOmniaOremus: { A5: 1.35, A4: 1.65 },
+  perOmniaSecret: { A5: 1.45, A4: 1.6 },
+  perOmniaCanon: { A5: 1.45, A4: 1.65 },
+  perOmniaPax: { A5: 1.45, A4: 1.7 },
+  perOmniaPostcomm: { A5: 1.35, A4: 1.55 },
+  prefaceChant: { A5: 1.3, A4: 1.6 },
+  paterChant: { A5: 1.6, A4: 1.65 },
+  paxChant: { A5: 1.3, A4: 1.6 },
+  iteChant: { A5: 1.6, A4: 1.55 },
+};
+const GOSPEL_DIALOGUE_HS = { A5: 1.55, A4: 1.5 };
+const CREDO_I_HS = { A5: 1.75, A4: 1.6 };
+const SALVE_SIMPLE_HS = { A5: 1.8, A4: 1.95 };
+
+// Preface dialogue translation: the last versicle breaks differently.
+const PREFACE_TR = {
+  A5: '\\V. The Lord be with you.//\\R. And with your spirit.\n\\V. Lift up your hearts.//\\R. We lift them up to the Lord.\n\\V. Let us give thanks to the Lord//our God. \\R. It is right and just.',
+  A4: '\\V. The Lord be with you.//\\R. And with your spirit.\n\\V. Lift up your hearts.//\\R. We lift them up to the Lord.\n\\V. Let us give thanks to the Lord our God.//\\R. It is right and just.',
+};
+
+// Credo I translation exactly as hand-broken for each size.
+const CREDO_I_TR = {
+  A5: 'I believe in one God,//the Father almighty,\nmaker of heaven and earth,\nof all things//visible and invisible.\nAnd in one Lord,//Jesus Christ,\nthe only begotten//Son of God,\nborn of the Father//before all ages.\nGod from God,//Light from Light,\ntrue God from true God,//begotten, not made,\none in being//with the Father;\nthrough Whom//all things were made.\nWho for us men//and for our salvation\ncame down from heaven.//And he was made flesh\nby the Holy Spirit//from the Virgin Mary,\nand was made man.//He was crucified for us\nunder Pontius Pilate;//suffered, and was buried.\nOn the third day//He rose again\naccording//to the Scriptures;\nHe ascended into heaven\nand sits at the right//hand of the Father.\nAnd He will come again//in glory\nto judge the living//and the dead,\nand of His kingdom//there shall be no end.\nAnd in the Holy Spirit,//the Lord and giver of Life,\nWho proceeds from//the Father and the Son.\nWho, with the Father//and the Son,//is adored and glorified:\nWho has spoken//through the Prophets.\nAnd in one holy, catholic//and apostolic Church.\nI confess one baptism//for the remission of sins.\nAnd I look for the//resurrection of the dead,\nand the life//of the age to come.\nAmen.',
+  A4: 'I believe in one God,//the Father almighty,\nmaker of heaven and earth,//of all things visible and invisible.\nAnd in one Lord, Jesus Christ, the only begotten Son of God,\nborn of the Father before all ages.//God from God, Light from Light,\ntrue God from true God,//begotten, not made,\none in being with the Father;//through Whom all things were made.\nWho for us men and for our//salvation came down from heaven.\nAnd he was made flesh by the Holy Spirit from the Virgin Mary,//and was made man.\nHe was crucified for us//under Pontius Pilate;//suffered, and was buried.\nOn the third day He rose again according to the Scriptures;\nHe ascended into heaven and sits//at the right hand of the Father.\nAnd He will come again in glory//to judge the living and the dead,\nand of His kingdom//there shall be no end.\nAnd in the Holy Spirit,//the Lord and giver of Life,\nWho proceeds from//the Father and the Son.\nWho, with the Father and the Son,//is adored and glorified:\nWho has spoken//through the Prophets.\nAnd in one holy, catholic//and apostolic Church.\nI confess one baptism//for the remission of sins.\nAnd I look for//the resurrection of the dead,\nand the life of the age to come.//Amen.',
+};
+
+// Salve Regina (simple tone) translation per size, as hand-broken.
+const SALVE_SIMPLE_TR = {
+  A5: 'Hail, holy Queen,//Mother of mercy,\nour life, our sweetness//and our hope.\nTo thee do we cry, poor//banished children of Eve.\nTo thee do we//send up our sighs,\nmourning and weeping//in this vale of tears.\nTurn then,//most gracious advocate,\nthine eyes of mercy//toward us.\nAnd after this our exile show unto us\nthe blessed fruit//of thy womb, Jesus.\nO clement, O loving,//O sweet Virgin Mary.',
+  A4: 'Hail, holy Queen, Mother of mercy,//our life, our sweetness and our hope.\nTo thee do we cry,//poor banished children of Eve.\nTo thee do we send up our sighs,\nmourning and weeping//in this vale of tears.\nTurn then, most gracious advocate,//thine eyes of mercy toward us.\nAnd after this our exile show unto us//the blessed fruit of thy womb, Jesus.\nO clement, O loving,//O sweet Virgin Mary.',
+};
+
+// Character budgets measured from the curated pair.
+const REFLOW = {
+  A5: { maxLine: 46, breakOver: 28 },
+  A4: { maxLine: 56, breakOver: 36 },
+};
+
+/**
+ * Best break position near the middle of a line (within the middle 40%):
+ * prefer after punctuation, else the nearest space.
+ */
+function midBreak(line) {
+  const mid = line.length / 2;
+  const lo = line.length * 0.3;
+  const hi = line.length * 0.7;
+  let best = -1;
+  let bestDist = Infinity;
+  const re = /[,;:]\s|\s/g;
+  let m;
+  while ((m = re.exec(line)) !== null) {
+    const pos = m.index + m[0].length;
+    if (pos < lo || pos > hi) continue;
+    const isPunct = /[,;:]/.test(m[0][0]);
+    const dist = Math.abs(pos - mid) - (isPunct ? 4 : 0); // prefer punctuation
+    if (dist < bestDist) { bestDist = dist; best = pos; }
+  }
+  return best;
+}
+
+/**
+ * Re-break a chant translation for the target size: existing // marks are
+ * discarded, hard newlines kept, long lines wrapped to the size budget and
+ * given a // break near the middle (at punctuation when possible).
+ */
+export function reflowTranslation(text, size) {
+  if (!text) return text;
+  const b = REFLOW[size] || REFLOW.A5;
+  return String(text).split('\n').map((hard) => {
+    const flat = hard.replace(/\s*\/\/\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!flat) return '';
+    // Balanced wrap: aim for equal-width lines rather than a full first line
+    // with an orphan word at the end.
+    const lineCount = Math.max(1, Math.ceil(flat.length / b.maxLine));
+    const target = Math.ceil(flat.length / lineCount);
+    const lines = [];
+    let rest = flat;
+    while (lines.length < lineCount - 1 && rest.length > target) {
+      let cut = rest.lastIndexOf(' ', Math.min(target + 6, b.maxLine));
+      if (cut <= 0) cut = rest.indexOf(' ');
+      if (cut <= 0) break;
+      lines.push(rest.slice(0, cut));
+      rest = rest.slice(cut + 1);
+    }
+    lines.push(rest);
+    return lines.map((line) => {
+      if (line.length <= b.breakOver) return line;
+      const pos = midBreak(line);
+      return pos > 0 ? line.slice(0, pos).trimEnd() + '//' + line.slice(pos).trimStart() : line;
+    }).join('\n');
+  }).join('\n');
 }
 
 /**
@@ -333,6 +439,14 @@ export function buildFromCore(core, rawOptions = {}) {
   const bid = () => `bld_${n++}`;
   const clone = (part, overrides = {}) => ({ ...JSON.parse(JSON.stringify(part)), id: bid(), ...overrides });
   const fw = !!opts.framework && opts.framework !== 'false' && opts.framework !== '0';
+  const size = opts.size === 'A4' ? 'A4' : 'A5';
+  // Framework chant with hand-tuned per-size spacing (and preface breaks).
+  const fwChant = (name, overrides = {}) => {
+    const o = { ...overrides };
+    if (FRAMEWORK_HS[name]) o.chantHorizSpacing = FRAMEWORK_HS[name][size];
+    if (name === 'prefaceChant') o.chantTranslation = PREFACE_TR[size];
+    return clone(sk[name], o);
+  };
 
   const kyrialeIdx = opts.kyriale === 'none' ? null : parseInt(opts.kyriale, 10);
   const mass = kyrialeIdx >= 1 && kyrialeIdx <= 16 ? ordinaryData().masses[kyrialeIdx - 1] : null;
@@ -340,7 +454,7 @@ export function buildFromCore(core, rawOptions = {}) {
     if (!mass || !mass[part]) return null;
     const def = Array.isArray(mass[part]) ? mass[part][0] : mass[part];
     const gabc = gabcById(def.id);
-    return gabc ? chantBlock(bid, gabc, { chantTranslation: ORDINARY_TRANSLATIONS[part] || '' }) : null;
+    return gabc ? chantBlock(bid, gabc, { chantTranslation: reflowTranslation(ORDINARY_TRANSLATIONS[part] || '', size) }) : null;
   };
 
   let credoBlock = null;
@@ -350,7 +464,11 @@ export function buildFromCore(core, rawOptions = {}) {
       const id = opts.credo === 'auto' ? 'I' : String(opts.credo);
       const def = ordinaryData().adLib.credo.find((c) => c.name === `Credo ${id}`) || ordinaryData().adLib.credo[0];
       const gabc = def && gabcById(def.id);
-      if (gabc) credoBlock = chantBlock(bid, gabc, { chantTranslation: CREDO_TRANSLATION });
+      if (gabc) {
+        credoBlock = def.name === 'Credo I'
+          ? chantBlock(bid, gabc, { chantTranslation: CREDO_I_TR[size], chantHorizSpacing: CREDO_I_HS[size] })
+          : chantBlock(bid, gabc, { chantTranslation: reflowTranslation(CREDO_TRANSLATION, size) });
+      }
     }
   }
 
@@ -360,7 +478,9 @@ export function buildFromCore(core, rawOptions = {}) {
     if (def) {
       const gabc = normalizeGabcLyrics(readText(path.join(JGABC, 'gabc', def.file)));
       const baseId = def.id.replace(/_simple$/, '');
-      marianBlock = chantBlock(bid, gabc, { chantTranslation: MARIAN_TRANSLATIONS[baseId] || '' });
+      marianBlock = def.id === 'salve_simple'
+        ? chantBlock(bid, gabc, { chantTranslation: SALVE_SIMPLE_TR[size], chantHorizSpacing: SALVE_SIMPLE_HS[size] })
+        : chantBlock(bid, gabc, { chantTranslation: reflowTranslation(MARIAN_TRANSLATIONS[baseId] || '', size) });
     }
   }
 
@@ -416,9 +536,9 @@ export function buildFromCore(core, rawOptions = {}) {
   const collect = grp('collect');
   if (collect.length) {
     push(...collect.filter((b) => b.type === 'title'));
-    if (fw) push(clone(sk.domVobiscum));
+    if (fw) push(fwChant('domVobiscum'));
     push(...collect.filter((b) => b.type !== 'title'));
-    if (fw) push(clone(sk.perOmniaOremus));
+    if (fw) push(fwChant('perOmniaOremus'));
   }
 
   const lesson = grp('lesson');
@@ -437,7 +557,9 @@ export function buildFromCore(core, rawOptions = {}) {
     if (fw) push(clone(sk.rubricStand));
     if (fw && meta.gospelIntro && meta.gospelIntro.evangelist) {
       // Sung dialogue replaces the spoken introduction text.
-      push(gospelDialogueChant(bid, meta.gospelIntro) || gospelIntro.map(transformReading)[0]);
+      const dlg = gospelDialogueChant(bid, meta.gospelIntro);
+      if (dlg) dlg.chantHorizSpacing = GOSPEL_DIALOGUE_HS[size];
+      push(dlg || gospelIntro.map(transformReading)[0]);
     } else {
       push(...gospelIntro.map(transformReading));
     }
@@ -464,27 +586,27 @@ export function buildFromCore(core, rawOptions = {}) {
   const secret = grp('secret');
   if (secret.length) {
     push(...secret);
-    if (fw) push(clone(sk.perOmniaSecret));
+    if (fw) push(fwChant('perOmniaSecret'));
   }
 
   if (fw) {
     push(titleBlock(bid, 'Preface'));
     push(clone(sk.rubricStandPreface));
-    push(clone(sk.prefaceChant));
+    push(fwChant('prefaceChant'));
     push(clone(sk.prefaceText));
   }
   push(kyChant('sanctus') || (noKyriale ? (settingName ? settingNote() : placeholder('Sanctus')) : null));
   if (fw) {
     push(clone(sk.rubricKneel));
     push(titleBlock(bid, 'Canon'));
-    push(clone(sk.perOmniaCanon));
+    push(fwChant('perOmniaCanon'));
     push(titleBlock(bid, 'Pater noster'));
     push(clone(sk.rubricStandPater));
     push(clone(sk.paterIntro));
-    push(clone(sk.paterChant));
+    push(fwChant('paterChant'));
     push(clone(sk.liberaNos));
-    push(clone(sk.perOmniaPax));
-    push(clone(sk.paxChant));
+    push(fwChant('perOmniaPax'));
+    push(fwChant('paxChant'));
   }
 
   const communion = grp('communion');
@@ -506,26 +628,34 @@ export function buildFromCore(core, rawOptions = {}) {
     push(...postcomm.filter((b) => b.type === 'title'));
     if (fw) {
       push(clone(sk.rubricStandPostcomm));
-      push(clone(sk.domVobPostcomm));
+      push(fwChant('domVobPostcomm'));
     }
     push(...postcomm.filter((b) => b.type !== 'title'));
-    if (fw) push(clone(sk.perOmniaPostcomm));
+    if (fw) push(fwChant('perOmniaPostcomm'));
   }
 
   if (fw || mass) {
     push(titleBlock(bid, 'Conclusion'));
-    if (fw) push(clone(sk.domVobIte));
-    push(kyChant('ite') || (fw ? clone(sk.iteChant) : null));
+    if (fw) push(fwChant('domVobIte'));
+    push(kyChant('ite') || (fw ? fwChant('iteChant') : null));
   }
   if (fw) push(clone(sk.lastGospel));
   if (marianBlock) {
     push(marianBlock);
   }
 
+  // Day propers keep their slot tags; re-break their translations for the
+  // target size (character budgets measured from the curated booklets).
+  for (const b of out) {
+    if (b.type === 'chant_gabc' && b.tplSlot && b.chantTranslation) {
+      b.chantTranslation = reflowTranslation(b.chantTranslation, size);
+    }
+  }
+
   return {
     schemaVersion: core.schemaVersion || 8,
     projectTitle: core.projectTitle,
-    settings: { ...core.settings },
+    settings: { ...core.settings, ...SIZE_SETTINGS[size] },
     blocks: out,
   };
 }
