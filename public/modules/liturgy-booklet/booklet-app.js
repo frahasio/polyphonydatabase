@@ -5289,7 +5289,202 @@
     }
   }
 
+  // ---- Template library ----------------------------------------------
+
+  let tplIsAdmin = false;
+  let tplCurrentUserId = null;
+
+  function applyTemplateProject(project, name) {
+    const m = migrateProject(project);
+    if (!m || !Array.isArray(m.blocks)) {
+      alert('This template could not be loaded (unsupported format).');
+      return;
+    }
+    state = m;
+    if (!state.projectTitle) state.projectTitle = name || '';
+    selectedBlockId = null;
+    applyCssVars();
+    syncControlsFromState();
+    scheduleAutosave();
+    renderBlockList();
+    renderEditor();
+    scheduleRenderPreview();
+    const titleInput = document.getElementById('inpProjectTitle');
+    if (titleInput) titleInput.value = state.projectTitle || '';
+  }
+
+  async function loadTemplateList(query) {
+    const listEl = document.getElementById('tplList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="text-muted text-center py-3">Loading…</div>';
+    try {
+      const params = query ? '?q=' + encodeURIComponent(query) : '';
+      const r = await fetch('/api/booklet/templates' + params, { credentials: 'include' });
+      if (!r.ok) throw new Error('Failed to load templates (' + r.status + ')');
+      const data = await r.json();
+      tplIsAdmin = !!data.isAdmin;
+      tplCurrentUserId = data.currentUserId;
+      const officialWrap = document.getElementById('tplPubOfficialWrap');
+      if (officialWrap) officialWrap.classList.toggle('d-none', !tplIsAdmin);
+      renderTemplateList(data.templates || []);
+    } catch (e) {
+      listEl.innerHTML = '<div class="text-danger text-center py-3">' + escapeHtml(e.message) + '</div>';
+    }
+  }
+
+  function renderTemplateList(templates) {
+    const listEl = document.getElementById('tplList');
+    if (!templates.length) {
+      listEl.innerHTML = '<div class="text-muted text-center py-3">No templates found.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    let lastGroup = null;
+    templates.forEach(function (t) {
+      const group = t.official ? ('Official' + (t.season ? ' · ' + t.season : '')) : 'Community';
+      if (group !== lastGroup) {
+        lastGroup = group;
+        const h = document.createElement('div');
+        h.className = 'list-group-item bg-light fw-semibold py-1';
+        h.textContent = group;
+        listEl.appendChild(h);
+      }
+      const row = document.createElement('div');
+      row.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
+      const info = document.createElement('div');
+      info.className = 'flex-grow-1';
+      const nm = document.createElement('div');
+      nm.textContent = t.name;
+      info.appendChild(nm);
+      const meta = document.createElement('div');
+      meta.className = 'text-muted';
+      meta.textContent = [
+        t.description || '',
+        t.official ? '' : (t.owner_name ? 'by ' + t.owner_name : ''),
+      ].filter(Boolean).join(' — ');
+      if (meta.textContent) info.appendChild(meta);
+      row.appendChild(info);
+
+      const btns = document.createElement('div');
+      btns.className = 'btn-group btn-group-sm flex-shrink-0';
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'btn btn-primary';
+      loadBtn.textContent = 'Load';
+      loadBtn.addEventListener('click', function () { loadTemplate(t.id, t.name); });
+      btns.appendChild(loadBtn);
+
+      const canEdit = tplIsAdmin || (!t.official && String(t.owner_id) === String(tplCurrentUserId));
+      if (canEdit) {
+        const owBtn = document.createElement('button');
+        owBtn.type = 'button';
+        owBtn.className = 'btn btn-outline-secondary';
+        owBtn.title = 'Overwrite this template with your current booklet';
+        owBtn.innerHTML = '<i class="bi bi-save"></i>';
+        owBtn.addEventListener('click', function () { overwriteTemplate(t.id, t.name); });
+        btns.appendChild(owBtn);
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-outline-danger';
+        delBtn.title = 'Delete this template';
+        delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        delBtn.addEventListener('click', function () { deleteTemplate(t.id, t.name); });
+        btns.appendChild(delBtn);
+      }
+      row.appendChild(btns);
+      listEl.appendChild(row);
+    });
+  }
+
+  async function loadTemplate(id, name) {
+    if (hasUnsavedWork() && !confirm('Loading "' + name + '" will replace your current project. Continue?')) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + id, { credentials: 'include' });
+      if (!r.ok) throw new Error('Failed to load template');
+      const data = await r.json();
+      applyTemplateProject(data.template.project, data.template.name);
+      bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
+    } catch (e) {
+      alert(e.message || 'Could not load template.');
+    }
+  }
+
+  async function overwriteTemplate(id, name) {
+    if (!confirm('Overwrite the template "' + name + '" with your current booklet?')) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ project: state }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Update failed');
+      alert('Template updated.');
+    } catch (e) {
+      alert(e.message || 'Could not update template.');
+    }
+  }
+
+  async function deleteTemplate(id, name) {
+    if (!confirm('Delete the template "' + name + '"? This cannot be undone.')) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + id, { method: 'DELETE', credentials: 'include' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Delete failed');
+      loadTemplateList(document.getElementById('tplSearch')?.value.trim());
+    } catch (e) {
+      alert(e.message || 'Could not delete template.');
+    }
+  }
+
+  async function publishTemplate() {
+    const name = document.getElementById('tplPubName').value.trim();
+    if (!name) { alert('Give the template a name.'); return; }
+    try {
+      const r = await fetch('/api/booklet/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name,
+          season: document.getElementById('tplPubSeason').value.trim(),
+          description: document.getElementById('tplPubDesc').value.trim(),
+          official: !!document.getElementById('tplPubOfficial')?.checked,
+          project: state,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Publish failed');
+      bootstrap.Modal.getInstance(document.getElementById('modalPublishTemplate'))?.hide();
+      loadTemplateList(document.getElementById('tplSearch')?.value.trim());
+    } catch (e) {
+      alert(e.message || 'Could not publish template.');
+    }
+  }
+
+  function bindTemplateLibrary() {
+    const libModalEl = document.getElementById('modalTemplateLibrary');
+    if (!libModalEl) return;
+    document.getElementById('btnTemplateLibrary')?.addEventListener('click', function () {
+      new bootstrap.Modal(libModalEl).show();
+      loadTemplateList('');
+    });
+    let tplSearchTimer = null;
+    document.getElementById('tplSearch')?.addEventListener('input', function (e) {
+      clearTimeout(tplSearchTimer);
+      tplSearchTimer = setTimeout(function () { loadTemplateList(e.target.value.trim()); }, 300);
+    });
+    document.getElementById('btnPublishTemplate')?.addEventListener('click', function () {
+      if (!state.blocks.length) { alert('Add some content before publishing a template.'); return; }
+      document.getElementById('tplPubName').value = state.projectTitle || '';
+      new bootstrap.Modal(document.getElementById('modalPublishTemplate')).show();
+    });
+    document.getElementById('btnPublishTemplateConfirm')?.addEventListener('click', publishTemplate);
+  }
+
   function bindUi() {
+    bindTemplateLibrary();
     document.getElementById('bookletSidebar')?.addEventListener('click', function (e) {
       const t = e.target.closest('[data-add-type]');
       if (!t) return;

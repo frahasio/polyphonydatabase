@@ -846,11 +846,9 @@
             <a class="navbar-brand text-white mb-0" href="/"><i class="bi bi-arrow-left me-2"></i>Back to database</a>
             <span class="navbar-text text-white-50 small mb-0">Liturgy booklet creator <span class="badge bg-warning text-dark ms-1">BETA</span></span>
             <div class="ms-lg-auto">
-                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Coming soon — search and load shared booklets from other users.">
-                    <button type="button" class="btn btn-sm btn-outline-light disabled" id="btnCommunityBooklets" style="pointer-events: none;">
-                        <i class="bi bi-people me-1"></i>Community booklets
-                    </button>
-                </span>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnTemplateLibrary" title="Browse official and community templates, or publish your own">
+                    <i class="bi bi-collection me-1"></i>Template library
+                </button>
             </div>
         </div>
     </nav>
@@ -1085,6 +1083,62 @@
     </div>
 
     <input type="file" id="fileImagePick" accept="image/*" class="d-none">
+
+    <div class="modal fade" id="modalTemplateLibrary" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title"><i class="bi bi-collection me-2"></i>Template library</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="search" class="form-control form-control-sm mb-3" id="tplSearch" placeholder="Search templates (name, season, author)…" autocomplete="off">
+                    <div id="tplList" class="list-group list-group-flush small">
+                        <div class="text-muted text-center py-3">Loading…</div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <span class="small text-muted">Loading a template replaces your current project.</span>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnPublishTemplate" title="Publish your current booklet as a template others can load">
+                        <i class="bi bi-cloud-upload me-1"></i>Publish current as template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPublishTemplate" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">Publish as template</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Template name</label>
+                        <input type="text" class="form-control form-control-sm" id="tplPubName" maxlength="200" placeholder="e.g. Sung Mass — Easter Day">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Season / category <span class="text-muted">(optional)</span></label>
+                        <input type="text" class="form-control form-control-sm" id="tplPubSeason" maxlength="100" placeholder="e.g. Eastertide">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Description <span class="text-muted">(optional)</span></label>
+                        <textarea class="form-control form-control-sm" id="tplPubDesc" rows="2" maxlength="1000"></textarea>
+                    </div>
+                    <div class="form-check d-none" id="tplPubOfficialWrap">
+                        <input class="form-check-input" type="checkbox" id="tplPubOfficial">
+                        <label class="form-check-label small" for="tplPubOfficial">Publish as an <strong>official</strong> template</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnPublishTemplateConfirm">Publish</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="modal fade" id="modalNewProject" tabindex="-1" aria-labelledby="modalNewProjectLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">

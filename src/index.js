@@ -18,6 +18,7 @@ import adminRouter from './routes/admin.js';
 import adminUsersRouter from './routes/adminUsers.js';
 import suggestionsRouter from './routes/suggestions.js';
 import commissionsRouter, { getStripe, markCommissionPaid } from './routes/commissions.js';
+import bookletTemplatesRouter from './routes/bookletTemplates.js';
 import adminCommissionsRouter from './routes/adminCommissions.js';
 import importRouter from './routes/import.js';
 import path from 'path';
@@ -165,6 +166,7 @@ app.get('/commission/:token', (req, res) => {
 });
 
 // Booklet helpers (requires booklet_creator permission)
+app.use('/api/booklet/templates', requireAuthWeb, requirePermission('booklet_creator'), bookletTemplatesRouter);
 app.use('/api/booklet', requireAuthWeb, requirePermission('booklet_creator'), bookletApiRouter);
 
 // ADMIN ROUTES (authentication required)

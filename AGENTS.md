@@ -45,6 +45,13 @@ deployed. Also shipped since:
   so only one user edits at a time.
 - Booklet: page numbering (position + independent margins), composer-aware
   edition search, ABC/HR in the Add menu, friendly permission page.
+- Booklet template library: booklet_templates table + /api/booklet/templates
+  + in-app library modal (browse/search/load/publish; admins manage official
+  ones). Seeded with 126 Mass-propers templates generated from the vendored
+  jgabc data by scripts/generate-booklet-templates.js (re-run overwrites
+  generated official templates — deliberate refresh only). Planned next:
+  Divinum Officium import for texts/translations and a fetch-translation
+  button backed by the vendored Douay-Rheims/Vulgate files.
 - Backend CRUD dedup: composers/editors/performers/publishers/scribes now use
   `src/routes/entityRouter.js` (`createEntityRouter`).
 
