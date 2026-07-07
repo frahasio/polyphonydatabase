@@ -1,13 +1,10 @@
 /**
- * Seed the booklet template library with COMPLETE sung Masses:
- *
- *   - Ordinary skeleton (responses, Credo, preface, canon, Pater noster,
- *     communion devotions, last Gospel, Salve regina) cloned from the
- *     hand-made booklet templates-incoming/7th-Sunday-after-Pentecost.json
- *   - Day propers (GABC chants) from the vendored jgabc data
- *   - Day texts (collect, lesson, gospel, secret, postcommunion) plus
- *     English translations from the vendored Divinum Officium files
- *     (data/divinumofficium), which also fill the chant translation boxes
+ * Seed the booklet template library with slot-tagged Mass PROPERS CORES:
+ * the day's chants (from vendored jgabc data) and texts with translations
+ * (from vendored Divinum Officium files), each block tagged with tplSlot
+ * so the mix-and-match builder (src/services/massBuilder.js) can assemble
+ * a full booklet at load time (framework dialogues, Kyriale ordinary,
+ * Credo, readings options, Marian antiphon).
  *
  * Covers the temporale (sundayKeys), the sanctorale (saintKeys, with fixed
  * feast dates for the calendar), and the commons (mass_* keys mapped to DO
@@ -21,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from '../src/db.js';
-import { getMassSections, doPathForKey, COMMONS_DO } from './lib/do-texts.js';
+import { getMassSections, doPathForKey, doRuleFlags, COMMONS_DO } from './lib/do-texts.js';
 
 const DRY = process.argv.includes('--dry');
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -125,45 +122,11 @@ const HOUSE_TITLE_STYLE = {
   sectionGapAfterMm: 8,
 };
 
-// ---- Ordinary skeleton, cloned from the hand-made booklet -----------------
+// ---- Reading styles, cloned from the hand-made booklet --------------------
 
-/** Fingerprint checks so a reshuffled skeleton file fails loudly. */
 const SKELETON_PARTS = {
-  rubricStandBell: [4, 'rubric', /All stand/],
-  settingNote: [6, 'reading', /Missa /],
-  domVobiscum: [8, 'chant_gabc', /Dominus vobiscum/],
-  perOmniaOremus: [10, 'chant_gabc', /Per omnia/],
-  rubricSit: [12, 'rubric', /All sit/],
   prayerReadingStyle: [9, 'reading', /./],
   lessonReadingStyle: [13, 'reading', /./],
-  rubricStand: [18, 'rubric', /All stand/],
-  rubricSitHomily: [22, 'rubric', /All sit/],
-  rubricStandCredo: [24, 'rubric', /All stand/],
-  credoChant: [25, 'chant_gabc', /name:\s*I;/],
-  rubricSitOffertory: [27, 'rubric', /All sit/],
-  perOmniaSecret: [32, 'chant_gabc', /Per omnia/],
-  rubricStandPreface: [34, 'rubric', /All stand/],
-  prefaceChant: [35, 'chant_gabc', /Preface/],
-  prefaceText: [36, 'reading', /Vere dignum/],
-  rubricKneel: [37, 'rubric', /All kneel/],
-  perOmniaCanon: [41, 'chant_gabc', /Per omnia/],
-  rubricStandPater: [43, 'rubric', /All stand/],
-  paterIntro: [44, 'reading', /Præcéptis/],
-  paterChant: [45, 'chant_gabc', /Pater noster/],
-  liberaNos: [46, 'reading', /Líbera nos/],
-  perOmniaPax: [47, 'chant_gabc', /Per omnia/],
-  paxChant: [48, 'chant_gabc', /Pax Domini/],
-  rubricKneelCommunion: [50, 'rubric', /All kneel/],
-  panemCaelestem: [53, 'reading', /Panem cæléstem/],
-  rubricBreast: [54, 'rubric', /Three times/],
-  domineNonSum: [55, 'reading', /non sum dignus/],
-  rubricStandPostcomm: [59, 'rubric', /All stand/],
-  domVobPostcomm: [60, 'chant_gabc', /Dominus vobiscum/],
-  perOmniaPostcomm: [62, 'chant_gabc', /Per omnia/],
-  domVobIte: [65, 'chant_gabc', /Dominus vobiscum/],
-  iteChant: [66, 'chant_gabc', /name:\s*XI;/],
-  lastGospel: [68, 'reading', /In princípio erat Verbum/],
-  salveRegina: [70, 'chant_gabc', /Salve regina/i],
 };
 
 function loadSkeleton() {
@@ -192,31 +155,30 @@ function makeBuilder(key, skeleton) {
   let n = 0;
   const bid = () => `tpl_${key}_${n++}`;
   return {
-    clone(partName, overrides = {}) {
-      return { ...JSON.parse(JSON.stringify(skeleton[partName])), id: bid(), ...overrides };
+    title(text, slot, sizePt = 12) {
+      return { id: bid(), type: 'title', text, tplSlot: slot, ...HOUSE_TITLE_STYLE, titleFontSizePt: sizePt };
     },
-    title(text, sizePt = 12) {
-      return { id: bid(), type: 'title', text, ...HOUSE_TITLE_STYLE, titleFontSizePt: sizePt };
-    },
-    reading(styleName, latin, english, sourceRef, skeleton2) {
-      const base = JSON.parse(JSON.stringify(skeleton2[styleName]));
+    reading(styleName, latin, english, sourceRef, slot) {
+      const base = JSON.parse(JSON.stringify(skeleton[styleName]));
       return {
         ...base,
         id: bid(),
+        tplSlot: slot,
         text: textToHtml(latin),
         translation: english ? textToHtml(english) : '',
         sectionTitle: '',
         sectionSourceRef: sourceRef || '',
       };
     },
-    chant(gabc, translation) {
-      return { id: bid(), type: 'chant_gabc', gabc, chantTranslation: translation || '', ...HOUSE_CHANT_STYLE };
+    chant(gabc, translation, slot) {
+      return { id: bid(), type: 'chant_gabc', gabc, chantTranslation: translation || '', tplSlot: slot, ...HOUSE_CHANT_STYLE };
     },
-    pageBreak() {
-      return { id: bid(), type: 'page_break' };
-    },
-    spacer() {
-      return { id: bid(), type: 'spacer' };
+    rubric(text, slot) {
+      return {
+        id: bid(), type: 'rubric', text, tplSlot: slot,
+        rubricColor: '#c80000', bodyFontSizePt: 11, lineHeightPt: 16,
+        titleFontSizePt: 11, sourceFontSizePt: 9, fontScale: 1, sectionGapAfterMm: 8,
+      };
     },
   };
 }
@@ -252,12 +214,14 @@ function loadProperChants(propers) {
 }
 
 /**
- * Build a complete sung Mass project.
+ * Build a slot-tagged Mass PROPERS CORE (no ordinary, no dialogues) for the
+ * mix-and-match builder to assemble at load time.
  * @param dayTitle   e.g. '7th Sunday after Pentecost'
  * @param chants     from loadProperChants()
  * @param doLa/doEn  DO sections (may be null: readings are omitted)
+ * @param flags      { gloria, credo } from the DO [Rule]
  */
-function buildFullMass(key, dayTitle, subtitle, chants, doLa, doEn, skeleton) {
+function buildProperCore(key, dayTitle, subtitle, chants, doLa, doEn, skeleton, flags) {
   const b = makeBuilder(key, skeleton);
   const la = doLa || {};
   const en = doEn || {};
@@ -265,103 +229,68 @@ function buildFullMass(key, dayTitle, subtitle, chants, doLa, doEn, skeleton) {
   const chantBy = (label) => chants.find((c) => c.label === label);
   const translationFor = (label) => chantTranslationFrom(en[SLOT_DO_SECTION[label]]);
 
-  blocks.push(b.title(dayTitle, 18));
-  if (subtitle) blocks.push(b.clone('settingNote', { text: `<div style="text-align:justify">${escHtml(subtitle)}</div>`, translation: '' }));
-  blocks.push(b.clone('rubricStandBell'));
+  blocks.push(b.title(dayTitle, 'head', 18));
+  if (subtitle) blocks.push(b.rubric(escHtml(subtitle), 'head'));
 
   const introit = chantBy('Introit');
   if (introit) {
-    blocks.push(b.title(`Introit${introit.chantName ? ' · ' + introit.chantName : ''}`));
-    blocks.push(b.chant(introit.gabc, translationFor('Introit')));
+    blocks.push(b.title(`Introit${introit.chantName ? ' · ' + introit.chantName : ''}`, 'introit'));
+    blocks.push(b.chant(introit.gabc, translationFor('Introit'), 'introit'));
   }
-  blocks.push(b.clone('settingNote', { text: '<div style="text-align:justify">Missa —</div>', translation: '' }));
 
-  blocks.push(b.title('Collect'));
-  blocks.push(b.clone('domVobiscum'));
-  if (la.Oratio) blocks.push(b.reading('prayerReadingStyle', la.Oratio.text, en.Oratio?.text, '', skeleton));
-  blocks.push(b.clone('perOmniaOremus'));
+  if (la.Oratio) {
+    blocks.push(b.title('Collect', 'collect'));
+    blocks.push(b.reading('prayerReadingStyle', la.Oratio.text, en.Oratio?.text, '', 'collect'));
+  }
 
-  blocks.push(b.title('Lesson'));
-  blocks.push(b.clone('rubricSit'));
-  if (la.Lectio) blocks.push(b.reading('lessonReadingStyle', la.Lectio.text, en.Lectio?.text, la.Lectio.citation, skeleton));
+  if (la.Lectio) {
+    blocks.push(b.title('Lesson', 'lesson'));
+    blocks.push(b.reading('lessonReadingStyle', la.Lectio.text, en.Lectio?.text, la.Lectio.citation, 'lesson'));
+  }
 
   // Between the readings: gradual/alleluia/tract/sequence as available.
   const between = ['Gradual', 'Alleluia', 'Alleluia (Paschal)', 'Alleluia II', 'Tract', 'Sequence']
     .map(chantBy).filter(Boolean);
   if (between.length) {
-    blocks.push(b.title(between.map((c) => c.label.replace(/ \(.*/, '')).filter((v, i, a) => a.indexOf(v) === i).join(' & ')));
-    for (const c of between) blocks.push(b.chant(c.gabc, translationFor(c.label)));
+    blocks.push(b.title(
+      between.map((c) => c.label.replace(/ \(.*/, '')).filter((v, i, a) => a.indexOf(v) === i).join(' & '),
+      'between'
+    ));
+    for (const c of between) blocks.push(b.chant(c.gabc, translationFor(c.label), 'between'));
   }
 
-  blocks.push(b.title('Gospel'));
-  blocks.push(b.clone('rubricStand'));
-  if (la.Evangelium) blocks.push(b.reading('lessonReadingStyle', la.Evangelium.text, en.Evangelium?.text, la.Evangelium.citation, skeleton));
-
-  blocks.push(b.title('Homily'));
-  blocks.push(b.clone('rubricSitHomily'));
-
-  blocks.push(b.title('Credo'));
-  blocks.push(b.clone('rubricStandCredo'));
-  blocks.push(b.clone('credoChant'));
+  if (la.Evangelium) {
+    blocks.push(b.title('Gospel', 'gospel'));
+    blocks.push(b.reading('lessonReadingStyle', la.Evangelium.text, en.Evangelium?.text, la.Evangelium.citation, 'gospel'));
+  }
 
   const offertory = chantBy('Offertory');
-  blocks.push(b.title(`Offertory${offertory?.chantName ? ' · ' + offertory.chantName : ''}`));
-  blocks.push(b.clone('rubricSitOffertory'));
-  if (offertory) blocks.push(b.chant(offertory.gabc, translationFor('Offertory')));
+  if (offertory) {
+    blocks.push(b.title(`Offertory${offertory.chantName ? ' · ' + offertory.chantName : ''}`, 'offertory'));
+    blocks.push(b.chant(offertory.gabc, translationFor('Offertory'), 'offertory'));
+  }
 
-  blocks.push(b.title('Secret'));
-  if (la.Secreta) blocks.push(b.reading('prayerReadingStyle', la.Secreta.text, en.Secreta?.text, '', skeleton));
-  blocks.push(b.clone('perOmniaSecret'));
-
-  blocks.push(b.title('Preface'));
-  blocks.push(b.clone('rubricStandPreface'));
-  blocks.push(b.clone('prefaceChant'));
-  blocks.push(b.clone('prefaceText'));
-  blocks.push(b.clone('rubricKneel'));
-  blocks.push(b.clone('settingNote', { text: '<div style="text-align:justify">Missa —</div>', translation: '' }));
-  blocks.push(b.pageBreak());
-
-  blocks.push(b.title('Canon'));
-  blocks.push(b.clone('perOmniaCanon'));
-
-  blocks.push(b.title('Pater noster'));
-  blocks.push(b.clone('rubricStandPater'));
-  blocks.push(b.clone('paterIntro'));
-  blocks.push(b.clone('paterChant'));
-  blocks.push(b.clone('liberaNos'));
-  blocks.push(b.clone('perOmniaPax'));
-  blocks.push(b.clone('paxChant'));
-  blocks.push(b.pageBreak());
-
-  blocks.push(b.clone('rubricKneelCommunion'));
-  blocks.push(b.clone('settingNote', { text: '<div style="text-align:justify">Missa —</div>', translation: '' }));
+  if (la.Secreta) {
+    blocks.push(b.title('Secret', 'secret'));
+    blocks.push(b.reading('prayerReadingStyle', la.Secreta.text, en.Secreta?.text, '', 'secret'));
+  }
 
   const communio = chantBy('Communion');
-  blocks.push(b.title(`Communion${communio?.chantName ? ' · ' + communio.chantName : ''}`));
-  blocks.push(b.clone('panemCaelestem'));
-  blocks.push(b.clone('rubricBreast'));
-  blocks.push(b.clone('domineNonSum'));
-  if (communio) blocks.push(b.chant(communio.gabc, translationFor('Communion')));
+  if (communio) {
+    blocks.push(b.title(`Communion${communio.chantName ? ' · ' + communio.chantName : ''}`, 'communion'));
+    blocks.push(b.chant(communio.gabc, translationFor('Communion'), 'communion'));
+  }
 
-  blocks.push(b.title('Postcommunion'));
-  blocks.push(b.clone('rubricStandPostcomm'));
-  blocks.push(b.clone('domVobPostcomm'));
-  if (la.Postcommunio) blocks.push(b.reading('prayerReadingStyle', la.Postcommunio.text, en.Postcommunio?.text, '', skeleton));
-  blocks.push(b.clone('perOmniaPostcomm'));
-  blocks.push(b.pageBreak());
-
-  blocks.push(b.title('Conclusion'));
-  blocks.push(b.clone('domVobIte'));
-  blocks.push(b.clone('iteChant'));
-  blocks.push(b.spacer());
-  blocks.push(b.clone('lastGospel'));
-  blocks.push(b.pageBreak());
-  blocks.push(b.clone('salveRegina'));
+  if (la.Postcommunio) {
+    blocks.push(b.title('Postcommunion', 'postcommunion'));
+    blocks.push(b.reading('prayerReadingStyle', la.Postcommunio.text, en.Postcommunio?.text, '', 'postcommunion'));
+  }
 
   return {
     schemaVersion: 8,
     projectTitle: dayTitle,
     settings: { ...HOUSE_SETTINGS },
+    meta: { gloria: flags.gloria, credo: flags.credo, buildable: 'mass' },
     blocks,
   };
 }
@@ -410,10 +339,11 @@ async function main() {
     if (doLa) withTexts++;
 
     const title = entry.en || entry.title || entry.key;
-    const project = buildFullMass(entry.key, title, entry.title !== entry.en ? entry.title : '', chants, doLa, doEn, skeleton);
+    const flags = doPath ? doRuleFlags(doPath) : { gloria: true, credo: true };
+    const project = buildProperCore(entry.key, title, entry.title !== entry.en ? entry.title : '', chants, doLa, doEn, skeleton, flags);
     await upsert({
       name: `${title} — Mass`,
-      description: doLa ? 'Complete sung Mass: propers, ordinary, texts & translations.' : 'Sung Mass: propers and ordinary.',
+      description: doLa ? 'Mass propers with texts & translations (buildable).' : 'Mass propers (buildable).',
       season: seasonFor(entry.key),
       key: entry.key,
       project,
@@ -438,10 +368,11 @@ async function main() {
 
     // "Jan 17: St Anthony" -> "St Anthony"
     const title = (entry.en || entry.title || entry.key).replace(/^[A-Z][a-z]{2}\s+\d{1,2}:\s*/, '');
-    const project = buildFullMass(entry.key, title, '', chants, doLa, doEn, skeleton);
+    const flags = doPath ? doRuleFlags(doPath) : { gloria: true, credo: false };
+    const project = buildProperCore(entry.key, title, '', chants, doLa, doEn, skeleton, flags);
     await upsert({
       name: `${title} — Mass`,
-      description: doLa ? 'Complete sung Mass: propers, ordinary, texts & translations.' : 'Sung Mass: propers and ordinary.',
+      description: doLa ? 'Mass propers with texts & translations (buildable).' : 'Mass propers (buildable).',
       season: 'Sanctorale',
       key: entry.key,
       project,
@@ -463,10 +394,10 @@ async function main() {
     if (doLa) withTexts++;
 
     const title = propers.title || key;
-    const project = buildFullMass(key, title, '', chants, doLa, doEn, skeleton);
+    const project = buildProperCore(key, title, '', chants, doLa, doEn, skeleton, { gloria: true, credo: false });
     await upsert({
       name: `${title} — Mass`,
-      description: 'Common of saints: complete sung Mass with texts & translations.',
+      description: 'Common of saints: Mass propers with texts & translations (buildable).',
       season: 'Commons',
       key,
       project,
@@ -483,10 +414,10 @@ async function main() {
     if (!chants.length) { skipped++; continue; }
 
     const title = entry.en || entry.title || entry.key;
-    const project = buildFullMass(entry.key, title, entry.title !== entry.en ? entry.title : '', chants, null, null, skeleton);
+    const project = buildProperCore(entry.key, title, entry.title !== entry.en ? entry.title : '', chants, null, null, skeleton, { gloria: false, credo: false });
     await upsert({
       name: `${title} — Mass`,
-      description: 'Votive Mass: propers and ordinary.',
+      description: 'Votive Mass: propers (buildable).',
       season: 'Votive & special',
       key: entry.key,
       project,

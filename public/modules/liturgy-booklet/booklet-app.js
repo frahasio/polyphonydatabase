@@ -5519,12 +5519,12 @@
         feast.title = tpl.name + (tpl.published === false ? ' (draft)' : '') + ' — click to load (' + tplSizePref + ')';
         feast.addEventListener('click', function (e) {
           e.stopPropagation();
-          loadTemplate(tpl.id, tpl.name, tplSizePref);
+          loadTemplate(tpl, tpl.name, tplSizePref);
         });
         cell.appendChild(feast);
       });
       if (dayTpls.length === 1) {
-        cell.addEventListener('click', function () { loadTemplate(dayTpls[0].id, dayTpls[0].name, tplSizePref); });
+        cell.addEventListener('click', function () { loadTemplate(dayTpls[0], dayTpls[0].name, tplSizePref); });
       }
       cal.appendChild(cell);
     }
@@ -5577,7 +5577,7 @@
         loadBtn.className = 'btn btn-primary';
         loadBtn.textContent = size;
         loadBtn.title = 'Load this template at ' + size;
-        loadBtn.addEventListener('click', function () { loadTemplate(t.id, t.name, size); });
+        loadBtn.addEventListener('click', function () { loadTemplate(t, t.name, size); });
         btns.appendChild(loadBtn);
       });
 
@@ -5619,26 +5619,95 @@
     });
   }
 
-  async function loadTemplate(id, name, size) {
-    if (hasUnsavedWork() && !confirm('Loading "' + name + '" will replace your current project. Continue?')) return;
+  function applySizeAndLoad(project, name, size) {
+    // Apply the requested page size; when it differs from the template's
+    // saved size, swap in the house margins for the target size too.
+    const overrides = TPL_SIZE_SETTINGS[size];
+    if (overrides) {
+      project.settings = project.settings || {};
+      if ((project.settings.pageSize || 'A4') !== size) {
+        Object.assign(project.settings, overrides);
+      } else {
+        project.settings.pageSize = size;
+      }
+    }
+    applyTemplateProject(project, name);
+    bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
+  }
+
+  // Buildable templates (slot-tagged propers cores) go through the
+  // mix-and-match options modal; whole documents load directly.
+  let buildTarget = null; // { id, name, size }
+  let buildOptionsLoaded = false;
+
+  async function ensureBuildOptions() {
+    if (buildOptionsLoaded) return;
+    const r = await fetch('/api/booklet/templates/build-options', { credentials: 'include' });
+    if (!r.ok) throw new Error('Could not load build options');
+    const data = await r.json();
+    const ky = document.getElementById('buildKyriale');
+    ky.innerHTML = '<option value="none">None (spoken / polyphonic setting)</option>' +
+      data.kyriale.map(function (k) {
+        return '<option value="' + k.id + '"' + (k.id === 8 ? ' selected' : '') + '>' + escapeHtml(k.label) + '</option>';
+      }).join('');
+    const cr = document.getElementById('buildCredo');
+    cr.innerHTML = '<option value="auto" selected>Automatic (when the day calls for it)</option>' +
+      '<option value="none">None</option>' +
+      data.credo.map(function (c) { return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.label) + '</option>'; }).join('');
+    const ma = document.getElementById('buildMarian');
+    ma.innerHTML = '<option value="none">None</option>' +
+      data.marian.map(function (m) {
+        return '<option value="' + escapeHtml(m.id) + '"' + (m.id === 'salve' ? ' selected' : '') + '>' + escapeHtml(m.label) + '</option>';
+      }).join('');
+    buildOptionsLoaded = true;
+  }
+
+  async function openBuildModal(t, size) {
     try {
-      const r = await fetch('/api/booklet/templates/' + id, { credentials: 'include' });
+      await ensureBuildOptions();
+      buildTarget = { id: t.id, name: t.name, size };
+      document.getElementById('buildModalTitle').textContent = 'Build booklet — ' + t.name + ' (' + size + ')';
+      new bootstrap.Modal(document.getElementById('modalBuildTemplate')).show();
+    } catch (e) {
+      alert(e.message || 'Could not open the builder.');
+    }
+  }
+
+  async function buildAndLoad() {
+    if (!buildTarget) return;
+    if (hasUnsavedWork() && !confirm('Loading "' + buildTarget.name + '" will replace your current project. Continue?')) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + buildTarget.id + '/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          framework: document.getElementById('buildFramework').checked,
+          kyriale: document.getElementById('buildKyriale').value,
+          credo: document.getElementById('buildCredo').value,
+          readings: document.getElementById('buildReadings').value,
+          marian: document.getElementById('buildMarian').value,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Build failed');
+      bootstrap.Modal.getInstance(document.getElementById('modalBuildTemplate'))?.hide();
+      applySizeAndLoad(data.template.project, data.template.name, buildTarget.size);
+    } catch (e) {
+      alert(e.message || 'Could not build the booklet.');
+    }
+  }
+
+  async function loadTemplate(t, name, size) {
+    // Back-compat: t may be a bare id or a template row object.
+    const row = typeof t === 'object' && t !== null ? t : { id: t, name };
+    if (row.buildable) { openBuildModal(row, size); return; }
+    if (hasUnsavedWork() && !confirm('Loading "' + row.name + '" will replace your current project. Continue?')) return;
+    try {
+      const r = await fetch('/api/booklet/templates/' + row.id, { credentials: 'include' });
       if (!r.ok) throw new Error('Failed to load template');
       const data = await r.json();
-      const project = data.template.project || {};
-      // Apply the requested page size; when it differs from the template's
-      // saved size, swap in the house margins for the target size too.
-      const overrides = TPL_SIZE_SETTINGS[size];
-      if (overrides) {
-        project.settings = project.settings || {};
-        if ((project.settings.pageSize || 'A4') !== size) {
-          Object.assign(project.settings, overrides);
-        } else {
-          project.settings.pageSize = size;
-        }
-      }
-      applyTemplateProject(project, data.template.name);
-      bootstrap.Modal.getInstance(document.getElementById('modalTemplateLibrary'))?.hide();
+      applySizeAndLoad(data.template.project || {}, data.template.name, size);
     } catch (e) {
       alert(e.message || 'Could not load template.');
     }
@@ -5794,6 +5863,7 @@
       openPublishModal(null);
     });
     document.getElementById('btnPublishTemplateConfirm')?.addEventListener('click', publishTemplate);
+    document.getElementById('btnBuildConfirm')?.addEventListener('click', buildAndLoad);
   }
 
   function bindUi() {

@@ -227,6 +227,14 @@ export const COMMONS_DO = {
   mass_dedication_church: 'C8',
 };
 
+/** Whether the day's Mass has Gloria/Credo, from the DO [Rule] section. */
+export function doRuleFlags(relPath) {
+  const raw = readDoFile(relPath, 'Latin');
+  if (!raw) return { gloria: true, credo: false };
+  const rule = (splitSections(raw).Rule || []).join('\n');
+  return { gloria: /^Gloria/mi.test(rule), credo: /^Credo/mi.test(rule) };
+}
+
 /** Feast display title from the DO file's [Officium] section, if present. */
 export function doTitle(relPath, lang) {
   const raw = readDoFile(relPath, lang);

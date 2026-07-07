@@ -1159,6 +1159,49 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalBuildTemplate" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="buildModalTitle">Build booklet</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="buildFramework" checked>
+                        <label class="form-check-label small" for="buildFramework">Sung framework (dialogues, preface, canon, Pater noster, last Gospel)</label>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Ordinary (Kyriale)</label>
+                        <select class="form-select form-select-sm" id="buildKyriale"></select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Credo</label>
+                        <select class="form-select form-select-sm" id="buildCredo"></select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Readings &amp; prayers</label>
+                        <select class="form-select form-select-sm" id="buildReadings">
+                            <option value="both" selected>Latin with English translation</option>
+                            <option value="latin">Latin only</option>
+                            <option value="english">English only</option>
+                            <option value="ref">Scripture reference only</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Marian antiphon at the end</label>
+                        <select class="form-select form-select-sm" id="buildMarian"></select>
+                    </div>
+                    <div class="text-muted small">The result loads into the editor as a normal project — everything stays editable.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="btnBuildConfirm">Build &amp; load</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalPublishTemplate" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">

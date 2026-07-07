@@ -1,5 +1,6 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { buildFromCore, kyrialeOptions, credoOptions, marianOptions } from '../services/massBuilder.js';
 
 // Booklet template library. Mounted under /api/booklet/templates behind
 // requireAuthWeb + requirePermission('booklet_creator') — any booklet user
@@ -33,7 +34,8 @@ router.get('/', async (req, res) => {
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
              t.office_type, t.feast_month, t.feast_day, t.easter_offset, t.published,
-             t.owner_id, t.owner_name, t.updated_at
+             t.owner_id, t.owner_name, t.updated_at,
+             t.project->'meta'->>'buildable' AS buildable
       FROM booklet_templates t
       ${where}
       ORDER BY t.official DESC, t.season, t.name
@@ -42,6 +44,40 @@ router.get('/', async (req, res) => {
     res.json({ templates: result.rows, currentUserId: req.user.id, isAdmin: req.user.role === 'admin' });
   } catch (error) {
     console.error('List templates error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mix-and-match options for the builder UI
+router.get('/build-options', (req, res) => {
+  try {
+    res.json({
+      kyriale: kyrialeOptions(),
+      credo: credoOptions(),
+      marian: marianOptions().map(({ id, label }) => ({ id, label })),
+    });
+  } catch (error) {
+    console.error('Build options error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Assemble a buildable template with the given options
+router.post('/:id/build', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, official, owner_id, published, project FROM booklet_templates WHERE id = $1',
+      [parseInt(req.params.id, 10) || 0]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Template not found' });
+    const t = result.rows[0];
+    if (!t.published && req.user.role !== 'admin' && t.owner_id !== req.user.id) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    const project = buildFromCore(t.project, req.body || {});
+    res.json({ template: { id: t.id, name: t.name, project } });
+  } catch (error) {
+    console.error('Build template error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
