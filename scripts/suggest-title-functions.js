@@ -1,8 +1,14 @@
 /**
- * Daily matcher: propose liturgical functions for titles by looking up their
- * incipits in Cantus Index (https://cantusindex.org), the federated catalogue
- * of chant texts. Writes rows to the suggestions table for human review in
- * the admin queue — nothing is applied automatically.
+ * Fallback matcher: propose liturgical functions for titles by looking up
+ * their incipits in Cantus Index (https://cantusindex.org), the federated
+ * catalogue of chant texts. Writes rows to the suggestions table for human
+ * review in the admin queue — nothing is applied automatically.
+ *
+ * Since July 2026 this only handles titles the Divinum Officium corpus
+ * does NOT contain (suggest-title-functions-do.js is the primary matcher —
+ * positional evidence, generic-text filtering). Titles with any DO match
+ * are skipped here (and marked checked), so Cantus API effort goes purely
+ * to the long tail: votive antiphons, non-liturgical texts, local uses.
  *
  * The functions vocabulary in this catalogue is mostly FEASTS/OCCASIONS
  * (Advent I, Easter, saints' days...), so we map the Cantus `feast` field
@@ -10,13 +16,14 @@
  * as review context only.
  *
  * Usage: node scripts/suggest-title-functions.js [batchSize]
- * Intended for Heroku Scheduler (daily). Polite to the API: 1 request/sec.
+ * Occasional manual runs or a low-frequency schedule. Polite to the API:
+ * ~1 request/sec.
  */
 import { pool } from '../src/db.js';
 import {
-  FEAST_MAP_SORTED, normalizeIncipit, splitIncipitParts, foldSpelling,
-  normalizeFeast, mapFeast, titleCase,
+  normalizeIncipit, splitIncipitParts, foldSpelling, mapFeast, titleCase, normalizeFeast,
 } from './lib/matching.js';
+import { buildCorpus, matchPart } from './lib/do-corpus.js';
 
 // No hard API quota on Cantus Index, so large batches are fine; the only
 // cost is runtime (~0.8s/request politeness). Cap generously.
@@ -106,7 +113,10 @@ async function main() {
   `, [BATCH]);
 
   console.log(`Checking ${titles.rows.length} unchecked titles against Cantus Index...`);
+  console.log('Building Divinum Officium index (titles DO covers are skipped here)...');
+  const doCorpus = buildCorpus([]);
   let inserted = 0;
+  let doSkipped = 0;
 
   for (const title of titles.rows) {
     // Mark as checked up front (even if matching fails midway).
@@ -116,6 +126,14 @@ async function main() {
     // pool the feast votes — the secunda pars is often the findable one.
     const parts = splitIncipitParts(title.text);
     if (!parts.length) continue;
+
+    // The DO matcher owns anything the Divinum Officium corpus contains
+    // (better evidence, no API cost) — spend Cantus requests only on texts
+    // DO has never heard of.
+    if (parts.some((p) => matchPart(foldSpelling(p), doCorpus).length > 0)) {
+      doSkipped++;
+      continue;
+    }
 
     // Tally key: 'fn:{name}' for feasts that map onto an existing function,
     // 'new:{normalized feast}' for feasts our catalogue doesn't know yet —
@@ -245,7 +263,7 @@ async function main() {
     }
   }
 
-  console.log(`Done. Inserted ${inserted} suggestions.`);
+  console.log(`Done. Inserted ${inserted} suggestions (${doSkipped} titles skipped: covered by Divinum Officium).`);
   await pool.end();
 }
 

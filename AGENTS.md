@@ -145,9 +145,10 @@ queue.
  `node scripts/suggest-title-functions-do.js` (Divinum Officium matcher —
  local corpus, no API, ~6 min full sweep, idempotent; a daily run picks up
  newly catalogued titles. The Cantus job `suggest-title-functions.js` was
- RETIRED July 2026 as inferior — DO's positional evidence and generic-text
- filtering superseded it; the script remains for occasional manual use on
- titles DO can't match), `node scripts/suggest-recordings.js 80 youtube` (YouTube
+ demoted July 2026 to a FALLBACK: it now builds the DO index first and
+ skips any title the DO corpus contains, so its API effort goes only to
+ the long tail — votive antiphons, non-liturgical texts. Run it manually
+ or on a low-frequency schedule), `node scripts/suggest-recordings.js 80 youtube` (YouTube
  caps at ~100 searches/day, resets daily — each search.list costs 100 of
  the 10,000 units; on quota exhaustion the run stops WITHOUT burning the
  checkpoint), `node scripts/suggest-recordings.js 500 spotify` (no hard
