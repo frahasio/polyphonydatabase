@@ -1,12 +1,13 @@
 import express from 'express';
 import { pool } from '../db.js';
+import { triggerCleanup } from '../cleanup.js';
 
 // Review queue for automated suggestions. Mounted under /api/admin behind
 // requireAuthWeb + requirePermission('catalogue') so catalogue users (not
 // just admins) can churn through it.
 const router = express.Router();
 
-const KINDS = ['title_function', 'recording_youtube', 'recording_spotify'];
+const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
 // Attach disambiguating context to each suggestion so reviewers can tell
@@ -17,7 +18,10 @@ const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped'
 // composition that carries that title, so multiple settings are visible.
 async function enrichWithContext(rows) {
   const groupIds = [...new Set(rows.filter((r) => r.group_id).map((r) => r.group_id))];
-  const titleIds = [...new Set(rows.filter((r) => r.title_id).map((r) => r.title_id))];
+  // title_merge suggestions involve a second title (payload.other_title_id);
+  // pull its context too so the reviewer can compare both sides.
+  const otherIdOf = (r) => (r.kind === 'title_merge' ? parseInt((r.payload || {}).other_title_id, 10) || null : null);
+  const titleIds = [...new Set(rows.flatMap((r) => [r.title_id, otherIdOf(r)].filter(Boolean)))];
 
   const compQuery = `
     SELECT c.number_of_voices, c.tone, c.tone_connector, c.even_odd,
@@ -48,7 +52,17 @@ async function enrichWithContext(rows) {
 
   const compsByTitle = {};
   const editionsByTitle = {};
+  const titleInfo = {};
   if (titleIds.length) {
+    // Current text + function list per title (merge cards compare these).
+    const info = await pool.query(
+      `SELECT t.id, t.text,
+              ARRAY(SELECT f.name FROM functions_titles ft JOIN functions f ON f.id = ft.function_id
+                    WHERE ft.title_id = t.id ORDER BY f.name) AS function_names
+       FROM titles t WHERE t.id = ANY($1)`,
+      [titleIds]
+    );
+    info.rows.forEach((r) => { titleInfo[r.id] = r; });
     const comps = await pool.query(
       `${compQuery}, c.title_id, g.display_title AS group_title,
               (SELECT COUNT(*) FROM editions e WHERE e.group_id = c.group_id) AS edition_count
@@ -82,6 +96,16 @@ async function enrichWithContext(rows) {
     } else if (r.title_id) {
       r.compositions = compsByTitle[r.title_id] || [];
       r.editions = (editionsByTitle[r.title_id] || []).slice(0, 8);
+      const main = titleInfo[r.title_id];
+      if (main) r.title_functions = main.function_names;
+      const otherId = otherIdOf(r);
+      if (otherId) {
+        const other = titleInfo[otherId];
+        r.other_title_exists = Boolean(other);
+        r.other_title_text = other ? other.text : (r.payload || {}).other_text;
+        r.other_title_functions = other ? other.function_names : [];
+        r.other_compositions = compsByTitle[otherId] || [];
+      }
     }
   });
 }
@@ -105,10 +129,15 @@ router.get('/', async (req, res) => {
     params.push(limit, (page - 1) * limit);
 
     const result = await pool.query(`
-      SELECT s.id, s.kind, s.title_id, s.group_id, s.payload, s.score, s.source,
+      SELECT s.id, s.kind, s.title_id, s.group_id, s.composer_id, s.payload, s.score, s.source,
              s.status, s.created_at,
              t.text AS title_text,
              g.display_title AS group_title,
+             row_to_json(cmp) AS composer,
+             (
+               SELECT COUNT(*) FROM compositions c
+               WHERE s.composer_id IS NOT NULL AND s.composer_id = ANY(c.composer_id_list)
+             ) AS composer_comp_count,
              (
                SELECT string_agg(DISTINCT comp.name, ', ')
                FROM compositions c
@@ -119,6 +148,7 @@ router.get('/', async (req, res) => {
       FROM suggestions s
       LEFT JOIN titles t ON t.id = s.title_id
       LEFT JOIN groups g ON g.id = s.group_id
+      LEFT JOIN composers cmp ON cmp.id = s.composer_id
       ${where}
       ORDER BY s.score DESC, s.id
       LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -164,9 +194,30 @@ router.post('/:id/:action', async (req, res) => {
 
     if (newStatus === 'accepted') {
       if (s.kind === 'title_function') {
-        const functionId = parseInt(payload.function_id, 10);
-        if (!s.title_id || !Number.isInteger(functionId)) {
-          throw new Error('Suggestion payload missing title/function');
+        if (!s.title_id) throw new Error('Suggestion payload missing title');
+        // The reviewer may correct the feast at accept time (the matcher's
+        // guess is sometimes the wrong feast, or a feast we don't have yet).
+        // A name that matches an existing function links to it; an unknown
+        // name creates the function on the fly.
+        const override = typeof req.body.function_name === 'string' ? req.body.function_name.trim() : '';
+        let functionId = parseInt(payload.function_id, 10);
+        const chosenName = (override || String(payload.function_name || '').trim()).slice(0, 200);
+        if (override || !Number.isInteger(functionId)) {
+          if (!chosenName) throw new Error('No feast/function name given');
+          const existing = await client.query(
+            'SELECT id, name FROM functions WHERE LOWER(name) = LOWER($1) LIMIT 1',
+            [chosenName]
+          );
+          if (existing.rows.length) {
+            functionId = existing.rows[0].id;
+          } else {
+            const created = await client.query(
+              `INSERT INTO functions (name, created_at, updated_at)
+               VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
+              [chosenName]
+            );
+            functionId = created.rows[0].id;
+          }
         }
         await client.query(
           `INSERT INTO functions_titles (function_id, title_id)
@@ -182,6 +233,97 @@ router.post('/:id/:action', async (req, res) => {
             [String(payload.cantus_id), s.title_id]
           );
         }
+      } else if (s.kind === 'title_merge') {
+        const otherId = parseInt(payload.other_title_id, 10);
+        if (!s.title_id || !Number.isInteger(otherId)) {
+          throw new Error('Suggestion payload missing titles to merge');
+        }
+        // The reviewer picks which title survives; default is the matcher's
+        // suggested primary (the suggestion's title_id).
+        const requested = parseInt(req.body.primary_title_id, 10);
+        const primaryId = requested === otherId ? otherId : s.title_id;
+        const sourceId = primaryId === otherId ? s.title_id : otherId;
+
+        const both = await client.query(
+          'SELECT id, cantus_id FROM titles WHERE id = ANY($1) FOR UPDATE',
+          [[primaryId, sourceId]]
+        );
+        if (both.rows.length < 2) {
+          // One side was already merged/deleted elsewhere; nothing to do.
+          await client.query(
+            `UPDATE suggestions SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
+            [req.user.id, s.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ success: true, status: 'rejected', note: 'A title in this pair no longer exists.' });
+        }
+
+        await client.query(
+          'UPDATE compositions SET title_id = $1, updated_at = CURRENT_TIMESTAMP WHERE title_id = $2',
+          [primaryId, sourceId]
+        );
+        await client.query(
+          `INSERT INTO functions_titles (function_id, title_id)
+           SELECT ft.function_id, $1 FROM functions_titles ft
+           WHERE ft.title_id = $2
+             AND NOT EXISTS (
+               SELECT 1 FROM functions_titles x
+               WHERE x.function_id = ft.function_id AND x.title_id = $1
+             )`,
+          [primaryId, sourceId]
+        );
+        await client.query('DELETE FROM functions_titles WHERE title_id = $1', [sourceId]);
+        const cantus = both.rows.find((r) => r.id === sourceId)?.cantus_id;
+        if (cantus) {
+          await client.query(
+            'UPDATE titles SET cantus_id = $1 WHERE id = $2 AND cantus_id IS NULL',
+            [cantus, primaryId]
+          );
+        }
+        // Deleting the source cascades away its other pending suggestions.
+        await client.query('DELETE FROM titles WHERE id = $1', [sourceId]);
+      } else if (s.kind === 'title_language') {
+        if (!s.title_id) throw new Error('Suggestion payload missing title');
+        // The reviewer may correct the guessed language at accept time.
+        const bodyLang = parseInt(req.body.language_id, 10);
+        const languageId = Number.isInteger(bodyLang) ? bodyLang : parseInt(payload.language_id, 10);
+        if (!Number.isInteger(languageId)) throw new Error('No language given');
+        const lang = await client.query('SELECT id FROM languages WHERE id = $1', [languageId]);
+        if (!lang.rows.length) throw new Error('Unknown language');
+        await client.query(
+          'UPDATE titles SET language = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          [languageId, s.title_id]
+        );
+      } else if (s.kind === 'composer_bio') {
+        if (!s.composer_id) throw new Error('Suggestion payload missing composer');
+        // Fill ONLY the gaps — existing values are never overwritten. All
+        // CASE conditions evaluate against the pre-update row.
+        const year = (v) => (Number.isInteger(parseInt(v, 10)) ? parseInt(v, 10) : null);
+        const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
+        await client.query(
+          `UPDATE composers SET
+             from_year_annotation = CASE WHEN from_year IS NULL AND $2::int IS NOT NULL
+               THEN $3 ELSE from_year_annotation END,
+             from_year = COALESCE(from_year, $2),
+             to_year_annotation = CASE WHEN to_year IS NULL AND $4::int IS NOT NULL
+               THEN $5 ELSE to_year_annotation END,
+             to_year = COALESCE(to_year, $4),
+             birthplace_1 = CASE WHEN COALESCE(birthplace_1, '') = '' THEN COALESCE($6, birthplace_1) ELSE birthplace_1 END,
+             birthplace_2 = CASE WHEN COALESCE(birthplace_2, '') = '' THEN COALESCE($7, birthplace_2) ELSE birthplace_2 END,
+             deathplace_1 = CASE WHEN COALESCE(deathplace_1, '') = '' THEN COALESCE($8, deathplace_1) ELSE deathplace_1 END,
+             deathplace_2 = CASE WHEN COALESCE(deathplace_2, '') = '' THEN COALESCE($9, deathplace_2) ELSE deathplace_2 END,
+             wikidata_id = COALESCE(wikidata_id, $10),
+             updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [
+            s.composer_id,
+            year(payload.from_year), text(payload.from_year_annotation),
+            year(payload.to_year), text(payload.to_year_annotation),
+            text(payload.birthplace_1), text(payload.birthplace_2),
+            text(payload.deathplace_1), text(payload.deathplace_2),
+            text(payload.wikidata_id),
+          ]
+        );
       } else if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
         const url = String(payload.url || '').trim();
         // The reviewer may correct the performer name at accept time (the API
@@ -233,7 +375,7 @@ router.post('/:id/:action', async (req, res) => {
           'suggestions',
           s.id,
           null,
-          JSON.stringify({ kind: s.kind, action: newStatus, title_id: s.title_id, group_id: s.group_id }),
+          JSON.stringify({ kind: s.kind, action: newStatus, title_id: s.title_id, group_id: s.group_id, composer_id: s.composer_id }),
         ]
       );
     } catch (auditError) {
@@ -241,6 +383,9 @@ router.post('/:id/:action', async (req, res) => {
     }
 
     await client.query('COMMIT');
+    if (newStatus === 'accepted' && s.kind === 'title_merge') {
+      triggerCleanup(true, 'all', 'after title merge (review queue)', 3000);
+    }
     res.json({ success: true, status: newStatus });
   } catch (error) {
     await client.query('ROLLBACK');

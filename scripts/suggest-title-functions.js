@@ -224,6 +224,13 @@ function normalizeFeast(feast) {
   return f.replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// Display form for a feast we can't map to an existing function: the
+// normalized (expanded-abbreviation) Latin, title-cased. The reviewer edits
+// this into house style before accepting.
+function titleCase(s) {
+  return String(s || '').replace(/\b[a-z]/g, (c) => c.toUpperCase()).trim();
+}
+
 function mapFeast(feast) {
   const f = normalizeFeast(feast);
   if (!f) return null;
@@ -292,11 +299,13 @@ async function main() {
   // Latin/unknown-language titles never checked before. cantus_checked_at is
   // set for EVERY processed title (matched or not) so runs always advance
   // through the catalogue instead of re-checking the same unmatched block.
+  // Titles that already have functions ARE included: many pieces have several
+  // genuine liturgical uses, and existing links are simply not re-suggested.
   const titles = await pool.query(`
-    SELECT t.id, t.text
+    SELECT t.id, t.text,
+           ARRAY(SELECT ft.function_id FROM functions_titles ft WHERE ft.title_id = t.id) AS existing_function_ids
     FROM titles t
     WHERE t.cantus_checked_at IS NULL
-      AND NOT EXISTS (SELECT 1 FROM functions_titles ft WHERE ft.title_id = t.id)
       AND (t.language IS NULL OR t.language = (SELECT id FROM languages WHERE language = 'Latin'))
       AND EXISTS (SELECT 1 FROM compositions c WHERE c.title_id = t.id)
     ORDER BY t.id
@@ -315,9 +324,13 @@ async function main() {
     const parts = splitIncipitParts(title.text);
     if (!parts.length) continue;
 
-    const tally = new Map(); // functionName → { count, matchSum, cantusIds:Set, feasts:Set, genres:Set, parts:Set }
+    // Tally key: 'fn:{name}' for feasts that map onto an existing function,
+    // 'new:{normalized feast}' for feasts our catalogue doesn't know yet —
+    // those become "create this feast?" suggestions instead of being dropped.
+    const tally = new Map(); // key → { functionId, proposedName, count, matchSum, cantusIds:Set, feasts:Set, genres:Set, parts:Set }
     let total = 0;
     const seenCids = new Set();
+    const existingFnIds = new Set(title.existing_function_ids || []);
 
     for (const part of parts) {
       const chants = await searchTextCandidates(part);
@@ -370,11 +383,24 @@ async function main() {
         if (!feast) continue;
         total++;
         const fnName = mapFeast(feast);
-        if (!fnName || !functionIds.has(fnName)) continue;
-        if (!tally.has(fnName)) {
-          tally.set(fnName, { count: 0, matchSum: 0, cantusIds: new Set(), feasts: new Set(), genres: new Set(), parts: new Set() });
+        let key, functionId, proposedName;
+        if (fnName && functionIds.has(fnName)) {
+          key = `fn:${fnName}`;
+          functionId = functionIds.get(fnName);
+          proposedName = fnName;
+        } else {
+          // Feast the catalogue doesn't know (or a mapped name whose function
+          // row is missing): propose creating it. Reviewer confirms/edits the
+          // name at accept time.
+          proposedName = fnName || titleCase(normalizeFeast(feast));
+          if (!proposedName) continue;
+          key = `new:${proposedName.toLowerCase()}`;
+          functionId = null;
         }
-        const t = tally.get(fnName);
+        if (!tally.has(key)) {
+          tally.set(key, { functionId, proposedName, count: 0, matchSum: 0, cantusIds: new Set(), feasts: new Set(), genres: new Set(), parts: new Set() });
+        }
+        const t = tally.get(key);
         t.count++;
         t.matchSum += matchByCid.get(cid).match;
         t.cantusIds.add(cid);
@@ -385,16 +411,21 @@ async function main() {
     }
 
     // Emit every function backed by MIN_RECORDS+ distinct Cantus records —
-    // multiple genuine liturgical uses are welcome. Score = average text
-    // match of the supporting records (>= TEXT_MATCH_MIN by construction).
-    const ranked = Array.from(tally.entries())
-      .filter(([, info]) => info.count >= MIN_RECORDS)
-      .sort((a, b) => b[1].count - a[1].count || b[1].matchSum - a[1].matchSum)
+    // multiple genuine liturgical uses are welcome. Functions the title is
+    // already linked to are not re-suggested. Score = average text match of
+    // the supporting records (>= TEXT_MATCH_MIN by construction).
+    const ranked = Array.from(tally.values())
+      .filter((info) => info.count >= MIN_RECORDS)
+      .filter((info) => !(info.functionId && existingFnIds.has(info.functionId)))
+      .sort((a, b) => b.count - a.count || b.matchSum - a.matchSum)
       .slice(0, MAX_SUGGESTIONS_PER_TITLE);
 
-    for (const [fnName, info] of ranked) {
+    for (const info of ranked) {
       const score = Math.round((info.matchSum / info.count) * 100) / 100;
-      const functionId = functionIds.get(fnName);
+      const isNew = !info.functionId;
+      const dedupeKey = isNew
+        ? `tfn:${title.id}:${info.proposedName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+        : `tf:${title.id}:${info.functionId}`;
       const result = await pool.query(
         `INSERT INTO suggestions (kind, title_id, payload, score, source, dedupe_key)
          VALUES ('title_function', $1, $2, $3, 'cantusindex.org', $4)
@@ -402,8 +433,9 @@ async function main() {
         [
           title.id,
           JSON.stringify({
-            function_id: functionId,
-            function_name: fnName,
+            function_id: info.functionId,
+            function_name: info.proposedName,
+            new_function: isNew || undefined,
             feasts: Array.from(info.feasts).slice(0, 5),
             genres: Array.from(info.genres).slice(0, 8),
             cantus_id: Array.from(info.cantusIds)[0] || null,
@@ -412,11 +444,11 @@ async function main() {
             total_results: total,
           }),
           score,
-          `tf:${title.id}:${functionId}`,
+          dedupeKey,
         ]
       );
       inserted += result.rowCount;
-      console.log(`  ${title.id} "${parts.join(' / ')}" -> ${fnName} (${Math.round(score * 100)}%)`);
+      console.log(`  ${title.id} "${parts.join(' / ')}" -> ${info.proposedName}${isNew ? ' (NEW feast)' : ''} (${Math.round(score * 100)}%)`);
     }
   }
 

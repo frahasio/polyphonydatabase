@@ -16,7 +16,12 @@ import { pool } from '../src/db.js';
 // YouTube's quota is exhausted we stop calling it and let Spotify carry the
 // rest of the run.
 const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 2000);
-const MIN_SCORE = 0.5;
+// Surname must always match; MIN_SCORE applies to the fraction of distinctive
+// title words found in the candidate text. 0.7 keeps the "Missa pro
+// defunctis offered for a Missa de feria" class of false positive out (a
+// 2-word title with 1 word matched scores 0.5) while letting long titles
+// with one missing word through for human review.
+const MIN_SCORE = Number(process.env.RECORDINGS_MIN_SCORE) || 0.7;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let youtubeExhausted = false;
 
@@ -44,11 +49,11 @@ function composerSurname(composerDisplay) {
 }
 
 /**
- * Score a candidate: 1 or 0. STRICT — the composer surname AND every
- * distinctive title word (length >= 3, spelling-folded) must appear in the
- * candidate text. Partial title matches caused false positives like the
- * Missa pro defunctis being offered for a Missa de feria (both matched
- * "missa" + composer), so partial credit is gone: precision over recall.
+ * Score a candidate: the composer surname MUST appear in the candidate text
+ * (otherwise 0), then the score is the fraction of distinctive title words
+ * (length >= 3, spelling-folded) found. MIN_SCORE decides what is worth a
+ * human's time — everything is reviewed anyway, so moderate recall beats
+ * the old all-or-nothing rule that rejected candidates missing one word.
  */
 function scoreCandidate(title, composerDisplay, candidateText) {
   const text = foldSpelling(normalize(candidateText));
@@ -58,7 +63,7 @@ function scoreCandidate(title, composerDisplay, candidateText) {
   const titleWords = foldSpelling(normalize(title)).split(' ').filter((w) => w.length >= 3);
   if (!titleWords.length) return 0; // nothing distinctive to confirm the piece
   const matched = titleWords.filter((w) => text.includes(w)).length;
-  return matched === titleWords.length ? 1 : 0;
+  return Math.round((matched / titleWords.length) * 100) / 100;
 }
 
 async function fetchJson(url, options) {
@@ -140,6 +145,9 @@ async function insertSuggestion(kind, groupId, payload, score, source, dedupeKey
 }
 
 async function main() {
+  // recordings_checked_at is set for EVERY processed group (matched or not)
+  // so daily runs advance through the catalogue instead of re-searching the
+  // same block of unmatchable low-id groups forever.
   const groups = await pool.query(`
     SELECT g.id, g.display_title,
       (
@@ -150,11 +158,8 @@ async function main() {
         WHERE c.group_id = g.id
       ) AS composers
     FROM groups g
-    WHERE NOT EXISTS (SELECT 1 FROM recordings r WHERE r.group_id = g.id)
-      AND NOT EXISTS (
-        SELECT 1 FROM suggestions s
-        WHERE s.group_id = g.id AND s.kind IN ('recording_youtube', 'recording_spotify')
-      )
+    WHERE g.recordings_checked_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM recordings r WHERE r.group_id = g.id)
       AND EXISTS (
         SELECT 1 FROM compositions c
         WHERE c.group_id = g.id
@@ -169,6 +174,8 @@ async function main() {
   let inserted = 0;
 
   for (const g of groups.rows) {
+    // Mark as searched up front (even if the APIs fail midway).
+    await pool.query('UPDATE groups SET recordings_checked_at = NOW() WHERE id = $1', [g.id]);
     if (!g.composers) continue;
     const primaryComposer = g.composers.split(',')[0].trim() + (g.composers.includes(',') ? '' : '');
     const query = `${g.composers.split(';')[0]} ${g.display_title}`.slice(0, 180);

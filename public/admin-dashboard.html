@@ -648,6 +648,13 @@
                 return;
             }
             
+            // Alert types with an automated matcher feeding the review queue.
+            const reviewQueueKinds = {
+                'titles_no_language': 'title_language',
+                'composers_missing_data': 'composer_bio',
+                'titles_no_functions': 'title_function'
+            };
+
             container.innerHTML = alerts.map(alert => {
                 const alertClass = alert.severity === 'warning' ? 'alert-warning' : 
                                  alert.severity === 'info' ? 'alert-info' : 
@@ -655,6 +662,11 @@
                 const iconClass = alert.severity === 'warning' ? 'bi-exclamation-triangle' : 
                                 alert.severity === 'error' ? 'bi-exclamation-octagon' : 
                                 alert.severity === 'info' ? 'bi-info-circle' : 'bi-bell';
+                const queueKind = reviewQueueKinds[alert.type];
+                const queueButton = queueKind ? `
+                                    <a class="btn btn-outline-success btn-sm" href="/modules/suggestions/index.html?kind=${queueKind}">
+                                        <i class="bi bi-inbox me-2"></i>Review suggestions
+                                    </a>` : '';
 
                 return `
                     <div class="col-md-6 col-lg-4">
@@ -668,7 +680,7 @@
                                 <div class="btn-group-vertical w-100">
                                     <button class="btn btn-outline-primary btn-sm" onclick="handleAlertAction('${escapeHtml(alert.type)}', 'view_details')">
                                         <i class="bi bi-list-ul me-2"></i>View Details
-                                    </button>
+                                    </button>${queueButton}
                                 </div>
                             </div>
                         </div>

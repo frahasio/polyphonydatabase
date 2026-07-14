@@ -13,6 +13,13 @@
         .suggestion-card.kind-title_function { border-left-color: #6f42c1; }
         .suggestion-card.kind-recording_youtube { border-left-color: #dc3545; }
         .suggestion-card.kind-recording_spotify { border-left-color: #198754; }
+        .suggestion-card.kind-title_merge { border-left-color: #fd7e14; }
+        .suggestion-card.kind-title_language { border-left-color: #0dcaf0; }
+        .suggestion-card.kind-composer_bio { border-left-color: #20c997; }
+        .bio-table td { padding: 0.1rem 0.6rem 0.1rem 0; font-size: 0.85rem; }
+        .bio-fill { background: #d1e7dd; border-radius: 3px; padding: 0 0.3rem; }
+        .merge-option { border: 1px solid #dee2e6; border-radius: 6px; padding: 0.5rem 0.75rem; }
+        .merge-option:has(input:checked) { border-color: #fd7e14; background: #fff8f2; }
         .score-badge { min-width: 3.2rem; }
         .payload-detail { font-size: 0.85rem; }
         .yt-embed { width: 100%; max-width: 480px; aspect-ratio: 16/9; border: 0; }
@@ -28,6 +35,9 @@
             <div class="btn-group btn-group-sm" id="kindFilter">
                 <button type="button" class="btn btn-outline-secondary active" data-kind="">All</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="title_function">Title functions</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="title_merge">Title merges</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="title_language">Languages</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="composer_bio">Composer bios</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
             </div>
@@ -39,6 +49,7 @@
         </p>
 
         <datalist id="performersDatalist"></datalist>
+        <datalist id="functionsDatalist"></datalist>
         <div id="pendingSummary" class="mb-3"></div>
         <div id="loading" class="text-center py-5">
             <div class="spinner-border text-primary"></div>
@@ -51,7 +62,8 @@
     </div>
 
     <script>
-        let currentKind = '';
+        // Allow deep links from the dashboard, e.g. ?kind=title_language
+        let currentKind = new URLSearchParams(location.search).get('kind') || '';
 
         function escapeHtml(value) {
             if (value === null || value === undefined) return '';
@@ -109,15 +121,69 @@
             if (s.kind === 'title_function') {
                 const feasts = (p.feasts || []).map(escapeHtml).join('; ');
                 const genres = (p.genres || []).map(escapeHtml).join(', ');
+                const newBadge = p.new_function
+                    ? ' <span class="badge bg-warning text-dark" title="This feast is not in the catalogue yet — accepting creates it">new feast</span>'
+                    : '';
                 return `
                     <div class="payload-detail">
                         <div><strong>Proposed function:</strong>
-                            <span class="badge bg-primary">${escapeHtml(p.function_name)}</span>
+                            <span class="badge bg-primary">${escapeHtml(p.function_name)}</span>${newBadge}
                             <span class="text-muted ms-2">${p.concordances || 0} of ${p.total_results || 0} Cantus concordances</span>
                         </div>
                         ${feasts ? `<div class="text-muted">Cantus feasts: ${feasts}</div>` : ''}
                         ${genres ? `<div class="text-muted">Genres: ${genres}</div>` : ''}
                         ${p.cantus_id ? `<div><a href="https://cantusindex.org/id/${encodeURIComponent(p.cantus_id)}" target="_blank" rel="noopener">Cantus ID ${escapeHtml(p.cantus_id)} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
+                        <div class="mt-2" style="max-width:480px">
+                            <label class="form-label small mb-1" for="fn-${s.id}">Feast saved on accept — pick the correct one, or type a new name to create it</label>
+                            <input type="text" class="form-control form-control-sm" id="fn-${s.id}" list="functionsDatalist" value="${escapeHtml(p.function_name || '')}" placeholder="Feast / function name">
+                        </div>
+                    </div>`;
+            }
+            if (s.kind === 'title_merge') return ''; // rendered entirely by contextHtml
+            if (s.kind === 'title_language') {
+                const evidence = (p.evidence || []).map(escapeHtml).join(', ');
+                const langOptions = languagesList.length ? languagesList : [{ id: p.language_id, name: p.language_name }];
+                const opts = langOptions.map(l =>
+                    `<option value="${l.id}" ${l.id === p.language_id ? 'selected' : ''}>${escapeHtml(l.name)}</option>`).join('');
+                return `
+                    <div class="payload-detail">
+                        <div><strong>Guessed language:</strong>
+                            <span class="badge bg-info text-dark">${escapeHtml(p.language_name)}</span>
+                            ${evidence ? `<span class="text-muted ms-2">evidence: ${evidence}</span>` : ''}
+                        </div>
+                        <div class="mt-2" style="max-width:300px">
+                            <label class="form-label small mb-1" for="lang-${s.id}">Language saved on accept</label>
+                            <select class="form-select form-select-sm" id="lang-${s.id}">${opts}</select>
+                        </div>
+                    </div>`;
+            }
+            if (s.kind === 'composer_bio') {
+                const c = s.composer || {};
+                const fmtYears = (fy, fya, ty, tya) => (fy || ty)
+                    ? `${escapeHtml(fya || '')}${escapeHtml(fy || '?')} \u2013 ${escapeHtml(tya || '')}${escapeHtml(ty || '?')}` : '';
+                const fmtPlace = (p1, p2) => [p1, p2].filter(Boolean).map(escapeHtml).join(', ');
+                // Highlight only what accept would actually fill (gaps).
+                const row = (label, current, proposed) => {
+                    if (!current && !proposed) return '';
+                    const prop = proposed && !current
+                        ? `<span class="bio-fill">${proposed}</span>`
+                        : (proposed || '<span class="text-muted">\u2014</span>');
+                    return `<tr><td class="text-muted">${label}</td><td>${current || '<span class="text-muted">missing</span>'}</td><td>${prop}</td></tr>`;
+                };
+                return `
+                    <div class="payload-detail">
+                        <div>
+                            <a href="https://www.wikidata.org/wiki/${encodeURIComponent(p.wikidata_id || '')}" target="_blank" rel="noopener">
+                                ${escapeHtml(p.wikidata_label || p.wikidata_id)} <i class="bi bi-box-arrow-up-right"></i></a>
+                            ${p.wikidata_description ? `<span class="text-muted ms-1">\u2014 ${escapeHtml(p.wikidata_description)}</span>` : ''}
+                        </div>
+                        <table class="bio-table mt-1">
+                            <tr><td></td><td class="text-muted">current</td><td class="text-muted">Wikidata</td></tr>
+                            ${row('Years', fmtYears(c.from_year, c.from_year_annotation, c.to_year, c.to_year_annotation), fmtYears(p.from_year, p.from_year_annotation, p.to_year, p.to_year_annotation))}
+                            ${row('Born', fmtPlace(c.birthplace_1, c.birthplace_2), fmtPlace(p.birthplace_1, p.birthplace_2))}
+                            ${row('Died', fmtPlace(c.deathplace_1, c.deathplace_2), fmtPlace(p.deathplace_1, p.deathplace_2))}
+                        </table>
+                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept fills only the <span class="bio-fill">highlighted</span> gaps — existing values are never changed.</div>
                     </div>`;
             }
             // Recording suggestions: show source line + inline preview
@@ -141,8 +207,44 @@
                 </div>`;
         }
 
+        function mergeOptionHtml(s, titleId, text, functionNames, comps, checked) {
+            const fns = (functionNames || []).map(f => `<span class="badge bg-primary me-1">${escapeHtml(f)}</span>`).join('');
+            const compRows = (comps || []).slice(0, 4).map(c => {
+                const who = c.composers ? escapeHtml(c.composers) : 'Anon';
+                const grp = c.group_title ? escapeHtml(c.group_title) : '';
+                return `<div class="comp-detail">• ${who}${grp ? ' — ' + grp : ''} ${compositionDescriptor(c)}</div>`;
+            }).join('');
+            const more = (comps || []).length > 4 ? `<div class="comp-detail text-muted">…and ${comps.length - 4} more setting(s)</div>` : '';
+            const n = (comps || []).length;
+            return `
+                <div class="form-check merge-option mb-2">
+                    <input class="form-check-input" type="radio" name="primary-${s.id}" id="primary-${s.id}-${titleId}" value="${titleId}" ${checked ? 'checked' : ''}>
+                    <label class="form-check-label d-block" for="primary-${s.id}-${titleId}">
+                        <span class="fw-semibold">${escapeHtml(text || '(missing)')}</span>
+                        <span class="text-muted">— ${n} setting${n === 1 ? '' : 's'}</span>
+                        ${fns ? `<div class="mt-1">${fns}</div>` : ''}
+                        ${compRows ? `<div class="mt-1">${compRows}${more}</div>` : ''}
+                    </label>
+                </div>`;
+        }
+
         function contextHtml(s) {
-            if (s.kind === 'title_function') {
+            if (s.kind === 'title_merge') {
+                if (s.other_title_exists === false) {
+                    return `<span class="fw-semibold">${escapeHtml(s.title_text || '')}</span>
+                            <div class="text-muted comp-detail mt-1">The other title in this pair no longer exists (already merged elsewhere) — accept or reject to clear it.</div>`;
+                }
+                return `
+                    <div class="mb-1 text-muted comp-detail">Possible duplicate titles — <strong>Accept</strong> merges them, keeping the selected one:</div>
+                    ${mergeOptionHtml(s, s.title_id, s.title_text, s.title_functions, s.compositions, true)}
+                    ${mergeOptionHtml(s, (s.payload || {}).other_title_id, s.other_title_text, s.other_title_functions, s.other_compositions, false)}`;
+            }
+            if (s.kind === 'composer_bio') {
+                const n = parseInt(s.composer_comp_count, 10) || 0;
+                return `<span class="fw-semibold">${escapeHtml((s.composer || {}).name || '(composer missing)')}</span>
+                        <span class="text-muted">— ${n} composition${n === 1 ? '' : 's'} in the catalogue</span>`;
+            }
+            if (s.kind === 'title_function' || s.kind === 'title_language') {
                 // Show every setting that carries this title so the reviewer can
                 // see which pieces the function would apply to.
                 const comps = (s.compositions || []).slice(0, 6).map(c => {
@@ -182,8 +284,37 @@
             } catch (e) { /* autocomplete is a nicety; ignore failures */ }
         }
 
+        let languagesList = [];
+        let languagesLoaded = false;
+        async function loadLanguages() {
+            if (languagesLoaded) return;
+            languagesLoaded = true;
+            try {
+                const res = await fetch('/api/admin/functions/languages', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                languagesList = data.languages || [];
+            } catch (e) { /* select falls back to the guessed language only */ }
+        }
+
+        let functionsLoaded = false;
+        async function loadFunctionsDatalist() {
+            if (functionsLoaded) return;
+            functionsLoaded = true;
+            try {
+                const res = await fetch('/api/admin/functions', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                const dl = document.getElementById('functionsDatalist');
+                dl.innerHTML = (data.functions || [])
+                    .map(f => `<option value="${escapeHtml(f.name)}"></option>`).join('');
+            } catch (e) { /* autocomplete is a nicety; ignore failures */ }
+        }
+
         async function load() {
             loadPerformersDatalist();
+            loadFunctionsDatalist();
+            await loadLanguages(); // cards need the list before rendering
             document.getElementById('loading').style.display = 'block';
             document.getElementById('queue').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
@@ -207,6 +338,9 @@
         function renderSummary(counts) {
             const labels = {
                 title_function: 'title functions',
+                title_merge: 'title merges',
+                title_language: 'title languages',
+                composer_bio: 'composer bios',
                 recording_youtube: 'YouTube recordings',
                 recording_spotify: 'Spotify recordings'
             };
@@ -249,12 +383,21 @@
         async function review(id, action) {
             const card = document.getElementById('suggestion-' + id);
             if (card) card.style.opacity = '0.5';
-            // On accept, send the (possibly corrected) performer name for
-            // recording suggestions.
+            // On accept, send the reviewer's corrections: performer name for
+            // recordings, feast name for title functions (may create a new
+            // one), chosen primary for title merges.
             let body = null;
-            const perfInput = document.getElementById('perf-' + id);
-            if (action === 'accept' && perfInput) {
-                body = JSON.stringify({ performer_name: perfInput.value.trim() });
+            if (action === 'accept') {
+                const fields = {};
+                const perfInput = document.getElementById('perf-' + id);
+                if (perfInput) fields.performer_name = perfInput.value.trim();
+                const fnInput = document.getElementById('fn-' + id);
+                if (fnInput) fields.function_name = fnInput.value.trim();
+                const langSelect = document.getElementById('lang-' + id);
+                if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
+                const primaryRadio = document.querySelector(`input[name="primary-${id}"]:checked`);
+                if (primaryRadio) fields.primary_title_id = parseInt(primaryRadio.value, 10);
+                if (Object.keys(fields).length) body = JSON.stringify(fields);
             }
             try {
                 const res = await fetch(`/api/admin/suggestions/${id}/${action}`, {
@@ -282,6 +425,10 @@
                 currentKind = btn.dataset.kind;
                 load();
             });
+            if (currentKind && btn.dataset.kind === currentKind) {
+                document.querySelectorAll('#kindFilter button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
         });
 
         load();
