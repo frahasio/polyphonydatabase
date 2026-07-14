@@ -40,11 +40,23 @@ deployed. Also shipped since:
  indexes the vendored data/divinumofficium corpus — every Mass proper +
  Office hour, Latin — and matches title incipits as word-for-word prefixes
  of liturgical text units; knows the exact POSITION (Introit of Advent I,
- Vespers antiphon of St Andrew...); texts on >= DO_GENERIC_DAYS (8) days
- are treated as generic and never suggested; new-feast proposals only from
- day-unique texts; all local, no API, idempotent via the same tf:/tfn:
- dedupe keys as Cantus so re-runs and overlaps are safe; shared feast map
- + normalization now live in scripts/lib/matching.js),
+ Vespers antiphon of St Andrew...). Emits ONE multi-function card per
+ title (payload.multi, dedupe `tfm:{title_id}`; re-runs refresh pending
+ cards in place): specific propers (< DO_GENERIC_DAYS=8 days) preticked
+ at <=2 days, PLUS season-level entries (Advent/Christmas/Lent/Easter/
+ Pentecost-octave via day-file prefixes, see seasonOfDay) for texts that
+ recur on >=3 days concentrated (>=50%) in one season — previously junked
+ as generic. Accept links all TICKED functions (function_selections).
+ Rubric-variant files (…t.txt/…o.txt) fold into their base day so counts
+ aren't inflated. Reviewer rejections (old single-function cards included)
+ are never re-proposed. Mass Gospels/Epistles are evidence (sentence-
+ indexed, pericope formulas stripped); TEMPORA Matins lessons are
+ frequency-only (in-course scripture, coincidental); Sancti/Commune
+ lessons are evidence. Latin->English feast names via the editable
+ dictionary scripts/lib/feast-names.js (extend SAINT_NAMES as new saints
+ hit the queue; translations matching an existing function link it
+ directly). All local, no API; shared feast map + normalization in
+ scripts/lib/matching.js),
  `scripts/suggest-recordings.js` (YouTube + Spotify),
  `scripts/suggest-title-merges.js` (duplicate titles — WORD ORDER IS
  SIGNIFICANT: only identical-after-normalization or word-for-word-prefix

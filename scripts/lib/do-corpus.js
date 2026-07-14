@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { normalizeFeast, mapFeast, foldSpelling, normalizeIncipit, titleCase } from './matching.js';
+import { translateFeastLabel } from './feast-names.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DO_DIR = path.join(ROOT, 'data', 'divinumofficium');
@@ -57,6 +58,25 @@ const COMMUNE_MAP = [
   [/^C1[01]/, 'BVM'],
   [/defunct/i, 'Office for the dead'],
 ];
+
+/**
+ * Liturgical season of a DO day file (by Tempora filename convention), or
+ * null for days outside the devotional seasons (post-Epiphany and
+ * post-Pentecost ordinary time, pre-Lent, Sancti, Commune). Season names
+ * are catalogue function names — a text used on many days WITHIN one
+ * season is a good match for the season-level function.
+ */
+export function seasonOfDay(rel) {
+  if (!rel.includes('/Tempora/')) return null;
+  const base = path.basename(rel, '.txt');
+  if (/^Adv/.test(base)) return 'Advent';
+  if (/^Nat/.test(base)) return 'Christmas';       // incl. Jan 2-5 files
+  if (/^Quadp/.test(base)) return null;            // pre-Lent
+  if (/^Quad/.test(base)) return 'Lent';           // incl. Passiontide/Holy Week
+  if (/^Pasc7/.test(base)) return 'Pentecost';     // Whitsun week
+  if (/^Pasc/.test(base)) return 'Easter';         // Eastertide
+  return null; // Epi*, Pent*, PentEpi*, numbered scripture weeks
+}
 
 // ---------- DO file parsing ----------
 
@@ -129,9 +149,13 @@ export function buildCorpus(functionNames) {
     norm: ' ' + normalizeIncipit(n) + ' ',
   }));
 
+  const fnByLower = new Map(functionNames.map((n) => [n.toLowerCase(), n]));
+
   // Map a day file's [Officium] label to a function: FEAST_MAP first, then a
   // saint-stem heuristic against existing function names ("Sancti Barnabae
-  // Apostoli" -> "St Barnabas"), else a new-function proposal (Sancti only).
+  // Apostoli" -> "St Barnabas"), then the Latin->English dictionary (which
+  // may also resolve to an EXISTING function), else a new-function proposal
+  // in title-cased Latin (Sancti only).
   function classifyDay(rel, label) {
     const communeId = rel.includes('/Commune/') ? path.basename(rel, '.txt') : null;
     if (communeId) {
@@ -149,6 +173,12 @@ export function buildCorpus(functionNames) {
         const hit = normalizedFnNames.find((f) => f.norm.includes(stem));
         if (hit) return { fn: hit.name };
       }
+    }
+    const translated = translateFeastLabel(norm);
+    if (translated) {
+      const existing = fnByLower.get(translated.toLowerCase());
+      if (existing) return { fn: existing };
+      if (rel.includes('/Sancti/')) return { newName: translated };
     }
     if (rel.includes('/Sancti/') && norm && norm.length <= 70) {
       return { newName: titleCase(norm) };
@@ -179,6 +209,10 @@ export function buildCorpus(functionNames) {
     for (const f of fs.readdirSync(dir)) {
       if (!f.endsWith('.txt')) continue;
       const rel = `${dirRel}/${f}`;
+      // Rubric-variant files (Pasc0-3t.txt, Nat29o.txt) are the SAME
+      // calendar day as their base file — they must not inflate day
+      // counts or a text proper to 3 days looks proper to 6.
+      const dayId = rel.replace(/(\d)[a-z]+\.txt$/i, '$1.txt');
       const raw = readFile(rel);
       if (!raw) continue;
       const sections = splitSections(raw);
@@ -212,7 +246,7 @@ export function buildCorpus(functionNames) {
             fn: mode !== 'freq' ? (cls.fn || null) : null,
             newName: mode !== 'freq' ? (cls.newName || null) : null,
             position: name,
-            day: rel,
+            day: dayId,
             dayLabel: label || path.basename(rel, '.txt'),
           };
           if (mode === 'prose') {

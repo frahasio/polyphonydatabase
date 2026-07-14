@@ -205,7 +205,42 @@ router.post('/:id/:action', async (req, res) => {
     const payload = s.payload || {};
 
     if (newStatus === 'accepted') {
-      if (s.kind === 'title_function') {
+      if (s.kind === 'title_function' && Array.isArray(req.body.function_selections)) {
+        // Multi-function card (Divinum Officium): the reviewer ticked one
+        // or more functions; each links (or is created) independently.
+        if (!s.title_id) throw new Error('Suggestion payload missing title');
+        const selections = req.body.function_selections
+          .map((sel) => ({
+            id: parseInt(sel && sel.function_id, 10),
+            name: String((sel && sel.function_name) || '').trim().slice(0, 200),
+          }))
+          .filter((sel) => Number.isInteger(sel.id) || sel.name);
+        if (!selections.length) throw new Error('No functions selected');
+        for (const sel of selections) {
+          let functionId = Number.isInteger(sel.id) ? sel.id : null;
+          if (!functionId) {
+            const existing = await client.query(
+              'SELECT id FROM functions WHERE LOWER(name) = LOWER($1) LIMIT 1',
+              [sel.name]
+            );
+            functionId = existing.rows.length
+              ? existing.rows[0].id
+              : (await client.query(
+                  `INSERT INTO functions (name, created_at, updated_at)
+                   VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
+                  [sel.name]
+                )).rows[0].id;
+          }
+          await client.query(
+            `INSERT INTO functions_titles (function_id, title_id)
+             SELECT $1, $2
+             WHERE NOT EXISTS (
+               SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2
+             )`,
+            [functionId, s.title_id]
+          );
+        }
+      } else if (s.kind === 'title_function') {
         if (!s.title_id) throw new Error('Suggestion payload missing title');
         // The reviewer may correct the feast at accept time (the matcher's
         // guess is sometimes the wrong feast, or a feast we don't have yet).

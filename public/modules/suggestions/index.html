@@ -122,6 +122,51 @@
 
         function payloadHtml(s) {
             const p = s.payload || {};
+            if (s.kind === 'title_function' && p.multi) {
+                // Divinum Officium multi-function card: a text may have
+                // several genuine uses through the year. Good matches come
+                // preticked; accept links every ticked function.
+                const rows = (p.functions || []).map((f, i) => {
+                    const isSeason = f.level === 'season';
+                    const evidence = isSeason
+                        ? `recurs on ${f.days} days in the season${f.share ? ` (${Math.round(f.share * 100)}% of its appearances)` : ''}`
+                        : `proper of ${f.days} day${f.days === 1 ? '' : 's'}`;
+                    const newBadge = f.new_function
+                        ? ' <span class="badge bg-warning text-dark" title="Not in the catalogue yet — accepting creates it">new feast</span>'
+                        : '';
+                    const seasonBadge = isSeason
+                        ? ' <span class="badge bg-info text-dark">season</span>' : '';
+                    const positions = (f.positions || []).map(escapeHtml).join(' &middot; ');
+                    return `
+                        <div class="form-check mb-1">
+                            <input class="form-check-input fnsel-${s.id}" type="checkbox" id="fnsel-${s.id}-${i}"
+                                data-fnid="${f.function_id || ''}" data-fnname="${escapeHtml(f.function_name)}"
+                                ${f.preselected ? 'checked' : ''}>
+                            <label class="form-check-label" for="fnsel-${s.id}-${i}">
+                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${newBadge}${seasonBadge}
+                                <span class="text-muted ms-1">${evidence}</span>
+                                ${positions ? `<div class="text-muted small">${positions}</div>` : ''}
+                            </label>
+                        </div>`;
+                }).join('');
+                const partBreakdown = (p.part_days && p.part_days.length > 1)
+                    ? p.part_days.map(x => `\u201C${escapeHtml(x.incipit)}\u201D: ${x.days} day${x.days === 1 ? '' : 's'}`).join(' &middot; ')
+                    : '';
+                const citations = (p.citations || []).map(escapeHtml).join('; ');
+                return `
+                    <div class="payload-detail">
+                        <div class="mb-1"><strong>Proposed functions</strong>
+                            <span class="text-muted ms-2">Divinum Officium — tick all that apply; ticked ones are linked on accept</span>
+                        </div>
+                        ${rows}
+                        ${partBreakdown ? `<div class="text-muted">${partBreakdown}</div>` : ''}
+                        ${p.matched_incipit ? `<div class="text-muted">Matched text: <em>${escapeHtml(p.matched_incipit)}</em>${citations ? ` <span class="badge bg-light text-dark">${citations}</span>` : ''}</div>` : ''}
+                        <div class="mt-2" style="max-width:480px">
+                            <label class="form-label small mb-1" for="fnextra-${s.id}">Add another function (optional — unknown names are created)</label>
+                            <input type="text" class="form-control form-control-sm" id="fnextra-${s.id}" list="functionsDatalist" placeholder="Feast / function name">
+                        </div>
+                    </div>`;
+            }
             if (s.kind === 'title_function') {
                 const feasts = (p.feasts || []).map(escapeHtml).join('; ');
                 const genres = (p.genres || []).map(escapeHtml).join(', ');
@@ -494,8 +539,30 @@
                 const fields = {};
                 const perfInput = document.getElementById('perf-' + id);
                 if (perfInput) fields.performer_name = perfInput.value.trim();
-                const fnInput = document.getElementById('fn-' + id);
-                if (fnInput) fields.function_name = fnInput.value.trim();
+                const fnChecks = document.querySelectorAll('.fnsel-' + id);
+                if (fnChecks.length) {
+                    // Multi-function card: send every ticked function (plus
+                    // the free-text extra, if any).
+                    const selections = [];
+                    fnChecks.forEach(cb => {
+                        if (!cb.checked) return;
+                        selections.push({
+                            function_id: cb.dataset.fnid ? parseInt(cb.dataset.fnid, 10) : null,
+                            function_name: cb.dataset.fnname,
+                        });
+                    });
+                    const extra = document.getElementById('fnextra-' + id);
+                    if (extra && extra.value.trim()) selections.push({ function_name: extra.value.trim() });
+                    if (!selections.length) {
+                        if (card) card.style.opacity = '1';
+                        alert('Tick at least one function (or add one) before accepting.');
+                        return;
+                    }
+                    fields.function_selections = selections;
+                } else {
+                    const fnInput = document.getElementById('fn-' + id);
+                    if (fnInput) fields.function_name = fnInput.value.trim();
+                }
                 const langSelect = document.getElementById('lang-' + id);
                 if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
                 const gtDir = document.querySelector(`input[name="gtdir-${id}"]:checked`);
