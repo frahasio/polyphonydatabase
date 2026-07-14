@@ -134,19 +134,20 @@ export function buildCorpus(functionNames) {
     return {}; // unmapped ferial day: counts toward generic-days only
   }
 
-  const addUnit = (text, place) => {
+  const addUnit = (text, place, citation) => {
     const norm = foldSpelling(normalizeIncipit(text));
     const words = norm.split(' ').filter(Boolean);
     if (words.length < 2) return;
     const key = words.slice(0, 12).join(' ');
     if (!units.has(key)) {
-      units.set(key, { sample: text.slice(0, 120), words: words.slice(0, 12), days: new Set(), places: [] });
+      units.set(key, { sample: text.slice(0, 120), words: words.slice(0, 12), days: new Set(), places: [], citation: citation || '' });
       const first2 = words.slice(0, 2).join(' ');
       if (!index.has(first2)) index.set(first2, []);
       index.get(first2).push(key);
     }
     const u = units.get(key);
     u.days.add(place.day);
+    if (!u.citation && citation) u.citation = citation;
     if ((place.fn || place.newName) && u.places.length < 40) u.places.push(place);
   };
 
@@ -171,10 +172,20 @@ export function buildCorpus(functionNames) {
         let all = lines;
         const refLine = lines.find((l) => l.trim().startsWith('@'));
         if (refLine) all = lines.flatMap((l) => (l.trim().startsWith('@') ? resolveRef(l.trim(), name) : [l]));
+        // Scripture citations are short "!Ps 136:1" lines preceding the
+        // text — attach the most recent one to each unit so reviewers can
+        // see at a glance that a match is e.g. a psalm verse.
+        let lastCitation = '';
         for (const line of all) {
+          const raw = String(line).trim();
+          if (raw.startsWith('!')) {
+            const c = raw.replace(/^!+\s*/, '');
+            if (/^[A-Za-z0-9 .]{1,30}\d/.test(c) && c.length <= 40) lastCitation = c;
+            continue;
+          }
           const t = cleanLine(line);
           if (t && t.split(' ').length >= 2) {
-            addUnit(t, { fn: cls.fn || null, newName: cls.newName || null, position: name, day: rel, dayLabel: label || path.basename(rel, '.txt') });
+            addUnit(t, { fn: cls.fn || null, newName: cls.newName || null, position: name, day: rel, dayLabel: label || path.basename(rel, '.txt') }, lastCitation);
           }
         }
       }

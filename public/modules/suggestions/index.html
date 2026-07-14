@@ -136,6 +136,13 @@
                     ? `<span class="text-muted ms-2">Divinum Officium${p.days ? ` — text found on ${p.days} day${p.days === 1 ? '' : 's'} of the year` : ''}</span>`
                     : `<span class="text-muted ms-2">${p.concordances || 0} of ${p.total_results || 0} Cantus concordances</span>`;
                 const positions = (p.positions || []).map(escapeHtml).join(' &middot; ');
+                // Per-part specificity: shows WHICH words carry the claim
+                // (a responsory VERSE unique to one day vs a famous psalm
+                // opening found on several).
+                const partBreakdown = (p.part_days && p.part_days.length > 1)
+                    ? p.part_days.map(x => `\u201C${escapeHtml(x.incipit)}\u201D: ${x.days} day${x.days === 1 ? '' : 's'}`).join(' &middot; ')
+                    : '';
+                const citations = (p.citations || []).map(escapeHtml).join('; ');
                 return `
                     <div class="payload-detail">
                         <div><strong>Proposed function:</strong>
@@ -143,7 +150,8 @@
                             ${evidence}
                         </div>
                         ${positions ? `<div class="text-muted">${positions}</div>` : ''}
-                        ${p.matched_incipit && isDO ? `<div class="text-muted">Matched text: <em>${escapeHtml(p.matched_incipit)}</em></div>` : ''}
+                        ${partBreakdown ? `<div class="text-muted">${partBreakdown}</div>` : ''}
+                        ${p.matched_incipit && isDO ? `<div class="text-muted">Matched text: <em>${escapeHtml(p.matched_incipit)}</em>${citations ? ` <span class="badge bg-light text-dark">${citations}</span>` : ''}</div>` : ''}
                         ${feasts ? `<div class="text-muted">Cantus feasts: ${feasts}</div>` : ''}
                         ${genres ? `<div class="text-muted">Genres: ${genres}</div>` : ''}
                         ${p.cantus_id ? `<div><a href="https://cantusindex.org/id/${encodeURIComponent(p.cantus_id)}" target="_blank" rel="noopener">Cantus ID ${escapeHtml(p.cantus_id)} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}

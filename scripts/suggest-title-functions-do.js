@@ -64,7 +64,7 @@ async function main() {
     if (!parts.length) continue;
 
     // key 'fn:{name}' or 'new:{name}' -> { functionId, proposedName,
-    //   minDays, positions:Set, matched:Set }
+    //   minDays, positions:Set, matched:Set, citations:Set, partDays:Map }
     const tally = new Map();
     for (const part of parts) {
       const units = matchPart(part, corpus);
@@ -87,7 +87,7 @@ async function main() {
             key = `new:${place.newName.toLowerCase()}`; functionId = null; proposedName = place.newName;
           } else continue;
           if (!tally.has(key)) {
-            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), matched: new Set() });
+            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), matched: new Set(), citations: new Set(), partDays: new Map() });
           }
           const t = tally.get(key);
           t.minDays = Math.min(t.minDays, specificity);
@@ -95,6 +95,10 @@ async function main() {
             t.positions.add(`${place.position} — ${place.dayLabel}`);
           }
           t.matched.add(unit.sample);
+          if (unit.citation && t.citations.size < 4) t.citations.add(unit.citation);
+          // Per-part specificity, so the card can show WHICH words carry
+          // the claim ("Si oblitus fuero: 1 day" vs "Super flumina: 5").
+          if (!t.partDays.has(part) || t.partDays.get(part) > specificity) t.partDays.set(part, specificity);
         }
       }
     }
@@ -133,6 +137,8 @@ async function main() {
             new_function: isNew || undefined,
             positions: [...t.positions],
             matched_incipit: [...t.matched][0] || null,
+            citations: [...t.citations],
+            part_days: [...t.partDays.entries()].map(([incipit, days]) => ({ incipit, days })),
             days: t.minDays,
           }),
           score,
