@@ -142,8 +142,12 @@ queue.
   `STRIPE_WEBHOOK_SECRET`, `YOUTUBE_API_KEY`, `SPOTIFY_CLIENT_ID` /
   `SPOTIFY_CLIENT_SECRET`.
 - **Scheduler jobs** (Heroku Scheduler add-on): run
- `node scripts/suggest-title-functions.js <n>` (no hard API quota; big
- batches fine), `node scripts/suggest-recordings.js 80 youtube` (YouTube
+ `node scripts/suggest-title-functions-do.js` (Divinum Officium matcher —
+ local corpus, no API, ~6 min full sweep, idempotent; a daily run picks up
+ newly catalogued titles. The Cantus job `suggest-title-functions.js` was
+ RETIRED July 2026 as inferior — DO's positional evidence and generic-text
+ filtering superseded it; the script remains for occasional manual use on
+ titles DO can't match), `node scripts/suggest-recordings.js 80 youtube` (YouTube
  caps at ~100 searches/day, resets daily — each search.list costs 100 of
  the 10,000 units; on quota exhaustion the run stops WITHOUT burning the
  checkpoint), `node scripts/suggest-recordings.js 500 spotify` (no hard
