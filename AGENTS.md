@@ -118,21 +118,23 @@ queue.
   `SPOTIFY_CLIENT_SECRET`.
 - **Scheduler jobs** (Heroku Scheduler add-on): run
  `node scripts/suggest-title-functions.js <n>` (no hard API quota; big
- batches fine), `node scripts/suggest-recordings.js <n>` (YouTube caps at
- ~100 searches/day and resets daily, so daily-moderate beats big-infrequent;
- Spotify has no hard cap and the script stops YouTube cleanly once quota is
- hit) and `node scripts/suggest-composer-bios.js <n>` (Wikidata, polite
- ~2 req/s, no hard quota; ~900 composers missing data so a daily 50 clears
- the backlog in weeks). `suggest-title-languages.js`,
- `suggest-title-merges.js` and `suggest-group-titles.js` are cheap manual
- runs, not scheduled.
+ batches fine), `node scripts/suggest-recordings.js 80 youtube` (YouTube
+ caps at ~100 searches/day, resets daily — each search.list costs 100 of
+ the 10,000 units; on quota exhaustion the run stops WITHOUT burning the
+ checkpoint), `node scripts/suggest-recordings.js 500 spotify` (no hard
+ cap; per-platform checkpoints `groups.youtube_checked_at` /
+ `spotify_checked_at`, migration 017) and
+ `node scripts/suggest-composer-bios.js 50` (Wikidata, polite ~2 req/s, no
+ hard quota). `suggest-title-languages.js`, `suggest-title-merges.js` and
+ `suggest-group-titles.js` are cheap manual runs, not scheduled.
 - **Matcher tuning:** the Cantus feast->function map in
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.
  Recording scoring is composer surname (mandatory) + fraction of title
  words matched; threshold is `RECORDINGS_MIN_SCORE` env (default 0.7).
- Both matchers checkpoint (`titles.cantus_checked_at`,
- `groups.recordings_checked_at`) so runs advance instead of re-searching
+ The matchers checkpoint (`titles.cantus_checked_at`,
+ `groups.youtube_checked_at` / `spotify_checked_at`,
+ `composers.wikidata_checked_at`) so runs advance instead of re-searching
  the same block — the July 2026 recording-suggestion stall was exactly
  that: no checkpoint meant the same 80 unmatchable lowest-id groups were
  re-searched daily. To re-check everything after tuning, NULL the relevant

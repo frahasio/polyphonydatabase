@@ -1,21 +1,25 @@
 /**
  * Daily matcher: find candidate recordings for catalogue groups that have
- * none, by searching YouTube and Spotify for "composer + title". Writes
+ * none, by searching YouTube and/or Spotify for "composer + title". Writes
  * scored rows to the suggestions table for human review — nothing is applied
  * automatically.
  *
- * Usage: node scripts/suggest-recordings.js [batchSize]
- * The YouTube Data API free quota (10,000 units/day, 100 per search) is the
- * limiter, so batchSize defaults to 80 (~8,000 units). Spotify is cheap and
- * runs for the same groups. Intended for a daily Heroku Scheduler run.
+ * Usage: node scripts/suggest-recordings.js [batchSize] [platform]
+ *   platform: youtube | spotify | both (default both)
+ *
+ * Each platform has its OWN checkpoint (groups.youtube_checked_at /
+ * spotify_checked_at) so they can run on separate schedules: YouTube's free
+ * quota is a hard ~100 searches/day (each search.list costs 100 of the
+ * 10,000 daily units), so its job should stay at batch <= 80; Spotify has
+ * no comparable cap and can sweep in batches of several hundred.
+ * Recommended Scheduler jobs:
+ *   node scripts/suggest-recordings.js 80 youtube
+ *   node scripts/suggest-recordings.js 500 spotify
  */
 import { pool } from '../src/db.js';
 
-// YouTube's free quota (~100 searches/day) is the real limiter and resets
-// daily; Spotify has no comparable hard cap. Big batches are allowed — once
-// YouTube's quota is exhausted we stop calling it and let Spotify carry the
-// rest of the run.
 const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 2000);
+const PLATFORM = ['youtube', 'spotify', 'both'].includes(process.argv[3]) ? process.argv[3] : 'both';
 // Surname must always match; MIN_SCORE applies to the fraction of distinctive
 // title words found in the candidate text. 0.7 keeps the "Missa pro
 // defunctis offered for a Missa de feria" class of false positive out (a
@@ -164,14 +168,13 @@ async function insertSuggestion(kind, groupId, payload, score, source, dedupeKey
   return result.rowCount;
 }
 
-async function main() {
-  // recordings_checked_at is set for EVERY processed group (matched or not)
-  // so daily runs advance through the catalogue instead of re-searching the
-  // same block of unmatchable low-id groups forever. YouTube quota (~100
-  // searches/day) is the scarce resource, so spend it on the groups most
-  // likely to have recordings first: those with published editions, then
-  // those with the most settings.
-  const groups = await pool.query(`
+// The platform's checkpoint column is set for EVERY processed group (matched
+// or not) so runs advance through the catalogue instead of re-searching the
+// same block of unmatchable low-id groups forever. Quota is spent on the
+// groups most likely to have recordings first: those with published
+// editions, then those with the most settings.
+async function candidates(checkpointColumn, batch) {
+  return pool.query(`
     SELECT g.id, g.display_title,
       (
         SELECT string_agg(DISTINCT comp.name, ', ')
@@ -181,7 +184,7 @@ async function main() {
         WHERE c.group_id = g.id
       ) AS composers
     FROM groups g
-    WHERE g.recordings_checked_at IS NULL
+    WHERE g.${checkpointColumn} IS NULL
       AND NOT EXISTS (SELECT 1 FROM recordings r WHERE r.group_id = g.id)
       AND EXISTS (
         SELECT 1 FROM compositions c
@@ -193,19 +196,21 @@ async function main() {
              (SELECT COUNT(*) FROM compositions c WHERE c.group_id = g.id) DESC,
              g.id
     LIMIT $1
-  `, [BATCH]);
+  `, [batch]);
+}
 
-  console.log(`Checking ${groups.rows.length} groups without recordings...`);
+const searchQuery = (g) => `${g.composers.split(';')[0]} ${g.display_title}`.slice(0, 180);
+
+async function runYouTube(batch) {
+  const groups = await candidates('youtube_checked_at', batch);
+  console.log(`[youtube] Checking ${groups.rows.length} groups without recordings...`);
   let inserted = 0;
-
   for (const g of groups.rows) {
-    // Mark as searched up front (even if the APIs fail midway).
-    await pool.query('UPDATE groups SET recordings_checked_at = NOW() WHERE id = $1', [g.id]);
+    // Quota gone: stop WITHOUT marking, so tomorrow's run picks these up.
+    if (youtubeExhausted) break;
+    await pool.query('UPDATE groups SET youtube_checked_at = NOW() WHERE id = $1', [g.id]);
     if (!g.composers) continue;
-    const primaryComposer = g.composers.split(',')[0].trim() + (g.composers.includes(',') ? '' : '');
-    const query = `${g.composers.split(';')[0]} ${g.display_title}`.slice(0, 180);
-
-    // YouTube
+    const query = searchQuery(g);
     try {
       const yt = await searchYouTube(query);
       const scored = yt
@@ -224,8 +229,20 @@ async function main() {
     } catch (err) {
       console.warn(`  group ${g.id} youtube: ${err.message}`);
     }
+    await sleep(300);
+  }
+  console.log(`[youtube] Done. Inserted ${inserted} suggestions.`);
+  return inserted;
+}
 
-    // Spotify
+async function runSpotify(batch) {
+  const groups = await candidates('spotify_checked_at', batch);
+  console.log(`[spotify] Checking ${groups.rows.length} groups without recordings...`);
+  let inserted = 0;
+  for (const g of groups.rows) {
+    await pool.query('UPDATE groups SET spotify_checked_at = NOW() WHERE id = $1', [g.id]);
+    if (!g.composers) continue;
+    const query = searchQuery(g);
     try {
       const sp = await searchSpotify(query);
       const scored = sp
@@ -240,6 +257,8 @@ async function main() {
         inserted += await insertSuggestion('recording_spotify', g.id, {
           url: best.t.url,
           track_title: best.t.title,
+          artists: best.t.artists.slice(0, 6),
+          album: best.t.album || null,
           performer_name: performer,
           duration: fmtDuration(best.t.durationMs),
           matched_query: query,
@@ -248,11 +267,17 @@ async function main() {
     } catch (err) {
       console.warn(`  group ${g.id} spotify: ${err.message}`);
     }
-
     await sleep(300);
   }
+  console.log(`[spotify] Done. Inserted ${inserted} suggestions.`);
+  return inserted;
+}
 
-  console.log(`Done. Inserted ${inserted} recording suggestions.`);
+async function main() {
+  let inserted = 0;
+  if (PLATFORM === 'youtube' || PLATFORM === 'both') inserted += await runYouTube(BATCH);
+  if (PLATFORM === 'spotify' || PLATFORM === 'both') inserted += await runSpotify(BATCH);
+  console.log(`Done. Inserted ${inserted} recording suggestions in total.`);
   await pool.end();
 }
 

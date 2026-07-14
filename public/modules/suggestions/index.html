@@ -246,11 +246,15 @@
             let embedHtml = '';
             if (ytEmbed) embedHtml = `<iframe class="yt-embed mt-2" loading="lazy" src="${escapeHtml(ytEmbed)}" allowfullscreen></iframe>`;
             else if (spEmbed) embedHtml = `<iframe class="sp-embed mt-2" loading="lazy" src="${escapeHtml(spEmbed)}" allow="encrypted-media"></iframe>`;
+            // Full metadata as text — the Spotify embed truncates/scrolls long
+            // classical track names, so never rely on it for identification.
+            const artistsLine = (p.artists && p.artists.length) ? p.artists.map(escapeHtml).join(', ') : '';
             return `
                 <div class="payload-detail">
                     <div><strong>${escapeHtml(p.track_title || p.video_title || 'Recording')}</strong>
                         ${p.duration ? ` <span class="text-muted">(${escapeHtml(p.duration)})</span>` : ''}
                     </div>
+                    ${artistsLine ? `<div class="text-muted">${artistsLine}${p.album ? ` — <em>${escapeHtml(p.album)}</em>` : ''}</div>` : (p.album ? `<div class="text-muted"><em>${escapeHtml(p.album)}</em></div>` : '')}
                     ${url ? `<div><a href="${url}" target="_blank" rel="noopener">${url} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
                     ${embedHtml}
                     <div class="mt-2" style="max-width:480px">
