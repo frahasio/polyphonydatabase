@@ -239,12 +239,23 @@ async function runSpotify(batch) {
   const groups = await candidates('spotify_checked_at', batch);
   console.log(`[spotify] Checking ${groups.rows.length} groups without recordings...`);
   let inserted = 0;
+  // Spotify's undocumented rolling rate limit (~180 req/min for
+  // client-credentials apps) manifests as sustained 502 bursts, so pace at
+  // ~55/min and bail out of the run after repeated consecutive failures —
+  // unmarked groups are simply picked up next run.
+  let consecutiveErrors = 0;
   for (const g of groups.rows) {
-    await pool.query('UPDATE groups SET spotify_checked_at = NOW() WHERE id = $1', [g.id]);
-    if (!g.composers) continue;
+    if (!g.composers) {
+      await pool.query('UPDATE groups SET spotify_checked_at = NOW() WHERE id = $1', [g.id]);
+      continue;
+    }
     const query = searchQuery(g);
     try {
       const sp = await searchSpotify(query);
+      consecutiveErrors = 0;
+      // Mark checked only after a successful search, so API failures don't
+      // permanently skip the group.
+      await pool.query('UPDATE groups SET spotify_checked_at = NOW() WHERE id = $1', [g.id]);
       const scored = sp
         .map((t) => ({ t, score: scoreCandidate(g.display_title, g.composers, `${t.title} ${t.artists.join(' ')} ${t.album}`) }))
         .filter((x) => x.score >= MIN_SCORE)
@@ -266,8 +277,14 @@ async function runSpotify(batch) {
       }
     } catch (err) {
       console.warn(`  group ${g.id} spotify: ${err.message}`);
+      consecutiveErrors++;
+      if (consecutiveErrors >= 10) {
+        console.warn('[spotify] 10 consecutive failures — Spotify is rate-limiting or down; stopping this run. Unchecked groups carry over.');
+        break;
+      }
+      await sleep(5000); // back off harder after a failure
     }
-    await sleep(300);
+    await sleep(1100);
   }
   console.log(`[spotify] Done. Inserted ${inserted} suggestions.`);
   return inserted;
