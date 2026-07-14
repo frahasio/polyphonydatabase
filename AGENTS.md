@@ -34,8 +34,17 @@ deployed. Also shipped since:
   or groups with editions/recordings; `saveSourceWithInclusions` now deletes
   removed inclusions inside the save transaction.
 - Migration runner + Heroku release phase.
-- Review queue (`/modules/suggestions`) fed by six matchers:
+- Review queue (`/modules/suggestions`) fed by seven matchers:
  `scripts/suggest-title-functions.js` (Cantus Index title->function),
+ `scripts/suggest-title-functions-do.js` (Divinum Officium title->function:
+ indexes the vendored data/divinumofficium corpus — every Mass proper +
+ Office hour, Latin — and matches title incipits as word-for-word prefixes
+ of liturgical text units; knows the exact POSITION (Introit of Advent I,
+ Vespers antiphon of St Andrew...); texts on >= DO_GENERIC_DAYS (8) days
+ are treated as generic and never suggested; new-feast proposals only from
+ day-unique texts; all local, no API, idempotent via the same tf:/tfn:
+ dedupe keys as Cantus so re-runs and overlaps are safe; shared feast map
+ + normalization now live in scripts/lib/matching.js),
  `scripts/suggest-recordings.js` (YouTube + Spotify),
  `scripts/suggest-title-merges.js` (duplicate titles — WORD ORDER IS
  SIGNIFICANT: only identical-after-normalization or word-for-word-prefix
