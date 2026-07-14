@@ -167,7 +167,10 @@ async function insertSuggestion(kind, groupId, payload, score, source, dedupeKey
 async function main() {
   // recordings_checked_at is set for EVERY processed group (matched or not)
   // so daily runs advance through the catalogue instead of re-searching the
-  // same block of unmatchable low-id groups forever.
+  // same block of unmatchable low-id groups forever. YouTube quota (~100
+  // searches/day) is the scarce resource, so spend it on the groups most
+  // likely to have recordings first: those with published editions, then
+  // those with the most settings.
   const groups = await pool.query(`
     SELECT g.id, g.display_title,
       (
@@ -186,7 +189,9 @@ async function main() {
           AND c.composer_id_list IS NOT NULL
           AND array_length(array_remove(c.composer_id_list, 23), 1) > 0
       )
-    ORDER BY g.id
+    ORDER BY (SELECT COUNT(*) FROM editions e WHERE e.group_id = g.id) DESC,
+             (SELECT COUNT(*) FROM compositions c WHERE c.group_id = g.id) DESC,
+             g.id
     LIMIT $1
   `, [BATCH]);
 
