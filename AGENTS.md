@@ -48,7 +48,9 @@ deployed. Also shipped since:
  after 1750; skips suggestions that would change nothing; supports
  --dry-run) and `scripts/suggest-group-titles.js` (groups whose
  display_title matches none of their compositions' titles; reviewer picks
- from the group's actual titles). Accept semantics: recordings/functions
+ from the group's actual titles, or — when the group has a single distinct
+ composition title — can flip the direction and retitle the composition(s)
+ to the display title, `apply_to_compositions`, feast links carried over). Accept semantics: recordings/functions
  write real rows; title_merge merges (reviewer picks survivor);
  title_language sets `titles.language`; composer_bio APPLIES the Wikidata
  values — cited, so they win over ours where they differ (green = fills

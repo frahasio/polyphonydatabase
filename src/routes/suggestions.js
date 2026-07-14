@@ -327,18 +327,63 @@ router.post('/:id/:action', async (req, res) => {
         );
       } else if (s.kind === 'group_title') {
         if (!s.group_id) throw new Error('Suggestion payload missing group');
-        // The reviewer may choose among the group's composition titles; the
-        // chosen text must be one of the offered options (or the proposal).
         const options = Array.isArray(payload.options) ? payload.options : [];
-        const requested = typeof req.body.display_title === 'string' ? req.body.display_title : '';
-        const chosen = (requested && options.concat(payload.proposed_title).includes(requested))
-          ? requested
-          : String(payload.proposed_title || '');
-        if (!chosen) throw new Error('No display title given');
-        await client.query(
-          'UPDATE groups SET display_title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-          [chosen, s.group_id]
-        );
+        if (req.body.apply_to_compositions === true) {
+          // Reverse direction: the display title is the corrected one (common
+          // for anons where the source title keeps historical tagging), so
+          // retitle the group's composition(s) to match it. Only offered when
+          // the group has a single distinct composition title.
+          if (options.length !== 1) throw new Error('Group has multiple composition titles');
+          const targetText = String(payload.current_title || '').trim();
+          if (!targetText) throw new Error('No display title recorded');
+          const oldTitle = await client.query(
+            'SELECT id, language FROM titles WHERE text = $1',
+            [options[0]]
+          );
+          let targetId;
+          const existing = await client.query('SELECT id FROM titles WHERE text = $1', [targetText]);
+          if (existing.rows.length) {
+            targetId = existing.rows[0].id;
+          } else {
+            const created = await client.query(
+              `INSERT INTO titles (text, language, created_at, updated_at)
+               VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
+              [targetText, oldTitle.rows.length ? oldTitle.rows[0].language : null]
+            );
+            targetId = created.rows[0].id;
+          }
+          if (oldTitle.rows.length && oldTitle.rows[0].id !== targetId) {
+            // Carry the feast links across so the retitled setting keeps them.
+            // The old title row is untouched — it may be shared by other
+            // groups; orphan cleanup removes it if nothing uses it any more.
+            await client.query(
+              `INSERT INTO functions_titles (function_id, title_id)
+               SELECT ft.function_id, $1 FROM functions_titles ft
+               WHERE ft.title_id = $2
+                 AND NOT EXISTS (
+                   SELECT 1 FROM functions_titles x
+                   WHERE x.function_id = ft.function_id AND x.title_id = $1
+                 )`,
+              [targetId, oldTitle.rows[0].id]
+            );
+          }
+          await client.query(
+            'UPDATE compositions SET title_id = $1, updated_at = CURRENT_TIMESTAMP WHERE group_id = $2',
+            [targetId, s.group_id]
+          );
+        } else {
+          // Normal direction: the reviewer picks which composition title
+          // becomes the group's display title.
+          const requested = typeof req.body.display_title === 'string' ? req.body.display_title : '';
+          const chosen = (requested && options.concat(payload.proposed_title).includes(requested))
+            ? requested
+            : String(payload.proposed_title || '');
+          if (!chosen) throw new Error('No display title given');
+          await client.query(
+            'UPDATE groups SET display_title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [chosen, s.group_id]
+          );
+        }
       } else if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
         const url = String(payload.url || '').trim();
         // The reviewer may correct the performer name at accept time (the API
@@ -398,8 +443,10 @@ router.post('/:id/:action', async (req, res) => {
     }
 
     await client.query('COMMIT');
-    if (newStatus === 'accepted' && s.kind === 'title_merge') {
-      triggerCleanup(true, 'all', 'after title merge (review queue)', 3000);
+    if (newStatus === 'accepted' &&
+        (s.kind === 'title_merge' || (s.kind === 'group_title' && req.body.apply_to_compositions === true))) {
+      // Merges and composition retitles can orphan a title row.
+      triggerCleanup(true, 'all', 'after review-queue title change', 3000);
     }
     res.json({ success: true, status: newStatus });
   } catch (error) {

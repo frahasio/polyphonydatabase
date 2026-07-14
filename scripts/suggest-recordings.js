@@ -83,7 +83,9 @@ async function fetchJson(url, options, tries = 3) {
 async function searchYouTube(query) {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key || youtubeExhausted) return [];
-  const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=' +
+  // A search costs 100 quota units regardless of maxResults, so ask for more
+  // candidates per search — the strict scorer filters them anyway.
+  const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=' +
     encodeURIComponent(query) + '&key=' + key;
   const resp = await fetch(url);
   if (resp.status === 403 || resp.status === 429) {
@@ -125,7 +127,7 @@ async function getSpotifyToken() {
 async function searchSpotify(query) {
   let token = await getSpotifyToken();
   if (!token) return [];
-  const url = 'https://api.spotify.com/v1/search?type=track&limit=5&q=' + encodeURIComponent(query);
+  const url = 'https://api.spotify.com/v1/search?type=track&limit=10&q=' + encodeURIComponent(query);
   let data;
   try {
     data = await fetchJson(url, { headers: { Authorization: 'Bearer ' + token } });

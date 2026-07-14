@@ -199,6 +199,36 @@
                 const options = (p.options && p.options.length ? p.options : [p.proposed_title]).filter(Boolean);
                 const optsHtml = options.map(o =>
                     `<option value="${escapeHtml(o)}" ${o === p.proposed_title ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('');
+                const selectHtml = `
+                            <div class="mt-1 ms-4" style="max-width:440px">
+                                <select class="form-select form-select-sm" id="gt-${s.id}">${optsHtml}</select>
+                            </div>`;
+                // With a single distinct composition title the fix can go the
+                // other way: the display title is the corrected one and the
+                // source title keeps historical tagging — retitle the
+                // composition(s) instead.
+                if (options.length === 1) {
+                    return `
+                        <div class="payload-detail">
+                            <div><strong>Display title doesn't match the composition title.</strong> Choose which way to fix it — Reject keeps both as they are.</div>
+                            <div class="mt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="gtdir-${s.id}" id="gtdir-${s.id}-group" value="group" checked>
+                                    <label class="form-check-label" for="gtdir-${s.id}-group">
+                                        Change the <strong>group display title</strong> to the composition title:
+                                    </label>
+                                    ${selectHtml}
+                                </div>
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="radio" name="gtdir-${s.id}" id="gtdir-${s.id}-comps" value="comps">
+                                    <label class="form-check-label" for="gtdir-${s.id}-comps">
+                                        Keep <strong>${escapeHtml(p.current_title)}</strong> and retitle the composition(s) to match it
+                                        <span class="text-muted">(feast links carry over; the old title is cleaned up if unused)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>`;
+                }
                 return `
                     <div class="payload-detail">
                         <div><strong>Display title doesn't match any composition title.</strong></div>
@@ -419,8 +449,13 @@
                 if (fnInput) fields.function_name = fnInput.value.trim();
                 const langSelect = document.getElementById('lang-' + id);
                 if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
-                const gtSelect = document.getElementById('gt-' + id);
-                if (gtSelect) fields.display_title = gtSelect.value;
+                const gtDir = document.querySelector(`input[name="gtdir-${id}"]:checked`);
+                if (gtDir && gtDir.value === 'comps') {
+                    fields.apply_to_compositions = true;
+                } else {
+                    const gtSelect = document.getElementById('gt-' + id);
+                    if (gtSelect) fields.display_title = gtSelect.value;
+                }
                 const primaryRadio = document.querySelector(`input[name="primary-${id}"]:checked`);
                 if (primaryRadio) fields.primary_title_id = parseInt(primaryRadio.value, 10);
                 if (Object.keys(fields).length) body = JSON.stringify(fields);
