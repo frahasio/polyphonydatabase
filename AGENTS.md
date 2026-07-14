@@ -43,10 +43,14 @@ deployed. Also shipped since:
  pieces; run manually with [maxPairs] [--dry-run]),
  `scripts/suggest-title-languages.js` (stopword/suffix heuristic for
  untagged titles, no API; supports --dry-run),
- `scripts/suggest-composer-bios.js` (Wikidata birth/death years + places;
- checkpoint `composers.wikidata_checked_at`; rejects modern namesakes born
- after 1750; skips suggestions that would change nothing; supports
- --dry-run) and `scripts/suggest-group-titles.js` (groups whose
+ `scripts/suggest-composer-bios.js` (v2: identity + life dates from the
+ RISM person authority — native records only, federated external/diamm
+ ids 500 on JSON fetch — with birth/death PLACES from the Wikidata item
+ RISM itself cross-references, date-checked; records `composers.rism_id`
+ + `wikidata_id` on accept; checkpoint `composers.wikidata_checked_at`,
+ name kept from v1; rejects born-after-1750 namesakes; skips no-op
+ suggestions; supports --dry-run. Grove has no API — RISM is the
+ authoritative alternative) and `scripts/suggest-group-titles.js` (groups whose
  display_title matches none of their compositions' titles; reviewer picks
  from the group's actual titles, or — when the group has a single distinct
  composition title — can flip the direction and retitle the composition(s)
