@@ -212,6 +212,10 @@ async function candidates(checkpointColumn, batch) {
 const searchQuery = (g) => `${g.composers.split(';')[0]} ${g.display_title}`.slice(0, 180);
 
 async function runYouTube(batch) {
+  if (!process.env.YOUTUBE_API_KEY) {
+    console.error('[youtube] YOUTUBE_API_KEY is not set — refusing to burn checkpoints without searching.');
+    return 0;
+  }
   const groups = await candidates('youtube_checked_at', batch);
   console.log(`[youtube] Checking ${groups.rows.length} groups without recordings...`);
   let inserted = 0;
@@ -246,6 +250,10 @@ async function runYouTube(batch) {
 }
 
 async function runSpotify(batch) {
+  if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+    console.error('[spotify] SPOTIFY_CLIENT_ID/SECRET not set — refusing to burn checkpoints without searching.');
+    return 0;
+  }
   const groups = await candidates('spotify_checked_at', batch);
   console.log(`[spotify] Checking ${groups.rows.length} groups without recordings...`);
   let inserted = 0;
