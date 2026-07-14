@@ -28,10 +28,16 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DO_DIR = path.join(ROOT, 'data', 'divinumofficium');
 
-// A text unit appearing on this many distinct days is generic (ordinary
-// chants, ferial psalmody, ubiquitous antiphons) and is never suggested.
+// An INCIPIT found on this many distinct days (union across every text
+// unit that opens with it) is generic (ordinary chants, ferial psalmody,
+// ubiquitous antiphons) and is never suggested.
 const GENERIC_DAYS = parseInt(process.env.DO_GENERIC_DAYS, 10) || 8;
-const MAX_SUGGESTIONS_PER_TITLE = 3;
+// New-feast proposals only when the incipit is this specific: shared texts
+// must not spawn a new feast for every day that borrows them.
+const NEW_FEAST_MAX_DAYS = parseInt(process.env.DO_NEW_FEAST_MAX_DAYS, 10) || 3;
+// A text may genuinely be proper to several days (Sunday + saint + feria) —
+// suggest ALL of them, not just the most specific.
+const MAX_SUGGESTIONS_PER_TITLE = 6;
 const MAX_POSITIONS_IN_PAYLOAD = 6;
 // Units are indexed on their opening words; incipits shorter than this only
 // match if they cover the whole unit (guards "O sacrum" style stubs).
@@ -264,23 +270,30 @@ async function main() {
     //   minDays, positions:Set, matched:Set }
     const tally = new Map();
     for (const part of parts) {
-      for (const unit of matchPart(part, corpus)) {
-        if (unit.days.size >= GENERIC_DAYS) continue; // generic text
+      const units = matchPart(part, corpus);
+      if (!units.length) continue;
+      // Specificity of the INCIPIT: union of days across every unit that
+      // opens with it. Different continuations of the same opening words
+      // (Gradual verse vs Communio) must count as one shared text, or a
+      // widely-used incipit masquerades as "proper to 1 day".
+      const unionDays = new Set();
+      for (const u of units) for (const d of u.days) unionDays.add(d);
+      const specificity = unionDays.size;
+      if (specificity >= GENERIC_DAYS) continue; // generic incipit
+
+      for (const unit of units) {
         for (const place of unit.places) {
           let key, functionId, proposedName;
           if (place.fn && functionIds.has(place.fn)) {
             key = `fn:${place.fn}`; functionId = functionIds.get(place.fn); proposedName = place.fn;
-          } else if (place.newName && unit.days.size === 1) {
-            // Propose CREATING a feast only from texts unique to that one
-            // day — texts borrowed between several saints' propers must not
-            // spawn a new feast for each borrower.
+          } else if (place.newName && specificity <= NEW_FEAST_MAX_DAYS) {
             key = `new:${place.newName.toLowerCase()}`; functionId = null; proposedName = place.newName;
           } else continue;
           if (!tally.has(key)) {
-            tally.set(key, { functionId, proposedName, minDays: unit.days.size, positions: new Set(), matched: new Set() });
+            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), matched: new Set() });
           }
           const t = tally.get(key);
-          t.minDays = Math.min(t.minDays, unit.days.size);
+          t.minDays = Math.min(t.minDays, specificity);
           if (t.positions.size < MAX_POSITIONS_IN_PAYLOAD) {
             t.positions.add(`${place.position} — ${place.dayLabel}`);
           }

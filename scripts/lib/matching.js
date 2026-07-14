@@ -14,7 +14,20 @@ export const FEAST_MAP = new Map(Object.entries({
   'dominica 2 adventus': 'Advent II',
   'dominica 3 adventus': 'Advent III',
   'dominica 4 adventus': 'Advent IV',
+  // Ferias are named "Feria X infra Hebdomadam N ..." — same week, same
+  // function as the Sunday.
+  'hebdomadam 1 adventus': 'Advent I',
+  'hebdomadam 2 adventus': 'Advent II',
+  'hebdomadam 3 adventus': 'Advent III',
+  'hebdomadam 4 adventus': 'Advent IV',
   'adventus': 'Advent',
+  'hebdomadam 1 in quadragesima': 'Lent I',
+  'hebdomadam 2 in quadragesima': 'Lent II',
+  'hebdomadam 3 in quadragesima': 'Lent III',
+  'hebdomadam 4 in quadragesima': 'Lent IV',
+  'hebdomadam passionis': 'Lent V',
+  'hebdomadam 2 post epiphaniam': 'Ordinary Time 2 (Epiphany II)',
+  'hebdomadam 3 post epiphaniam': 'Ordinary Time 3 (Epiphany III)',
   // Pre-Lent and Lent Sundays (Divinum Officium day names)
   'septuagesima': 'Ordinary Time 4 (Septuagesima)',
   'sexagesima': 'Ordinary Time 5 (Sexagesima)',
