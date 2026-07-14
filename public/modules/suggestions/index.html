@@ -196,9 +196,24 @@
                     </div>`;
             }
             if (s.kind === 'group_title') {
-                const options = (p.options && p.options.length ? p.options : [p.proposed_title]).filter(Boolean);
+                // Live data from the server (current composition titles +
+                // current display title), NOT the payload snapshot — titles
+                // may have been edited since the matcher ran.
+                const currentTitle = s.group_title || p.current_title;
+                const options = (s.live_options && s.live_options.length ? s.live_options
+                    : (p.options && p.options.length ? p.options : [p.proposed_title])).filter(Boolean);
+                if (options.includes(currentTitle)) {
+                    return `
+                        <div class="payload-detail">
+                            <div class="text-success"><i class="bi bi-check2-circle"></i>
+                                <strong>Already resolved</strong> — the display title now matches a composition title
+                                (fixed elsewhere since this was flagged). Accept clears this card without changing anything.
+                            </div>
+                        </div>`;
+                }
+                const defaultChoice = options.includes(p.proposed_title) ? p.proposed_title : options[0];
                 const optsHtml = options.map(o =>
-                    `<option value="${escapeHtml(o)}" ${o === p.proposed_title ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('');
+                    `<option value="${escapeHtml(o)}" ${o === defaultChoice ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('');
                 const selectHtml = `
                             <div class="mt-1 ms-4" style="max-width:440px">
                                 <select class="form-select form-select-sm" id="gt-${s.id}">${optsHtml}</select>
@@ -222,7 +237,7 @@
                                 <div class="form-check mt-1">
                                     <input class="form-check-input" type="radio" name="gtdir-${s.id}" id="gtdir-${s.id}-comps" value="comps">
                                     <label class="form-check-label" for="gtdir-${s.id}-comps">
-                                        Keep <strong>${escapeHtml(p.current_title)}</strong> and retitle the composition(s) to match it
+                                        Keep <strong>${escapeHtml(currentTitle)}</strong> and retitle the composition(s) to match it
                                         <span class="text-muted">(feast links carry over; the old title is cleaned up if unused)</span>
                                     </label>
                                 </div>
@@ -232,7 +247,7 @@
                 return `
                     <div class="payload-detail">
                         <div><strong>Display title doesn't match any composition title.</strong></div>
-                        <div class="mt-1">Current: <span class="bio-old">${escapeHtml(p.current_title)}</span></div>
+                        <div class="mt-1">Current: <span class="bio-old">${escapeHtml(currentTitle)}</span></div>
                         <div class="mt-2" style="max-width:480px">
                             <label class="form-label small mb-1" for="gt-${s.id}">New display title (from this group's composition titles) — saved on accept; Reject keeps the current title</label>
                             <select class="form-select form-select-sm" id="gt-${s.id}">${optsHtml}</select>

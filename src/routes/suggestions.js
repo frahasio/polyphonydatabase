@@ -42,8 +42,10 @@ async function enrichWithContext(rows) {
     ed.rows.forEach((r) => { (editionsByGroup[r.group_id] ||= []).push(r); });
 
     const comps = await pool.query(
-      `${compQuery}, c.group_id
-       FROM compositions c LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
+      `${compQuery}, c.group_id, ti.text AS title_text
+       FROM compositions c
+       LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
+       LEFT JOIN titles ti ON ti.id = c.title_id
        WHERE c.group_id = ANY($1)`,
       [groupIds]
     );
@@ -93,6 +95,16 @@ async function enrichWithContext(rows) {
     if (r.group_id) {
       r.editions = editionsByGroup[r.group_id] || [];
       r.compositions = compsByGroup[r.group_id] || [];
+      if (r.kind === 'group_title') {
+        // The payload options are a snapshot from matcher time; titles get
+        // edited, so the card must offer the group's CURRENT composition
+        // titles, most frequent first.
+        const counts = new Map();
+        r.compositions.forEach((c) => {
+          if (c.title_text) counts.set(c.title_text, (counts.get(c.title_text) || 0) + 1);
+        });
+        r.live_options = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+      }
     } else if (r.title_id) {
       r.compositions = compsByTitle[r.title_id] || [];
       r.editions = (editionsByTitle[r.title_id] || []).slice(0, 8);
@@ -327,14 +339,33 @@ router.post('/:id/:action', async (req, res) => {
         );
       } else if (s.kind === 'group_title') {
         if (!s.group_id) throw new Error('Suggestion payload missing group');
-        const options = Array.isArray(payload.options) ? payload.options : [];
+        // Work from the group's CURRENT titles, never the payload snapshot —
+        // titles are routinely edited between matcher run and review.
+        const live = await client.query(
+          `SELECT t.text FROM compositions c JOIN titles t ON t.id = c.title_id
+           WHERE c.group_id = $1 GROUP BY t.text ORDER BY COUNT(*) DESC`,
+          [s.group_id]
+        );
+        const options = live.rows.map((r) => r.text);
+        const grp = await client.query('SELECT display_title FROM groups WHERE id = $1', [s.group_id]);
+        const currentDisplay = grp.rows.length ? grp.rows[0].display_title : null;
+        if (options.includes(currentDisplay) && req.body.apply_to_compositions !== true && !req.body.display_title) {
+          // Mismatch already fixed elsewhere (e.g. via the titles editor) —
+          // accepting just clears the card.
+          await client.query(
+            `UPDATE suggestions SET status = 'accepted', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
+            [req.user.id, s.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ success: true, status: 'accepted', note: 'Already resolved; nothing to change.' });
+        }
         if (req.body.apply_to_compositions === true) {
           // Reverse direction: the display title is the corrected one (common
           // for anons where the source title keeps historical tagging), so
           // retitle the group's composition(s) to match it. Only offered when
           // the group has a single distinct composition title.
           if (options.length !== 1) throw new Error('Group has multiple composition titles');
-          const targetText = String(payload.current_title || '').trim();
+          const targetText = String(currentDisplay || '').trim();
           if (!targetText) throw new Error('No display title recorded');
           const oldTitle = await client.query(
             'SELECT id, language FROM titles WHERE text = $1',
@@ -373,11 +404,18 @@ router.post('/:id/:action', async (req, res) => {
           );
         } else {
           // Normal direction: the reviewer picks which composition title
-          // becomes the group's display title.
+          // becomes the group's display title. The choice must be one of the
+          // group's CURRENT titles.
           const requested = typeof req.body.display_title === 'string' ? req.body.display_title : '';
-          const chosen = (requested && options.concat(payload.proposed_title).includes(requested))
-            ? requested
-            : String(payload.proposed_title || '');
+          let chosen = null;
+          if (requested) {
+            if (!options.includes(requested)) {
+              throw new Error('That title is no longer one of this group\'s composition titles — reload the queue.');
+            }
+            chosen = requested;
+          } else {
+            chosen = options.includes(payload.proposed_title) ? payload.proposed_title : options[0];
+          }
           if (!chosen) throw new Error('No display title given');
           await client.query(
             'UPDATE groups SET display_title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
