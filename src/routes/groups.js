@@ -170,6 +170,133 @@ router.post('/merge', async (req, res) => {
     }
 });
 
+// POST /api/admin/groups/move-compositions - Move compositions to another
+// group (existing or newly created). Editions/recordings stay with the
+// source group: they are group-level and there is no reliable way to tell
+// which composition they belong to (the old remove-composition endpoint
+// guessed, which moved the wrong ones).
+router.post('/move-compositions', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { compositionIds, targetGroupId, newGroupTitle } = req.body;
+        if (!Array.isArray(compositionIds) || compositionIds.length === 0) {
+            return res.status(400).json({ error: 'compositionIds array is required' });
+        }
+        if (!targetGroupId && !(newGroupTitle && newGroupTitle.trim())) {
+            return res.status(400).json({ error: 'Either targetGroupId or newGroupTitle is required' });
+        }
+        const ids = compositionIds.map((v) => parseInt(v, 10)).filter(Number.isInteger);
+
+        await client.query('BEGIN');
+
+        const comps = await client.query(
+            'SELECT id, group_id FROM compositions WHERE id = ANY($1) FOR UPDATE',
+            [ids]
+        );
+        if (comps.rows.length !== ids.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'One or more compositions not found' });
+        }
+        const sourceGroupIds = [...new Set(comps.rows.map((r) => r.group_id))];
+
+        let destId = parseInt(targetGroupId, 10) || null;
+        let destTitle;
+        if (destId) {
+            const target = await client.query('SELECT id, display_title FROM groups WHERE id = $1', [destId]);
+            if (!target.rows.length) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Target group not found' });
+            }
+            destTitle = target.rows[0].display_title;
+            if (sourceGroupIds.includes(destId) && sourceGroupIds.length === 1) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Compositions are already in that group' });
+            }
+            // A group represents one setting: after the move, the target must
+            // still be homogeneous in voices/type/tone/even-odd (same rule
+            // the merge endpoint enforces).
+            const compat = await client.query(`
+                SELECT COUNT(DISTINCT c.number_of_voices) as v,
+                       COUNT(DISTINCT c.composition_type_id) as t,
+                       COUNT(DISTINCT c.tone) as tn,
+                       COUNT(DISTINCT c.even_odd) as eo
+                FROM compositions c
+                WHERE c.group_id = $1 OR c.id = ANY($2)
+            `, [destId, ids]);
+            const cpt = compat.rows[0];
+            if (cpt.v > 1 || cpt.t > 1 || cpt.tn > 1 || cpt.eo > 1) {
+                const reasons = [];
+                if (cpt.v > 1) reasons.push('voice counts');
+                if (cpt.t > 1) reasons.push('composition types');
+                if (cpt.tn > 1) reasons.push('tones');
+                if (cpt.eo > 1) reasons.push('even/odd');
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: `Cannot move: the compositions differ from the target group in ${reasons.join(', ')}`,
+                });
+            }
+        } else {
+            destTitle = newGroupTitle.trim();
+            const created = await client.query(
+                `INSERT INTO groups (display_title, created_at, updated_at)
+                 VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
+                [destTitle]
+            );
+            destId = created.rows[0].id;
+        }
+
+        await client.query(
+            'UPDATE compositions SET group_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2)',
+            [destId, ids]
+        );
+
+        // Source groups left with no compositions AND no editions/recordings
+        // are dead weight — remove them immediately rather than waiting for
+        // the cleanup job.
+        const emptied = await client.query(`
+            DELETE FROM groups g
+            WHERE g.id = ANY($1)
+              AND NOT EXISTS (SELECT 1 FROM compositions c WHERE c.group_id = g.id)
+              AND NOT EXISTS (SELECT 1 FROM editions e WHERE e.group_id = g.id)
+              AND NOT EXISTS (SELECT 1 FROM recordings r WHERE r.group_id = g.id)
+            RETURNING g.id
+        `, [sourceGroupIds]);
+
+        await client.query('COMMIT');
+
+        try {
+            await pool.query(
+                `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+                [
+                    req.user?.id || null,
+                    req.user?.email || 'unknown@system.local',
+                    'UPDATE',
+                    'groups',
+                    destId,
+                    JSON.stringify({ action: 'move_compositions', composition_ids: ids, source_group_ids: sourceGroupIds }),
+                    JSON.stringify({ action: 'move_compositions', target_group_id: destId, target_title: destTitle, removed_empty_groups: emptied.rows.map((r) => r.id) }),
+                ]
+            );
+        } catch (auditError) {
+            console.log('Audit logging skipped:', auditError.message);
+        }
+
+        res.json({
+            success: true,
+            targetGroupId: destId,
+            targetTitle: destTitle,
+            removedEmptyGroups: emptied.rows.map((r) => r.id),
+            message: `Moved ${ids.length} composition${ids.length === 1 ? '' : 's'} to "${destTitle}"`,
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Move compositions error:', error);
+        res.status(500).json({ error: 'Failed to move compositions' });
+    } finally {
+        client.release();
+    }
+});
+
 // POST /api/admin/groups/editions - Add edition to a group
 router.post('/editions', async (req, res) => {
     try {
@@ -333,7 +460,7 @@ router.get('/:id', async (req, res) => {
 
         const group = groupResult.rows[0];
 
-        // Get compositions in this group
+        // Get compositions in this group (with their source inclusions)
         const compositionsResult = await pool.query(`
             SELECT c.id, t.text as title, c.number_of_voices,
                    ct.name as composition_type, c.tone, c.tone_connector, c.even_odd,
@@ -341,7 +468,12 @@ router.get('/:id', async (req, res) => {
                      SELECT string_agg(comp.name, ', ' ORDER BY comp.name)
                      FROM composers comp
                      WHERE comp.id = ANY(c.composer_id_list)
-                   ) as composer
+                   ) as composer,
+                   COALESCE((
+                     SELECT json_agg(json_build_object('code', s.code, 'position', i.position) ORDER BY s.code, i.position)
+                     FROM inclusions i JOIN sources s ON i.source_id = s.id
+                     WHERE i.composition_id = c.id
+                   ), '[]'::json) as sources
             FROM compositions c
             LEFT JOIN titles t ON c.title_id = t.id
             LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
@@ -532,9 +664,11 @@ router.get('/', async (req, res) => {
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Main query
+        // Main query. Grouped by g.id ONLY: per-composition attributes are
+        // aggregated into arrays, so heterogeneous groups produce a single
+        // row (previously they appeared once per attribute combination).
         const groupsQuery = `
-            SELECT DISTINCT
+            SELECT
                 g.id,
                 g.display_title,
                 g.created_at,
@@ -542,11 +676,10 @@ router.get('/', async (req, res) => {
                 COUNT(DISTINCT c.id) as composition_count,
                 COUNT(DISTINCT e.id) as edition_count,
                 COUNT(DISTINCT r.id) as recording_count,
-                c.number_of_voices,
-                ct.name as composition_type,
-                c.tone,
-                c.tone_connector,
-                c.even_odd,
+                array_agg(DISTINCT c.number_of_voices) FILTER (WHERE c.number_of_voices IS NOT NULL) as voices_list,
+                array_agg(DISTINCT ct.name) FILTER (WHERE ct.name IS NOT NULL) as types_list,
+                array_agg(DISTINCT c.tone::text) FILTER (WHERE c.tone IS NOT NULL) as tones_list,
+                array_agg(DISTINCT c.even_odd) FILTER (WHERE c.even_odd IS NOT NULL) as even_odd_list,
                 -- Composers for the group
                 (
                   SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
@@ -563,7 +696,7 @@ router.get('/', async (req, res) => {
             LEFT JOIN editions e ON e.group_id = g.id
             LEFT JOIN recordings r ON r.group_id = g.id
             ${whereClause}
-            GROUP BY g.id, g.display_title, g.created_at, g.updated_at, c.number_of_voices, ct.name, c.tone, c.tone_connector, c.even_odd
+            GROUP BY g.id, g.display_title, g.created_at, g.updated_at
             ORDER BY ${sort === 'title' ? 'g.display_title' : 'g.updated_at DESC'}
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
         `;

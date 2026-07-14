@@ -3,2083 +3,729 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Management - Polyphony Database</title>
+    <title>Groups, Editions & Recordings - Polyphony Database</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/admin.css">
     <style>
-        .group-card {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .group-card:hover {
-            border-color: #007bff;
-            box-shadow: 0 2px 8px rgba(0,123,255,0.15);
-        }
-
-        .group-card.selected {
-            border-color: #007bff;
-            background-color: #f8f9ff;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
-        }
-
-        .composition-item {
-            background: #f8f9fa;
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-
-        .composition-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            background: #f8f9fa;
-            margin-top: 0.5rem;
-        }
-
-        .composition-detail {
-            padding: 0.5rem;
-            border-bottom: 1px solid #e9ecef;
-            font-size: 0.85rem;
-            position: relative;
-        }
-
-        .composition-detail:last-child {
-            border-bottom: none;
-        }
-
-        .composition-detail:hover {
-            background: #e9ecef;
-        }
-
-        .composition-remove-btn {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-        }
-
-        .composition-detail:hover .composition-remove-btn {
-            opacity: 1;
-        }
-
-        .source-list {
-            font-size: 0.75rem;
-            color: #6c757d;
-            margin-top: 0.25rem;
-        }
-
-        .source-item {
-            display: inline-block;
-            background: #fff;
-            padding: 0.15rem 0.4rem;
-            border-radius: 3px;
-            margin: 0.1rem 0.2rem 0.1rem 0;
-            border: 1px solid #e9ecef;
-        }
-
-        /* Ensure good text contrast throughout the interface */
-        .col-lg-5, .col-lg-5 * {
-            color: #333 !important;
-        }
-
-        .col-lg-5 .text-muted {
-            color: #6c757d !important;
-        }
-
-        .col-lg-5 h1, .col-lg-5 h2, .col-lg-5 h3, .col-lg-5 h4, .col-lg-5 h5, .col-lg-5 h6 {
-            color: #333 !important;
-        }
-
-        .col-lg-5 p, .col-lg-5 div, .col-lg-5 span {
-            color: #333 !important;
-        }
-
-        .col-lg-5 small.text-muted {
-            color: #6c757d !important;
-        }
-
-        /* Ensure form labels and inputs are readable */
-        .col-lg-5 label {
-            color: #333 !important;
-        }
-
-        .col-lg-5 .form-control {
-            color: #333;
-        }
-
-        /* Button text should remain as designed */
-        .col-lg-5 .btn {
-            color: initial !important;
-        }
-
-        /* Alert text should be readable */
-        .col-lg-5 .alert {
-            color: #333 !important;
-        }
-
-        .col-lg-5 .alert .text-muted {
-            color: #6c757d !important;
-        }
-
-        /* Specific fixes for merge panel content */
-        #mergePrompt, #mergePrompt * {
-            color: #333 !important;
-        }
-
-        #mergeControls, #mergeControls * {
-            color: #333 !important;
-        }
-
-        #mergePrompt .text-muted {
-            color: #6c757d !important;
-        }
-
-        .merge-panel {
-            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-            border: 2px dashed #007bff;
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-            margin: 2rem 0;
-            color: #333;
-        }
-
-        .merge-panel.active {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border-color: #28a745;
-            color: #333;
-        }
-
-        .search-results {
-            max-height: 600px;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        #loadingIndicator {
-            border-top: 1px solid #e9ecef;
-            background: rgba(255, 255, 255, 0.9);
-        }
-
-        .media-form {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-        }
-
-        .compatibility-check {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin: 0.5rem 0;
-            font-size: 0.9rem;
-        }
-
-        .compatibility-check.compatible {
-            background: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-
-        .compatibility-check.incompatible {
-            background: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-
-        .group-info {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-
-        .quick-actions {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .btn-float {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            margin-bottom: 10px;
-        }
-
-        /* Edit group modal styling */
-        #editGroupEditions > div,
-        #editGroupRecordings > div {
-            transition: all 0.2s ease;
-        }
-        
-        #editGroupEditions > div:hover,
-        #editGroupRecordings > div:hover {
-            background-color: #f8f9fa !important;
-        }
-        
-        #editGroupEditions .btn-outline-danger:hover,
-        #editGroupRecordings .btn-outline-danger:hover {
-            transform: scale(1.1);
-        }
-
-        /* Bulk edit controls styling */
-        #bulkEditControls {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 2px dashed rgba(0,123,255,0.3);
-        }
-
-        #bulkEditControls h5 {
-            color: #0056b3;
-        }
+        .result-row { cursor: pointer; }
+        .result-row:hover { background: #f6f8fa; }
+        .result-row.active { background: #eef4ff; border-left: 3px solid #0d6efd; }
+        .result-row .form-check-input { cursor: pointer; }
+        .chip { display: inline-block; background: #eef; border-radius: 3px; padding: 0 0.4rem; margin-right: 0.25rem; font-size: 0.78rem; white-space: nowrap; }
+        .chip.warn { background: #fff3cd; }
+        .chip.zero { background: #f1f3f5; color: #999; }
+        .src-badge { font-size: 0.72rem; background: #f1f3f5; border-radius: 3px; padding: 0 0.3rem; margin-right: 0.2rem; white-space: nowrap; }
+        #resultsList { max-height: calc(100vh - 300px); overflow-y: auto; }
+        #workbench { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+        .wb-section { border-top: 1px solid #e9ecef; padding-top: 0.75rem; margin-top: 1rem; }
+        .wb-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px dotted #eee; }
+        .wb-row:last-child { border-bottom: none; }
+        #selectionBar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1040; background: #212529; color: #fff;
+                        padding: 0.6rem 1rem; display: none; box-shadow: 0 -3px 12px rgba(0,0,0,0.25); }
+        #selectionBar .form-control, #selectionBar .form-select { max-width: 320px; display: inline-block; }
+        body.has-selection { padding-bottom: 130px; }
+        .toast-area { position: fixed; top: 1rem; right: 1rem; z-index: 2000; }
+        .move-panel { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 0.75rem; }
+        .move-target { cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; }
+        .move-target:hover { background: #eef4ff; }
+        .move-target.chosen { background: #cfe2ff; }
+        .inline-add { background: #f8f9fa; border-radius: 6px; padding: 0.5rem; }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4">
-        <div class="row">
-            <!-- Search Panel -->
-            <div class="col-lg-7">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-search me-2"></i>Search Groups
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <input type="text" class="form-control" id="searchInput" 
-                                   placeholder="Search by title or composer..." 
-                                   autocomplete="off">
-                        </div>
-                        <div class="mb-3">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <select class="form-select form-select-sm" id="voicesFilter">
-                                        <option value="">Any voices</option>
-                                        <!-- Populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <select class="form-select form-select-sm" id="composerFilter">
-                                        <option value="">Any composer</option>
-                                        <!-- Populated dynamically -->
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <div class="row g-2">
-                                <div class="col-4">
-                                    <select class="form-select form-select-sm" id="typeFilter">
-                                        <option value="">Any type</option>
-                                        <!-- Populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-4">
-                                    <select class="form-select form-select-sm" id="toneFilter">
-                                        <option value="">Any tone</option>
-                                        <!-- Populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-4">
-                                    <select class="form-select form-select-sm" id="evenOddFilter">
-                                        <option value="">Any even/odd</option>
-                                        <!-- Populated dynamically -->
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Search Results -->
-                        <div class="search-results" id="searchResults">
-                            <div class="text-center text-muted py-4">
-                                <i class="bi bi-search display-4"></i>
-                                <p>Enter search terms to find groups</p>
-                            </div>
-                        </div>
-                        <div id="searchStats" class="text-muted small mt-2" style="display: none;"></div>
-                    </div>
-                </div>
-            </div>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h4 class="fw-bold mb-0">Groups, editions &amp; recordings</h4>
+            <span class="text-muted small">Click a group to work on it &middot; tick boxes to merge or bulk-edit</span>
+        </div>
 
-            <!-- Main Panel -->
+        <div class="row g-3">
+            <!-- ===== Left: search + results ===== -->
             <div class="col-lg-5">
-                <!-- Selected Groups Panel -->
-                <div id="selectedGroupsPanel" style="display: none;">
-                    <div class="selected-groups-display">
-                        <h6><i class="bi bi-check-square me-2"></i>Selected Groups for Merging</h6>
-                        <div id="selectedGroupsList"></div>
-                        <div id="compatibilityStatus"></div>
-                    </div>
-                </div>
-
-                <!-- Merge Panel -->
-                <div class="merge-panel" id="mergePanel">
-                    <div id="mergePrompt">
-                        <i class="bi bi-collection display-4 text-primary mb-3"></i>
-                        <h4>Group Management</h4>
-                        <p class="text-muted">Search and select groups to merge them together or bulk edit their properties. Use action buttons next to individual groups to add editions, recordings, or split compositions.</p>
-                        <small class="text-muted">
-                            <strong>Note:</strong> Groups can only be merged if all compositions have the same number of voices, composition type, tone, and even/odd values. Otherwise, use bulk editing to update multiple groups at once.
-                        </small>
-                    </div>
-
-                    <div id="mergeControls" style="display: none;">
-                        <h5>Merge Selected Groups</h5>
-                        <div class="row">
-                            <div class="col-md-8 mx-auto">
-                                <div class="mb-3">
-                                    <label for="newDisplayTitle" class="form-label">Display Title for Merged Group</label>
-                                    <input type="text" class="form-control" id="newDisplayTitle" 
-                                           placeholder="Enter the new display title...">
+                <div class="card mb-2">
+                    <div class="card-body py-3">
+                        <input type="text" id="searchInput" class="form-control mb-2" placeholder="Search by title (group or composition)&hellip;">
+                        <div class="row g-2">
+                            <div class="col-4"><select id="voicesFilter" class="form-select form-select-sm"><option value="">Any voices</option></select></div>
+                            <div class="col-8"><select id="composerFilter" class="form-select form-select-sm"><option value="">Any composer</option></select></div>
+                            <div class="col-4"><select id="typeFilter" class="form-select form-select-sm"><option value="">Any type</option></select></div>
+                            <div class="col-4"><select id="toneFilter" class="form-select form-select-sm"><option value="">Any tone</option></select></div>
+                            <div class="col-4"><select id="evenOddFilter" class="form-select form-select-sm"><option value="">Any even/odd</option></select></div>
+                            <div class="col-12 d-flex gap-3">
+                                <div class="form-check form-check-sm">
+                                    <input class="form-check-input" type="checkbox" id="hasEditionsFilter">
+                                    <label class="form-check-label small" for="hasEditionsFilter">Has editions</label>
                                 </div>
-                                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                                    <button class="btn btn-success me-md-2" onclick="performMerge()">
-                                        <i class="bi bi-check-lg me-2"></i>Merge Groups
-                                    </button>
-                                    <button class="btn btn-secondary" onclick="clearSelection()">
-                                        <i class="bi bi-x-lg me-2"></i>Clear Selection
-                                    </button>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="hasRecordingsFilter">
+                                    <label class="form-check-label small" for="hasRecordingsFilter">Has recordings</label>
                                 </div>
+                                <span class="ms-auto text-muted small" id="resultCount"></span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Bulk Edit Controls -->
-                    <div id="bulkEditControls" style="display: none;">
-                        <h5>Bulk Edit Selected Groups</h5>
-                        <div class="alert alert-info mb-3">
-                            <i class="bi bi-info-circle me-2"></i>
-                            Apply changes to all selected groups. Leave fields blank to keep existing values unchanged, or select "Remove" to clear the properties.
-                        </div>
-
-                        <!-- Bulk Title Update -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">Display Title</h6>
-                            <div class="mb-3">
-                                <label for="bulkDisplayTitle" class="form-label">New Display Title</label>
-                                <input type="text" class="form-control" id="bulkDisplayTitle" 
-                                       placeholder="Enter new display title for all selected groups...">
-                                <div class="form-text">This will set the same title for all selected groups</div>
-                            </div>
-                        </div>
-
-                        <!-- Bulk Composition Properties -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">Composition Properties</h6>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkMultiCompositionType" class="form-label">Composition Type</label>
-                                    <select class="form-select" id="bulkMultiCompositionType">
-                                        <option value="">Keep existing types</option>
-                                        <option value="REMOVE">Remove all types</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkMultiTone" class="form-label">Tone</label>
-                                    <select class="form-select" id="bulkMultiTone">
-                                        <option value="">Keep existing tones</option>
-                                        <option value="REMOVE">Remove all tones</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkMultiEvenOdd" class="form-label">Even/Odd</label>
-                                    <select class="form-select" id="bulkMultiEvenOdd">
-                                        <option value="">Keep existing values</option>
-                                        <option value="REMOVE">Remove all values</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                            <button class="btn btn-warning me-md-2" onclick="performBulkTitleUpdate()" id="bulkTitleBtn">
-                                <i class="bi bi-pencil me-2"></i>Update Titles
-                            </button>
-                            <button class="btn btn-info me-md-2" onclick="performBulkCompositionUpdate()" id="bulkPropertiesBtn">
-                                <i class="bi bi-arrow-repeat me-2"></i>Update Properties
-                            </button>
-                            <button class="btn btn-secondary" onclick="clearSelection()">
-                                <i class="bi bi-x-lg me-2"></i>Clear Selection
-                            </button>
                         </div>
                     </div>
                 </div>
+                <div id="resultsList" class="list-group">
+                    <div class="text-center text-muted py-5" id="emptyHint">
+                        <i class="bi bi-search display-6"></i>
+                        <p class="mt-2 mb-0">Search or set a filter to list groups</p>
+                    </div>
+                </div>
+            </div>
 
-                <!-- Instructions -->
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Group Management:</strong> 
-                    <ul class="mb-0 mt-2">
-                        <li><strong>Search:</strong> Use filters for voices, composer, type, tone, and even/odd to find specific groups</li>
-                        <li><strong>Multiple Selection:</strong> Select groups to merge (if compatible) or bulk edit their properties</li>
-                        <li><strong>Individual Actions:</strong> Use buttons next to each group to add editions, recordings, or edit properties</li>
-                        <li><strong>Bulk Editing:</strong> Always available when multiple groups are selected - update/remove titles and composition properties across groups</li>
-                    </ul>
+            <!-- ===== Right: workbench ===== -->
+            <div class="col-lg-7">
+                <div id="workbench" class="card">
+                    <div class="card-body" id="workbenchBody">
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-collection display-6"></i>
+                            <p class="mt-2 mb-0">Select a group on the left to see and edit its settings, editions and recordings</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-
-
-    <!-- Add Edition Modal -->
-    <div class="modal fade" id="editionModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>Add Edition: <span id="editionGroupTitle"></span>
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editionForm">
-                        <input type="hidden" id="editionGroupId">
-                        <div class="mb-3">
-                            <label for="editionFileUrl" class="form-label">File URL</label>
-                            <input type="url" class="form-control" id="editionFileUrl" placeholder="https://..." required>
-                            <div class="form-text">URL to the PDF or other edition file</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editionEditor" class="form-label">Editor</label>
-                            <select class="form-select" id="editionEditor">
-                                <option value="">Select editor...</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editionVoicing" class="form-label">Voicing</label>
-                            <input type="text" class="form-control" id="editionVoicing" placeholder="e.g., SATB, SSA, SSATB">
-                            <div class="form-text">Voice arrangement or any descriptive text</div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" onclick="submitEdition()">
-                        <i class="bi bi-plus-lg me-1"></i>Add Edition
-                    </button>
-                </div>
+    <!-- ===== Bottom selection bar (merge / bulk edit) ===== -->
+    <div id="selectionBar">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <strong><span id="selCount">0</span> groups selected</strong>
+            <span id="compatBadge" class="badge bg-secondary"></span>
+            <input type="text" id="mergeTitle" class="form-control form-control-sm" placeholder="Display title for merged group">
+            <button class="btn btn-success btn-sm" id="mergeBtn" onclick="doMerge()"><i class="bi bi-union"></i> Merge groups</button>
+            <button class="btn btn-outline-light btn-sm" onclick="toggleBulkEdit()"><i class="bi bi-pencil-square"></i> Bulk edit&hellip;</button>
+            <button class="btn btn-outline-light btn-sm ms-auto" onclick="clearSelection()">Clear selection</button>
+        </div>
+        <div id="bulkEditPanel" class="mt-2 pt-2 border-top border-secondary" style="display:none">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <input type="text" id="bulkTitle" class="form-control form-control-sm" placeholder="New display title for all selected">
+                <button class="btn btn-warning btn-sm" onclick="doBulkTitles()">Apply title</button>
+                <span class="mx-2 text-secondary">|</span>
+                <select id="bulkType" class="form-select form-select-sm" style="max-width:170px"><option value="">Type: keep</option><option value="__null">Type: remove</option></select>
+                <select id="bulkTone" class="form-select form-select-sm" style="max-width:170px"><option value="">Tone: keep</option><option value="__null">Tone: remove</option></select>
+                <select id="bulkEvenOdd" class="form-select form-select-sm" style="max-width:180px"><option value="">Even/odd: keep</option><option value="__null">Even/odd: remove</option></select>
+                <button class="btn btn-info btn-sm" onclick="doBulkProps()">Apply properties</button>
             </div>
         </div>
     </div>
 
-    <!-- Add Recording Modal -->
-    <div class="modal fade" id="recordingModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-play-circle me-2"></i>Add Recording: <span id="recordingGroupTitle"></span>
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="recordingForm">
-                        <input type="hidden" id="recordingGroupId">
-                        <div class="mb-3">
-                            <label for="recordingFileUrl" class="form-label">File URL</label>
-                            <input type="url" class="form-control" id="recordingFileUrl" placeholder="https://..." required>
-                            <div class="form-text">URL to the audio/video recording file</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="recordingPerformer" class="form-label">Performer</label>
-                            <select class="form-select" id="recordingPerformer">
-                                <option value="">Select performer...</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-info" onclick="submitRecording()">
-                        <i class="bi bi-plus-lg me-1"></i>Add Recording
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Group Modal -->
-    <div class="modal fade" id="editTitleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-pencil me-2"></i>Edit Group
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editTitleForm">
-                        <input type="hidden" id="editTitleGroupId">
-                        
-                        <!-- Display Title Section -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">Display Title</h6>
-                            <div class="mb-3">
-                                <label for="editTitleCurrent" class="form-label">Current Display Title</label>
-                                <input type="text" class="form-control" id="editTitleCurrent" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editTitleNew" class="form-label">New Display Title</label>
-                                <input type="text" class="form-control" id="editTitleNew" placeholder="Enter new display title..." required>
-                                <div class="form-text">This title will be displayed in search results and listings</div>
-                            </div>
-                        </div>
-
-                        <!-- Bulk Composition Properties Section -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">
-                                Bulk Update Composition Properties
-                                <small class="text-muted ms-2">(Apply to all compositions in this group)</small>
-                            </h6>
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Use these fields to update composition type, tone, and even/odd properties for all compositions in this group.
-                                Leave fields blank to keep existing values unchanged, or select "Remove" to clear the properties.
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkCompositionType" class="form-label">Composition Type</label>
-                                    <select class="form-select" id="bulkCompositionType">
-                                        <option value="">Keep existing types</option>
-                                        <option value="REMOVE">Remove all types</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkTone" class="form-label">Tone</label>
-                                    <select class="form-select" id="bulkTone">
-                                        <option value="">Keep existing tones</option>
-                                        <option value="REMOVE">Remove all tones</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="bulkEvenOdd" class="form-label">Even/Odd</label>
-                                    <select class="form-select" id="bulkEvenOdd">
-                                        <option value="">Keep existing values</option>
-                                        <option value="REMOVE">Remove all values</option>
-                                        <!-- Options will be populated dynamically -->
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <div id="compositionPreview" class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
-                                    <!-- Composition preview will be shown here -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Editions Section -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">Editions</h6>
-                            <div id="editGroupEditions">
-                                <!-- Editions will be loaded here -->
-                            </div>
-                        </div>
-
-                        <!-- Recordings Section -->
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">Recordings</h6>
-                            <div id="editGroupRecordings">
-                                <!-- Recordings will be loaded here -->
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-warning me-auto" onclick="submitBulkCompositionUpdate()" id="bulkUpdateBtn">
-                        <i class="bi bi-arrow-repeat me-1"></i>Update Composition Properties
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="submitTitleUpdate()">
-                        <i class="bi bi-check-lg me-1"></i>Update Title
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <button class="btn btn-primary btn-float" onclick="refreshSearch()" title="Refresh">
-            <i class="bi bi-arrow-clockwise"></i>
-        </button>
-    </div>
+    <div class="toast-area" id="toastArea"></div>
 
     <script src="/js/dom-utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let selectedGroups = [];
-        let searchTimeout;
-        let currentPage = 1;
-        let isLoading = false;
-        let hasMoreResults = true;
-        let allSearchResults = [];
+        // ================= state =================
+        let page = 1, hasMore = false, loading = false;
+        let results = [];                    // current search rows
+        const selected = new Map();          // groupId -> row
+        let openGroupId = null;
+        let openGroupData = null;
+        let searchTimer = null;
+        let moveState = null;                // { targetId, targetTitle } while move panel open
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadFilters();
-            setupEventListeners();
+        const toneNames = { '1':'primi toni','2':'secundi toni','3':'tertii toni','4':'quarti toni','5':'quinti toni','6':'sexti toni','7':'septimi toni','8':'octavi toni','9':'noni toni','10':'decimi toni','11':'undecimi toni','12':'duodecimi toni','mix':'mixti toni','per':'peregrini toni','pro':'proprii toni' };
+        const evenOddNames = { 0:'pares', 1:'impares', 2:'pares et impares' };
+
+        function toast(message, ok = true) {
+            const el = document.createElement('div');
+            el.className = `alert ${ok ? 'alert-success' : 'alert-danger'} shadow-sm py-2 px-3 mb-2`;
+            el.textContent = message;
+            document.getElementById('toastArea').appendChild(el);
+            setTimeout(() => el.remove(), ok ? 3500 : 7000);
+        }
+
+        async function api(path, options = {}) {
+            const res = await fetch(path, { credentials: 'include', ...options });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+            return data;
+        }
+
+        // ================= filters =================
+        async function loadFilterOptions() {
+            const fill = (id, items, valueKey, nameKey) => {
+                const sel = document.getElementById(id);
+                items.forEach(i => {
+                    const o = document.createElement('option');
+                    o.value = i[valueKey]; o.textContent = i[nameKey];
+                    sel.appendChild(o);
+                });
+            };
+            try {
+                const [voices, composers, types, tones, evenOdd] = await Promise.all([
+                    api('/api/search/voices'), api('/api/search/composers'),
+                    api('/api/search/composition-types'), api('/api/search/tones'), api('/api/search/even-odd'),
+                ]);
+                fill('voicesFilter', voices.map(v => ({ value: v.value, name: v.name + 'vv' })), 'value', 'name');
+                fill('composerFilter', composers, 'id', 'name');
+                fill('typeFilter', types, 'id', 'name');
+                fill('toneFilter', tones, 'value', 'name');
+                fill('evenOddFilter', evenOdd.map(e => ({ value: e.value, name: evenOddNames[e.value] || e.name })), 'value', 'name');
+                // Bulk-edit selects reuse the same option data
+                fill('bulkType', types, 'id', 'name');
+                fill('bulkTone', tones, 'value', 'name');
+                fill('bulkEvenOdd', evenOdd.map(e => ({ value: e.value, name: evenOddNames[e.value] || e.name })), 'value', 'name');
+            } catch (e) { toast('Could not load filter options: ' + e.message, false); }
+        }
+
+        function currentFilters() {
+            return {
+                title: document.getElementById('searchInput').value.trim(),
+                voices: document.getElementById('voicesFilter').value,
+                composer: document.getElementById('composerFilter').value,
+                type: document.getElementById('typeFilter').value,
+                tone: document.getElementById('toneFilter').value,
+                even_odd: document.getElementById('evenOddFilter').value,
+                has_editions: document.getElementById('hasEditionsFilter').checked ? 'true' : '',
+                has_recordings: document.getElementById('hasRecordingsFilter').checked ? 'true' : '',
+            };
+        }
+
+        // ================= search / list =================
+        async function search(reset = true) {
+            const f = currentFilters();
+            const anyCriterion = Object.values(f).some(v => v);
+            const list = document.getElementById('resultsList');
+            if (!anyCriterion) {
+                results = []; page = 1; hasMore = false;
+                document.getElementById('resultCount').textContent = '';
+                list.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-search display-6"></i><p class="mt-2 mb-0">Search or set a filter to list groups</p></div>`;
+                return;
+            }
+            if (reset) { page = 1; results = []; }
+            if (loading) return;
+            loading = true;
+            try {
+                const params = new URLSearchParams({ page, page_size: 25, sort: 'title' });
+                Object.entries(f).forEach(([k, v]) => { if (v) params.set(k, v); });
+                const data = await api('/api/admin/groups?' + params.toString());
+                results = reset ? data.groups : results.concat(data.groups);
+                hasMore = data.page < data.total_pages;
+                document.getElementById('resultCount').textContent = `${data.total} group${data.total === 1 ? '' : 's'}`;
+                renderResults();
+            } catch (e) {
+                list.innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
+            } finally { loading = false; }
+        }
+
+        function attrChips(g) {
+            const chips = [];
+            const warn = (arr) => Array.isArray(arr) && arr.length > 1;
+            if (g.voices_list && g.voices_list.length) {
+                chips.push(`<span class="chip${warn(g.voices_list) ? ' warn' : ''}">${g.voices_list.map(escapeHtml).join('/')}vv</span>`);
+            }
+            if (g.types_list && g.types_list.length) {
+                chips.push(`<span class="chip${warn(g.types_list) ? ' warn' : ''}">${g.types_list.map(escapeHtml).join(' / ')}</span>`);
+            }
+            (g.tones_list || []).forEach(t => {
+                // tones_list values are text[] literals like {1} or {1,2}
+                const vals = String(t).replace(/[{}"]/g, '').split(',').filter(Boolean);
+                if (vals.length) chips.push(`<span class="chip">${vals.map(v => escapeHtml(toneNames[v] || v)).join(' & ')}</span>`);
+            });
+            (g.even_odd_list || []).forEach(v => {
+                if (evenOddNames[v] !== undefined) chips.push(`<span class="chip">${evenOddNames[v]}</span>`);
+            });
+            return chips.join('');
+        }
+
+        function countChips(g) {
+            const c = (n, label) => `<span class="chip${n > 0 ? '' : ' zero'}">${n} ${label}${n === 1 ? '' : 's'}</span>`;
+            return c(parseInt(g.composition_count), 'setting') + c(parseInt(g.edition_count), 'edition') + c(parseInt(g.recording_count), 'recording');
+        }
+
+        function renderResults() {
+            const list = document.getElementById('resultsList');
+            if (!results.length) {
+                list.innerHTML = `<div class="text-center text-muted py-4">No groups match.</div>`;
+                return;
+            }
+            list.innerHTML = results.map(g => `
+                <div class="list-group-item result-row d-flex gap-2 align-items-start ${g.id === openGroupId ? 'active' : ''}" id="row-${g.id}" onclick="openGroup(${g.id})">
+                    <input class="form-check-input mt-1" type="checkbox" ${selected.has(g.id) ? 'checked' : ''}
+                           onclick="event.stopPropagation(); toggleSelect(${g.id}, this.checked)" title="Select for merge / bulk edit">
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${escapeHtml(g.display_title)}</div>
+                        <div class="text-muted small">${g.composers ? escapeHtml(g.composers) : 'Anon'}</div>
+                        <div class="mt-1">${attrChips(g)}</div>
+                        <div class="mt-1">${countChips(g)}</div>
+                    </div>
+                </div>
+            `).join('') + (hasMore ? `<div class="list-group-item text-center text-muted small py-2" id="loadingMore">Scroll for more&hellip;</div>` : '');
+        }
+
+        document.getElementById('resultsList').addEventListener('scroll', function () {
+            if (hasMore && !loading && this.scrollTop + this.clientHeight >= this.scrollHeight - 120) {
+                page += 1;
+                search(false);
+            }
         });
 
-        function setupEventListeners() {
-            // Search functionality
-            document.getElementById('searchInput').addEventListener('input', debounceSearch);
-            document.getElementById('voicesFilter').addEventListener('change', () => performSearch(true));
-            document.getElementById('composerFilter').addEventListener('change', () => performSearch(true));
-            document.getElementById('typeFilter').addEventListener('change', () => performSearch(true));
-            document.getElementById('toneFilter').addEventListener('change', () => performSearch(true));
-            document.getElementById('evenOddFilter').addEventListener('change', () => performSearch(true));
-
-            // Infinite scroll
-            const searchResults = document.getElementById('searchResults');
-            searchResults.addEventListener('scroll', handleScroll);
-        }
-
-        function debounceSearch() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => performSearch(true), 300);
-        }
-
-        function handleScroll(event) {
-            const element = event.target;
-            const scrollPosition = element.scrollTop + element.clientHeight;
-            const scrollHeight = element.scrollHeight;
-            
-            // Load more when user is near the bottom (within 100px)
-            if (scrollHeight - scrollPosition < 100 && !isLoading && hasMoreResults) {
-                performSearch(false);
-            }
-        }
-
-        function showLoadingIndicator() {
-            const resultsContainer = document.getElementById('searchResults');
-            const loadingDiv = document.createElement('div');
-            loadingDiv.id = 'loadingIndicator';
-            loadingDiv.className = 'text-center py-3';
-            loadingDiv.innerHTML = `
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <span class="ms-2 text-muted">Loading more results...</span>
-            `;
-            resultsContainer.appendChild(loadingDiv);
-        }
-
-        function hideLoadingIndicator() {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            if (loadingIndicator) {
-                loadingIndicator.remove();
-            }
-        }
-
-        function updateSearchStats(total, loaded) {
-            const statsDiv = document.getElementById('searchStats');
-            if (total > 0) {
-                statsDiv.style.display = 'block';
-                if (loaded < total) {
-                    statsDiv.innerHTML = `Showing ${loaded} of ${total} results. Scroll down to load more.`;
-                } else {
-                    statsDiv.innerHTML = `Showing all ${total} results.`;
-                }
-            } else {
-                statsDiv.style.display = 'none';
-            }
-        }
-
-        async function performSearch(resetPagination = true) {
-            const searchTerm = document.getElementById('searchInput').value.trim();
-            const voices = document.getElementById('voicesFilter').value;
-            const composer = document.getElementById('composerFilter').value;
-            const type = document.getElementById('typeFilter').value;
-            const tone = document.getElementById('toneFilter').value;
-            const evenOdd = document.getElementById('evenOddFilter').value;
-
-            if (!searchTerm && !voices && !composer && !type && !tone && !evenOdd) {
-                document.getElementById('searchResults').innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-search display-4"></i>
-                        <p>Enter search terms to find groups</p>
-                    </div>
-                `;
-                document.getElementById('searchStats').style.display = 'none';
-                return;
-            }
-
-            if (resetPagination) {
-                currentPage = 1;
-                allSearchResults = [];
-                hasMoreResults = true;
-            }
-
-            if (isLoading || !hasMoreResults) return;
-
-            isLoading = true;
-            showLoadingIndicator();
-
-            try {
-                const params = new URLSearchParams({
-                    title: searchTerm,
-                    voices: voices,
-                    composer: composer,
-                    type: type,
-                    tone: tone,
-                    even_odd: evenOdd,
-                    page_size: 25,
-                    sort: 'title',
-                    page: currentPage.toString()
-                });
-
-                const response = await fetch(`/api/admin/groups?${params}`);
-                const data = await response.json();
-
-                const newGroups = data.groups || [];
-                
-                if (resetPagination) {
-                    allSearchResults = newGroups;
-                } else {
-                    allSearchResults = allSearchResults.concat(newGroups);
-                }
-
-                // Store results globally for selection functionality
-                window.currentSearchResults = allSearchResults;
-                
-                displaySearchResults(allSearchResults);
-                updateSearchStats(data.total, allSearchResults.length);
-                
-                // Update pagination state
-                hasMoreResults = currentPage < data.total_pages;
-                currentPage++;
-                
-            } catch (error) {
-                console.error('Search error:', error);
-                if (resetPagination) {
-                    document.getElementById('searchResults').innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            Error searching groups
-                        </div>
-                    `;
-                    document.getElementById('searchStats').style.display = 'none';
-                }
-            } finally {
-                isLoading = false;
-                hideLoadingIndicator();
-            }
-        }
-
-        function formatCompositionsList(compositions, groupId) {
-            if (!compositions || compositions.length === 0) {
-                return '<div class="text-muted mt-2"><small>No compositions</small></div>';
-            }
-
-            return `
-                <div class="composition-list">
-                    ${compositions.map(comp => `
-                        <div class="composition-detail">
-                            <button class="btn btn-sm btn-outline-danger composition-remove-btn" 
-                                    onclick="event.stopPropagation(); removeCompositionInline(${groupId}, ${comp.id}, '${escapeHtml((comp.title || 'Untitled').replace(/'/g, "\\'"))}');" 
-                                    title="Remove this composition from group">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                            <div class="fw-bold">${escapeHtml(comp.title || 'Untitled')}</div>
-                            ${comp.composers ? `<div class="text-muted">${escapeHtml(comp.composers)}</div>` : ''}
-                            ${formatSourcesList(comp.sources)}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        function formatSourcesList(sources) {
-            if (!sources || sources.length === 0) {
-                return '<div class="source-list text-muted">No sources</div>';
-            }
-
-            return `
-                <div class="source-list">
-                    ${sources.map(source => `
-                        <span class="source-item">${escapeHtml(source.code)} (${escapeHtml(source.position || 'pos?')})</span>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        // Add tone and even_odd mappings
-        const toneMapping = {
-            "1": "primi", "2": "secundi", "3": "tertii", "4": "quarti",
-            "5": "quinti", "6": "sexti", "7": "septimi", "8": "octavi",
-            "9": "noni", "10": "decimi", "11": "undecimi", "12": "duodecimi",
-            "mix": "mixti", "per": "peregrini", "pro": "proprii"
-        };
-
-        function formatToneDisplay(tone, connector) {
-            if (!tone) return '';
-            const arr = Array.isArray(tone) ? tone : [tone];
-            if (arr.length === 0) return '';
-            const mapped = arr.map(t => toneMapping[t] || t);
-            const conj = (connector === 'vel') ? 'vel' : 'et';
-            if (mapped.length === 1) return mapped[0] + ' toni';
-            if (mapped.length === 2) return mapped[0] + ` ${conj} ` + mapped[1] + ' toni';
-            return mapped.slice(0, -1).join(', ') + `, ${conj} ` + mapped[mapped.length - 1] + ' toni';
-        }
-        
-        const evenOddMapping = {
-            0: "pares",
-            1: "impares", 
-            2: "pares et impares"
-        };
-
-        function displaySearchResults(groups) {
-            const resultsContainer = document.getElementById('searchResults');
-
-            if (groups.length === 0) {
-                resultsContainer.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-inbox display-4"></i>
-                        <p>No groups found</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Remove loading indicator if it exists
-            hideLoadingIndicator();
-
-            resultsContainer.innerHTML = groups.map(group => `
-                <div class="group-card" onclick="toggleGroupSelection(${group.id})" data-group-id="${group.id}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-2">
-                                <strong>${escapeHtml(group.display_title)}</strong>
-                                ${group.tone ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.tone_connector))}</span>` : ''}
-                                ${group.even_odd !== null && group.even_odd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.even_odd] || group.even_odd)})</span>` : ''}
-                            </h6>
-                            <div class="group-info">
-                                <span class="badge bg-secondary me-2">${escapeHtml(group.number_of_voices || '?')}vv</span>
-                                <span class="text-muted">${escapeHtml(group.composers || 'Anon')}</span>
-                                ${group.composition_type ? `<span class="badge bg-info ms-2">${escapeHtml(group.composition_type)}</span>` : ''}
-                            </div>
-                            <div class="mt-2">
-                                <small class="text-muted">
-                                    ${group.composition_count || 0} composition${group.composition_count !== 1 ? 's' : ''}
-                                    ${group.edition_count > 0 ? ` • ${group.edition_count} edition${group.edition_count !== 1 ? 's' : ''}` : ''}
-                                    ${group.recording_count > 0 ? ` • ${group.recording_count} recording${group.recording_count !== 1 ? 's' : ''}` : ''}
-                                </small>
-                            </div>
-                            ${formatCompositionsList(group.compositions_detail, group.id)}
-                        </div>
-                        <div class="text-end ms-3">
-                            <div class="btn-group-vertical">
-                                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'merge')" title="Select for merge">
-                                    <i class="bi bi-collection"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edition')" title="Add edition">
-                                    <i class="bi bi-file-earmark-pdf"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-info" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'recording')" title="Add recording">
-                                    <i class="bi bi-play-circle"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); selectGroupForAction(${group.id}, 'edit_title')" title="Edit group">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function selectGroupForAction(groupId, action) {
-            if (action === 'merge') {
-                toggleGroupSelection(groupId);
-            } else if (action === 'edition') {
-                showEditionModal(groupId);
-            } else if (action === 'recording') {
-                showRecordingModal(groupId);
-            } else if (action === 'edit_title') {
-                showEditTitleModal(groupId);
-            }
-        }
-
-        function toggleGroupSelection(groupId) {
-            const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
-            const isSelected = selectedGroups.some(g => g.id === groupId);
-
-            if (isSelected) {
-                // Remove from selection
-                selectedGroups = selectedGroups.filter(g => g.id !== groupId);
-                groupCard.classList.remove('selected');
-            } else {
-                // Add to selection - find the group in the search results to get complete data
-                const groupData = findGroupInResults(groupId);
-                if (groupData) {
-                    selectedGroups.push(groupData);
-                    groupCard.classList.add('selected');
-                }
-            }
-
-            updateSelectedGroupsDisplay();
-            updateMergePanel();
-        }
-
-        function findGroupInResults(groupId) {
-            // Get the group data from the last search results stored in currentSearchResults
-            if (window.currentSearchResults) {
-                const group = window.currentSearchResults.find(g => g.id === groupId);
-                if (group) {
-                    return {
-                        id: group.id,
-                        title: group.display_title,
-                        voices: group.number_of_voices,
-                        compositionType: group.composition_type,
-                        tone: group.tone,
-                        toneConnector: group.tone_connector,
-                        evenOdd: group.even_odd,
-                        compositions: group.compositions_detail || []
-                    };
-                }
-            }
-            return null;
-        }
-
-        async function showEditionModal(groupId) {
-            const group = await getGroupDetails(groupId);
-            if (!group) return;
-
-            // Set up modal
-            document.getElementById('editionGroupId').value = groupId;
-            document.getElementById('editionGroupTitle').textContent = group.display_title;
-            
-            // Clear form
-            document.getElementById('editionForm').reset();
-            document.getElementById('editionGroupId').value = groupId; // Reset removes this too
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('editionModal'));
-            modal.show();
-        }
-
-        async function showRecordingModal(groupId) {
-            const group = await getGroupDetails(groupId);
-            if (!group) return;
-
-            // Set up modal
-            document.getElementById('recordingGroupId').value = groupId;
-            document.getElementById('recordingGroupTitle').textContent = group.display_title;
-            
-            // Clear form
-            document.getElementById('recordingForm').reset();
-            document.getElementById('recordingGroupId').value = groupId; // Reset removes this too
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('recordingModal'));
-            modal.show();
-        }
-
-        async function submitEdition() {
-            const groupId = document.getElementById('editionGroupId').value;
-            const fileUrl = document.getElementById('editionFileUrl').value.trim();
-            const editorId = document.getElementById('editionEditor').value;
-            const voicing = document.getElementById('editionVoicing').value.trim();
-
-            if (!fileUrl) {
-                alert('Please enter a file URL');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/admin/groups/editions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupId: parseInt(groupId),
-                        editorId: editorId ? parseInt(editorId) : null,
-                        voicing: voicing || null,
-                        fileUrl: fileUrl
-                    })
-                });
-
-                if (response.ok) {
-                    alert('Edition added successfully!');
-                    bootstrap.Modal.getInstance(document.getElementById('editionModal')).hide();
-                } else {
-                    const error = await response.json();
-                    alert(`Error adding edition: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error adding edition:', error);
-                alert('Network error occurred while adding edition.');
-            }
-        }
-
-        async function submitRecording() {
-            const groupId = document.getElementById('recordingGroupId').value;
-            const fileUrl = document.getElementById('recordingFileUrl').value.trim();
-            const performerId = document.getElementById('recordingPerformer').value;
-
-            if (!fileUrl) {
-                alert('Please enter a file URL');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/admin/groups/recordings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupId: parseInt(groupId),
-                        performerId: performerId ? parseInt(performerId) : null,
-                        fileUrl: fileUrl
-                    })
-                });
-
-                if (response.ok) {
-                    alert('Recording added successfully!');
-                    bootstrap.Modal.getInstance(document.getElementById('recordingModal')).hide();
-                } else {
-                    const error = await response.json();
-                    alert(`Error adding recording: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error adding recording:', error);
-                alert('Network error occurred while adding recording.');
-            }
-        }
-
-        async function getGroupDetails(groupId) {
-            try {
-                const response = await fetch(`/api/admin/groups/${groupId}`);
-                if (response.ok) {
-                    return await response.json();
-                }
-            } catch (error) {
-                console.error('Error getting group details:', error);
-            }
-            return null;
-        }
-
-        async function showEditTitleModal(groupId) {
-            const group = await getGroupDetails(groupId);
-            if (!group) return;
-
-            // Set up modal
-            document.getElementById('editTitleGroupId').value = groupId;
-            document.getElementById('editTitleCurrent').value = group.display_title;
-            document.getElementById('editTitleNew').value = group.display_title;
-            
-            // Load editions
-            displayGroupEditions(group.editions || []);
-            
-            // Load recordings
-            displayGroupRecordings(group.recordings || []);
-            
-            // Load bulk update dropdown options
-            await loadBulkUpdateOptions();
-            
-            // Display composition preview
-            displayCompositionPreview(group.compositions || []);
-            
-            // Show modal and focus on new title field
-            const modal = new bootstrap.Modal(document.getElementById('editTitleModal'));
-            modal.show();
-            
-            // Focus and select the new title field after modal is shown
-            document.getElementById('editTitleModal').addEventListener('shown.bs.modal', function() {
-                const newTitleField = document.getElementById('editTitleNew');
-                newTitleField.focus();
-                newTitleField.select();
-            }, { once: true });
-        }
-
-        async function loadBulkUpdateOptions() {
-            try {
-                // Load composition types
-                const compositionTypesResponse = await fetch('/api/search/composition-types');
-                if (compositionTypesResponse.ok) {
-                    const compositionTypes = await compositionTypesResponse.json();
-                    const typeSelect = document.getElementById('bulkCompositionType');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (typeSelect.children.length > 2) {
-                        typeSelect.removeChild(typeSelect.lastChild);
-                    }
-                    
-                    compositionTypes.forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type.id;
-                        option.textContent = type.name;
-                        typeSelect.appendChild(option);
-                    });
-                }
-
-                // Load tones
-                const tonesResponse = await fetch('/api/search/tones');
-                if (tonesResponse.ok) {
-                    const tones = await tonesResponse.json();
-                    const toneSelect = document.getElementById('bulkTone');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (toneSelect.children.length > 2) {
-                        toneSelect.removeChild(toneSelect.lastChild);
-                    }
-                    
-                    tones.forEach(tone => {
-                        const option = document.createElement('option');
-                        option.value = tone.value;
-                        option.textContent = tone.name;
-                        toneSelect.appendChild(option);
-                    });
-                }
-
-                // Load even/odd values
-                const evenOddResponse = await fetch('/api/search/even-odd');
-                if (evenOddResponse.ok) {
-                    const evenOddValues = await evenOddResponse.json();
-                    const evenOddSelect = document.getElementById('bulkEvenOdd');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (evenOddSelect.children.length > 2) {
-                        evenOddSelect.removeChild(evenOddSelect.lastChild);
-                    }
-                    
-                    evenOddValues.forEach(value => {
-                        const option = document.createElement('option');
-                        option.value = value.value;
-                        option.textContent = value.name;
-                        evenOddSelect.appendChild(option);
-                    });
-                }
-
-            } catch (error) {
-                console.error('Error loading bulk update options:', error);
-            }
-        }
-
-        async function loadBulkEditOptions() {
-            try {
-                // Load composition types for bulk multi-group editing
-                const compositionTypesResponse = await fetch('/api/search/composition-types');
-                if (compositionTypesResponse.ok) {
-                    const compositionTypes = await compositionTypesResponse.json();
-                    const typeSelect = document.getElementById('bulkMultiCompositionType');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (typeSelect.children.length > 2) {
-                        typeSelect.removeChild(typeSelect.lastChild);
-                    }
-                    
-                    compositionTypes.forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type.id;
-                        option.textContent = type.name;
-                        typeSelect.appendChild(option);
-                    });
-                }
-
-                // Load tones
-                const tonesResponse = await fetch('/api/search/tones');
-                if (tonesResponse.ok) {
-                    const tones = await tonesResponse.json();
-                    const toneSelect = document.getElementById('bulkMultiTone');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (toneSelect.children.length > 2) {
-                        toneSelect.removeChild(toneSelect.lastChild);
-                    }
-                    
-                    tones.forEach(tone => {
-                        const option = document.createElement('option');
-                        option.value = tone.value;
-                        option.textContent = tone.name;
-                        toneSelect.appendChild(option);
-                    });
-                }
-
-                // Load even/odd values
-                const evenOddResponse = await fetch('/api/search/even-odd');
-                if (evenOddResponse.ok) {
-                    const evenOddValues = await evenOddResponse.json();
-                    const evenOddSelect = document.getElementById('bulkMultiEvenOdd');
-                    
-                    // Clear existing options except the first two (Keep existing + Remove all)
-                    while (evenOddSelect.children.length > 2) {
-                        evenOddSelect.removeChild(evenOddSelect.lastChild);
-                    }
-                    
-                    evenOddValues.forEach(value => {
-                        const option = document.createElement('option');
-                        option.value = value.value;
-                        option.textContent = value.name;
-                        evenOddSelect.appendChild(option);
-                    });
-                }
-
-            } catch (error) {
-                console.error('Error loading bulk edit options:', error);
-            }
-        }
-
-        function displayCompositionPreview(compositions) {
-            const container = document.getElementById('compositionPreview');
-            
-            if (compositions.length === 0) {
-                container.innerHTML = '<p class="text-muted mb-0">No compositions in this group</p>';
-                return;
-            }
-
-            container.innerHTML = `
-                <div class="mb-2"><strong>Compositions in this group (${compositions.length}):</strong></div>
-                <div class="small">
-                    ${compositions.map(comp => `
-                        <div class="mb-1">
-                            <strong>${escapeHtml(comp.title || 'Untitled')}</strong>
-                            ${comp.composition_type ? `<span class="badge bg-info ms-1">${escapeHtml(comp.composition_type)}</span>` : ''}
-                            ${comp.tone ? `<span class="text-muted ms-1">${escapeHtml(formatToneDisplay(comp.tone, comp.tone_connector))}</span>` : ''}
-                            ${comp.even_odd !== null && comp.even_odd !== undefined ? `<span class="text-muted ms-1">(${escapeHtml(evenOddMapping[comp.even_odd] || comp.even_odd)})</span>` : ''}
-                            ${comp.composer ? `<span class="text-muted ms-1">— ${escapeHtml(comp.composer)}</span>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        async function submitBulkCompositionUpdate() {
-            const groupId = document.getElementById('editTitleGroupId').value;
-            const compositionTypeId = document.getElementById('bulkCompositionType').value;
-            const tone = document.getElementById('bulkTone').value;
-            const evenOdd = document.getElementById('bulkEvenOdd').value;
-
-            // Check if at least one field is selected
-            if (!compositionTypeId && !tone && !evenOdd) {
-                alert('Please select at least one property to update.');
-                return;
-            }
-
-            // Build confirmation message
-            let updateMessages = [];
-            if (compositionTypeId) {
-                const typeSelect = document.getElementById('bulkCompositionType');
-                const typeName = typeSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Composition Type: ${typeName}`);
-            }
-            if (tone) {
-                const toneSelect = document.getElementById('bulkTone');
-                const toneName = toneSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Tone: ${toneName}`);
-            }
-            if (evenOdd) {
-                const evenOddSelect = document.getElementById('bulkEvenOdd');
-                const evenOddName = evenOddSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Even/Odd: ${evenOddName}`);
-            }
-
-            const confirmMessage = `Update the following properties for ALL compositions in this group?\n\n${updateMessages.join('\n')}\n\nThis action cannot be undone.`;
-            
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
-            try {
-                // Handle REMOVE option by sending null values
-                const payload = {};
-                if (compositionTypeId) {
-                    payload.compositionTypeId = compositionTypeId === 'REMOVE' ? null : parseInt(compositionTypeId);
-                }
-                if (tone) {
-                    payload.tone = tone === 'REMOVE' ? null : tone;
-                }
-                if (evenOdd) {
-                    payload.evenOdd = evenOdd === 'REMOVE' ? null : parseInt(evenOdd);
-                }
-
-                const response = await fetch(`/api/admin/groups/${groupId}/bulk-update-compositions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Success!\n\n${result.message}`);
-                    
-                    // Clear the bulk update form
-                    document.getElementById('bulkCompositionType').value = '';
-                    document.getElementById('bulkTone').value = '';
-                    document.getElementById('bulkEvenOdd').value = '';
-                    
-                    // Refresh the composition preview by reloading group details
-                    const group = await getGroupDetails(groupId);
-                    if (group) {
-                        displayCompositionPreview(group.compositions || []);
-                    }
-                    
-                    // Refresh search results to show updated properties
-                    performSearch(true);
-                } else {
-                    const error = await response.json();
-                    alert(`Error updating composition properties: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error updating composition properties:', error);
-                alert('Network error occurred while updating composition properties.');
-            }
-        }
-
-        function displayGroupEditions(editions) {
-            const container = document.getElementById('editGroupEditions');
-            
-            if (editions.length === 0) {
-                container.innerHTML = '<p class="text-muted mb-0">No editions available</p>';
-                return;
-            }
-
-            container.innerHTML = editions.map(edition => `
-                <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="edition-${edition.id}">
-                    <div>
-                        <strong>${escapeHtml(edition.editor_name || 'Unknown Editor')}</strong>
-                        ${edition.voicing ? `<span class="badge bg-secondary ms-2">${escapeHtml(edition.voicing)}</span>` : ''}
-                        <br>
-                        <small class="text-muted">
-                            <a href="${safeUrl(edition.file_url)}" target="_blank" class="text-decoration-none">
-                                <i class="bi bi-link-45deg me-1"></i>View File
-                            </a>
-                        </small>
-                    </div>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteEdition(${edition.id})" title="Remove edition">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function displayGroupRecordings(recordings) {
-            const container = document.getElementById('editGroupRecordings');
-            
-            if (recordings.length === 0) {
-                container.innerHTML = '<p class="text-muted mb-0">No recordings available</p>';
-                return;
-            }
-
-            container.innerHTML = recordings.map(recording => `
-                <div class="d-flex justify-content-between align-items-center p-3 border rounded mb-2" id="recording-${recording.id}">
-                    <div>
-                        <strong>${escapeHtml(recording.performer_name || 'Unknown Performer')}</strong>
-                        <br>
-                        <small class="text-muted">
-                            <a href="${safeUrl(recording.file_url)}" target="_blank" class="text-decoration-none">
-                                <i class="bi bi-link-45deg me-1"></i>View File
-                            </a>
-                        </small>
-                    </div>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteRecording(${recording.id})" title="Remove recording">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        async function deleteEdition(editionId) {
-            if (!confirm('Are you sure you want to remove this edition? This action cannot be undone.')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/groups/editions/${editionId}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    // Remove the edition from the display
-                    const editionElement = document.getElementById(`edition-${editionId}`);
-                    if (editionElement) {
-                        editionElement.remove();
-                    }
-
-                    // Check if no editions remain
-                    const editionsContainer = document.getElementById('editGroupEditions');
-                    if (editionsContainer.children.length === 0) {
-                        editionsContainer.innerHTML = '<p class="text-muted mb-0">No editions available</p>';
-                    }
-
-                    alert('Edition removed successfully!');
-                } else {
-                    const error = await response.json();
-                    alert(`Error removing edition: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error removing edition:', error);
-                alert('Network error occurred while removing edition.');
-            }
-        }
-
-        async function deleteRecording(recordingId) {
-            if (!confirm('Are you sure you want to remove this recording? This action cannot be undone.')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/groups/recordings/${recordingId}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    // Remove the recording from the display
-                    const recordingElement = document.getElementById(`recording-${recordingId}`);
-                    if (recordingElement) {
-                        recordingElement.remove();
-                    }
-
-                    // Check if no recordings remain
-                    const recordingsContainer = document.getElementById('editGroupRecordings');
-                    if (recordingsContainer.children.length === 0) {
-                        recordingsContainer.innerHTML = '<p class="text-muted mb-0">No recordings available</p>';
-                    }
-
-                    alert('Recording removed successfully!');
-                } else {
-                    const error = await response.json();
-                    alert(`Error removing recording: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error removing recording:', error);
-                alert('Network error occurred while removing recording.');
-            }
-        }
-
-        async function submitTitleUpdate() {
-            const groupId = document.getElementById('editTitleGroupId').value;
-            const newTitle = document.getElementById('editTitleNew').value.trim();
-
-            if (!newTitle) {
-                alert('Please enter a display title');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/admin/groups/${groupId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        display_title: newTitle
-                    })
-                });
-
-                if (response.ok) {
-                    alert('Display title updated successfully!');
-                    bootstrap.Modal.getInstance(document.getElementById('editTitleModal')).hide();
-                    
-                    // Refresh search results to show updated title
-                    performSearch(true);
-                } else {
-                    const error = await response.json();
-                    alert(`Error updating title: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error updating title:', error);
-                alert('Network error occurred while updating title.');
-            }
-        }
-
-        function updateSelectedGroupsDisplay() {
-            const panel = document.getElementById('selectedGroupsPanel');
-            const list = document.getElementById('selectedGroupsList');
-
-            if (selectedGroups.length === 0) {
-                panel.style.display = 'none';
-                return;
-            }
-
-            panel.style.display = 'block';
-            list.innerHTML = selectedGroups.map(group => `
-                <div class="border rounded p-3 mb-3">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <h6 class="mb-1">
-                                <strong>${escapeHtml(group.title)}</strong>
-                                ${group.tone ? ` <span class="text-muted">${escapeHtml(formatToneDisplay(group.tone, group.toneConnector))}</span>` : ''}
-                                ${group.evenOdd !== null && group.evenOdd !== undefined ? ` <span class="text-muted">(${escapeHtml(evenOddMapping[group.evenOdd] || group.evenOdd)})</span>` : ''}
-                            </h6>
-                            <div class="text-muted small">
-                                <span class="badge bg-secondary me-1">${escapeHtml(group.voices || '?')}vv</span>
-                                ${group.compositionType ? `<span class="badge bg-info me-1">${escapeHtml(group.compositionType)}</span>` : ''}
-                            </div>
-                        </div>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromSelection(${group.id})">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                    ${formatSelectedGroupCompositions(group.compositions)}
-                </div>
-            `).join('');
-
-            updateCompatibilityStatus();
-        }
-
-        function formatSelectedGroupCompositions(compositions) {
-            if (!compositions || compositions.length === 0) {
-                return '<div class="text-muted"><small>No compositions</small></div>';
-            }
-
-            return `
-                <div class="mt-2">
-                    ${compositions.map(comp => `
-                        <div class="bg-light p-2 rounded mb-1">
-                            <div class="fw-bold small">${escapeHtml(comp.title || 'Untitled')}</div>
-                            ${comp.composers ? `<div class="text-muted small">${escapeHtml(comp.composers)}</div>` : ''}
-                            ${comp.sources && comp.sources.length > 0 ? `
-                                <div class="mt-1">
-                                    ${comp.sources.map(source => {
-                                        // Handle both string sources and object sources
-                                        const sourceText = typeof source === 'string' ? source : 
-                                                         (source.code ? `${source.code} (${source.position || 'pos?'})` : source);
-                                        return `<span class="badge bg-secondary me-1 small">${escapeHtml(sourceText)}</span>`;
-                                    }).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        function updateCompatibilityStatus() {
-            const statusDiv = document.getElementById('compatibilityStatus');
-
-            if (selectedGroups.length < 2) {
-                statusDiv.innerHTML = '';
-                return;
-            }
-
-            const compatibilityResult = checkDetailedGroupCompatibility();
-            const statusClass = compatibilityResult.isCompatible ? 'compatible' : 'incompatible';
-            const icon = compatibilityResult.isCompatible ? 'bi-check-circle' : 'bi-x-circle';
-
-            statusDiv.innerHTML = `
-                <div class="compatibility-check ${statusClass}">
-                    <i class="bi ${icon} me-2"></i>${escapeHtml(compatibilityResult.message)}
-                </div>
-            `;
-        }
-
-        function checkGroupCompatibility() {
-            return checkDetailedGroupCompatibility().isCompatible;
-        }
-
-        function checkDetailedGroupCompatibility() {
-            if (selectedGroups.length < 2) {
-                return { isCompatible: true, message: 'Select at least 2 groups to check compatibility.' };
-            }
-
-            const first = selectedGroups[0];
-            const incompatibilities = [];
-
-            // Check voices
-            const voicesMismatch = selectedGroups.find(group => group.voices !== first.voices);
-            if (voicesMismatch) {
-                incompatibilities.push(`different number of voices (${first.voices}vv vs ${voicesMismatch.voices}vv)`);
-            }
-
-            // Check composition type
-            const typeMismatch = selectedGroups.find(group => group.compositionType !== first.compositionType);
-            if (typeMismatch) {
-                const firstType = first.compositionType || 'unspecified';
-                const mismatchType = typeMismatch.compositionType || 'unspecified';
-                incompatibilities.push(`different composition types (${firstType} vs ${mismatchType})`);
-            }
-
-            const toneMismatch = selectedGroups.find(group => JSON.stringify(group.tone) !== JSON.stringify(first.tone));
-            if (toneMismatch) {
-                const firstToneDisplay = first.tone ? formatToneDisplay(first.tone) : 'unspecified';
-                const mismatchToneDisplay = toneMismatch.tone ? formatToneDisplay(toneMismatch.tone) : 'unspecified';
-                incompatibilities.push(`different tones (${firstToneDisplay} vs ${mismatchToneDisplay})`);
-            }
-
-            // Check even/odd
-            const evenOddMismatch = selectedGroups.find(group => group.evenOdd !== first.evenOdd);
-            if (evenOddMismatch) {
-                const firstEvenOddDisplay = first.evenOdd !== null && first.evenOdd !== undefined ? 
-                    (evenOddMapping[first.evenOdd] || first.evenOdd) : 'unspecified';
-                const mismatchEvenOddDisplay = evenOddMismatch.evenOdd !== null && evenOddMismatch.evenOdd !== undefined ? 
-                    (evenOddMapping[evenOddMismatch.evenOdd] || evenOddMismatch.evenOdd) : 'unspecified';
-                incompatibilities.push(`different even/odd values (${firstEvenOddDisplay} vs ${mismatchEvenOddDisplay})`);
-            }
-
-            if (incompatibilities.length === 0) {
-                return { 
-                    isCompatible: true, 
-                    message: 'These groups are compatible and can be merged.' 
-                };
-            } else {
-                const incompatibilityText = incompatibilities.length === 1 ? 
-                    incompatibilities[0] : 
-                    incompatibilities.slice(0, -1).join(', ') + ' and ' + incompatibilities[incompatibilities.length - 1];
-                
-                return { 
-                    isCompatible: false, 
-                    message: `These groups cannot be merged due to ${incompatibilityText}.` 
-                };
-            }
-        }
-
-        function updateMergePanel() {
-            const panel = document.getElementById('mergePanel');
-            const prompt = document.getElementById('mergePrompt');
-            const mergeControls = document.getElementById('mergeControls');
-            const bulkEditControls = document.getElementById('bulkEditControls');
-
-            if (selectedGroups.length < 2) {
-                panel.classList.remove('active');
-                prompt.style.display = 'block';
-                mergeControls.style.display = 'none';
-                bulkEditControls.style.display = 'none';
-                return;
-            }
-
-            panel.classList.add('active');
-            prompt.style.display = 'none';
-
-            // Always show both controls
-            mergeControls.style.display = 'block';
-            bulkEditControls.style.display = 'block';
-
-            // Check if groups are compatible for merging
-            const isCompatible = checkGroupCompatibility();
-            const mergeButton = mergeControls.querySelector('button[onclick="performMerge()"]');
-            
-            if (isCompatible) {
-                // Enable merge functionality
-                mergeButton.disabled = false;
-                mergeButton.classList.remove('btn-secondary');
-                mergeButton.classList.add('btn-success');
-                mergeButton.innerHTML = '<i class="bi bi-check-lg me-2"></i>Merge Groups';
-                
-                // Suggest a display title
-                const suggestedTitle = selectedGroups[0].title;
-                document.getElementById('newDisplayTitle').value = suggestedTitle;
-            } else {
-                // Disable merge functionality
-                mergeButton.disabled = true;
-                mergeButton.classList.remove('btn-success');
-                mergeButton.classList.add('btn-secondary');
-                mergeButton.innerHTML = '<i class="bi bi-x-circle me-2"></i>Cannot Merge (Incompatible)';
-            }
-            
-            // Always load bulk edit options when multiple groups are selected
-            loadBulkEditOptions();
-        }
-
-        function removeFromSelection(groupId) {
-            selectedGroups = selectedGroups.filter(g => g.id !== groupId);
-            const groupCard = document.querySelector(`[data-group-id="${groupId}"]`);
-            if (groupCard) groupCard.classList.remove('selected');
-            
-            updateSelectedGroupsDisplay();
-            updateMergePanel();
+        // ================= selection / merge / bulk =================
+        function toggleSelect(id, on) {
+            const row = results.find(r => r.id === id);
+            if (on && row) selected.set(id, row);
+            else selected.delete(id);
+            renderSelectionBar();
         }
 
         function clearSelection() {
-            selectedGroups = [];
-            document.querySelectorAll('.group-card.selected').forEach(card => {
-                card.classList.remove('selected');
-            });
-            updateSelectedGroupsDisplay();
-            updateMergePanel();
+            selected.clear();
+            renderSelectionBar();
+            renderResults();
         }
 
-        async function performMerge() {
-            if (selectedGroups.length < 2) {
-                alert('Please select at least 2 groups to merge.');
-                return;
-            }
+        function selectionCompatibility() {
+            const rows = [...selected.values()];
+            const union = (key) => new Set(rows.flatMap(r => (r[key] || []).map(String)));
+            const problems = [];
+            if (union('voices_list').size > 1) problems.push('voice counts');
+            if (union('types_list').size > 1) problems.push('types');
+            if (union('tones_list').size > 1) problems.push('tones');
+            if (union('even_odd_list').size > 1) problems.push('even/odd');
+            return problems;
+        }
 
-            if (!checkGroupCompatibility()) {
-                alert('Selected groups are not compatible for merging.');
-                return;
+        function renderSelectionBar() {
+            const bar = document.getElementById('selectionBar');
+            const n = selected.size;
+            document.body.classList.toggle('has-selection', n > 0);
+            bar.style.display = n > 0 ? 'block' : 'none';
+            if (!n) return;
+            document.getElementById('selCount').textContent = n;
+            const badge = document.getElementById('compatBadge');
+            const mergeBtn = document.getElementById('mergeBtn');
+            const titleInput = document.getElementById('mergeTitle');
+            if (n < 2) {
+                badge.className = 'badge bg-secondary';
+                badge.textContent = 'select another group to merge';
+                mergeBtn.disabled = true;
+            } else {
+                const problems = selectionCompatibility();
+                if (problems.length) {
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'cannot merge: different ' + problems.join(', ');
+                    mergeBtn.disabled = true;
+                } else {
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'compatible';
+                    mergeBtn.disabled = false;
+                }
             }
+            if (!titleInput.value) titleInput.value = [...selected.values()][0].display_title;
+        }
 
-            const displayTitle = document.getElementById('newDisplayTitle').value.trim();
-            if (!displayTitle) {
-                alert('Please enter a display title for the merged group.');
-                return;
-            }
-
+        async function doMerge() {
+            const title = document.getElementById('mergeTitle').value.trim();
+            if (!title) return toast('Enter a display title for the merged group', false);
             try {
-                const response = await fetch('/api/admin/groups/merge', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const data = await api('/api/admin/groups/merge', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupIds: [...selected.keys()], displayTitle: title }),
+                });
+                toast(data.message);
+                document.getElementById('mergeTitle').value = '';
+                clearSelection();
+                await search(true);
+                openGroup(data.newGroupId);
+            } catch (e) { toast(e.message, false); }
+        }
+
+        function toggleBulkEdit() {
+            const p = document.getElementById('bulkEditPanel');
+            p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function doBulkTitles() {
+            const title = document.getElementById('bulkTitle').value.trim();
+            if (!title) return toast('Enter the new display title', false);
+            try {
+                const data = await api('/api/admin/groups/bulk-update-titles', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupIds: [...selected.keys()], displayTitle: title }),
+                });
+                toast(data.message);
+                clearSelection();
+                search(true);
+            } catch (e) { toast(e.message, false); }
+        }
+
+        async function doBulkProps() {
+            const val = (id) => {
+                const v = document.getElementById(id).value;
+                if (v === '') return undefined;        // keep
+                if (v === '__null') return null;       // remove
+                return v;
+            };
+            const body = { groupIds: [...selected.keys()] };
+            const t = val('bulkType'); if (t !== undefined) body.compositionTypeId = t;
+            const tn = val('bulkTone'); if (tn !== undefined) body.tone = tn;
+            const eo = val('bulkEvenOdd'); if (eo !== undefined) body.evenOdd = eo;
+            if (body.compositionTypeId === undefined && body.tone === undefined && body.evenOdd === undefined) {
+                return toast('Choose at least one property to change', false);
+            }
+            try {
+                const data = await api('/api/admin/groups/bulk-update-compositions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                toast(data.message.split('\n')[0]);
+                clearSelection();
+                search(true);
+                if (openGroupId) openGroup(openGroupId);
+            } catch (e) { toast(e.message, false); }
+        }
+
+        // ================= workbench =================
+        async function openGroup(id) {
+            moveState = null;
+            try {
+                openGroupData = await api('/api/admin/groups/' + id);
+                openGroupId = id;
+                renderResults(); // update active highlight
+                renderWorkbench();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        function compAttr(c) {
+            const bits = [];
+            if (c.number_of_voices) bits.push(`<span class="chip">${escapeHtml(c.number_of_voices)}vv</span>`);
+            if (c.composition_type) bits.push(`<span class="chip">${escapeHtml(c.composition_type)}</span>`);
+            const tones = Array.isArray(c.tone) ? c.tone.filter(Boolean) : (c.tone ? [c.tone] : []);
+            if (tones.length) {
+                const conj = c.tone_connector === 'vel' ? ' vel ' : ' & ';
+                bits.push(`<span class="chip">${tones.map(t => escapeHtml(toneNames[t] || t)).join(conj)}</span>`);
+            }
+            if (c.even_odd !== null && c.even_odd !== undefined && evenOddNames[c.even_odd]) bits.push(`<span class="chip">${evenOddNames[c.even_odd]}</span>`);
+            return bits.join('');
+        }
+
+        function renderWorkbench() {
+            const g = openGroupData;
+            const wb = document.getElementById('workbenchBody');
+            const fns = (g.functions || []).map(f => `<span class="badge bg-primary me-1">${escapeHtml(f)}</span>`).join('');
+
+            const comps = g.compositions.map(c => `
+                <div class="wb-row">
+                    <input class="form-check-input comp-check" type="checkbox" value="${c.id}" onchange="renderCompActions()">
+                    <div class="flex-grow-1">
+                        <span class="fw-semibold">${escapeHtml(c.title || 'Untitled')}</span>
+                        <span class="text-muted">&mdash; ${c.composer ? escapeHtml(c.composer) : 'Anon'}</span>
+                        <div>${compAttr(c)}
+                            ${(c.sources || []).map(s => `<span class="src-badge">${escapeHtml(s.code)}${s.position ? ' (' + escapeHtml(s.position) + ')' : ''}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const editions = g.editions.length ? g.editions.map(e => `
+                <div class="wb-row">
+                    <div class="flex-grow-1">
+                        ${escapeHtml(e.editor_name || 'Unknown editor')}
+                        ${e.voicing ? `<span class="chip">${escapeHtml(e.voicing)}</span>` : ''}
+                        ${safeUrl(e.file_url) ? `<a href="${safeUrl(e.file_url)}" target="_blank" rel="noopener" class="ms-1">open <i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    </div>
+                    ${confirmBtnHtml('deleteEdition', e.id, 'Remove')}
+                </div>
+            `).join('') : '<div class="text-muted small py-1">No editions.</div>';
+
+            const recordings = g.recordings.length ? g.recordings.map(r => `
+                <div class="wb-row">
+                    <div class="flex-grow-1">
+                        ${escapeHtml(r.performer_name || 'Unknown performer')}
+                        ${safeUrl(r.file_url) ? `<a href="${safeUrl(r.file_url)}" target="_blank" rel="noopener" class="ms-1">open <i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    </div>
+                    ${confirmBtnHtml('deleteRecording', r.id, 'Remove')}
+                </div>
+            `).join('') : '<div class="text-muted small py-1">No recordings.</div>';
+
+            wb.innerHTML = `
+                <div class="d-flex align-items-start gap-2">
+                    <div class="flex-grow-1" id="titleArea">
+                        <h5 class="mb-1">${escapeHtml(g.display_title)}
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1" onclick="editTitle()" title="Rename display title"><i class="bi bi-pencil"></i> Rename</button>
+                        </h5>
+                        <div>${fns}</div>
+                        <div class="text-muted small">group #${g.id}</div>
+                    </div>
+                </div>
+
+                <div class="wb-section">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h6 class="mb-0">Settings <span class="text-muted">(${g.compositions.length})</span></h6>
+                        <span class="text-muted small">tick to move / split</span>
+                    </div>
+                    ${comps}
+                    <div id="compActions" class="mt-2" style="display:none">
+                        <button class="btn btn-sm btn-outline-primary" onclick="showMovePanel('existing')"><i class="bi bi-arrow-right-circle"></i> Move to another group&hellip;</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showMovePanel('new')"><i class="bi bi-diagram-2"></i> Split into new group</button>
+                        <div id="movePanel" class="move-panel mt-2" style="display:none"></div>
+                    </div>
+                </div>
+
+                <div class="wb-section">
+                    <h6 class="mb-1">Editions <span class="text-muted">(${g.editions.length})</span></h6>
+                    ${editions}
+                    <div class="inline-add mt-2">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-xl-5"><input type="url" id="newEditionUrl" class="form-control form-control-sm" placeholder="File URL (PDF)"></div>
+                            <div class="col-6 col-xl-3"><select id="newEditionEditor" class="form-select form-select-sm"><option value="">Editor&hellip;</option></select></div>
+                            <div class="col-3 col-xl-2"><input type="text" id="newEditionVoicing" class="form-control form-control-sm" placeholder="Voicing"></div>
+                            <div class="col-3 col-xl-2"><button class="btn btn-success btn-sm w-100" onclick="addEdition()">Add edition</button></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wb-section">
+                    <h6 class="mb-1">Recordings <span class="text-muted">(${g.recordings.length})</span></h6>
+                    ${recordings}
+                    <div class="inline-add mt-2">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-xl-6"><input type="url" id="newRecordingUrl" class="form-control form-control-sm" placeholder="Recording URL (YouTube, Spotify&hellip;)"></div>
+                            <div class="col-7 col-xl-4"><select id="newRecordingPerformer" class="form-select form-select-sm"><option value="">Performer&hellip;</option></select></div>
+                            <div class="col-5 col-xl-2"><button class="btn btn-success btn-sm w-100" onclick="addRecording()">Add recording</button></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            fillEntitySelects();
+        }
+
+        // Editor/performer dropdowns for the inline add rows (cached).
+        let entityCache = null;
+        async function fillEntitySelects() {
+            if (!entityCache) {
+                try {
+                    const [ed, pf] = await Promise.all([api('/api/admin/editors'), api('/api/admin/performers')]);
+                    entityCache = { editors: ed.editors || [], performers: pf.performers || [] };
+                } catch { entityCache = { editors: [], performers: [] }; }
+            }
+            const edSel = document.getElementById('newEditionEditor');
+            const pfSel = document.getElementById('newRecordingPerformer');
+            if (edSel) entityCache.editors.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.name; edSel.appendChild(o); });
+            if (pfSel) entityCache.performers.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; pfSel.appendChild(o); });
+        }
+
+        // ---- inline title rename ----
+        function editTitle() {
+            const area = document.getElementById('titleArea');
+            const current = openGroupData.display_title;
+            area.innerHTML = `
+                <div class="input-group input-group-sm" style="max-width:520px">
+                    <input type="text" id="titleInput" class="form-control" value="${escapeHtml(current)}">
+                    <button class="btn btn-success" onclick="saveTitle()">Save</button>
+                    <button class="btn btn-outline-secondary" onclick="renderWorkbench()">Cancel</button>
+                </div>`;
+            document.getElementById('titleInput').focus();
+        }
+
+        async function saveTitle() {
+            const title = document.getElementById('titleInput').value.trim();
+            if (!title) return toast('Title cannot be empty', false);
+            try {
+                await api('/api/admin/groups/' + openGroupId, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ display_title: title }),
+                });
+                openGroupData.display_title = title;
+                const row = results.find(r => r.id === openGroupId);
+                if (row) { row.display_title = title; renderResults(); }
+                renderWorkbench();
+                toast('Display title updated');
+            } catch (e) { toast(e.message, false); }
+        }
+
+        // ---- delete with inline confirm ----
+        function confirmBtnHtml(fn, id, label) {
+            return `<button class="btn btn-sm btn-outline-danger" onclick="armConfirm(this, '${fn}', ${id})">${label}</button>`;
+        }
+        function armConfirm(btn, fn, id) {
+            if (btn.dataset.armed) { window[fn](id); return; }
+            btn.dataset.armed = '1';
+            btn.classList.replace('btn-outline-danger', 'btn-danger');
+            btn.textContent = 'Confirm?';
+            setTimeout(() => {
+                if (!btn.isConnected) return;
+                delete btn.dataset.armed;
+                btn.classList.replace('btn-danger', 'btn-outline-danger');
+                btn.textContent = 'Remove';
+            }, 3000);
+        }
+
+        async function deleteEdition(id) {
+            try {
+                await api('/api/admin/groups/editions/' + id, { method: 'DELETE' });
+                bumpCount('edition_count', -1);
+                await openGroup(openGroupId);
+                toast('Edition removed');
+            } catch (e) { toast(e.message, false); }
+        }
+
+        async function deleteRecording(id) {
+            try {
+                await api('/api/admin/groups/recordings/' + id, { method: 'DELETE' });
+                bumpCount('recording_count', -1);
+                await openGroup(openGroupId);
+                toast('Recording removed');
+            } catch (e) { toast(e.message, false); }
+        }
+
+        function bumpCount(field, delta) {
+            const row = results.find(r => r.id === openGroupId);
+            if (row) { row[field] = parseInt(row[field]) + delta; renderResults(); }
+        }
+
+        // ---- add edition / recording ----
+        async function addEdition() {
+            const fileUrl = document.getElementById('newEditionUrl').value.trim();
+            if (!fileUrl) return toast('Enter the edition file URL', false);
+            try {
+                await api('/api/admin/groups/editions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        groupIds: selectedGroups.map(g => g.id),
-                        displayTitle: displayTitle
-                    })
+                        groupId: openGroupId,
+                        editorId: document.getElementById('newEditionEditor').value || null,
+                        voicing: document.getElementById('newEditionVoicing').value.trim() || null,
+                        fileUrl,
+                    }),
                 });
-
-                if (response.ok) {
-                    alert('Groups merged successfully!');
-                    clearSelection();
-                    refreshSearch();
-                } else {
-                    const error = await response.json();
-                    alert(`Error merging groups: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Merge error:', error);
-                alert('Network error occurred while merging groups.');
-            }
+                bumpCount('edition_count', 1);
+                await openGroup(openGroupId);
+                toast('Edition added');
+            } catch (e) { toast(e.message, false); }
         }
 
-        async function loadFilters() {
+        async function addRecording() {
+            const fileUrl = document.getElementById('newRecordingUrl').value.trim();
+            if (!fileUrl) return toast('Enter the recording URL', false);
             try {
-                // Load voice counts
-                const voicesResponse = await fetch('/api/search/voices');
-                if (voicesResponse.ok) {
-                    const voices = await voicesResponse.json();
-                    const voicesSelect = document.getElementById('voicesFilter');
-                    voices.forEach(voice => {
-                        const option = document.createElement('option');
-                        option.value = voice.value;
-                        option.textContent = voice.value + 'vv';
-                        voicesSelect.appendChild(option);
-                    });
-                }
-
-                // Load composers
-                const composersResponse = await fetch('/api/search/composers');
-                if (composersResponse.ok) {
-                    const composers = await composersResponse.json();
-                    const composerSelect = document.getElementById('composerFilter');
-                    composers.forEach(composer => {
-                        const option = document.createElement('option');
-                        option.value = composer.id;
-                        option.textContent = composer.name;
-                        composerSelect.appendChild(option);
-                    });
-                }
-
-                // Load composition types
-                const typesResponse = await fetch('/api/search/composition-types');
-                if (typesResponse.ok) {
-                    const types = await typesResponse.json();
-                    const typeSelect = document.getElementById('typeFilter');
-                    types.forEach(type => {
-                        const option = document.createElement('option');
-                        option.value = type.id;
-                        option.textContent = type.name;
-                        typeSelect.appendChild(option);
-                    });
-                }
-
-                // Load tones
-                const tonesResponse = await fetch('/api/search/tones');
-                if (tonesResponse.ok) {
-                    const tones = await tonesResponse.json();
-                    const toneSelect = document.getElementById('toneFilter');
-                    tones.forEach(tone => {
-                        const option = document.createElement('option');
-                        option.value = tone.value;
-                        option.textContent = tone.name;
-                        toneSelect.appendChild(option);
-                    });
-                }
-
-                // Load even/odd values
-                const evenOddResponse = await fetch('/api/search/even-odd');
-                if (evenOddResponse.ok) {
-                    const evenOddValues = await evenOddResponse.json();
-                    const evenOddSelect = document.getElementById('evenOddFilter');
-                    evenOddValues.forEach(value => {
-                        const option = document.createElement('option');
-                        option.value = value.value;
-                        option.textContent = value.name;
-                        evenOddSelect.appendChild(option);
-                    });
-                }
-
-                // Load editors
-                const editorsResponse = await fetch('/api/admin/editors');
-                if (editorsResponse.ok) {
-                    const editorsData = await editorsResponse.json();
-                    const editors = Array.isArray(editorsData) ? editorsData : editorsData.editors || [];
-                    const editorSelect = document.getElementById('editionEditor');
-                    editors.forEach(editor => {
-                        const option = document.createElement('option');
-                        option.value = editor.id;
-                        option.textContent = editor.name;
-                        editorSelect.appendChild(option);
-                    });
-                }
-
-                // Load performers
-                const performersResponse = await fetch('/api/admin/performers');
-                if (performersResponse.ok) {
-                    const performersData = await performersResponse.json();
-                    const performers = Array.isArray(performersData) ? performersData : performersData.performers || [];
-                    const performerSelect = document.getElementById('recordingPerformer');
-                    performers.forEach(performer => {
-                        const option = document.createElement('option');
-                        option.value = performer.id;
-                        option.textContent = performer.name;
-                        performerSelect.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading filters:', error);
-            }
-        }
-
-        function refreshSearch() {
-            performSearch(true);
-        }
-
-
-
-        async function removeComposition(groupId, compositionId, compositionTitle) {
-            if (!confirm(`Remove "${compositionTitle}" from this group?\n\nThis will create a new group containing only this composition.`)) {
-                return;
-            }
-
-            const newGroupTitle = prompt(`Enter title for the new group containing "${compositionTitle}":`, compositionTitle);
-            if (newGroupTitle === null) return; // User cancelled
-
-            try {
-                const response = await fetch(`/api/admin/groups/${groupId}/remove-composition`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                await api('/api/admin/groups/recordings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        compositionId: compositionId,
-                        newGroupTitle: newGroupTitle.trim() || compositionTitle
-                    })
+                        groupId: openGroupId,
+                        performerId: document.getElementById('newRecordingPerformer').value || null,
+                        fileUrl,
+                    }),
                 });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Success! "${compositionTitle}" moved to new group "${result.newGroupTitle}"`);
-                    
-                    // Reload compositions list
-                    loadGroupCompositions(groupId);
-                    
-                    // Refresh search if visible
-                    if (document.getElementById('searchResults').innerHTML.trim()) {
-                        refreshSearch();
-                    }
-                } else {
-                    const error = await response.json();
-                    alert(`Error removing composition: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error removing composition:', error);
-                alert('Network error occurred while removing composition.');
-            }
+                bumpCount('recording_count', 1);
+                await openGroup(openGroupId);
+                toast('Recording added');
+            } catch (e) { toast(e.message, false); }
         }
 
-        async function removeCompositionInline(groupId, compositionId, compositionTitle) {
-            if (!confirm(`Remove "${compositionTitle}" from this group?\n\nThis will create a new group containing only this composition.`)) {
-                return;
-            }
+        // ---- move / split compositions ----
+        function checkedCompIds() {
+            return [...document.querySelectorAll('.comp-check:checked')].map(c => parseInt(c.value));
+        }
 
-            const newGroupTitle = prompt(`Enter title for the new group containing "${compositionTitle}":`, compositionTitle);
-            if (newGroupTitle === null) return; // User cancelled
+        function renderCompActions() {
+            document.getElementById('compActions').style.display = checkedCompIds().length ? 'block' : 'none';
+            if (!checkedCompIds().length) { document.getElementById('movePanel').style.display = 'none'; moveState = null; }
+        }
 
-            try {
-                const response = await fetch(`/api/admin/groups/${groupId}/remove-composition`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        compositionId: compositionId,
-                        newGroupTitle: newGroupTitle.trim() || compositionTitle
-                    })
+        function showMovePanel(mode) {
+            const ids = checkedCompIds();
+            if (!ids.length) return;
+            moveState = { mode, targetId: null, targetTitle: null };
+            const panel = document.getElementById('movePanel');
+            panel.style.display = 'block';
+            if (mode === 'new') {
+                const firstComp = openGroupData.compositions.find(c => c.id === ids[0]);
+                panel.innerHTML = `
+                    <div class="mb-1 small fw-semibold">Split ${ids.length} setting${ids.length === 1 ? '' : 's'} into a new group</div>
+                    <div class="input-group input-group-sm" style="max-width:520px">
+                        <input type="text" id="newGroupTitle" class="form-control" value="${escapeHtml(firstComp ? (firstComp.title || '') : '')}" placeholder="New group display title">
+                        <button class="btn btn-primary" onclick="doMove()">Create &amp; move</button>
+                        <button class="btn btn-outline-secondary" onclick="hideMovePanel()">Cancel</button>
+                    </div>
+                    <div class="text-muted small mt-1">Editions and recordings stay with this group.</div>`;
+                document.getElementById('newGroupTitle').focus();
+            } else {
+                panel.innerHTML = `
+                    <div class="mb-1 small fw-semibold">Move ${ids.length} setting${ids.length === 1 ? '' : 's'} to&hellip;</div>
+                    <input type="text" id="moveSearch" class="form-control form-control-sm mb-1" placeholder="Search groups by title&hellip;">
+                    <div id="moveResults" class="small text-muted">Type to search for the target group.</div>
+                    <div class="mt-2">
+                        <button class="btn btn-primary btn-sm" id="moveConfirmBtn" onclick="doMove()" disabled>Move</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="hideMovePanel()">Cancel</button>
+                    </div>
+                    <div class="text-muted small mt-1">The target group must match in voices, type, tone and even/odd. Editions and recordings stay here.</div>`;
+                let t = null;
+                document.getElementById('moveSearch').addEventListener('input', function () {
+                    clearTimeout(t);
+                    t = setTimeout(() => moveTargetSearch(this.value.trim()), 300);
                 });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Success! "${compositionTitle}" moved to new group "${result.newGroupTitle}"`);
-                    
-                    // Refresh search results to show updated groups
-                    performSearch(true);
-                    
-                    // Update any selected groups that may have been affected
-                    selectedGroups = selectedGroups.filter(g => g.id !== groupId);
-                    updateSelectedGroupsDisplay();
-                    updateMergePanel();
-                } else {
-                    const error = await response.json();
-                    alert(`Error removing composition: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error removing composition:', error);
-                alert('Network error occurred while removing composition.');
+                document.getElementById('moveSearch').focus();
             }
         }
 
-        async function performBulkTitleUpdate() {
-            if (selectedGroups.length === 0) {
-                alert('Please select groups to update.');
-                return;
-            }
+        function hideMovePanel() {
+            document.getElementById('movePanel').style.display = 'none';
+            moveState = null;
+        }
 
-            const newTitle = document.getElementById('bulkDisplayTitle').value.trim();
-            if (!newTitle) {
-                alert('Please enter a new display title.');
-                return;
-            }
-
-            const confirmMessage = `Update display title to "${newTitle}" for ${selectedGroups.length} selected groups?\n\nThis action cannot be undone.`;
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
+        async function moveTargetSearch(term) {
+            const out = document.getElementById('moveResults');
+            if (!term) { out.innerHTML = 'Type to search for the target group.'; return; }
             try {
-                const response = await fetch('/api/admin/groups/bulk-update-titles', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        groupIds: selectedGroups.map(g => g.id),
-                        displayTitle: newTitle
-                    })
+                const data = await api('/api/admin/groups?' + new URLSearchParams({ title: term, page: 1, page_size: 8, sort: 'title' }));
+                const items = data.groups.filter(g => g.id !== openGroupId);
+                out.innerHTML = items.length ? items.map(g => `
+                    <div class="move-target" id="mt-${g.id}" onclick="chooseMoveTarget(${g.id}, this)">
+                        <strong>${escapeHtml(g.display_title)}</strong>
+                        <span class="text-muted">— ${g.composers ? escapeHtml(g.composers) : 'Anon'}</span>
+                        ${attrChips(g)}
+                    </div>`).join('') : '<span class="text-muted">No other groups match.</span>';
+            } catch (e) { out.innerHTML = `<span class="text-danger">${escapeHtml(e.message)}</span>`; }
+        }
+
+        function chooseMoveTarget(id, el) {
+            document.querySelectorAll('.move-target').forEach(x => x.classList.remove('chosen'));
+            el.classList.add('chosen');
+            moveState.targetId = id;
+            document.getElementById('moveConfirmBtn').disabled = false;
+        }
+
+        async function doMove() {
+            const ids = checkedCompIds();
+            if (!ids.length || !moveState) return;
+            const body = { compositionIds: ids };
+            if (moveState.mode === 'new') {
+                const title = document.getElementById('newGroupTitle').value.trim();
+                if (!title) return toast('Enter a title for the new group', false);
+                body.newGroupTitle = title;
+            } else {
+                if (!moveState.targetId) return toast('Choose a target group', false);
+                body.targetGroupId = moveState.targetId;
+            }
+            try {
+                const data = await api('/api/admin/groups/move-compositions', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
                 });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Success!\n\n${result.message}`);
-                    
-                    // Clear form
-                    document.getElementById('bulkDisplayTitle').value = '';
-                    
-                    // Clear selection and refresh search
-                    clearSelection();
-                    performSearch(true);
-                } else {
-                    const error = await response.json();
-                    alert(`Error updating titles: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error updating titles:', error);
-                alert('Network error occurred while updating titles.');
-            }
+                toast(data.message);
+                await search(true);
+                openGroup(data.targetGroupId);
+            } catch (e) { toast(e.message, false); }
         }
 
-        async function performBulkCompositionUpdate() {
-            if (selectedGroups.length === 0) {
-                alert('Please select groups to update.');
-                return;
-            }
+        // ================= wiring =================
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => search(true), 300);
+        });
+        ['voicesFilter', 'composerFilter', 'typeFilter', 'toneFilter', 'evenOddFilter'].forEach(id =>
+            document.getElementById(id).addEventListener('change', () => search(true)));
+        ['hasEditionsFilter', 'hasRecordingsFilter'].forEach(id =>
+            document.getElementById(id).addEventListener('change', () => search(true)));
 
-            const compositionTypeId = document.getElementById('bulkMultiCompositionType').value;
-            const tone = document.getElementById('bulkMultiTone').value;
-            const evenOdd = document.getElementById('bulkMultiEvenOdd').value;
-
-            // Check if at least one field is selected
-            if (!compositionTypeId && !tone && !evenOdd) {
-                alert('Please select at least one property to update.');
-                return;
-            }
-
-            // Build confirmation message
-            let updateMessages = [];
-            if (compositionTypeId) {
-                const typeSelect = document.getElementById('bulkMultiCompositionType');
-                const typeName = typeSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Composition Type: ${typeName}`);
-            }
-            if (tone) {
-                const toneSelect = document.getElementById('bulkMultiTone');
-                const toneName = toneSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Tone: ${toneName}`);
-            }
-            if (evenOdd) {
-                const evenOddSelect = document.getElementById('bulkMultiEvenOdd');
-                const evenOddName = evenOddSelect.selectedOptions[0].textContent;
-                updateMessages.push(`Even/Odd: ${evenOddName}`);
-            }
-
-            const confirmMessage = `Update the following properties for ALL compositions in ${selectedGroups.length} selected groups?\n\n${updateMessages.join('\n')}\n\nThis action cannot be undone.`;
-            
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
-            try {
-                // Handle REMOVE option by sending null values
-                const payload = {
-                    groupIds: selectedGroups.map(g => g.id)
-                };
-                
-                if (compositionTypeId) {
-                    payload.compositionTypeId = compositionTypeId === 'REMOVE' ? null : parseInt(compositionTypeId);
-                }
-                if (tone) {
-                    payload.tone = tone === 'REMOVE' ? null : tone;
-                }
-                if (evenOdd) {
-                    payload.evenOdd = evenOdd === 'REMOVE' ? null : parseInt(evenOdd);
-                }
-
-                const response = await fetch('/api/admin/groups/bulk-update-compositions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Success!\n\n${result.message}`);
-                    
-                    // Clear form
-                    document.getElementById('bulkMultiCompositionType').value = '';
-                    document.getElementById('bulkMultiTone').value = '';
-                    document.getElementById('bulkMultiEvenOdd').value = '';
-                    
-                    // Clear selection and refresh search
-                    clearSelection();
-                    performSearch(true);
-                } else {
-                    const error = await response.json();
-                    alert(`Error updating composition properties: ${error.error}`);
-                }
-            } catch (error) {
-                console.error('Error updating composition properties:', error);
-                alert('Network error occurred while updating composition properties.');
-            }
-        }
-
-        async function logout() {
-            try {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/admin/login';
-            } catch (error) {
-                console.error('Logout error:', error);
-                window.location.href = '/admin/login';
-            }
-        }
-
-
+        loadFilterOptions().then(() => {
+            const params = new URLSearchParams(location.search);
+            const g = parseInt(params.get('group'), 10);
+            if (g) openGroup(g);
+        });
     </script>
     <script src="/js/admin-layout.js"></script>
 </body>
-</html> 
+</html>

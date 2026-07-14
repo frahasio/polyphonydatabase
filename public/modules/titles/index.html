@@ -10,156 +10,130 @@
     <link rel="stylesheet" href="/css/admin.css">
     <style>
         .title-card {
-            transition: all 0.2s ease;
+            transition: box-shadow 0.15s ease, border-color 0.15s ease;
             cursor: pointer;
+            border: 1px solid #e4e7eb;
         }
         .title-card:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            border-color: #b6c4d6;
         }
         .title-card.selected {
             border-color: #0d6efd;
-            background-color: #e7f3ff;
-        }
-        .search-container {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background: white;
-            padding: 1rem 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .bulk-actions {
-            position: sticky;
-            bottom: 0;
-            z-index: 1000;
-            background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
-            padding: 1rem 0;
-            border-top: 1px solid #dee2e6;
-            backdrop-filter: blur(5px);
+            background-color: #eef4ff;
         }
         .composition-count {
             font-size: 0.875rem;
             color: #6c757d;
         }
-        .function-badge {
+        .function-badge, .language-badge {
             font-size: 0.75rem;
         }
-        .language-badge {
-            font-size: 0.75rem;
+        /* Dark sticky action bar, matching the group management page */
+        .bulk-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1040;
+            background: #212529;
+            color: #fff;
+            padding: 0.6rem 1rem;
+            box-shadow: 0 -3px 12px rgba(0,0,0,0.25);
         }
         .selected-count {
-            font-weight: bold;
-            color: #0d6efd;
+            font-weight: 600;
+        }
+        body.has-selection {
+            padding-bottom: 90px;
         }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="fw-bold mb-1">Titles Management</h4>
-                <p class="text-muted mb-0">Search, edit, merge duplicates, and manage title assignments</p>
-            </div>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h4 class="fw-bold mb-0">Titles</h4>
+            <span class="text-muted small">Click a title to select &middot; use the bar below to assign, merge or edit in bulk</span>
         </div>
 
-        <div class="card">
-            <div class="card-body">
-                <div class="search-container">
-                    <div id="filterAlert" class="alert alert-info mb-3" style="display: none;">
-                        <i class="bi bi-info-circle"></i>
-                        <span id="filterMessage"></span>
-                        <button type="button" class="btn-close ms-2" onclick="clearSpecialFilter()"></button>
-                    </div>
+        <div class="card mb-3">
+            <div class="card-body py-3">
+                <div id="filterAlert" class="alert alert-info py-2 mb-2" style="display: none;">
+                    <i class="bi bi-info-circle"></i>
+                    <span id="filterMessage"></span>
+                    <button type="button" class="btn-close ms-2" onclick="clearSpecialFilter()"></button>
+                </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-4">
-                            <label for="titleSearch" class="form-label">Search Titles</label>
-                            <input type="text" class="form-control" id="titleSearch" placeholder="Search by title text...">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="languageFilter" class="form-label">Language</label>
-                            <select class="form-select" id="languageFilter">
-                                <option value="">All Languages</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="functionFilter" class="form-label">Function</label>
-                            <select class="form-select" id="functionFilter">
-                                <option value="">All Functions</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <div>
-                                <button class="btn btn-primary w-100" onclick="searchTitles()">
-                                    <i class="bi bi-search"></i> Search
-                                </button>
-                            </div>
-                        </div>
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" id="titleSearch" placeholder="Search by title text&hellip; (Enter to search)">
                     </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="findSimilar">
-                                <label class="form-check-label" for="findSimilar">
-                                    Find similar titles (for potential duplicates)
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="groupTitles">
-                                <label class="form-check-label" for="groupTitles">
-                                    <strong>Group titles by base text</strong> (removes [I], [II], etc.)
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <button class="btn btn-outline-primary btn-sm me-2" onclick="selectAll()">
-                                <i class="bi bi-check-all"></i> Select All
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
-                                <i class="bi bi-x-circle"></i> Clear Selection
-                            </button>
-                        </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="languageFilter" title="Language">
+                            <option value="">Any language</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="functionFilter" title="Feast / function">
+                            <option value="">Any function</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-grid">
+                        <button class="btn btn-primary" onclick="searchTitles()" title="Search">
+                            <i class="bi bi-search"></i>
+                        </button>
                     </div>
                 </div>
 
-                <div id="titlesResults" class="mt-4">
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-search display-4 text-muted"></i>
-                        <p>Enter a search term to find titles</p>
+                <div class="d-flex flex-wrap align-items-center gap-4 mt-2">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="findSimilar">
+                        <label class="form-check-label" for="findSimilar">Find similar (potential duplicates)</label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="groupTitles">
+                        <label class="form-check-label" for="groupTitles">Group by base text (ignores [I], [II]&hellip;)</label>
+                    </div>
+                    <div class="ms-auto">
+                        <button class="btn btn-outline-primary btn-sm me-1" onclick="selectAll()">
+                            <i class="bi bi-check-all"></i> Select all
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                            Clear selection
+                        </button>
                     </div>
                 </div>
-
-                <nav id="titlesPagination" class="mt-4" style="display: none;">
-                    <ul class="pagination justify-content-center"></ul>
-                </nav>
             </div>
         </div>
+
+        <div id="titlesResults">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-search display-6 text-muted"></i>
+                <p class="mt-2 mb-0">Enter a search term to find titles</p>
+            </div>
+        </div>
+
+        <nav id="titlesPagination" class="mt-4" style="display: none;">
+            <ul class="pagination justify-content-center"></ul>
+        </nav>
 
         <div id="bulkActionsBar" class="bulk-actions" style="display: none;">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="selected-count" id="selectedCount">0 titles selected</span>
-                        <div class="btn-group">
-                            <button class="btn btn-success btn-sm" onclick="showAssignFunctionModal()">
-                                <i class="bi bi-tags"></i> Assign Function
-                            </button>
-                            <button class="btn btn-warning btn-sm" onclick="showAssignLanguageModal()">
-                                <i class="bi bi-globe"></i> Assign Language
-                            </button>
-                            <button class="btn btn-info btn-sm" onclick="showMergeModal()">
-                                <i class="bi bi-union"></i> Merge Selected
-                            </button>
-                        </div>
-                    </div>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
-                        <i class="bi bi-x"></i> Clear Selection
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <span class="selected-count" id="selectedCount">0 titles selected</span>
+                    <button class="btn btn-success btn-sm" onclick="showAssignFunctionModal()">
+                        <i class="bi bi-tags"></i> Assign function
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="showAssignLanguageModal()">
+                        <i class="bi bi-globe"></i> Assign language
+                    </button>
+                    <button class="btn btn-info btn-sm" onclick="showMergeModal()">
+                        <i class="bi bi-union"></i> Merge selected
                     </button>
                 </div>
+                <button class="btn btn-outline-light btn-sm" onclick="clearSelection()">
+                    Clear selection
+                </button>
             </div>
         </div>
     </div>
@@ -327,6 +301,16 @@
 
     <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Pad the page bottom while the fixed action bar is visible
+        // (functions.js toggles the bar's style directly).
+        (function () {
+            const bar = document.getElementById('bulkActionsBar');
+            new MutationObserver(() =>
+                document.body.classList.toggle('has-selection', bar.style.display !== 'none')
+            ).observe(bar, { attributes: true, attributeFilter: ['style'] });
+        })();
+    </script>
     <script src="/modules/functions/functions.js"></script>
     <script src="/js/admin-layout.js"></script>
 </body>
