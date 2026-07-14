@@ -7,7 +7,7 @@ import { triggerCleanup } from '../cleanup.js';
 // just admins) can churn through it.
 const router = express.Router();
 
-const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio'];
+const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
 // Attach disambiguating context to each suggestion so reviewers can tell
@@ -296,23 +296,24 @@ router.post('/:id/:action', async (req, res) => {
         );
       } else if (s.kind === 'composer_bio') {
         if (!s.composer_id) throw new Error('Suggestion payload missing composer');
-        // Fill ONLY the gaps — existing values are never overwritten. All
-        // CASE conditions evaluate against the pre-update row.
+        // Wikidata values win where present (they're cited; the card shows
+        // every replacement before accept). Fields Wikidata doesn't know
+        // (null payload values) keep their current value. Overwriting a year
+        // also overwrites its annotation, so a precise Wikidata year clears
+        // a stale "c.".
         const year = (v) => (Number.isInteger(parseInt(v, 10)) ? parseInt(v, 10) : null);
         const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
         await client.query(
           `UPDATE composers SET
-             from_year_annotation = CASE WHEN from_year IS NULL AND $2::int IS NOT NULL
-               THEN $3 ELSE from_year_annotation END,
-             from_year = COALESCE(from_year, $2),
-             to_year_annotation = CASE WHEN to_year IS NULL AND $4::int IS NOT NULL
-               THEN $5 ELSE to_year_annotation END,
-             to_year = COALESCE(to_year, $4),
-             birthplace_1 = CASE WHEN COALESCE(birthplace_1, '') = '' THEN COALESCE($6, birthplace_1) ELSE birthplace_1 END,
-             birthplace_2 = CASE WHEN COALESCE(birthplace_2, '') = '' THEN COALESCE($7, birthplace_2) ELSE birthplace_2 END,
-             deathplace_1 = CASE WHEN COALESCE(deathplace_1, '') = '' THEN COALESCE($8, deathplace_1) ELSE deathplace_1 END,
-             deathplace_2 = CASE WHEN COALESCE(deathplace_2, '') = '' THEN COALESCE($9, deathplace_2) ELSE deathplace_2 END,
-             wikidata_id = COALESCE(wikidata_id, $10),
+             from_year_annotation = CASE WHEN $2::int IS NOT NULL THEN $3 ELSE from_year_annotation END,
+             from_year = COALESCE($2, from_year),
+             to_year_annotation = CASE WHEN $4::int IS NOT NULL THEN $5 ELSE to_year_annotation END,
+             to_year = COALESCE($4, to_year),
+             birthplace_1 = COALESCE($6, birthplace_1),
+             birthplace_2 = COALESCE($7, birthplace_2),
+             deathplace_1 = COALESCE($8, deathplace_1),
+             deathplace_2 = COALESCE($9, deathplace_2),
+             wikidata_id = COALESCE($10, wikidata_id),
              updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [
@@ -323,6 +324,20 @@ router.post('/:id/:action', async (req, res) => {
             text(payload.deathplace_1), text(payload.deathplace_2),
             text(payload.wikidata_id),
           ]
+        );
+      } else if (s.kind === 'group_title') {
+        if (!s.group_id) throw new Error('Suggestion payload missing group');
+        // The reviewer may choose among the group's composition titles; the
+        // chosen text must be one of the offered options (or the proposal).
+        const options = Array.isArray(payload.options) ? payload.options : [];
+        const requested = typeof req.body.display_title === 'string' ? req.body.display_title : '';
+        const chosen = (requested && options.concat(payload.proposed_title).includes(requested))
+          ? requested
+          : String(payload.proposed_title || '');
+        if (!chosen) throw new Error('No display title given');
+        await client.query(
+          'UPDATE groups SET display_title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          [chosen, s.group_id]
         );
       } else if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
         const url = String(payload.url || '').trim();

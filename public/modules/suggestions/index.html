@@ -16,8 +16,11 @@
         .suggestion-card.kind-title_merge { border-left-color: #fd7e14; }
         .suggestion-card.kind-title_language { border-left-color: #0dcaf0; }
         .suggestion-card.kind-composer_bio { border-left-color: #20c997; }
+        .suggestion-card.kind-group_title { border-left-color: #6c757d; }
         .bio-table td { padding: 0.1rem 0.6rem 0.1rem 0; font-size: 0.85rem; }
         .bio-fill { background: #d1e7dd; border-radius: 3px; padding: 0 0.3rem; }
+        .bio-change { background: #fff3cd; border-radius: 3px; padding: 0 0.3rem; }
+        .bio-old { text-decoration: line-through; opacity: 0.65; }
         .merge-option { border: 1px solid #dee2e6; border-radius: 6px; padding: 0.5rem 0.75rem; }
         .merge-option:has(input:checked) { border-color: #fd7e14; background: #fff8f2; }
         .score-badge { min-width: 3.2rem; }
@@ -38,6 +41,7 @@
                 <button type="button" class="btn btn-outline-secondary" data-kind="title_merge">Title merges</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="title_language">Languages</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="composer_bio">Composer bios</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="group_title">Group titles</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
             </div>
@@ -162,13 +166,18 @@
                 const fmtYears = (fy, fya, ty, tya) => (fy || ty)
                     ? `${escapeHtml(fya || '')}${escapeHtml(fy || '?')} \u2013 ${escapeHtml(tya || '')}${escapeHtml(ty || '?')}` : '';
                 const fmtPlace = (p1, p2) => [p1, p2].filter(Boolean).map(escapeHtml).join(', ');
-                // Highlight only what accept would actually fill (gaps).
+                // Green = fills a gap; amber = replaces the current value
+                // (Wikidata's dates are cited, so they win on accept).
                 const row = (label, current, proposed) => {
                     if (!current && !proposed) return '';
-                    const prop = proposed && !current
-                        ? `<span class="bio-fill">${proposed}</span>`
-                        : (proposed || '<span class="text-muted">\u2014</span>');
-                    return `<tr><td class="text-muted">${label}</td><td>${current || '<span class="text-muted">missing</span>'}</td><td>${prop}</td></tr>`;
+                    let currentCell = current || '<span class="text-muted">missing</span>';
+                    let proposedCell = proposed || '<span class="text-muted">\u2014 (kept as is)</span>';
+                    if (proposed && !current) proposedCell = `<span class="bio-fill">${proposed}</span>`;
+                    else if (proposed && current && proposed !== current) {
+                        proposedCell = `<span class="bio-change">${proposed}</span>`;
+                        currentCell = `<span class="bio-old">${current}</span>`;
+                    }
+                    return `<tr><td class="text-muted">${label}</td><td>${currentCell}</td><td>${proposedCell}</td></tr>`;
                 };
                 return `
                     <div class="payload-detail">
@@ -183,7 +192,21 @@
                             ${row('Born', fmtPlace(c.birthplace_1, c.birthplace_2), fmtPlace(p.birthplace_1, p.birthplace_2))}
                             ${row('Died', fmtPlace(c.deathplace_1, c.deathplace_2), fmtPlace(p.deathplace_1, p.deathplace_2))}
                         </table>
-                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept fills only the <span class="bio-fill">highlighted</span> gaps — existing values are never changed.</div>
+                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the Wikidata column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
+                    </div>`;
+            }
+            if (s.kind === 'group_title') {
+                const options = (p.options && p.options.length ? p.options : [p.proposed_title]).filter(Boolean);
+                const optsHtml = options.map(o =>
+                    `<option value="${escapeHtml(o)}" ${o === p.proposed_title ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('');
+                return `
+                    <div class="payload-detail">
+                        <div><strong>Display title doesn't match any composition title.</strong></div>
+                        <div class="mt-1">Current: <span class="bio-old">${escapeHtml(p.current_title)}</span></div>
+                        <div class="mt-2" style="max-width:480px">
+                            <label class="form-label small mb-1" for="gt-${s.id}">New display title (from this group's composition titles) — saved on accept; Reject keeps the current title</label>
+                            <select class="form-select form-select-sm" id="gt-${s.id}">${optsHtml}</select>
+                        </div>
                     </div>`;
             }
             // Recording suggestions: show source line + inline preview
@@ -341,6 +364,7 @@
                 title_merge: 'title merges',
                 title_language: 'title languages',
                 composer_bio: 'composer bios',
+                group_title: 'group titles',
                 recording_youtube: 'YouTube recordings',
                 recording_spotify: 'Spotify recordings'
             };
@@ -395,6 +419,8 @@
                 if (fnInput) fields.function_name = fnInput.value.trim();
                 const langSelect = document.getElementById('lang-' + id);
                 if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
+                const gtSelect = document.getElementById('gt-' + id);
+                if (gtSelect) fields.display_title = gtSelect.value;
                 const primaryRadio = document.querySelector(`input[name="primary-${id}"]:checked`);
                 if (primaryRadio) fields.primary_title_id = parseInt(primaryRadio.value, 10);
                 if (Object.keys(fields).length) body = JSON.stringify(fields);

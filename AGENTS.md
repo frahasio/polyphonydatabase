@@ -34,29 +34,35 @@ deployed. Also shipped since:
   or groups with editions/recordings; `saveSourceWithInclusions` now deletes
   removed inclusions inside the save transaction.
 - Migration runner + Heroku release phase.
-- Review queue (`/modules/suggestions`) fed by five matchers:
+- Review queue (`/modules/suggestions`) fed by six matchers:
  `scripts/suggest-title-functions.js` (Cantus Index title->function),
  `scripts/suggest-recordings.js` (YouTube + Spotify),
- `scripts/suggest-title-merges.js` (pg_trgm near-duplicate titles; run
- manually: `node scripts/suggest-title-merges.js [threshold=0.9] [maxPairs]
- [--dry-run]`), `scripts/suggest-title-languages.js` (stopword/suffix
- heuristic for untagged titles, no API; supports --dry-run) and
- `scripts/suggest-composer-bios.js` (Wikidata birth/death years + places
- for composers flagged by the dashboard; checkpoint
- `composers.wikidata_checked_at`; supports --dry-run). Accepting writes real
- `functions_titles` / `recordings` rows, performs a title merge (reviewer
- picks which title survives), sets `titles.language`, or fills ONLY the
- missing composer bio fields (never overwrites; records
- `composers.wikidata_id`). Recording accept lets the reviewer correct the
- performer name; title_function accept lets them correct the feast
- (autocomplete against `functions`; an unknown name creates the function on
- the fly); title_language accept lets them correct the language. The Cantus
- matcher also proposes feasts we don't have yet (`payload.new_function`)
- instead of dropping them, and processes titles that already have functions
- (extra genuine uses are suggested, existing links are not re-suggested).
- Dashboard data-quality cards for titles-without-language /
- composers-missing-data / titles-without-functions deep-link to the queue
- via `?kind=`.
+ `scripts/suggest-title-merges.js` (duplicate titles — WORD ORDER IS
+ SIGNIFICANT: only identical-after-normalization or word-for-word-prefix
+ pairs are suggested, since word-order variants are legitimately different
+ pieces; run manually with [maxPairs] [--dry-run]),
+ `scripts/suggest-title-languages.js` (stopword/suffix heuristic for
+ untagged titles, no API; supports --dry-run),
+ `scripts/suggest-composer-bios.js` (Wikidata birth/death years + places;
+ checkpoint `composers.wikidata_checked_at`; rejects modern namesakes born
+ after 1750; skips suggestions that would change nothing; supports
+ --dry-run) and `scripts/suggest-group-titles.js` (groups whose
+ display_title matches none of their compositions' titles; reviewer picks
+ from the group's actual titles). Accept semantics: recordings/functions
+ write real rows; title_merge merges (reviewer picks survivor);
+ title_language sets `titles.language`; composer_bio APPLIES the Wikidata
+ values — cited, so they win over ours where they differ (green = fills
+ gap, amber = replaces) — and records `composers.wikidata_id`; group_title
+ sets `groups.display_title`. Reviewers can correct performer name, feast
+ (unknown name creates the function), language, and group title at accept
+ time. The Cantus matcher also proposes feasts we don't have yet
+ (`payload.new_function`) and processes titles that already have functions.
+ The old dashboard "Data Quality Alerts" section and its API endpoints
+ (data-quality-alerts/-records, ignore-alert, groups-for-correction,
+ bulk-title-correction) were REMOVED in favour of the queue; the
+ `ignored_alerts` table is now dead (safe to drop). Clef/voicing mapping
+ gaps are handled in `/modules/clef-voicings`; unused titles / empty groups
+ / orphaned compositions remain the cleanup tool's job (dashboard button).
 - Commissions module: public enquiry (`/commissions`) -> admin price offer
   -> Stripe Checkout -> webhook marks paid -> "mark ready" delivery email.
   Gated by the `commissions` permission; commissions can be claimed/released
@@ -115,8 +121,9 @@ queue.
  Spotify has no hard cap and the script stops YouTube cleanly once quota is
  hit) and `node scripts/suggest-composer-bios.js <n>` (Wikidata, polite
  ~2 req/s, no hard quota; ~900 composers missing data so a daily 50 clears
- the backlog in weeks). `suggest-title-languages.js` and
- `suggest-title-merges.js` are cheap manual runs, not scheduled.
+ the backlog in weeks). `suggest-title-languages.js`,
+ `suggest-title-merges.js` and `suggest-group-titles.js` are cheap manual
+ runs, not scheduled.
 - **Matcher tuning:** the Cantus feast->function map in
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.
@@ -136,9 +143,10 @@ queue.
 - **Gmail:** `EMAIL_PASSWORD` must be a Gmail **App Password** (needs 2FA);
   the account password is rejected by SMTP.
 - **Dead tables** (documented in `SCHEMA_REFERENCE.md`, safe to drop once
-  confirmed): `users_backup`, `temp_inclusions`, `suggestion_flags`, the
-  unused `search_vector` columns, Rails `schema_migrations` /
-  `ar_internal_metadata`.
+ confirmed): `users_backup`, `temp_inclusions`, `suggestion_flags`,
+ `ignored_alerts` (dashboard alerts feature removed July 2026), the
+ unused `search_vector` columns, Rails `schema_migrations` /
+ `ar_internal_metadata`.
 - **Data conventions:** composer id **23 = Anonymous** (excluded from
   displays/filters). `compositions.tone` is `text[]`; `even_odd` is int
   (0 even / 1 odd / 2 both).

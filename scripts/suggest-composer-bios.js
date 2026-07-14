@@ -1,8 +1,10 @@
 /**
  * Matcher: fill missing composer biographical data (birth/death years,
  * birth/death places) from Wikidata. Writes rows to the suggestions table
- * for human review — accepting fills ONLY the missing fields, never
- * overwriting existing data, and records the Wikidata id on the composer.
+ * for human review — accepting applies the Wikidata values (Wikidata dates
+ * are cited, so they win over ours where they differ; the card shows every
+ * replacement) and records the Wikidata id on the composer. Suggestions
+ * that would change nothing are not created.
  *
  * Usage: node scripts/suggest-composer-bios.js [batchSize] [--dry-run]
  * Wikidata has no hard quota but asks for politeness: ~2 requests/sec and a
@@ -188,6 +190,17 @@ async function main() {
       deathplace_1: deathPlaceId && places[deathPlaceId] ? places[deathPlaceId].name : null,
       deathplace_2: deathPlaceId && places[deathPlaceId] ? places[deathPlaceId].country : null,
     };
+
+    // Pointless to review a suggestion that changes nothing (Wikidata knows
+    // no more than we do — e.g. dates match ours and it has no places).
+    const wouldChange =
+      (payload.from_year !== null && payload.from_year !== comp.from_year) ||
+      (payload.to_year !== null && payload.to_year !== comp.to_year) ||
+      (payload.birthplace_1 && payload.birthplace_1 !== comp.birthplace_1) ||
+      (payload.birthplace_2 && payload.birthplace_2 !== comp.birthplace_2) ||
+      (payload.deathplace_1 && payload.deathplace_1 !== comp.deathplace_1) ||
+      (payload.deathplace_2 && payload.deathplace_2 !== comp.deathplace_2);
+    if (!wouldChange) continue;
 
     const years = `${payload.from_year_annotation || ''}${payload.from_year || '?'}-${payload.to_year_annotation || ''}${payload.to_year || '?'}`;
     const placesLog = `${payload.birthplace_1 || '?'}, ${payload.birthplace_2 || '?'} / ${payload.deathplace_1 || '?'}, ${payload.deathplace_2 || '?'}`;
