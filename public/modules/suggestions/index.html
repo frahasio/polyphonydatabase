@@ -179,20 +179,32 @@
                     }
                     return `<tr><td class="text-muted">${label}</td><td>${currentCell}</td><td>${proposedCell}</td></tr>`;
                 };
+                // v2 suggestions come from RISM (dates) + Wikidata (places
+                // via RISM's own cross-reference); v1 payloads are
+                // Wikidata-only.
+                const sourceLinks = [];
+                if (p.rism_id) {
+                    sourceLinks.push(`<a href="https://rism.online/${encodeURIComponent(p.rism_id).replace(/%2F/g, '/')}" target="_blank" rel="noopener">
+                        RISM: ${escapeHtml(p.rism_label || p.rism_id)} <i class="bi bi-box-arrow-up-right"></i></a>
+                        ${p.rism_sources ? `<span class="text-muted ms-1">(${escapeHtml(p.rism_sources)} sources)</span>` : ''}`);
+                }
+                if (p.wikidata_id) {
+                    sourceLinks.push(`<a href="https://www.wikidata.org/wiki/${encodeURIComponent(p.wikidata_id)}" target="_blank" rel="noopener">
+                        ${p.rism_id ? 'Wikidata (places)' : escapeHtml(p.wikidata_label || p.wikidata_id)} <i class="bi bi-box-arrow-up-right"></i></a>`);
+                }
+                const srcColumn = p.rism_id ? 'RISM' : 'Wikidata';
                 return `
                     <div class="payload-detail">
-                        <div>
-                            <a href="https://www.wikidata.org/wiki/${encodeURIComponent(p.wikidata_id || '')}" target="_blank" rel="noopener">
-                                ${escapeHtml(p.wikidata_label || p.wikidata_id)} <i class="bi bi-box-arrow-up-right"></i></a>
+                        <div>${sourceLinks.join(' &middot; ')}
                             ${p.wikidata_description ? `<span class="text-muted ms-1">\u2014 ${escapeHtml(p.wikidata_description)}</span>` : ''}
                         </div>
                         <table class="bio-table mt-1">
-                            <tr><td></td><td class="text-muted">current</td><td class="text-muted">Wikidata</td></tr>
+                            <tr><td></td><td class="text-muted">current</td><td class="text-muted">${srcColumn}</td></tr>
                             ${row('Years', fmtYears(c.from_year, c.from_year_annotation, c.to_year, c.to_year_annotation), fmtYears(p.from_year, p.from_year_annotation, p.to_year, p.to_year_annotation))}
                             ${row('Born', fmtPlace(c.birthplace_1, c.birthplace_2), fmtPlace(p.birthplace_1, p.birthplace_2))}
                             ${row('Died', fmtPlace(c.deathplace_1, c.deathplace_2), fmtPlace(p.deathplace_1, p.deathplace_2))}
                         </table>
-                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the Wikidata column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
+                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the ${srcColumn} column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
                     </div>`;
             }
             if (s.kind === 'group_title') {

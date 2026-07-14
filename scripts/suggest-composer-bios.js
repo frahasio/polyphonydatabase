@@ -1,16 +1,22 @@
 /**
- * Matcher: fill missing composer biographical data (birth/death years,
- * birth/death places) from Wikidata. Writes rows to the suggestions table
- * for human review — accepting applies the Wikidata values (Wikidata dates
- * are cited, so they win over ours where they differ; the card shows every
- * replacement) and records the Wikidata id on the composer. Suggestions
- * that would change nothing are not created.
+ * Matcher: fill missing composer biographical data for review.
+ *
+ * Identity + life dates come from RISM (rism.online, the musicological
+ * authority file for early-music sources — far more reliable for this
+ * repertoire than fuzzy Wikidata name search, and namesakes from other
+ * centuries mostly don't exist there). Birth/death PLACES are patchy in
+ * RISM, so when the RISM record cross-references a Wikidata item we fetch
+ * places from that exact Q-id — no name guessing involved.
+ *
+ * Writes 'composer_bio' suggestions for human review; accepting applies the
+ * values (cited sources win over ours where they differ; the card shows
+ * every replacement) and records composers.rism_id / wikidata_id.
+ * Suggestions that would change nothing are not created.
  *
  * Usage: node scripts/suggest-composer-bios.js [batchSize] [--dry-run]
- * Wikidata has no hard quota but asks for politeness: ~2 requests/sec and a
- * descriptive User-Agent. Intended for Heroku Scheduler (daily) or manual
- * runs. composers.wikidata_checked_at is the checkpoint so runs advance
- * (--dry-run writes nothing and ignores the checkpoint).
+ * Polite ~2 req/s. Checkpoint: composers.wikidata_checked_at (kept from v1;
+ * it now means "bio matcher checked"). --dry-run ignores the checkpoint and
+ * writes nothing.
  */
 import { pool } from '../src/db.js';
 
@@ -18,20 +24,21 @@ const args = process.argv.slice(2).filter((a) => a !== '--dry-run');
 const DRY_RUN = process.argv.includes('--dry-run');
 const BATCH = Math.min(Math.max(parseInt(args[0], 10) || 25, 1), 500);
 const MIN_SCORE = Number(process.env.COMPOSER_BIO_MIN_SCORE) || 0.5;
-// This is a renaissance-polyphony catalogue: a candidate born after this
-// year (or dying ~a lifetime later) is a modern namesake — the first live
-// run matched a Tudor "Taylor, John" to a jazz pianist born 1960.
+// Renaissance-polyphony catalogue: anyone born after this year is a
+// namesake from the wrong era.
 const MAX_BIRTH_YEAR = parseInt(process.env.COMPOSER_BIO_MAX_BIRTH_YEAR, 10) || 1750;
-const API = 'https://www.wikidata.org/w/api.php';
-const HEADERS = { 'User-Agent': 'PolyphonyDatabase-Matcher/1 (polyphonydatabase@gmail.com)' };
-const Q_COMPOSER = 'Q36834';
+
+const HEADERS = {
+  Accept: 'application/json',
+  'User-Agent': 'PolyphonyDatabase-Matcher/2 (polyphonydatabase@gmail.com)',
+};
+const WD_API = 'https://www.wikidata.org/w/api.php';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function api(params) {
-  const url = API + '?' + new URLSearchParams({ format: 'json', ...params }).toString();
+async function fetchJson(url) {
   const resp = await fetch(url, { headers: HEADERS });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  await sleep(400);
+  await sleep(500);
   return resp.json();
 }
 
@@ -44,24 +51,55 @@ function normalize(s) {
     .trim();
 }
 
-// Names are stored "Surname(s), Forenames" — Wikidata labels are
-// "Forenames Surname(s)".
-function displayName(stored) {
-  const [surname, forenames] = String(stored || '').split(',').map((s) => s.trim());
-  return forenames ? `${forenames} ${surname}` : surname;
+// ---- RISM ----
+
+// RISM labels look like "Palestrina, Giovanni Pierluigi da (1525-1594)".
+function splitRismLabel(label) {
+  const m = String(label || '').match(/^(.*?)(?:\s*\(([^)]*)\))?\s*$/);
+  return { name: (m && m[1] || '').trim(), dates: (m && m[2] || '').trim() };
 }
 
-// Wikidata time value → { year, approx }. Precision 9 = year, 8 = decade,
-// 7 = century; anything below a year is flagged approximate ("c.").
-function parseTime(snak) {
-  const v = snak && snak.mainsnak && snak.mainsnak.datavalue && snak.mainsnak.datavalue.value;
-  if (!v || !v.time) return null;
-  const m = v.time.match(/^([+-]\d+)-/);
+// Parse one side of a RISM life-dates string: "1525", "1525c", "1475p",
+// "02.02.1594". Any letter/marker beside the year means approximate.
+// Returns { year, approx } or null.
+function parseDateSide(s) {
+  const str = String(s || '').trim();
+  const m = str.match(/(\d{4})/);
   if (!m) return null;
   const year = parseInt(m[1], 10);
-  if (!year || year < 1000 || year > 2000) return null;
-  return { year, approx: (v.precision || 9) < 9 };
+  if (year < 1000 || year > 2100) return null;
+  const approx = /[a-z?+~*]/i.test(str.replace(m[1], ''));
+  return { year, approx };
 }
+
+function parseLifeDates(datesStr) {
+  const str = String(datesStr || '').trim();
+  const parts = str.split(/[-\u2013]/);
+  if (parts.length < 2) {
+    // Single-sided dates: "1538+" means documented/died after 1538, NOT a
+    // birth year. A bare "1538" is too ambiguous to claim either way.
+    if (/\+\s*$/.test(str)) {
+      const d = parseDateSide(str);
+      return { born: null, died: d ? { ...d, approx: true } : null };
+    }
+    return { born: null, died: null };
+  }
+  return { born: parseDateSide(parts[0]), died: parseDateSide(parts[1]) };
+}
+
+function bioValue(record, englishLabel) {
+  const rows = (record.biographicalDetails && record.biographicalDetails.summary) || [];
+  const row = rows.find((r) => r.label && r.label.en && r.label.en[0] === englishLabel);
+  return row && row.value && row.value.none ? row.value.none[0] : null;
+}
+
+async function searchRism(name) {
+  const url = 'https://rism.online/search?' + new URLSearchParams({ q: name, mode: 'people' });
+  const data = await fetchJson(url);
+  return data.items || [];
+}
+
+// ---- Wikidata (by exact Q-id from the RISM cross-reference) ----
 
 function claimItemIds(entity, prop) {
   return ((entity.claims || {})[prop] || [])
@@ -69,9 +107,60 @@ function claimItemIds(entity, prop) {
     .filter(Boolean);
 }
 
+function claimYear(entity, prop) {
+  const c = ((entity.claims || {})[prop] || [])[0];
+  const v = c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value;
+  const m = v && v.time && v.time.match(/^([+-]\d+)-/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+async function wdEntities(ids, props) {
+  const url = WD_API + '?' + new URLSearchParams({
+    format: 'json', action: 'wbgetentities', ids: [...new Set(ids)].join('|'), props, languages: 'en',
+  });
+  const data = await fetchJson(url);
+  return data.entities || {};
+}
+
+// Fetch birth/death places (city + country) for one Wikidata item; the
+// item's own dates are cross-checked against RISM's so a bad link on the
+// RISM side can't smuggle in the wrong person's places.
+async function wikidataPlaces(qid, rismBorn, rismDied) {
+  const entities = await wdEntities([qid], 'claims');
+  const entity = entities[qid];
+  if (!entity) return null;
+  const wdBorn = claimYear(entity, 'P569');
+  const wdDied = claimYear(entity, 'P570');
+  if (rismBorn && wdBorn && Math.abs(wdBorn - rismBorn.year) > 5) return null;
+  if (rismDied && wdDied && Math.abs(wdDied - rismDied.year) > 5) return null;
+
+  const birthPlaceId = claimItemIds(entity, 'P19')[0] || null;
+  const deathPlaceId = claimItemIds(entity, 'P20')[0] || null;
+  const placeIds = [birthPlaceId, deathPlaceId].filter(Boolean);
+  if (!placeIds.length) return { birth: null, death: null };
+
+  const places = await wdEntities(placeIds, 'labels|claims');
+  const info = {};
+  const countryIds = new Set();
+  for (const [id, ent] of Object.entries(places)) {
+    const country = claimItemIds(ent, 'P17')[0] || null;
+    info[id] = { name: (ent.labels && ent.labels.en && ent.labels.en.value) || null, countryId: country };
+    if (country) countryIds.add(country);
+  }
+  if (countryIds.size) {
+    const countries = await wdEntities([...countryIds], 'labels');
+    for (const p of Object.values(info)) {
+      const c = p.countryId && countries[p.countryId];
+      p.country = (c && c.labels && c.labels.en && c.labels.en.value) || null;
+    }
+  }
+  return {
+    birth: birthPlaceId ? info[birthPlaceId] : null,
+    death: deathPlaceId ? info[deathPlaceId] : null,
+  };
+}
+
 async function main() {
-  // Same criteria as the dashboard's composers_missing_data alert, plus the
-  // checkpoint. Anonymous (23) excluded as always.
   const composers = await pool.query(`
     SELECT id, name, from_year, to_year, from_year_annotation, to_year_annotation,
            birthplace_1, birthplace_2, deathplace_1, deathplace_2
@@ -84,7 +173,7 @@ async function main() {
     LIMIT $1
   `, [BATCH]);
 
-  console.log(`Checking ${composers.rows.length} composers against Wikidata...${DRY_RUN ? ' [dry run]' : ''}`);
+  console.log(`Checking ${composers.rows.length} composers against RISM...${DRY_RUN ? ' [dry run]' : ''}`);
   let inserted = 0;
 
   for (const comp of composers.rows) {
@@ -92,107 +181,115 @@ async function main() {
       await pool.query('UPDATE composers SET wikidata_checked_at = NOW() WHERE id = $1', [comp.id]);
     }
 
-    const searchName = displayName(comp.name);
     let hits;
     try {
-      const data = await api({ action: 'wbsearchentities', search: searchName, language: 'en', type: 'item', limit: '5' });
-      hits = data.search || [];
+      hits = await searchRism(comp.name);
+      if (!hits.length) {
+        // Spelling variants ("Gerardus"/"Gheerkin") defeat full-name search;
+        // retry with the surname alone — the scorer filters the noise.
+        hits = await searchRism(String(comp.name).split(',')[0].trim());
+      }
     } catch (err) {
-      console.warn(`  ${comp.id} "${searchName}" search: ${err.message}`);
+      console.warn(`  ${comp.id} "${comp.name}" rism search: ${err.message}`);
       continue;
     }
     if (!hits.length) continue;
 
-    let entities;
-    try {
-      const data = await api({
-        action: 'wbgetentities',
-        ids: hits.map((h) => h.id).join('|'),
-        props: 'claims|labels|descriptions',
-        languages: 'en',
-      });
-      entities = data.entities || {};
-    } catch (err) {
-      console.warn(`  ${comp.id} "${searchName}" entities: ${err.message}`);
-      continue;
-    }
-
-    // Score each hit: surname must appear in the label; being a composer
-    // (occupation or description) and a full name match add confidence.
-    // A conflict with data we already hold means it's the wrong person.
-    const surname = normalize(String(comp.name).split(',')[0]);
-    const nameTokens = normalize(searchName).split(' ').filter((w) => w.length >= 2);
+    // Score candidates. Both sides use "Surname, Forenames"; surname must
+    // match exactly, then a full-name match, the Composer role, and RISM
+    // source count add confidence.
+    const storedSurname = normalize(String(comp.name).split(',')[0]);
+    const storedTokens = new Set(normalize(comp.name).split(' ').filter((w) => w.length >= 2));
     let best = null;
-    for (const hit of hits) {
-      const entity = entities[hit.id];
-      if (!entity) continue;
-      const label = normalize((entity.labels && entity.labels.en && entity.labels.en.value) || hit.label || '');
-      const description = ((entity.descriptions && entity.descriptions.en && entity.descriptions.en.value) || hit.description || '');
-      if (!surname || !label.includes(surname)) continue;
+    for (const hit of hits.slice(0, 8)) {
+      // Only native RISM person records: federated ones (external/diamm/...)
+      // 500 on JSON fetch and carry no biographical data.
+      if (!/rism\.online\/people\//.test(hit.id || '')) continue;
+      const { name: hitName, dates } = splitRismLabel(hit.label && hit.label.none && hit.label.none[0]);
+      if (!hitName) continue;
+      const hitSurname = normalize(hitName.split(',')[0]);
+      if (!hitSurname || hitSurname !== storedSurname) continue;
 
-      const born = parseTime(((entity.claims || {}).P569 || [])[0]);
-      const died = parseTime(((entity.claims || {}).P570 || [])[0]);
+      // Label dates are optional here — many RISM records only carry dates
+      // in the full record, fetched below. When present they act as guards.
+      const { born, died } = parseLifeDates(dates);
+      if (born && born.year > MAX_BIRTH_YEAR) continue;
+      if (died && died.year > MAX_BIRTH_YEAR + 90) continue;
       if (comp.from_year && born && Math.abs(born.year - comp.from_year) > 5) continue;
       if (comp.to_year && died && Math.abs(died.year - comp.to_year) > 5) continue;
-      if (!born && !died) continue; // nothing useful to suggest
-      if (born && born.year > MAX_BIRTH_YEAR) continue; // modern namesake
-      if (died && died.year > MAX_BIRTH_YEAR + 90) continue;
 
-      const isComposer = claimItemIds(entity, 'P106').includes(Q_COMPOSER)
-        || /composer/i.test(description);
-      const fullNameMatch = nameTokens.every((t) => label.includes(t));
+      const hitTokens = new Set(normalize(hitName).split(' ').filter((w) => w.length >= 2));
+      const fullNameMatch = [...storedTokens].every((t) => hitTokens.has(t));
+      const roles = (hit.summary && hit.summary.roles && hit.summary.roles.value && hit.summary.roles.value.none) || [];
+      const isComposer = roles.includes('Composer');
+      const numSources = (hit.flags && hit.flags.numberOfSources) || 0;
       const agreesWithKnown = Boolean((comp.from_year && born) || (comp.to_year && died));
-      const score = Math.round((0.35 + (isComposer ? 0.3 : 0) + (fullNameMatch ? 0.2 : 0) + (agreesWithKnown ? 0.15 : 0)) * 100) / 100;
-      if (!best || score > best.score) {
-        best = { id: hit.id, entity, description, born, died, score };
+      const score = Math.round((0.3
+        + (fullNameMatch ? 0.25 : 0)
+        + (isComposer ? 0.2 : 0)
+        + (numSources >= 3 ? 0.1 : 0)
+        + (agreesWithKnown ? 0.15 : 0)) * 100) / 100;
+      if (!best || score > best.score || (score === best.score && numSources > best.numSources)) {
+        best = { id: hit.id, label: hitName, dates, born, died, roles, numSources, score };
       }
     }
     if (!best || best.score < MIN_SCORE) continue;
 
-    // Resolve birth/death place labels and their countries (P17) in one
-    // batched entity fetch each.
-    const birthPlaceId = claimItemIds(best.entity, 'P19')[0] || null;
-    const deathPlaceId = claimItemIds(best.entity, 'P20')[0] || null;
-    const places = {};
-    const placeIds = [birthPlaceId, deathPlaceId].filter(Boolean);
-    if (placeIds.length) {
+    // Full RISM record: more precise "other life dates" + Wikidata x-ref.
+    let record = null;
+    try {
+      record = await fetchJson(best.id);
+    } catch (err) {
+      console.warn(`  ${comp.id} rism record: ${err.message}`);
+    }
+    if (record) {
+      const other = bioValue(record, 'Other life dates') || bioValue(record, 'Life dates');
+      if (other) {
+        const parsed = parseLifeDates(other);
+        if (parsed.born) best.born = parsed.born;
+        if (parsed.died) best.died = parsed.died;
+      }
+    }
+    // Re-apply the guards against the (possibly better) record dates.
+    if (!best.born && !best.died) continue; // nothing datable -> too risky
+    if (best.born && best.born.year > MAX_BIRTH_YEAR) continue;
+    if (best.died && best.died.year > MAX_BIRTH_YEAR + 90) continue;
+    if (comp.from_year && best.born && Math.abs(best.born.year - comp.from_year) > 5) continue;
+    if (comp.to_year && best.died && Math.abs(best.died.year - comp.to_year) > 5) continue;
+
+    let qid = null;
+    const authorities = (record && record.externalAuthorities && record.externalAuthorities.items) || [];
+    const wd = authorities.find((a) => String(a.base || '').includes('wikidata.org'));
+    if (wd) qid = wd.value;
+
+    let places = null;
+    if (qid) {
       try {
-        const data = await api({ action: 'wbgetentities', ids: [...new Set(placeIds)].join('|'), props: 'labels|claims', languages: 'en' });
-        const countryIds = new Set();
-        for (const [qid, ent] of Object.entries(data.entities || {})) {
-          const country = claimItemIds(ent, 'P17')[0] || null;
-          places[qid] = { name: (ent.labels && ent.labels.en && ent.labels.en.value) || null, countryId: country };
-          if (country) countryIds.add(country);
-        }
-        if (countryIds.size) {
-          const cdata = await api({ action: 'wbgetentities', ids: [...countryIds].join('|'), props: 'labels', languages: 'en' });
-          for (const p of Object.values(places)) {
-            const c = p.countryId && cdata.entities && cdata.entities[p.countryId];
-            p.country = (c && c.labels && c.labels.en && c.labels.en.value) || null;
-          }
-        }
+        places = await wikidataPlaces(qid, best.born, best.died);
       } catch (err) {
-        console.warn(`  ${comp.id} places: ${err.message}`);
+        console.warn(`  ${comp.id} wikidata places: ${err.message}`);
       }
     }
 
-    const label = (best.entity.labels && best.entity.labels.en && best.entity.labels.en.value) || searchName;
+    const rismId = String(best.id).replace('https://rism.online/', ''); // "people/1904"
     const payload = {
-      wikidata_id: best.id,
-      wikidata_label: label,
-      wikidata_description: best.description || null,
+      rism_id: rismId,
+      rism_label: best.label,
+      rism_dates: best.dates || null,
+      rism_sources: best.numSources,
+      rism_roles: best.roles.slice(0, 5),
+      wikidata_id: qid,
       from_year: best.born ? best.born.year : null,
       from_year_annotation: best.born && best.born.approx ? 'c.' : null,
       to_year: best.died ? best.died.year : null,
       to_year_annotation: best.died && best.died.approx ? 'c.' : null,
-      birthplace_1: birthPlaceId && places[birthPlaceId] ? places[birthPlaceId].name : null,
-      birthplace_2: birthPlaceId && places[birthPlaceId] ? places[birthPlaceId].country : null,
-      deathplace_1: deathPlaceId && places[deathPlaceId] ? places[deathPlaceId].name : null,
-      deathplace_2: deathPlaceId && places[deathPlaceId] ? places[deathPlaceId].country : null,
+      birthplace_1: places && places.birth ? places.birth.name : null,
+      birthplace_2: places && places.birth ? places.birth.country : null,
+      deathplace_1: places && places.death ? places.death.name : null,
+      deathplace_2: places && places.death ? places.death.country : null,
     };
 
-    // Pointless to review a suggestion that changes nothing (Wikidata knows
-    // no more than we do — e.g. dates match ours and it has no places).
+    // Pointless to review a suggestion that changes nothing.
     const wouldChange =
       (payload.from_year !== null && payload.from_year !== comp.from_year) ||
       (payload.to_year !== null && payload.to_year !== comp.to_year) ||
@@ -206,18 +303,18 @@ async function main() {
     const placesLog = `${payload.birthplace_1 || '?'}, ${payload.birthplace_2 || '?'} / ${payload.deathplace_1 || '?'}, ${payload.deathplace_2 || '?'}`;
     if (DRY_RUN) {
       inserted++;
-      console.log(`  ${comp.id} "${comp.name}" -> ${best.id} ${label} (${years}; ${placesLog}) ${Math.round(best.score * 100)}%`);
+      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${years}; ${placesLog}; ${best.numSources} srcs) ${Math.round(best.score * 100)}%`);
       continue;
     }
     const result = await pool.query(
       `INSERT INTO suggestions (kind, composer_id, payload, score, source, dedupe_key)
-       VALUES ('composer_bio', $1, $2, $3, 'wikidata.org', $4)
+       VALUES ('composer_bio', $1, $2, $3, 'rism.online', $4)
        ON CONFLICT (dedupe_key) DO NOTHING`,
       [comp.id, JSON.stringify(payload), best.score, `cb:${comp.id}`]
     );
     if (result.rowCount) {
       inserted++;
-      console.log(`  ${comp.id} "${comp.name}" -> ${best.id} ${label} (${years}) ${Math.round(best.score * 100)}%`);
+      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${years}) ${Math.round(best.score * 100)}%`);
     }
   }
 

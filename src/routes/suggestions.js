@@ -326,6 +326,7 @@ router.post('/:id/:action', async (req, res) => {
              deathplace_1 = COALESCE($8, deathplace_1),
              deathplace_2 = COALESCE($9, deathplace_2),
              wikidata_id = COALESCE($10, wikidata_id),
+             rism_id = COALESCE($11, rism_id),
              updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
           [
@@ -335,6 +336,7 @@ router.post('/:id/:action', async (req, res) => {
             text(payload.birthplace_1), text(payload.birthplace_2),
             text(payload.deathplace_1), text(payload.deathplace_2),
             text(payload.wikidata_id),
+            text(payload.rism_id),
           ]
         );
       } else if (s.kind === 'group_title') {
