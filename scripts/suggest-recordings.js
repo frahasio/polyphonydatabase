@@ -71,14 +71,24 @@ function scoreCandidate(title, composerDisplay, candidateText) {
 }
 
 // Retry on transient failures (Spotify intermittently returns bursts of
-// 502s). This matters more now groups are checkpointed: a failed search
-// means the group is never re-searched, so give each request a fair chance.
+// 502s). A 429 with a LONG Retry-After means the IP/app is serving a
+// rate-limit penalty (Heroku's shared IPs get hit with ~12h ones) — throw a
+// recognisable error so the run can stop immediately instead of hammering
+// the API and prolonging the penalty.
 async function fetchJson(url, options, tries = 3) {
   for (let attempt = 1; ; attempt++) {
     const resp = await fetch(url, options);
     if (resp.ok) return resp.json();
-    const transient = resp.status === 429 || resp.status >= 500;
-    if (!transient || attempt >= tries) throw new Error(`HTTP ${resp.status}`);
+    if (resp.status === 429) {
+      const retryAfter = parseInt(resp.headers.get('retry-after'), 10) || 0;
+      if (retryAfter > 60) {
+        throw new Error(`RATE_LIMITED for ${Math.round(retryAfter / 3600 * 10) / 10}h (HTTP 429)`);
+      }
+      if (attempt >= tries) throw new Error('HTTP 429');
+      await sleep((retryAfter || attempt) * 1000);
+      continue;
+    }
+    if (resp.status < 500 || attempt >= tries) throw new Error(`HTTP ${resp.status}`);
     await sleep(1000 * attempt);
   }
 }
@@ -277,6 +287,10 @@ async function runSpotify(batch) {
       }
     } catch (err) {
       console.warn(`  group ${g.id} spotify: ${err.message}`);
+      if (String(err.message).includes('RATE_LIMITED')) {
+        console.warn('[spotify] Long rate-limit penalty in force — stopping immediately. Unchecked groups carry over to the next run.');
+        break;
+      }
       consecutiveErrors++;
       if (consecutiveErrors >= 10) {
         console.warn('[spotify] 10 consecutive failures — Spotify is rate-limiting or down; stopping this run. Unchecked groups carry over.');
