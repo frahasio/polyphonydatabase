@@ -59,7 +59,7 @@ function splitRismLabel(label) {
   return { name: (m && m[1] || '').trim(), dates: (m && m[2] || '').trim() };
 }
 
-// Parse one side of a RISM life-dates string: "1525", "1525c", "1475p",
+// Parse one side of a RISM date string: "1525", "1525c", "1475p",
 // "02.02.1594". Any letter/marker beside the year means approximate.
 // Returns { year, approx } or null.
 function parseDateSide(s) {
@@ -72,19 +72,49 @@ function parseDateSide(s) {
   return { year, approx };
 }
 
-function parseLifeDates(datesStr) {
+/**
+ * Parse a RISM date string into one of:
+ *   { kind: 'life', born, died }   — genuine birth/death years
+ *   { kind: 'fl', start, end }     — flourished/activity period
+ *   null                           — unusable (century-only etc.)
+ *
+ * RISM conventions this understands:
+ *   "1525-1594", "1510c-17.11.1573"  -> life dates
+ *   "fl. 1547-1550"                  -> flourished period
+ *   "1573+"                          -> documented in/after 1573 -> fl. 1573
+ *   "16.sc", "1500-1599", 45+-year fl spans -> null: century placeholders,
+ *      worthless as dates (per review feedback: "might as well have nothing")
+ */
+function parseRismDates(datesStr) {
   const str = String(datesStr || '').trim();
-  const parts = str.split(/[-\u2013]/);
-  if (parts.length < 2) {
-    // Single-sided dates: "1538+" means documented/died after 1538, NOT a
-    // birth year. A bare "1538" is too ambiguous to claim either way.
-    if (/\+\s*$/.test(str)) {
-      const d = parseDateSide(str);
-      return { born: null, died: d ? { ...d, approx: true } : null };
+  if (!str || /\d\d?\s*\.?\s*sc/i.test(str)) return null; // "16.sc" century-only
+
+  const isFl = /^fl/i.test(str);
+  const body = str.replace(/^fl\.?\s*/i, '');
+
+  // Single-sided "1573+": documented in/after that year -> flourished.
+  if (!/[-\u2013]/.test(body)) {
+    if (/\+\s*$/.test(body) || isFl) {
+      const d = parseDateSide(body);
+      return d ? { kind: 'fl', start: d, end: null } : null;
     }
-    return { born: null, died: null };
+    return null; // bare single year: too ambiguous
   }
-  return { born: parseDateSide(parts[0]), died: parseDateSide(parts[1]) };
+
+  const parts = body.split(/[-\u2013]/);
+  const a = parseDateSide(parts[0]);
+  const b = parseDateSide(parts[1]);
+  if (!a && !b) return null;
+
+  if (isFl) {
+    // Century-derived fl spans ("fl. 1500-1599", "fl. 1500-1549") carry no
+    // real information; genuine activity periods are short.
+    if (a && b && b.year - a.year >= 40) return null;
+    return { kind: 'fl', start: a || b, end: a ? b : null };
+  }
+  // A "lifespan" of 90+ years is a century placeholder, not a person.
+  if (a && b && b.year - a.year >= 90) return null;
+  return { kind: 'life', born: a, died: b };
 }
 
 function bioValue(record, englishLabel) {
@@ -124,15 +154,22 @@ async function wdEntities(ids, props) {
 
 // Fetch birth/death places (city + country) for one Wikidata item; the
 // item's own dates are cross-checked against RISM's so a bad link on the
-// RISM side can't smuggle in the wrong person's places.
-async function wikidataPlaces(qid, rismBorn, rismDied) {
+// RISM side can't smuggle in the wrong person's places. `dates` is the
+// parseRismDates() result: life dates must agree within 5 years; a
+// flourished period must fall inside the Wikidata lifetime.
+async function wikidataPlaces(qid, dates) {
   const entities = await wdEntities([qid], 'claims');
   const entity = entities[qid];
   if (!entity) return null;
   const wdBorn = claimYear(entity, 'P569');
   const wdDied = claimYear(entity, 'P570');
-  if (rismBorn && wdBorn && Math.abs(wdBorn - rismBorn.year) > 5) return null;
-  if (rismDied && wdDied && Math.abs(wdDied - rismDied.year) > 5) return null;
+  if (dates.kind === 'life') {
+    if (dates.born && wdBorn && Math.abs(wdBorn - dates.born.year) > 5) return null;
+    if (dates.died && wdDied && Math.abs(wdDied - dates.died.year) > 5) return null;
+  } else if (dates.kind === 'fl' && dates.start) {
+    if (wdBorn && wdBorn > dates.start.year + 5) return null;
+    if (wdDied && wdDied < dates.start.year - 5) return null;
+  }
 
   const birthPlaceId = claimItemIds(entity, 'P19')[0] || null;
   const deathPlaceId = claimItemIds(entity, 'P20')[0] || null;
@@ -212,25 +249,29 @@ async function main() {
 
       // Label dates are optional here — many RISM records only carry dates
       // in the full record, fetched below. When present they act as guards.
-      const { born, died } = parseLifeDates(dates);
-      if (born && born.year > MAX_BIRTH_YEAR) continue;
-      if (died && died.year > MAX_BIRTH_YEAR + 90) continue;
-      if (comp.from_year && born && Math.abs(born.year - comp.from_year) > 5) continue;
-      if (comp.to_year && died && Math.abs(died.year - comp.to_year) > 5) continue;
+      const labelDates = parseRismDates(dates);
+      if (labelDates && labelDates.kind === 'life') {
+        const { born, died } = labelDates;
+        if (born && born.year > MAX_BIRTH_YEAR) continue;
+        if (died && died.year > MAX_BIRTH_YEAR + 90) continue;
+        if (comp.from_year && born && Math.abs(born.year - comp.from_year) > 5) continue;
+        if (comp.to_year && died && Math.abs(died.year - comp.to_year) > 5) continue;
+      }
 
       const hitTokens = new Set(normalize(hitName).split(' ').filter((w) => w.length >= 2));
       const fullNameMatch = [...storedTokens].every((t) => hitTokens.has(t));
       const roles = (hit.summary && hit.summary.roles && hit.summary.roles.value && hit.summary.roles.value.none) || [];
       const isComposer = roles.includes('Composer');
       const numSources = (hit.flags && hit.flags.numberOfSources) || 0;
-      const agreesWithKnown = Boolean((comp.from_year && born) || (comp.to_year && died));
+      const agreesWithKnown = Boolean(labelDates && labelDates.kind === 'life' &&
+        ((comp.from_year && labelDates.born) || (comp.to_year && labelDates.died)));
       const score = Math.round((0.3
         + (fullNameMatch ? 0.25 : 0)
         + (isComposer ? 0.2 : 0)
         + (numSources >= 3 ? 0.1 : 0)
         + (agreesWithKnown ? 0.15 : 0)) * 100) / 100;
       if (!best || score > best.score || (score === best.score && numSources > best.numSources)) {
-        best = { id: hit.id, label: hitName, dates, born, died, roles, numSources, score };
+        best = { id: hit.id, label: hitName, datesStr: dates, labelDates, roles, numSources, score };
       }
     }
     if (!best || best.score < MIN_SCORE) continue;
@@ -242,20 +283,30 @@ async function main() {
     } catch (err) {
       console.warn(`  ${comp.id} rism record: ${err.message}`);
     }
-    if (record) {
-      const other = bioValue(record, 'Other life dates') || bioValue(record, 'Life dates');
-      if (other) {
-        const parsed = parseLifeDates(other);
-        if (parsed.born) best.born = parsed.born;
-        if (parsed.died) best.died = parsed.died;
-      }
+    const recStr = record
+      ? (bioValue(record, 'Other life dates') || bioValue(record, 'Life dates'))
+      : null;
+    const recDates = parseRismDates(recStr);
+    // Prefer genuine life dates over a flourished period; prefer the full
+    // record's string over the label's within the same kind.
+    const parsedCandidates = [recDates, best.labelDates].filter(Boolean);
+    const dates = parsedCandidates.find((d) => d.kind === 'life') || parsedCandidates[0] || null;
+    if (!dates) continue; // century-only or undated -> nothing trustworthy
+
+    if (dates.kind === 'life') {
+      if (!dates.born && !dates.died) continue;
+      if (dates.born && dates.born.year > MAX_BIRTH_YEAR) continue;
+      if (dates.died && dates.died.year > MAX_BIRTH_YEAR + 90) continue;
+      if (comp.from_year && dates.born && Math.abs(dates.born.year - comp.from_year) > 5) continue;
+      if (comp.to_year && dates.died && Math.abs(dates.died.year - comp.to_year) > 5) continue;
+    } else {
+      // Flourished period: must sit plausibly inside any known lifetime,
+      // and within the catalogue's era.
+      if (!dates.start) continue;
+      if (dates.start.year > MAX_BIRTH_YEAR + 40) continue;
+      if (comp.from_year && dates.start.year < comp.from_year - 5) continue;
+      if (comp.to_year && dates.start.year > comp.to_year + 5) continue;
     }
-    // Re-apply the guards against the (possibly better) record dates.
-    if (!best.born && !best.died) continue; // nothing datable -> too risky
-    if (best.born && best.born.year > MAX_BIRTH_YEAR) continue;
-    if (best.died && best.died.year > MAX_BIRTH_YEAR + 90) continue;
-    if (comp.from_year && best.born && Math.abs(best.born.year - comp.from_year) > 5) continue;
-    if (comp.to_year && best.died && Math.abs(best.died.year - comp.to_year) > 5) continue;
 
     let qid = null;
     const authorities = (record && record.externalAuthorities && record.externalAuthorities.items) || [];
@@ -265,24 +316,42 @@ async function main() {
     let places = null;
     if (qid) {
       try {
-        places = await wikidataPlaces(qid, best.born, best.died);
+        places = await wikidataPlaces(qid, dates);
       } catch (err) {
         console.warn(`  ${comp.id} wikidata places: ${err.message}`);
       }
+    }
+
+    // Year fields: life dates go in as-is; a flourished period is only
+    // offered when the composer has NO years at all, using the house
+    // "fl." / "fl.c." annotation convention (so it displays as fl.1547-1550
+    // and can never masquerade as birth/death).
+    let years = { from_year: null, from_year_annotation: null, to_year: null, to_year_annotation: null };
+    if (dates.kind === 'life') {
+      years = {
+        from_year: dates.born ? dates.born.year : null,
+        from_year_annotation: dates.born && dates.born.approx ? 'c.' : null,
+        to_year: dates.died ? dates.died.year : null,
+        to_year_annotation: dates.died && dates.died.approx ? 'c.' : null,
+      };
+    } else if (!comp.from_year && !comp.to_year) {
+      years = {
+        from_year: dates.start.year,
+        from_year_annotation: dates.start.approx ? 'fl.c.' : 'fl.',
+        to_year: dates.end ? dates.end.year : null,
+        to_year_annotation: dates.end && dates.end.approx ? 'c.' : null,
+      };
     }
 
     const rismId = String(best.id).replace('https://rism.online/', ''); // "people/1904"
     const payload = {
       rism_id: rismId,
       rism_label: best.label,
-      rism_dates: best.dates || null,
+      rism_dates: recStr || best.datesStr || null,
       rism_sources: best.numSources,
       rism_roles: best.roles.slice(0, 5),
       wikidata_id: qid,
-      from_year: best.born ? best.born.year : null,
-      from_year_annotation: best.born && best.born.approx ? 'c.' : null,
-      to_year: best.died ? best.died.year : null,
-      to_year_annotation: best.died && best.died.approx ? 'c.' : null,
+      ...years,
       birthplace_1: places && places.birth ? places.birth.name : null,
       birthplace_2: places && places.birth ? places.birth.country : null,
       deathplace_1: places && places.death ? places.death.name : null,
@@ -299,11 +368,11 @@ async function main() {
       (payload.deathplace_2 && payload.deathplace_2 !== comp.deathplace_2);
     if (!wouldChange) continue;
 
-    const years = `${payload.from_year_annotation || ''}${payload.from_year || '?'}-${payload.to_year_annotation || ''}${payload.to_year || '?'}`;
+    const yearsLog = `${payload.from_year_annotation || ''}${payload.from_year || '?'}-${payload.to_year_annotation || ''}${payload.to_year || '?'}`;
     const placesLog = `${payload.birthplace_1 || '?'}, ${payload.birthplace_2 || '?'} / ${payload.deathplace_1 || '?'}, ${payload.deathplace_2 || '?'}`;
     if (DRY_RUN) {
       inserted++;
-      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${years}; ${placesLog}; ${best.numSources} srcs) ${Math.round(best.score * 100)}%`);
+      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${yearsLog}; ${placesLog}; ${best.numSources} srcs) ${Math.round(best.score * 100)}%`);
       continue;
     }
     const result = await pool.query(
@@ -314,7 +383,7 @@ async function main() {
     );
     if (result.rowCount) {
       inserted++;
-      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${years}) ${Math.round(best.score * 100)}%`);
+      console.log(`  ${comp.id} "${comp.name}" -> ${rismId} ${best.label} (${yearsLog}) ${Math.round(best.score * 100)}%`);
     }
   }
 
