@@ -86,11 +86,11 @@ async function searchYouTube(query) {
   const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=' +
     encodeURIComponent(query) + '&key=' + key;
   const resp = await fetch(url);
-  if (resp.status === 403) {
-    // Almost always dailyLimitExceeded / quotaExceeded — stop hitting YouTube
-    // for the rest of this run so we don't waste hundreds of failed calls.
+  if (resp.status === 403 || resp.status === 429) {
+    // dailyLimitExceeded / quotaExceeded / rate limited — stop hitting
+    // YouTube for the rest of this run so we don't waste hundreds of calls.
     youtubeExhausted = true;
-    console.warn('YouTube quota reached — skipping YouTube for the rest of this run.');
+    console.warn(`YouTube quota reached (HTTP ${resp.status}) — skipping YouTube for the rest of this run.`);
     return [];
   }
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
