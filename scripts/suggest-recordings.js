@@ -66,10 +66,17 @@ function scoreCandidate(title, composerDisplay, candidateText) {
   return Math.round((matched / titleWords.length) * 100) / 100;
 }
 
-async function fetchJson(url, options) {
-  const resp = await fetch(url, options);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
+// Retry on transient failures (Spotify intermittently returns bursts of
+// 502s). This matters more now groups are checkpointed: a failed search
+// means the group is never re-searched, so give each request a fair chance.
+async function fetchJson(url, options, tries = 3) {
+  for (let attempt = 1; ; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.ok) return resp.json();
+    const transient = resp.status === 429 || resp.status >= 500;
+    if (!transient || attempt >= tries) throw new Error(`HTTP ${resp.status}`);
+    await sleep(1000 * attempt);
+  }
 }
 
 // ---- YouTube ----
@@ -116,10 +123,21 @@ async function getSpotifyToken() {
 }
 
 async function searchSpotify(query) {
-  const token = await getSpotifyToken();
+  let token = await getSpotifyToken();
   if (!token) return [];
   const url = 'https://api.spotify.com/v1/search?type=track&limit=5&q=' + encodeURIComponent(query);
-  const data = await fetchJson(url, { headers: { Authorization: 'Bearer ' + token } });
+  let data;
+  try {
+    data = await fetchJson(url, { headers: { Authorization: 'Bearer ' + token } });
+  } catch (err) {
+    // Cached token may have expired mid-run (client-credentials tokens last
+    // 1 hour); refresh once and retry.
+    if (!String(err.message).includes('401')) throw err;
+    spotifyToken = null;
+    token = await getSpotifyToken();
+    if (!token) return [];
+    data = await fetchJson(url, { headers: { Authorization: 'Bearer ' + token } });
+  }
   return ((data.tracks && data.tracks.items) || []).map((t) => ({
     url: t.external_urls && t.external_urls.spotify,
     title: t.name,
