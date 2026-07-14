@@ -79,7 +79,19 @@ deployed. Also shipped since:
   Divinum Officium import for texts/translations and a fetch-translation
   button backed by the vendored Douay-Rheims/Vulgate files.
 - Backend CRUD dedup: composers/editors/performers/publishers/scribes now use
-  `src/routes/entityRouter.js` (`createEntityRouter`).
+ `src/routes/entityRouter.js` (`createEntityRouter`).
+- Group management (`/group-management.html`, July 2026 rebuild): two-pane
+ workbench — search/filter list left (checkbox select, count chips, deep
+ link `?group=<id>`), persistent group panel right with inline
+ edition/recording add+remove, display-title rename, and composition
+ move/split via `POST /api/admin/groups/move-compositions` (compatibility
+ checked server-side; editions/recordings never move implicitly; emptied
+ bare source groups are deleted). Merge + bulk edit live in a bottom
+ selection bar. The list endpoint now aggregates per-composition attrs
+ (voices_list/types_list/tones_list/even_odd_list) grouped by g.id only.
+ The old `POST /:groupId/remove-composition` endpoint (with its
+ edition-moving heuristics) is no longer used by the UI. Titles page was
+ restyled to match (same ids; logic still `functions.js`).
 
 ## Deferred / recommended NOT to big-bang (do incrementally)
 
