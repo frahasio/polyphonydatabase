@@ -27,6 +27,14 @@ const HORAS_SECTION_RE = /^(Ant\b|Responsory|Hymnus|Capitulum|Invit)/;
 // are stripped so the real opening is indexed too. Formulaic incipits are
 // protected against by the union-days generic filter, which sees every
 // pericope of the year.
+//
+// CAVEAT — Office Matins lessons in TEMPORA are scripture read IN COURSE
+// (the cycle just happens to be passing through Romans that week), so a
+// unique hit there is coincidence, not properness: it made "Christus
+// resurgens" claim a Pentecost-season feria instead of its real Easter
+// propers. Tempora Matins lessons are therefore frequency-only; feast-day
+// lessons (Sancti/Commune — e.g. the Song of Songs lessons of the
+// Assumption) remain evidence, as do all MASS pericopes, which are proper.
 const PROSE_SECTION_RE = /^(Evangelium|Lectio)/;
 // FREQUENCY-ONLY sections: orations. Their openings ("Deus, qui...")
 // contribute to generic-ness counting but don't generate suggestions.
@@ -228,13 +236,15 @@ export function buildCorpus(functionNames) {
   const missaFilter = (s) => (MISSA_SECTIONS.has(s) ? 'evidence'
     : PROSE_SECTION_RE.test(s) ? 'prose'
     : FREQ_SECTION_RE.test(s) ? 'freq' : null);
-  const horasFilter = (s) => (HORAS_SECTION_RE.test(s) ? 'evidence'
-    : PROSE_SECTION_RE.test(s) ? 'prose'
+  // lessonsAreProper: on feast days (Sancti/Commune) Matins lessons are
+  // proper texts; in Tempora they're in-course scripture -> frequency-only.
+  const horasFilter = (lessonsAreProper) => (s) => (HORAS_SECTION_RE.test(s) ? 'evidence'
+    : PROSE_SECTION_RE.test(s) ? (lessonsAreProper ? 'prose' : 'freq')
     : FREQ_SECTION_RE.test(s) ? 'freq' : null);
   walk('missa/Latin/Tempora', missaFilter);
   walk('missa/Latin/Sancti', missaFilter);
-  walk('horas/Latin/Tempora', horasFilter);
-  walk('horas/Latin/Sancti', horasFilter);
+  walk('horas/Latin/Tempora', horasFilter(false));
+  walk('horas/Latin/Sancti', horasFilter(true));
   walk('horas/Latin/Commune', (s) => (HORAS_SECTION_RE.test(s) || MISSA_SECTIONS.has(s) ? 'evidence'
     : PROSE_SECTION_RE.test(s) ? 'prose'
     : FREQ_SECTION_RE.test(s) ? 'freq' : null));

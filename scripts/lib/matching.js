@@ -28,6 +28,33 @@ export const FEAST_MAP = new Map(Object.entries({
   'hebdomadam passionis': 'Lent V',
   'hebdomadam 2 post epiphaniam': 'Epiphany II (Ordinary Time 2)',
   'hebdomadam 3 post epiphaniam': 'Epiphany III (Ordinary Time 3)',
+  // Weekdays after the Pentecost octave ("Feria tertia infra Hebdomadam VI
+  // post Octavam Pentecostes") belong to the corresponding post-Pentecost
+  // Sunday — WITHOUT these entries they'd fall through to the bare
+  // 'pentecostes' stem and be mislabelled "Pentecost".
+  'hebdomadam 1 post octavam pentecostes': 'Post Pentecost I (Ordinary Time 7)',
+  'hebdomadam 2 post octavam pentecostes': 'Sunday in the octave of Corpus Christi (Ordinary Time 8)',
+  'hebdomadam 3 post octavam pentecostes': 'Post Pentecost III (Ordinary Time 9)',
+  'hebdomadam 4 post octavam pentecostes': 'Post Pentecost IV (Ordinary Time 10)',
+  'hebdomadam 5 post octavam pentecostes': 'Post Pentecost V (Ordinary Time 11)',
+  'hebdomadam 6 post octavam pentecostes': 'Post Pentecost VI (Ordinary Time 12)',
+  'hebdomadam 7 post octavam pentecostes': 'Post Pentecost VII (Ordinary Time 13)',
+  'hebdomadam 8 post octavam pentecostes': 'Post Pentecost VIII (Ordinary Time 14)',
+  'hebdomadam 9 post octavam pentecostes': 'Post Pentecost IX (Ordinary Time 16)',
+  'hebdomadam 10 post octavam pentecostes': 'Post Pentecost X (Ordinary Time 15)',
+  'hebdomadam 11 post octavam pentecostes': 'Post Pentecost XI (Ordinary Time 17)',
+  'hebdomadam 12 post octavam pentecostes': 'Post Pentecost XII (Ordinary Time 18)',
+  'hebdomadam 13 post octavam pentecostes': 'Post Pentecost XIII (Ordinary Time 19)',
+  'hebdomadam 14 post octavam pentecostes': 'Post Pentecost XIV (Ordinary Time 20)',
+  'hebdomadam 15 post octavam pentecostes': 'Post Pentecost XV (Ordinary Time 21)',
+  'hebdomadam 16 post octavam pentecostes': 'Post Pentecost XVI (Ordinary Time 22)',
+  'hebdomadam 17 post octavam pentecostes': 'Post Pentecost XVII (Ordinary Time 23)',
+  'hebdomadam 18 post octavam pentecostes': 'Post Pentecost XVIII (Ordinary Time 24)',
+  'hebdomadam 19 post octavam pentecostes': 'Post Pentecost XIX (Ordinary Time 25)',
+  'hebdomadam 20 post octavam pentecostes': 'Post Pentecost XX (Ordinary Time 26)',
+  'hebdomadam 21 post octavam pentecostes': 'Post Pentecost XXI (Ordinary Time 27)',
+  'hebdomadam 22 post octavam pentecostes': 'Post Pentecost XXII (Ordinary Time 28)',
+  'hebdomadam 23 post octavam pentecostes': 'Post Pentecost XXIII (Ordinary Time 33)',
   // Pre-Lent and Lent Sundays (Divinum Officium day names). Function names
   // use the OLD calendar first, Ordinary Time in brackets (renamed by
   // migration 019).
