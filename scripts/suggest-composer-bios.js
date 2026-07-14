@@ -16,6 +16,10 @@ const args = process.argv.slice(2).filter((a) => a !== '--dry-run');
 const DRY_RUN = process.argv.includes('--dry-run');
 const BATCH = Math.min(Math.max(parseInt(args[0], 10) || 25, 1), 500);
 const MIN_SCORE = Number(process.env.COMPOSER_BIO_MIN_SCORE) || 0.5;
+// This is a renaissance-polyphony catalogue: a candidate born after this
+// year (or dying ~a lifetime later) is a modern namesake — the first live
+// run matched a Tudor "Taylor, John" to a jazz pianist born 1960.
+const MAX_BIRTH_YEAR = parseInt(process.env.COMPOSER_BIO_MAX_BIRTH_YEAR, 10) || 1750;
 const API = 'https://www.wikidata.org/w/api.php';
 const HEADERS = { 'User-Agent': 'PolyphonyDatabase-Matcher/1 (polyphonydatabase@gmail.com)' };
 const Q_COMPOSER = 'Q36834';
@@ -129,6 +133,8 @@ async function main() {
       if (comp.from_year && born && Math.abs(born.year - comp.from_year) > 5) continue;
       if (comp.to_year && died && Math.abs(died.year - comp.to_year) > 5) continue;
       if (!born && !died) continue; // nothing useful to suggest
+      if (born && born.year > MAX_BIRTH_YEAR) continue; // modern namesake
+      if (died && died.year > MAX_BIRTH_YEAR + 90) continue;
 
       const isComposer = claimItemIds(entity, 'P106').includes(Q_COMPOSER)
         || /composer/i.test(description);
