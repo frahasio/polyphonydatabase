@@ -214,7 +214,12 @@ router.post('/:id/:action', async (req, res) => {
         const override = typeof req.body.function_name === 'string' ? req.body.function_name.trim() : '';
         let functionId = parseInt(payload.function_id, 10);
         const chosenName = (override || String(payload.function_name || '').trim()).slice(0, 200);
-        if (override || !Number.isInteger(functionId)) {
+        // Only resolve by name when the reviewer actually CHANGED it — an
+        // untouched prefill must use the stored id, or a function renamed
+        // since the suggestion was created gets duplicated under its old
+        // name by the create-on-the-fly path.
+        const nameEdited = override && override !== String(payload.function_name || '').trim();
+        if (nameEdited || !Number.isInteger(functionId)) {
           if (!chosenName) throw new Error('No feast/function name given');
           const existing = await client.query(
             'SELECT id, name FROM functions WHERE LOWER(name) = LOWER($1) LIMIT 1',

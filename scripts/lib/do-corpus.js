@@ -20,12 +20,19 @@ export const MIN_PART_WORDS = 2;
 const MISSA_SECTIONS = new Set(['Introitus', 'Graduale', 'GradualeF', 'GradualeP', 'Tractus', 'Sequentia', 'Offertorium', 'OffertoriumP', 'Communio', 'CommunioP']);
 // Office sections: antiphons, responsories, hymns, chapters, invitatories.
 const HORAS_SECTION_RE = /^(Ant\b|Responsory|Hymnus|Capitulum|Invit)/;
-// FREQUENCY-ONLY sections: Gospels, Epistles, Matins lessons, orations.
-// Their openings ("In illo tempore...", "In diebus illis...", "Fratres...")
-// are counted so that formulaic incipits register as generic, but they
-// never generate suggestions — a motet isn't proper to a day just because
-// its text opens like that day's Gospel.
-const FREQ_SECTION_RE = /^(Evangelium|Lectio|Oratio|Secreta|Postcommunio|Super populum|Commemoratio)/;
+// PROSE sections: Gospels, Epistles, Matins lessons. These DO provide
+// motet texts (gospel motets abound), so they generate suggestions — but
+// they are long prose, so they're indexed sentence-by-sentence, and the
+// pericope formulas ("In illo tempore:", "In diebus illis:", "Fratres:")
+// are stripped so the real opening is indexed too. Formulaic incipits are
+// protected against by the union-days generic filter, which sees every
+// pericope of the year.
+const PROSE_SECTION_RE = /^(Evangelium|Lectio)/;
+// FREQUENCY-ONLY sections: orations. Their openings ("Deus, qui...")
+// contribute to generic-ness counting but don't generate suggestions.
+const FREQ_SECTION_RE = /^(Oratio|Secreta|Postcommunio|Super populum|Commemoratio)/;
+// Pericope introduction formulas to strip for the alternate index entry.
+const PERICOPE_FORMULA_RE = /^(in illo t[ée]mpore|in di[ée]bus illis|fratres|car[ií]ssim[ei]|dilect[ií]ssimi|h[aæ]c dicit d[óo]minus deus)[:,.]?\s+/i;
 
 // Divinum Officium Commune file ids -> catalogue function names.
 const COMMUNE_MAP = [
@@ -192,27 +199,45 @@ export function buildCorpus(functionNames) {
             continue;
           }
           const t = cleanLine(line);
-          if (t && t.split(' ').length >= 2) {
-            addUnit(t, {
-              fn: mode === 'evidence' ? (cls.fn || null) : null,
-              newName: mode === 'evidence' ? (cls.newName || null) : null,
-              position: name,
-              day: rel,
-              dayLabel: label || path.basename(rel, '.txt'),
-            }, lastCitation);
+          if (!t || t.split(' ').length < 2) continue;
+          const place = {
+            fn: mode !== 'freq' ? (cls.fn || null) : null,
+            newName: mode !== 'freq' ? (cls.newName || null) : null,
+            position: name,
+            day: rel,
+            dayLabel: label || path.basename(rel, '.txt'),
+          };
+          if (mode === 'prose') {
+            // Long prose: index each sentence, and additionally the
+            // formula-stripped opening ("In illo tempore: dixit Jesus..."
+            // also indexed as "dixit Jesus...").
+            const sentences = t.split(/(?<=[.:;?!])\s+/).filter((s) => s.split(' ').length >= 3);
+            for (const s of sentences) {
+              addUnit(s, place, lastCitation);
+              const stripped = s.replace(PERICOPE_FORMULA_RE, '');
+              if (stripped !== s && stripped.split(' ').length >= 3) addUnit(stripped, place, lastCitation);
+            }
+          } else {
+            addUnit(t, place, lastCitation);
           }
         }
       }
     }
   };
 
-  const missaFilter = (s) => (MISSA_SECTIONS.has(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null));
-  const horasFilter = (s) => (HORAS_SECTION_RE.test(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null));
+  const missaFilter = (s) => (MISSA_SECTIONS.has(s) ? 'evidence'
+    : PROSE_SECTION_RE.test(s) ? 'prose'
+    : FREQ_SECTION_RE.test(s) ? 'freq' : null);
+  const horasFilter = (s) => (HORAS_SECTION_RE.test(s) ? 'evidence'
+    : PROSE_SECTION_RE.test(s) ? 'prose'
+    : FREQ_SECTION_RE.test(s) ? 'freq' : null);
   walk('missa/Latin/Tempora', missaFilter);
   walk('missa/Latin/Sancti', missaFilter);
   walk('horas/Latin/Tempora', horasFilter);
   walk('horas/Latin/Sancti', horasFilter);
-  walk('horas/Latin/Commune', (s) => (HORAS_SECTION_RE.test(s) || MISSA_SECTIONS.has(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null)));
+  walk('horas/Latin/Commune', (s) => (HORAS_SECTION_RE.test(s) || MISSA_SECTIONS.has(s) ? 'evidence'
+    : PROSE_SECTION_RE.test(s) ? 'prose'
+    : FREQ_SECTION_RE.test(s) ? 'freq' : null));
 
   return { units, index };
 }
