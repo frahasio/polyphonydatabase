@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/admin.css">
     <style>
+        /* Card styles kept for the grouped-by-base-text view */
         .title-card {
             transition: box-shadow 0.15s ease, border-color 0.15s ease;
             cursor: pointer;
@@ -22,6 +23,15 @@
             border-color: #0d6efd;
             background-color: #eef4ff;
         }
+        /* Table view */
+        tr.title-card { cursor: pointer; }
+        tr.title-card:hover td { background: #f6f8fa; }
+        tr.title-card.selected td { background: #eef4ff; }
+        tr.title-editing { cursor: default; }
+        tr.title-editing td { background: #fffdf3; }
+        .fn-badge { font-size: 0.75rem; }
+        .fn-badge .remove-fn { cursor: pointer; margin-left: 0.25rem; opacity: 0.8; }
+        .fn-badge .remove-fn:hover { opacity: 1; }
         .composition-count {
             font-size: 0.875rem;
             color: #6c757d;
@@ -29,6 +39,7 @@
         .function-badge, .language-badge {
             font-size: 0.75rem;
         }
+        .toast-area { position: fixed; top: 1rem; right: 1rem; z-index: 2000; }
         /* Dark sticky action bar, matching the group management page */
         .bulk-actions {
             position: fixed;
@@ -53,8 +64,10 @@
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h4 class="fw-bold mb-0">Titles</h4>
-            <span class="text-muted small">Click a title to select &middot; use the bar below to assign, merge or edit in bulk</span>
+            <span class="text-muted small">Click a row to select &middot; Edit changes title, language and feasts in place &middot; bar below for bulk actions</span>
         </div>
+        <datalist id="fnDatalist"></datalist>
+        <div class="toast-area" id="toastArea"></div>
 
         <div class="card mb-3">
             <div class="card-body py-3">
@@ -312,6 +325,194 @@
         })();
     </script>
     <script src="/modules/functions/functions.js"></script>
+    <script>
+        // ===== Titles-page override: table view with inline editing =====
+        // functions.js provides the data layer (searchTitles, selection state,
+        // bulk modals, languages/functions lists). This replaces its card-grid
+        // renderer with a table and adds in-place editing of title text,
+        // language and feast/function links. The grouped-by-base-text view
+        // still uses the original card renderer.
+        let inlineEdit = null; // { id, fns: [{id, name}] }
+
+        function toast(message, ok = true) {
+            const el = document.createElement('div');
+            el.className = `alert ${ok ? 'alert-success' : 'alert-danger'} shadow-sm py-2 px-3 mb-2`;
+            el.textContent = message;
+            document.getElementById('toastArea').appendChild(el);
+            setTimeout(() => el.remove(), ok ? 3500 : 7000);
+        }
+
+        function fnByName(name) {
+            return (functions || []).find(f => f.name === name);
+        }
+
+        displayTitles = function (titles) {
+            const container = document.getElementById('titlesResults');
+            if (!container) return;
+            container.className = '';
+            inlineEdit = null;
+            if (!titles.length) {
+                container.innerHTML = '<div class="text-center text-muted py-4">No titles found</div>';
+                return;
+            }
+            container.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:2.2rem"></th>
+                                <th>Title</th>
+                                <th style="width:9rem">Language</th>
+                                <th>Feasts / functions</th>
+                                <th class="text-end" style="width:5.5rem">Comps</th>
+                                <th style="width:9.5rem"></th>
+                            </tr>
+                        </thead>
+                        <tbody>${titles.map(titleRowHtml).join('')}</tbody>
+                    </table>
+                </div>`;
+            updateSelectionDisplay();
+            updateSelectedTitlesInDOM();
+        };
+
+        function titleRowHtml(t) {
+            const isSelected = selectedTitles.includes(t.id);
+            const fnBadges = (t.function_names && t.function_names.length)
+                ? t.function_names.map(n => `<span class="badge bg-info fn-badge me-1">${escapeHtml(n)}</span>`).join('')
+                : '<span class="text-muted">&mdash;</span>';
+            return `
+                <tr class="title-card ${isSelected ? 'selected' : ''}" id="trow-${t.id}" onclick="toggleSelection(${t.id})">
+                    <td><input class="form-check-input" type="checkbox" ${isSelected ? 'checked' : ''}
+                               onclick="event.stopPropagation()" onchange="toggleSelection(${t.id})"></td>
+                    <td class="fw-semibold">${escapeHtml(t.text)}</td>
+                    <td>${t.language_name ? `<span class="badge bg-primary language-badge">${escapeHtml(t.language_name)}</span>` : '<span class="text-muted">&mdash;</span>'}</td>
+                    <td>${fnBadges}</td>
+                    <td class="text-end composition-count">${escapeHtml(t.composition_count)}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); startInlineEdit(${t.id})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </td>
+                </tr>`;
+        }
+
+        function startInlineEdit(id) {
+            // Only one row in edit mode at a time; restore any other first.
+            if (inlineEdit && inlineEdit.id !== id) cancelInlineEdit();
+            const t = allTitles.find(x => x.id === id);
+            const row = document.getElementById('trow-' + id);
+            if (!t || !row) return;
+
+            inlineEdit = {
+                id,
+                fns: (t.function_names || []).map(n => fnByName(n)).filter(Boolean).map(f => ({ id: f.id, name: f.name })),
+            };
+            // Feast autocomplete options (existing functions only)
+            document.getElementById('fnDatalist').innerHTML =
+                (functions || []).map(f => `<option value="${escapeHtml(f.name)}"></option>`).join('');
+
+            const langOptions = ['<option value="">(no language)</option>']
+                .concat((languages || []).map(l =>
+                    `<option value="${l.id}" ${l.id == t.language ? 'selected' : ''}>${escapeHtml(l.name)}</option>`))
+                .join('');
+
+            row.className = 'title-editing';
+            row.onclick = null;
+            row.innerHTML = `
+                <td></td>
+                <td><input type="text" id="ie-text" class="form-control form-control-sm" value="${escapeHtml(t.text)}"></td>
+                <td><select id="ie-lang" class="form-select form-select-sm">${langOptions}</select></td>
+                <td>
+                    <span id="ie-fns"></span>
+                    <input type="text" id="ie-fnadd" class="form-control form-control-sm d-inline-block mt-1" style="max-width:200px"
+                           list="fnDatalist" placeholder="Add feast&hellip;">
+                </td>
+                <td></td>
+                <td class="text-end text-nowrap">
+                    <button class="btn btn-sm btn-success" onclick="saveInlineEdit()">Save</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="cancelInlineEdit()">Cancel</button>
+                </td>`;
+            renderEditFns();
+            const addInput = document.getElementById('ie-fnadd');
+            const tryAdd = () => {
+                const f = fnByName(addInput.value.trim());
+                if (!f) return;
+                if (!inlineEdit.fns.some(x => x.id === f.id)) inlineEdit.fns.push({ id: f.id, name: f.name });
+                addInput.value = '';
+                renderEditFns();
+            };
+            addInput.addEventListener('change', tryAdd);
+            addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryAdd(); } });
+            document.getElementById('ie-text').focus();
+        }
+
+        function renderEditFns() {
+            document.getElementById('ie-fns').innerHTML = inlineEdit.fns.map(f =>
+                `<span class="badge bg-info fn-badge me-1 mb-1">${escapeHtml(f.name)}<span class="remove-fn" title="Remove" onclick="removeEditFn(${f.id})">&times;</span></span>`
+            ).join('') || '<span class="text-muted small">no feasts</span>';
+        }
+
+        function removeEditFn(fnId) {
+            inlineEdit.fns = inlineEdit.fns.filter(f => f.id !== fnId);
+            renderEditFns();
+        }
+
+        function cancelInlineEdit() {
+            if (!inlineEdit) return;
+            const id = inlineEdit.id;
+            const t = allTitles.find(x => x.id === id);
+            const row = document.getElementById('trow-' + id);
+            inlineEdit = null;
+            if (t && row) row.outerHTML = titleRowHtml(t);
+            updateSelectedTitlesInDOM();
+        }
+
+        async function saveInlineEdit() {
+            if (!inlineEdit) return;
+            const id = inlineEdit.id;
+            const text = document.getElementById('ie-text').value.trim();
+            const langVal = document.getElementById('ie-lang').value;
+            if (!text) return toast('Title text cannot be empty', false);
+            try {
+                const res = await fetch('/api/admin/functions/titles/' + id, {
+                    method: 'PUT', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, language: langVal ? parseInt(langVal) : null }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    if (res.status === 409) {
+                        return toast((data.error || 'A title with this text already exists.') + ' Use bulk select + Merge instead.', false);
+                    }
+                    throw new Error(data.error || 'Failed to update title');
+                }
+                const fnRes = await fetch(`/api/admin/functions/titles/${id}/functions`, {
+                    method: 'PUT', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ functionIds: inlineEdit.fns.map(f => f.id) }),
+                });
+                if (!fnRes.ok) {
+                    const fnData = await fnRes.json().catch(() => ({}));
+                    throw new Error(fnData.error || 'Title saved but updating feasts failed');
+                }
+                // Update local state and re-render just this row.
+                const t = allTitles.find(x => x.id === id);
+                if (t) {
+                    t.text = text;
+                    t.language = langVal ? parseInt(langVal) : null;
+                    t.language_name = langVal ? (languages.find(l => l.id == langVal)?.name || null) : null;
+                    t.function_names = inlineEdit.fns.map(f => f.name);
+                }
+                inlineEdit = null;
+                const row = document.getElementById('trow-' + id);
+                if (t && row) row.outerHTML = titleRowHtml(t);
+                updateSelectedTitlesInDOM();
+                toast('Title updated');
+            } catch (e) {
+                toast(e.message, false);
+            }
+        }
+    </script>
     <script src="/js/admin-layout.js"></script>
 </body>
 </html>
