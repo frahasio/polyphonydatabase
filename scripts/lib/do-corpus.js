@@ -15,10 +15,17 @@ const DO_DIR = path.join(ROOT, 'data', 'divinumofficium');
 // Units are indexed on their opening words; incipits shorter than this only
 // match if they cover the whole unit.
 export const MIN_PART_WORDS = 2;
-// Mass sections that carry sung proper texts (motet sources).
+// Mass sections that carry sung proper texts (motet sources) — these
+// generate suggestions.
 const MISSA_SECTIONS = new Set(['Introitus', 'Graduale', 'GradualeF', 'GradualeP', 'Tractus', 'Sequentia', 'Offertorium', 'OffertoriumP', 'Communio', 'CommunioP']);
 // Office sections: antiphons, responsories, hymns, chapters, invitatories.
 const HORAS_SECTION_RE = /^(Ant\b|Responsory|Hymnus|Capitulum|Invit)/;
+// FREQUENCY-ONLY sections: Gospels, Epistles, Matins lessons, orations.
+// Their openings ("In illo tempore...", "In diebus illis...", "Fratres...")
+// are counted so that formulaic incipits register as generic, but they
+// never generate suggestions — a motet isn't proper to a day just because
+// its text opens like that day's Gospel.
+const FREQ_SECTION_RE = /^(Evangelium|Lectio|Oratio|Secreta|Postcommunio|Super populum|Commemoratio)/;
 
 // Divinum Officium Commune file ids -> catalogue function names.
 const COMMUNE_MAP = [
@@ -168,7 +175,8 @@ export function buildCorpus(functionNames) {
         .trim();
       const cls = classifyDay(rel, label);
       for (const [name, lines] of Object.entries(sections)) {
-        if (!sectionFilter(name)) continue;
+        const mode = sectionFilter(name); // 'evidence' | 'freq' | falsy
+        if (!mode) continue;
         let all = lines;
         const refLine = lines.find((l) => l.trim().startsWith('@'));
         if (refLine) all = lines.flatMap((l) => (l.trim().startsWith('@') ? resolveRef(l.trim(), name) : [l]));
@@ -185,18 +193,26 @@ export function buildCorpus(functionNames) {
           }
           const t = cleanLine(line);
           if (t && t.split(' ').length >= 2) {
-            addUnit(t, { fn: cls.fn || null, newName: cls.newName || null, position: name, day: rel, dayLabel: label || path.basename(rel, '.txt') }, lastCitation);
+            addUnit(t, {
+              fn: mode === 'evidence' ? (cls.fn || null) : null,
+              newName: mode === 'evidence' ? (cls.newName || null) : null,
+              position: name,
+              day: rel,
+              dayLabel: label || path.basename(rel, '.txt'),
+            }, lastCitation);
           }
         }
       }
     }
   };
 
-  walk('missa/Latin/Tempora', (s) => MISSA_SECTIONS.has(s));
-  walk('missa/Latin/Sancti', (s) => MISSA_SECTIONS.has(s));
-  walk('horas/Latin/Tempora', (s) => HORAS_SECTION_RE.test(s));
-  walk('horas/Latin/Sancti', (s) => HORAS_SECTION_RE.test(s));
-  walk('horas/Latin/Commune', (s) => HORAS_SECTION_RE.test(s) || MISSA_SECTIONS.has(s));
+  const missaFilter = (s) => (MISSA_SECTIONS.has(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null));
+  const horasFilter = (s) => (HORAS_SECTION_RE.test(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null));
+  walk('missa/Latin/Tempora', missaFilter);
+  walk('missa/Latin/Sancti', missaFilter);
+  walk('horas/Latin/Tempora', horasFilter);
+  walk('horas/Latin/Sancti', horasFilter);
+  walk('horas/Latin/Commune', (s) => (HORAS_SECTION_RE.test(s) || MISSA_SECTIONS.has(s) ? 'evidence' : (FREQ_SECTION_RE.test(s) ? 'freq' : null)));
 
   return { units, index };
 }
