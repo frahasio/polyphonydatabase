@@ -52,8 +52,21 @@ async function main() {
   const fnRows = await pool.query('SELECT id, name FROM functions');
   const functionIds = new Map(fnRows.rows.map((r) => [r.name, r.id]));
 
+  // Reviewer-curated Latin->English feast names (the /modules/functions
+  // dictionary) override every built-in mapping heuristic.
+  let overrides = new Map();
+  try {
+    const curated = await pool.query(
+      `SELECT latin, english FROM feast_translations WHERE source = 'manual' AND english IS NOT NULL AND english <> ''`
+    );
+    overrides = new Map(curated.rows.map((r) => [r.latin, r.english]));
+    if (overrides.size) console.log(`${overrides.size} curated feast translations loaded.`);
+  } catch {
+    // Table not migrated yet — built-in mappings only.
+  }
+
   console.log('Building Divinum Officium corpus index...');
-  const corpus = buildCorpus([...functionIds.keys()]);
+  const corpus = buildCorpus([...functionIds.keys()], overrides);
   console.log(`  ${corpus.units.size} distinct text units indexed.`);
 
   // Functions the reviewer explicitly rejected for a title (in the old

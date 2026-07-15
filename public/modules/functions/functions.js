@@ -848,6 +848,16 @@ async function performTitleMerge(sourceId, targetId, finalText, finalLanguage) {
 function handleURLFilters() {
     const params = new URLSearchParams(window.location.search);
     const filter = params.get('filter');
+
+    // Deep link from the functions table: show every title linked to one
+    // function.
+    const functionId = params.get('function_id');
+    if (functionId) {
+        const select = document.getElementById('functionFilter');
+        if (select) select.value = functionId;
+        searchTitles();
+        return;
+    }
     
     if (filter) {
         // Set search term based on filter

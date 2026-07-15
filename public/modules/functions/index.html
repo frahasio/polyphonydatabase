@@ -9,86 +9,286 @@
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/admin.css">
     <style>
-        .composition-count {
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-        .function-badge {
-            font-size: 0.75rem;
-        }
+        .table-compact td, .table-compact th { padding: .35rem .5rem; vertical-align: middle; }
+        .table-compact input.form-control { padding: .15rem .4rem; font-size: .875rem; }
+        .name-input { border-color: transparent; background: transparent; }
+        .name-input:hover, .name-input:focus { border-color: var(--bs-border-color); background: #fff; }
+        .row-saved { animation: savedflash 1.2s; }
+        @keyframes savedflash { 0% { background-color: #d1e7dd; } 100% { background-color: transparent; } }
+        .latin-label { font-style: italic; }
+        .toast-area { position: fixed; bottom: 1rem; right: 1rem; z-index: 1080; }
+        .filter-btns .btn { --bs-btn-padding-y: .15rem; --bs-btn-padding-x: .6rem; --bs-btn-font-size: .8rem; }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-                <h4 class="fw-bold mb-1">Functions Management</h4>
-                <p class="text-muted mb-0">Create, edit and manage liturgical functions</p>
+                <h4 class="fw-bold mb-1">Functions</h4>
+                <p class="text-muted mb-0">Liturgical functions and the Latin&rarr;English feast dictionary used by the matcher</p>
             </div>
-            <button class="btn btn-primary" onclick="showAddFunctionModal()">
-                <i class="bi bi-plus"></i> Add New Function
-            </button>
         </div>
 
-        <div class="card">
-            <div class="card-body">
-                <div id="functionsResults">
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-tag display-4 text-muted"></i>
-                        <p>Loading functions...</p>
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-functions" type="button">Functions <span class="badge bg-secondary" id="fnCount"></span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dictionary" type="button">Feast dictionary <span class="badge bg-secondary" id="dictCount"></span></button></li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- ============ FUNCTIONS TAB ============ -->
+            <div class="tab-pane fade show active" id="tab-functions">
+                <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                    <input type="text" class="form-control form-control-sm" id="fnSearch" placeholder="Filter functions…" style="max-width:280px">
+                    <div class="input-group input-group-sm" style="max-width:340px">
+                        <input type="text" class="form-control" id="newFnName" placeholder="New function name">
+                        <button class="btn btn-primary" id="addFnBtn"><i class="bi bi-plus-lg"></i> Add</button>
                     </div>
+                    <span class="text-muted small ms-auto">Edit a name in place — changes save on Enter or when you click away. Only functions with linked titles appear in the public filters.</span>
                 </div>
+                <div class="card"><div class="table-responsive">
+                    <table class="table table-hover table-compact mb-0">
+                        <thead class="table-light"><tr>
+                            <th style="min-width:280px">Name</th>
+                            <th class="text-end">Titles</th>
+                            <th class="text-end">Compositions</th>
+                            <th>Public</th>
+                            <th style="width:70px"></th>
+                        </tr></thead>
+                        <tbody id="fnRows"><tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr></tbody>
+                    </table>
+                </div></div>
+            </div>
+
+            <!-- ============ DICTIONARY TAB ============ -->
+            <div class="tab-pane fade" id="tab-dictionary">
+                <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                    <input type="text" class="form-control form-control-sm" id="dictSearch" placeholder="Filter by Latin or English…" style="max-width:280px">
+                    <div class="btn-group filter-btns" id="dictFilter">
+                        <button class="btn btn-outline-secondary active" data-f="all">All</button>
+                        <button class="btn btn-outline-secondary" data-f="manual">Curated</button>
+                        <button class="btn btn-outline-secondary" data-f="new">Would create new</button>
+                        <button class="btn btn-outline-secondary" data-f="unmapped">Unmapped</button>
+                    </div>
+                    <span class="text-muted small ms-auto">Every distinct Divinum Officium day. Type the English feast name you want the matcher to use — it saves on Enter/blur and becomes <em>curated</em>. Clear it to revert to the automatic guess.</span>
+                </div>
+                <div class="card"><div class="table-responsive">
+                    <table class="table table-hover table-compact mb-0">
+                        <thead class="table-light"><tr>
+                            <th style="min-width:320px">Latin (Divinum Officium)</th>
+                            <th style="min-width:260px">English (function name)</th>
+                            <th class="text-end" title="How many day files carry this label">Days</th>
+                            <th>Status</th>
+                        </tr></thead>
+                        <tbody id="dictRows"><tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr></tbody>
+                    </table>
+                </div></div>
             </div>
         </div>
     </div>
 
-    <!-- Add Function Modal -->
-    <div class="modal fade" id="addFunctionModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Function</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="newFunctionName" class="form-label">Function Name</label>
-                        <input type="text" class="form-control" id="newFunctionName" placeholder="Enter function name">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="createFunction()">Add Function</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Function Modal -->
-    <div class="modal fade" id="editFunctionModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Function</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="editFunctionName" class="form-label">Function Name</label>
-                        <input type="text" class="form-control" id="editFunctionName">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveFunctionEdit()">Save Changes</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <datalist id="functionsDatalist"></datalist>
+    <div class="toast-area" id="toastArea"></div>
 
     <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="functions.js"></script>
+    <script>
+        let functions = [];
+        let translations = [];
+        let dictFilterMode = 'all';
+
+        function toast(message, ok = true) {
+            const el = document.createElement('div');
+            el.className = `toast align-items-center text-bg-${ok ? 'success' : 'danger'} border-0 show mb-2`;
+            el.innerHTML = `<div class="d-flex"><div class="toast-body">${escapeHtml(message)}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
+            document.getElementById('toastArea').appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+
+        function flashSaved(tr) {
+            tr.classList.remove('row-saved');
+            void tr.offsetWidth;
+            tr.classList.add('row-saved');
+        }
+
+        // ---------- functions tab ----------
+
+        async function loadFunctions() {
+            const res = await fetch('/api/admin/functions', { credentials: 'include' });
+            functions = (await res.json()).functions || [];
+            document.getElementById('fnCount').textContent = functions.length;
+            document.getElementById('functionsDatalist').innerHTML =
+                functions.map(f => `<option value="${escapeHtml(f.name)}"></option>`).join('');
+            renderFunctions();
+        }
+
+        function renderFunctions() {
+            const q = document.getElementById('fnSearch').value.trim().toLowerCase();
+            const rows = functions
+                .filter(f => !q || f.name.toLowerCase().includes(q))
+                .sort((a, b) => a.name.localeCompare(b.name));
+            document.getElementById('fnRows').innerHTML = rows.length ? rows.map(f => {
+                const titles = parseInt(f.title_count) || 0;
+                const comps = parseInt(f.composition_count) || 0;
+                return `
+                <tr data-id="${f.id}" class="${titles === 0 ? 'table-warning' : ''}">
+                    <td><input type="text" class="form-control form-control-sm name-input fn-name" value="${escapeHtml(f.name)}" data-orig="${escapeHtml(f.name)}"></td>
+                    <td class="text-end">${titles ? `<a href="/modules/titles/?function_id=${f.id}">${titles}</a>` : '0'}</td>
+                    <td class="text-end">${comps}</td>
+                    <td>${titles > 0
+                        ? '<span class="badge bg-success-subtle text-success-emphasis">visible</span>'
+                        : '<span class="badge bg-secondary-subtle text-secondary-emphasis" title="No linked titles — hidden from public filters">hidden</span>'}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-danger fn-del" title="${titles ? 'Delete (removes ' + titles + ' title links)' : 'Delete'}"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="5" class="text-center text-muted py-4">No functions match</td></tr>';
+        }
+
+        async function saveFnName(input) {
+            const tr = input.closest('tr');
+            const id = tr.dataset.id;
+            const name = input.value.trim();
+            if (!name || name === input.dataset.orig) { input.value = input.dataset.orig; return; }
+            const res = await fetch(`/api/admin/functions/${id}`, {
+                method: 'PUT', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (res.ok) {
+                input.dataset.orig = name;
+                const f = functions.find(x => String(x.id) === String(id));
+                if (f) f.name = name;
+                flashSaved(tr);
+            } else {
+                input.value = input.dataset.orig;
+                toast('Rename failed', false);
+            }
+        }
+
+        document.getElementById('fnRows').addEventListener('focusout', e => {
+            if (e.target.classList.contains('fn-name')) saveFnName(e.target);
+        });
+        document.getElementById('fnRows').addEventListener('keydown', e => {
+            if (e.target.classList.contains('fn-name') && e.key === 'Enter') e.target.blur();
+        });
+        document.getElementById('fnRows').addEventListener('click', async e => {
+            const btn = e.target.closest('.fn-del');
+            if (!btn) return;
+            const tr = btn.closest('tr');
+            const f = functions.find(x => String(x.id) === String(tr.dataset.id));
+            if (!f) return;
+            const titles = parseInt(f.title_count) || 0;
+            if (!confirm(`Delete "${f.name}"${titles ? ` and its ${titles} title link${titles === 1 ? '' : 's'}` : ''}?`)) return;
+            const res = await fetch(`/api/admin/functions/${f.id}`, { method: 'DELETE', credentials: 'include' });
+            if (res.ok) {
+                functions = functions.filter(x => x !== f);
+                renderFunctions();
+                toast(`Deleted "${f.name}"`);
+            } else toast('Delete failed', false);
+        });
+        document.getElementById('fnSearch').addEventListener('input', renderFunctions);
+        document.getElementById('addFnBtn').addEventListener('click', async () => {
+            const input = document.getElementById('newFnName');
+            const name = input.value.trim();
+            if (!name) return;
+            const res = await fetch('/api/admin/functions', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (res.ok) { input.value = ''; toast(`Created "${name}"`); loadFunctions(); }
+            else toast('Create failed', false);
+        });
+        document.getElementById('newFnName').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('addFnBtn').click();
+        });
+
+        // ---------- dictionary tab ----------
+
+        async function loadDictionary() {
+            const res = await fetch('/api/admin/functions/feast-translations', { credentials: 'include' });
+            if (!res.ok) {
+                document.getElementById('dictRows').innerHTML =
+                    '<tr><td colspan="4" class="text-center text-muted py-4">Dictionary not seeded yet</td></tr>';
+                return;
+            }
+            translations = (await res.json()).translations || [];
+            document.getElementById('dictCount').textContent = translations.length;
+            renderDictionary();
+        }
+
+        function statusBadge(t) {
+            if (!t.english) return '<span class="badge bg-secondary-subtle text-secondary-emphasis">unmapped</span>';
+            const curated = t.source === 'manual'
+                ? ' <span class="badge bg-primary-subtle text-primary-emphasis">curated</span>' : '';
+            return (t.maps_to_existing
+                ? '<span class="badge bg-success-subtle text-success-emphasis">existing function</span>'
+                : '<span class="badge bg-warning-subtle text-warning-emphasis" title="No function with this name yet — the matcher will propose creating it">new name</span>') + curated;
+        }
+
+        function renderDictionary() {
+            const q = document.getElementById('dictSearch').value.trim().toLowerCase();
+            const rows = translations.filter(t => {
+                if (dictFilterMode === 'manual' && t.source !== 'manual') return false;
+                if (dictFilterMode === 'new' && (!t.english || t.maps_to_existing)) return false;
+                if (dictFilterMode === 'unmapped' && t.english) return false;
+                if (q && !(t.latin_display || '').toLowerCase().includes(q)
+                      && !(t.english || '').toLowerCase().includes(q)) return false;
+                return true;
+            });
+            document.getElementById('dictRows').innerHTML = rows.length ? rows.map(t => `
+                <tr data-id="${t.id}">
+                    <td class="latin-label" title="${escapeHtml(t.sample_day || '')}">${escapeHtml(t.latin_display || t.latin)}</td>
+                    <td><input type="text" class="form-control form-control-sm name-input dict-en" list="functionsDatalist"
+                        value="${escapeHtml(t.english || '')}" data-orig="${escapeHtml(t.english || '')}" placeholder="(unmapped)"></td>
+                    <td class="text-end">${t.day_count}</td>
+                    <td class="dict-status">${statusBadge(t)}</td>
+                </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center text-muted py-4">Nothing matches</td></tr>';
+        }
+
+        async function saveDictRow(input) {
+            const tr = input.closest('tr');
+            const id = tr.dataset.id;
+            const english = input.value.trim();
+            if (english === input.dataset.orig) return;
+            const res = await fetch(`/api/admin/functions/feast-translations/${id}`, {
+                method: 'PUT', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ english })
+            });
+            if (res.ok) {
+                const { translation } = await res.json();
+                const t = translations.find(x => String(x.id) === String(id));
+                if (t) Object.assign(t, translation);
+                input.value = translation.english || '';
+                input.dataset.orig = input.value;
+                tr.querySelector('.dict-status').innerHTML = statusBadge(t || translation);
+                flashSaved(tr);
+            } else {
+                input.value = input.dataset.orig;
+                toast('Save failed', false);
+            }
+        }
+
+        document.getElementById('dictRows').addEventListener('focusout', e => {
+            if (e.target.classList.contains('dict-en')) saveDictRow(e.target);
+        });
+        document.getElementById('dictRows').addEventListener('keydown', e => {
+            if (e.target.classList.contains('dict-en') && e.key === 'Enter') e.target.blur();
+        });
+        document.getElementById('dictSearch').addEventListener('input', renderDictionary);
+        document.querySelectorAll('#dictFilter button').forEach(btn => btn.addEventListener('click', () => {
+            document.querySelectorAll('#dictFilter button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            dictFilterMode = btn.dataset.f;
+            renderDictionary();
+        }));
+
+        loadFunctions();
+        loadDictionary();
+    </script>
     <script src="/js/admin-layout.js"></script>
 </body>
 </html>

@@ -75,9 +75,11 @@ router.get('/', async (req, res) => {
         f.name,
         f.created_at,
         f.updated_at,
-        COUNT(ft.title_id) as title_count
+        COUNT(DISTINCT ft.title_id) as title_count,
+        COUNT(DISTINCT c.id) as composition_count
       FROM functions f
       LEFT JOIN functions_titles ft ON f.id = ft.function_id
+      LEFT JOIN compositions c ON c.title_id = ft.title_id
     `;
 
     const queryParams = [];
@@ -98,6 +100,52 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching functions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---- Divinum Officium feast dictionary (Latin -> English) ----
+// MUST be registered before /:id.
+
+// All dictionary rows; the UI filters/sorts client-side (~600 rows).
+router.get('/feast-translations', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ft.id, ft.latin, ft.latin_display, ft.english, ft.source,
+             ft.day_count, ft.sample_day,
+             (f.id IS NOT NULL) AS maps_to_existing
+      FROM feast_translations ft
+      LEFT JOIN functions f ON LOWER(f.name) = LOWER(ft.english)
+      ORDER BY ft.latin_display
+    `);
+    res.json({ translations: result.rows });
+  } catch (error) {
+    console.error('Error fetching feast translations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Curate one row: a non-empty english marks it manual (the DO matcher then
+// uses it verbatim); an empty english reverts the row to auto so the next
+// seeding refresh restores the generated guess.
+router.put('/feast-translations/:id', async (req, res) => {
+  try {
+    const english = String(req.body.english || '').trim().slice(0, 200);
+    const result = await pool.query(
+      `UPDATE feast_translations
+       SET english = COALESCE(NULLIF($1, ''), english),
+           source = CASE WHEN $1 = '' THEN 'auto' ELSE 'manual' END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING id, latin, latin_display, english, source, day_count`,
+      [english, parseInt(req.params.id, 10) || 0]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Row not found' });
+    const row = result.rows[0];
+    const fn = await pool.query('SELECT 1 FROM functions WHERE LOWER(name) = LOWER($1)', [row.english || '']);
+    res.json({ translation: { ...row, maps_to_existing: fn.rows.length > 0 } });
+  } catch (error) {
+    console.error('Error updating feast translation:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

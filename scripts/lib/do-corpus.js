@@ -141,22 +141,30 @@ function cleanLine(line) {
  * })
  * index: Map(firstTwoWords -> [unitKey])  for fast incipit lookup
  */
-export function buildCorpus(functionNames) {
-  const units = new Map();
-  const index = new Map();
+/**
+ * Build the day-label -> function classifier: curated dictionary overrides
+ * (the feast_translations table, keyed on normalizeFeast output) win over
+ * everything; then FEAST_MAP, then a saint-stem heuristic against existing
+ * function names ("Sancti Barnabae Apostoli" -> "St Barnabas"), then the
+ * built-in Latin->English dictionary (which may also resolve to an EXISTING
+ * function), else a new-function proposal in title-cased Latin (Sancti only).
+ */
+export function makeClassifier(functionNames, overrides = new Map()) {
   const normalizedFnNames = functionNames.map((n) => ({
     name: n,
     norm: ' ' + normalizeIncipit(n) + ' ',
   }));
-
   const fnByLower = new Map(functionNames.map((n) => [n.toLowerCase(), n]));
+  const resolve = (english) => {
+    const existing = fnByLower.get(String(english).toLowerCase());
+    return existing ? { fn: existing } : { newName: english };
+  };
 
-  // Map a day file's [Officium] label to a function: FEAST_MAP first, then a
-  // saint-stem heuristic against existing function names ("Sancti Barnabae
-  // Apostoli" -> "St Barnabas"), then the Latin->English dictionary (which
-  // may also resolve to an EXISTING function), else a new-function proposal
-  // in title-cased Latin (Sancti only).
-  function classifyDay(rel, label) {
+  return function classifyDay(rel, label) {
+    const norm = normalizeFeast(label);
+    const curated = norm && overrides.get(norm);
+    if (curated) return resolve(curated);
+
     const communeId = rel.includes('/Commune/') ? path.basename(rel, '.txt') : null;
     if (communeId) {
       for (const [re, fn] of COMMUNE_MAP) if (re.test(communeId)) return { fn };
@@ -165,7 +173,6 @@ export function buildCorpus(functionNames) {
     if (/defunct/i.test(rel) || /defunctorum/i.test(label)) return { fn: 'Requiem' };
     const mapped = mapFeast(label);
     if (mapped) return { fn: mapped };
-    const norm = normalizeFeast(label);
     const saint = norm.match(/\bsanct[aoi]?e?\s+(\w{5,})/);
     if (saint) {
       const stem = saint[1].replace(/(ae|is|i|o)$/, '');
@@ -184,7 +191,64 @@ export function buildCorpus(functionNames) {
       return { newName: titleCase(norm) };
     }
     return {}; // unmapped ferial day: counts toward generic-days only
+  };
+}
+
+/** The [Officium] label of a DO day file (first line, rubric variants cut). */
+function readDayLabel(rel) {
+  const raw = readFile(rel);
+  if (raw === null) return null;
+  const sections = splitSections(raw);
+  return ((sections.Officium || []).map(cleanLine).filter(Boolean)[0] || '')
+    .replace(/\(sed rubrica[^)]*\)?.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const DAY_DIRS = [
+  'missa/Latin/Tempora', 'missa/Latin/Sancti',
+  'horas/Latin/Tempora', 'horas/Latin/Sancti', 'horas/Latin/Commune',
+];
+
+/**
+ * Every distinct day label in the corpus with its normalized Latin key,
+ * day-file count and current auto-classification — the raw material for
+ * the feast_translations dictionary.
+ */
+export function enumerateDayLabels(functionNames, overrides = new Map()) {
+  const classify = makeClassifier(functionNames, overrides);
+  const byNorm = new Map();
+  for (const dirRel of DAY_DIRS) {
+    const dir = path.join(DO_DIR, dirRel);
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith('.txt')) continue;
+      const rel = `${dirRel}/${f}`;
+      const label = readDayLabel(rel);
+      if (!label) continue;
+      const norm = normalizeFeast(label);
+      if (!norm) continue;
+      if (!byNorm.has(norm)) {
+        const cls = classify(rel, label);
+        byNorm.set(norm, {
+          latin: norm,
+          latin_display: label,
+          english: cls.fn || cls.newName || null,
+          mapsToExisting: Boolean(cls.fn),
+          day_count: 0,
+          sample_day: rel,
+        });
+      }
+      byNorm.get(norm).day_count += 1;
+    }
   }
+  return [...byNorm.values()];
+}
+
+export function buildCorpus(functionNames, overrides = new Map()) {
+  const units = new Map();
+  const index = new Map();
+  const classifyDay = makeClassifier(functionNames, overrides);
 
   const addUnit = (text, place, citation) => {
     const norm = foldSpelling(normalizeIncipit(text));
