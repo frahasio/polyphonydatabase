@@ -107,17 +107,29 @@ function splitSections(raw) {
   return sections;
 }
 
-/** Resolve a single-line "@Folder/File(:Section)" reference to lines. */
-function resolveRef(line, sectionName) {
-  const m = line.match(/^@([\w/-]+)(?::([^:]+))?/);
+/**
+ * Resolve a single-line "@Folder/File(:Section)" reference to lines.
+ * References resolve WITHIN the referencing file's tree (an Office file's
+ * "@Tempora/Pent01-2" means horas/Latin/Tempora/..., not missa) — commons
+ * always live in horas. "@:Section" references the current file. Chained
+ * references (Sancti -> Commune -> ...) are followed to a shallow depth.
+ */
+function resolveRef(line, sectionName, tree, selfRel, depth = 0) {
+  if (depth > 3) return [];
+  const m = line.match(/^@([\w/-]*)(?::([^:]+))?/);
   if (!m) return [];
   const [, ref, section] = m;
-  const rel = ref.startsWith('Commune/') ? `horas/Latin/${ref}.txt` : `missa/Latin/${ref}.txt`;
+  const rel = !ref ? selfRel
+    : ref.startsWith('Commune') ? `horas/Latin/${ref}.txt`
+    : `${tree}/Latin/${ref}.txt`;
   const raw = readFile(rel);
   if (!raw) return [];
   const sections = splitSections(raw);
   const wanted = (section || sectionName).split(';;')[0].trim();
-  return sections[wanted] || [];
+  const lines = sections[wanted] || [];
+  return lines.flatMap((l) => (l.trim().startsWith('@')
+    ? resolveRef(l.trim(), wanted, tree, rel, depth + 1)
+    : [l]));
 }
 
 /** Clean a DO content line to plain text (or '' if not text). */
@@ -270,6 +282,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
   const walk = (dirRel, sectionFilter) => {
     const dir = path.join(DO_DIR, dirRel);
     if (!fs.existsSync(dir)) return;
+    const tree = dirRel.split('/')[0]; // 'missa' | 'horas'
     for (const f of fs.readdirSync(dir)) {
       if (!f.endsWith('.txt')) continue;
       const rel = `${dirRel}/${f}`;
@@ -292,7 +305,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
         if (!mode) continue;
         let all = lines;
         const refLine = lines.find((l) => l.trim().startsWith('@'));
-        if (refLine) all = lines.flatMap((l) => (l.trim().startsWith('@') ? resolveRef(l.trim(), name) : [l]));
+        if (refLine) all = lines.flatMap((l) => (l.trim().startsWith('@') ? resolveRef(l.trim(), name, tree, rel) : [l]));
         // Scripture citations are short "!Ps 136:1" lines preceding the
         // text — attach the most recent one to each unit so reviewers can
         // see at a glance that a match is e.g. a psalm verse.

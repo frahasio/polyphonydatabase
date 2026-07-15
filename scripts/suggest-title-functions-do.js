@@ -27,7 +27,7 @@
  * Usage: node scripts/suggest-title-functions-do.js [--dry-run]
  */
 import { pool } from '../src/db.js';
-import { splitIncipitParts, foldSpelling } from './lib/matching.js';
+import { splitIncipitParts, foldSpelling, isOrdinaryText } from './lib/matching.js';
 import { buildCorpus, matchPart, seasonOfDay } from './lib/do-corpus.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -112,6 +112,10 @@ async function main() {
     const citations = new Set();
 
     for (const part of parts) {
+      // Mass-ordinary / daily-Office texts (Gloria, Sanctus, Magnificat...)
+      // live outside DO's per-day files, so day counting can't see their
+      // ubiquity — skip them outright.
+      if (isOrdinaryText(part)) continue;
       const units = matchPart(part, corpus);
       if (!units.length) continue;
       // Specificity of the INCIPIT: union of days across every unit that

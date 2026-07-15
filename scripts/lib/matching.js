@@ -315,3 +315,43 @@ export function mapFeast(feast) {
 export function titleCase(s) {
   return String(s || '').replace(/\b[a-z]/g, (c) => c.toUpperCase()).trim();
 }
+
+// Texts of the Mass ORDINARY and the daily Office canticles/responses.
+// These are sung constantly but live in Divinum Officium's Ordo/Psalter
+// files, OUTSIDE the per-day structure — so day-based frequency counting
+// never sees how ubiquitous they are, and a coincidental antiphon match
+// can claim e.g. "Gloria in excelsis Deo" for one obscure feast. Incipits
+// matching these never generate function suggestions.
+const ORDINARY_TEXTS = [
+  'gloria in excelsis deo',
+  'et in terra pax hominibus',
+  'laudamus te benedicimus te',
+  'credo in unum deum',
+  'patrem omnipotentem factorem caeli',
+  'sanctus sanctus sanctus',
+  'pleni sunt caeli et terra',
+  'osanna in excelsis',
+  'hosanna in excelsis',
+  'benedictus qui venit',
+  'agnus dei qui tollis',
+  'kyrie eleison',
+  'christe eleison',
+  'pater noster qui es in caelis',
+  'magnificat anima mea dominum',
+  'benedictus dominus deus israel',
+  'te deum laudamus',
+  'benedicamus domino',
+  'deo gratias',
+  'ite missa est',
+  'gloria patri et filio',
+  'sicut erat in principio',
+];
+const ORDINARY_FOLDED = ORDINARY_TEXTS.map((t) => foldSpelling(normalizeIncipit(t)));
+
+/** True when a (normalized+folded) incipit part is an ordinary/daily text. */
+export function isOrdinaryText(part) {
+  const p = String(part || '');
+  if (!p) return false;
+  return ORDINARY_FOLDED.some((o) =>
+    p === o || p.startsWith(o + ' ') || o.startsWith(p + ' '));
+}
