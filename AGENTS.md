@@ -55,7 +55,16 @@ deployed. Also shipped since:
  lessons are evidence. Latin->English feast names via the editable
  dictionary scripts/lib/feast-names.js (extend SAINT_NAMES as new saints
  hit the queue; translations matching an existing function link it
- directly). All local, no API; shared feast map + normalization in
+ directly). Day-label mapping is OVERRIDDEN by the feast_translations
+ table (migration 020): one row per distinct DO day label, curated via
+ /modules/functions "Feast dictionary" tab (source='manual' rows win and
+ are never overwritten; clearing the English reverts to auto). Seed/
+ refresh with scripts/seed-feast-translations.js (re-run after vendoring
+ new DO data or improving auto-translation; --dry-run to preview). The
+ functions admin page is now a table (inline rename, add/delete,
+ titles/compositions counts, public-visibility badge) + the dictionary
+ tab. Public /api/search/functions already lists only functions with
+ linked titles. All local, no API; shared feast map + normalization in
  scripts/lib/matching.js),
  `scripts/suggest-recordings.js` (YouTube + Spotify),
  `scripts/suggest-title-merges.js` (duplicate titles — WORD ORDER IS
