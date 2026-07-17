@@ -43,6 +43,9 @@ router.get('/', async (req, res) => {
       conds.push(`(t.published = true OR t.owner_id = $${params.length})`);
     }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    // Plain browse shows the most recently saved handful; searching (or a
+    // feast_key sibling lookup) returns the full matching set.
+    const limit = q || feastKey ? 200 : 10;
     const result = await pool.query(`
       SELECT t.id, t.name, t.description, t.season, t.feast_key, t.official,
              t.office_type, t.feast_month, t.feast_day, t.easter_offset, t.published,
@@ -50,8 +53,8 @@ router.get('/', async (req, res) => {
              t.project->'meta'->>'buildable' AS buildable
       FROM booklet_templates t
       ${where}
-      ORDER BY t.official DESC, t.season, t.name
-      LIMIT 500
+      ORDER BY t.updated_at DESC
+      LIMIT ${limit}
     `, params);
     res.json({ templates: result.rows, currentUserId: req.user.id, isAdmin: req.user.role === 'admin' });
   } catch (error) {
