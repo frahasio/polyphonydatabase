@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function rismIdFromLink(link) {
   const s = String(link || '');
   const m = s.match(/sources\/(\d{5,})/) || s.match(/[?&]id=(?:rism)?(\d{5,})/)
-    || s.match(/rismid\/rism(\d{5,})/) || s.match(/\b(\d{6,})\b/);
+    || s.match(/rism(\d{5,})/i) || s.match(/\b(\d{6,})\b/);
   return m ? m[1] : null;
 }
 
