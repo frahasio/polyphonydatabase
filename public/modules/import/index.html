@@ -299,6 +299,7 @@
                 const c = inc.composition || {};
                 const clefStr = (inc.clefs || []).map(cl => {
                     let s = cl.clef;
+                    if (cl.canonic) s = '<' + s + '>';
                     if (cl.missing) s = '[' + s + ']';
                     if (cl.optional) s = '(' + s + ')';
                     if (cl.incomplete) s = '{' + s + '}';

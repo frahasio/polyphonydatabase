@@ -520,7 +520,11 @@
                         </p>
                         <p class="clef-explainer">
                             <span class="clef-explainer-icon" data-clef="c3" data-incomplete="true"></span>
-                            <span>A green clef means the voice is <strong>incomplete</strong> in this source. This might denote a fragment of a larger work, or a e.g. canonic voice that isn't written out in full.</span>
+                            <span>A green clef means the voice is <strong>incomplete</strong> in this source, e.g. a fragment of a larger work.</span>
+                        </p>
+                        <p class="clef-explainer">
+                            <span class="clef-explainer-icon" data-clef="c2" data-canonic="true"></span>
+                            <span>A yellow clef denotes a <strong>canonic</strong> voice that isn't written out in this source — it is derived from another part following the canon's rule, so the clef shown is often our best guess. The piece is still complete and performable.</span>
                         </p>
                         <p class="clef-explainer">
                             <span class="clef-explainer-icon" data-clef="f3" data-optional="true"></span>
@@ -962,6 +966,7 @@
                     clef: el.dataset.clef,
                     missing: el.dataset.missing === 'true',
                     incomplete: el.dataset.incomplete === 'true',
+                    canonic: el.dataset.canonic === 'true',
                     optional: el.dataset.optional === 'true'
                 });
             });
@@ -2513,7 +2518,7 @@
                                                             const clefName = clef.clef.trim();
                                                             const clefCode = clef.transitions_to && clef.transitions_to.length > 0 ?
                                                                 [clefName, ...clef.transitions_to].join('/') : clefName;
-                                                            return `<span class="clef-render-target" data-clef="${escapeHtml(clefCode)}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-optional="${!!clef.optional}"></span>`;
+                                                            return `<span class="clef-render-target" data-clef="${escapeHtml(clefCode)}" data-missing="${!!clef.missing}" data-incomplete="${!!clef.incomplete}" data-canonic="${!!clef.canonic}" data-optional="${!!clef.optional}"></span>`;
                                                         }
                                                         return '';
                                                     }).join('')}

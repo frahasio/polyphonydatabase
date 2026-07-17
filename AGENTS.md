@@ -133,8 +133,13 @@ deployed. Also shipped since:
  missing/incomplete in some inclusion's `clefs` also appears intact in
  another inclusion of the SAME composition. Voices matched by `voice_number`
  with array-position (ordinality) fallback, since pre-2025 clef records lack
- the `voice_number` key. Optional voices and inclusions without clef data
- never count as defects (unknown = assumed complete).
+ the `voice_number` key. Optional and canonic voices and inclusions without
+ clef data never count as defects (unknown = assumed complete). Canonic
+ (`<c1>` in importer/editor notation, `canonic: true` in `inclusions.clefs`,
+ rendered yellow) = a canonic voice not written out in the source, derived
+ from another part; clef often inferred. Historically these were tagged
+ incomplete `{}` — being manually re-tagged so they stop appearing under
+ "needs reconstruction".
 - Group management (`/group-management.html`, July 2026 rebuild): two-pane
  workbench — search/filter list left (checkbox select, count chips, deep
  link `?group=<id>`), persistent group panel right with inline

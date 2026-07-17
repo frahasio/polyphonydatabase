@@ -53,7 +53,7 @@ function parseClefs(raw) {
   const clefs = [];
   for (let i = 0; i < parts.length; i++) {
     let token = parts[i];
-    let missing = false, optional = false, incomplete = false;
+    let missing = false, optional = false, incomplete = false, canonic = false;
     const transitions_to = [];
 
     let changed = true;
@@ -74,6 +74,11 @@ function parseClefs(raw) {
         token = token.slice(1, -1);
         changed = true;
       }
+      if (token.startsWith('<') && token.endsWith('>')) {
+        canonic = true;
+        token = token.slice(1, -1);
+        changed = true;
+      }
     }
 
     if (token.includes('>')) {
@@ -88,6 +93,7 @@ function parseClefs(raw) {
       missing,
       optional,
       incomplete,
+      canonic,
       transitions_to,
       valid: true,
       error: null
@@ -230,7 +236,7 @@ router.get('/template', async (req, res) => {
       ['tone', 'Tone number 1-12, or: mix, per, pro. Semicolon-separate for multiple (e.g. "1;2")'],
       ['tone_connector', 'Connector between multiple tones, e.g. "&", "/"'],
       ['even_odd', '"even", "odd", or "both"'],
-      ['clefs', 'Semicolon-separated clef list. e.g. "c1;c3;c4;f4". Use [c1] for missing, (c1) for optional, {c1} for incomplete, c1>c3 for transition. Auto-filled by a formula from the clef_1..clef_16 columns — type here to override it.'],
+      ['clefs', 'Semicolon-separated clef list. e.g. "c1;c3;c4;f4". Use [c1] for missing, (c1) for optional, {c1} for incomplete, <c1> for canonic (not written out), c1>c3 for transition. Auto-filled by a formula from the clef_1..clef_16 columns — type here to override it.'],
       ['clef_1 ... clef_16', 'One clef per cell (same notation as above). These are joined into the "clefs" column automatically.'],
       ['composer_names', 'Semicolon-separated composer names exactly as in the database. Unknown names default to Anonymous.'],
       ['attribution_text', 'Attribution text as written in the source, e.g. "A. Byrd"'],
@@ -256,6 +262,7 @@ router.get('/template', async (req, res) => {
       ['[c1]', 'Missing voice'],
       ['(c1)', 'Optional voice'],
       ['{c1}', 'Incomplete voice'],
+      ['<c1>', 'Canonic voice not written out in the source (clef often inferred)'],
       ['c1>c3', 'Clef changes / transitions to another clef'],
       [],
       [`VALID PUBLISHER NAMES (${publisherNames.length})`],

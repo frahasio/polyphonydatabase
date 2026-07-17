@@ -236,6 +236,7 @@
 
     if (clefData.missing) wrapper.classList.add('clef-missing');
     if (clefData.incomplete) wrapper.classList.add('clef-incomplete');
+    if (clefData.canonic) wrapper.classList.add('clef-canonic');
     if (clefData.optional) wrapper.classList.add('clef-optional');
 
     const gap = gapForPrimary(parts);
@@ -273,6 +274,7 @@
       clef: el.dataset.clef,
       missing: el.dataset.missing === 'true',
       incomplete: el.dataset.incomplete === 'true',
+      canonic: el.dataset.canonic === 'true',
       optional: el.dataset.optional === 'true'
     })).filter(e => e.clef && e.clef.trim());
 
@@ -296,6 +298,7 @@
       cell.className = 'clef-strip-cell';
       if (entry.missing) cell.classList.add('clef-missing');
       if (entry.incomplete) cell.classList.add('clef-incomplete');
+      if (entry.canonic) cell.classList.add('clef-canonic');
       if (entry.optional) cell.classList.add('clef-optional');
 
       const gap = gapForPrimary(parts);
@@ -343,6 +346,7 @@
         clef: clefCode,
         missing: img.classList.contains('clef-missing'),
         incomplete: img.classList.contains('clef-incomplete'),
+        canonic: img.classList.contains('clef-canonic'),
         optional: img.classList.contains('clef-optional')
       });
       img.replaceWith(wrapper);

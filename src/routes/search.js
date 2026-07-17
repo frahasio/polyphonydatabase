@@ -795,7 +795,8 @@ router.get('/groups', async (req, res) => {
     // every voice slot (matched by voice_number in inclusions.clefs) that is
     // marked missing or incomplete in some inclusion also appears intact
     // (not missing, not incomplete) in at least one inclusion of the same
-    // composition. Optional voices never count as defects, and inclusions
+    // composition. Optional and canonic voices (canonic = derived from
+    // another part, not written out) never count as defects, and inclusions
     // without clef data contribute no defects (unknown = assumed complete).
     const completenessValue = completeness && completeness.trim() ? completeness.trim() : '';
     if (completenessValue === 'complete' || completenessValue === 'needs_recon') {
@@ -820,6 +821,7 @@ router.get('/groups', async (req, res) => {
             AND i_def.clefs IS NOT NULL
             AND ((def_clef.elem->>'missing')::boolean IS TRUE OR (def_clef.elem->>'incomplete')::boolean IS TRUE)
             AND (def_clef.elem->>'optional')::boolean IS NOT TRUE
+            AND (def_clef.elem->>'canonic')::boolean IS NOT TRUE
             AND NOT EXISTS (
               SELECT 1
               FROM inclusions i_ok

@@ -609,6 +609,12 @@ a:hover {
     border-radius: 2px;
 }
 
+.clef-canonic {
+    color: #b8860b;
+    background: rgba(212, 160, 23, 0.12);
+    border-radius: 2px;
+}
+
 .clef-optional {
     opacity: 0.4;
 }

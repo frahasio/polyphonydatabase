@@ -1545,7 +1545,7 @@
                 html += '<div class="clef-row mb-1">';
                 for (let col = 0; col < 8; col++) {
                     const clefIndex = row * 8 + col;
-                    const clef = sortedClefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] };
+                    const clef = sortedClefs[clefIndex] || { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [] };
                     const displayValue = formatClefDisplay(clef);
                     
                     const clefClass = clef.optional ? 'form-control form-control-sm clef-input optional' : 'form-control form-control-sm clef-input';
@@ -1628,6 +1628,7 @@
                 display += '/' + clef.transitions_to.join('/');
             }
             
+            if (clef.canonic) display = '<' + display + '>';
             if (clef.optional) display = '(' + display + ')';
             if (clef.missing) display = '[' + display + ']';
             if (clef.incomplete) display = '{' + display + '}';
@@ -1640,11 +1641,13 @@
             
             let style = '';
             
-            // Priority 1: Missing (red) or incomplete (green) coloring
+            // Priority 1: Missing (red), incomplete (green) or canonic (yellow) coloring
             if (clef.missing) {
                 style += 'border-color: #dc3545;';
             } else if (clef.incomplete) {
                 style += 'border-color: #198754;';
+            } else if (clef.canonic) {
+                style += 'border-color: #d4a017; background-color: rgba(212, 160, 23, 0.1);';
             } else if (clef.transitions_to && clef.transitions_to.length > 0) {
                 // Transitions get blue only if not missing/incomplete
                 style += 'border-color: #0d6efd;';
@@ -1771,26 +1774,30 @@
 
         function parseClefInput(value) {
             if (!value.trim()) {
-                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: true, error: null };
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: true, error: null };
             }
 
             let clef = value.trim();
-            let missing = false, optional = false, incomplete = false;
+            let missing = false, optional = false, incomplete = false, canonic = false;
             let transitions_to = [];
 
             // Check for proper bracket/parentheses closure
             const bracketCount = (clef.match(/\[/g) || []).length - (clef.match(/\]/g) || []).length;
             const parenCount = (clef.match(/\(/g) || []).length - (clef.match(/\)/g) || []).length;
             const braceCount = (clef.match(/\{/g) || []).length - (clef.match(/\}/g) || []).length;
+            const angleCount = (clef.match(/</g) || []).length - (clef.match(/>/g) || []).length;
 
             if (bracketCount !== 0) {
-                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed brackets []' };
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: 'Unclosed brackets []' };
             }
             if (parenCount !== 0) {
-                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed parentheses ()' };
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: 'Unclosed parentheses ()' };
             }
             if (braceCount !== 0) {
-                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: 'Unclosed braces {}' };
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: 'Unclosed braces {}' };
+            }
+            if (angleCount !== 0) {
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: 'Unclosed angle brackets <>' };
             }
 
             // Check for formatting - process all bracket types in any order until none remain
@@ -1810,6 +1817,10 @@
                     incomplete = true;
                     clef = clef.slice(1, -1);
                     hasChanges = true;
+                } else if (clef.startsWith('<') && clef.endsWith('>')) {
+                    canonic = true;
+                    clef = clef.slice(1, -1);
+                    hasChanges = true;
                 }
             }
 
@@ -1822,17 +1833,17 @@
 
             // Validate clef names
             if (clef && !validClefs.includes(clef.toLowerCase())) {
-                return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: `Invalid clef: ${clef}` };
+                return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: `Invalid clef: ${clef}` };
             }
 
             // Validate transition clefs
             for (const transitionClef of transitions_to) {
                 if (transitionClef && !validClefs.includes(transitionClef.toLowerCase())) {
-                    return { clef: '', missing: false, optional: false, incomplete: false, transitions_to: [], valid: false, error: `Invalid transition clef: ${transitionClef}` };
+                    return { clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [], valid: false, error: `Invalid transition clef: ${transitionClef}` };
                 }
             }
 
-            return { clef, missing, optional, incomplete, transitions_to, valid: true, error: null };
+            return { clef, missing, optional, incomplete, canonic, transitions_to, valid: true, error: null };
         }
 
         function addAttribution(inclusionIndex) {
@@ -1889,7 +1900,7 @@
             
             for (let i = 0; i < 8; i++) {
                 inclusionsData[inclusionIndex].clefs.push({ 
-                    clef: '', missing: false, optional: false, incomplete: false, transitions_to: [] 
+                    clef: '', missing: false, optional: false, incomplete: false, canonic: false, transitions_to: [] 
                 });
             }
             

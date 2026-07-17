@@ -10,13 +10,15 @@ const router = express.Router();
 router.use(requireAuth);
 
 // Serialize a stored clef object back into the importer's text notation
-// ([x]=missing, (x)=optional, {x}=incomplete, x>y=transition).
+// ([x]=missing, (x)=optional, {x}=incomplete, <x>=canonic not written out,
+// x>y=transition).
 function serializeClef(c) {
   if (!c || !c.clef) return '';
   let token = String(c.clef);
   if (Array.isArray(c.transitions_to) && c.transitions_to.length) {
     token = [token, ...c.transitions_to].join('>');
   }
+  if (c.canonic) token = `<${token}>`;
   if (c.incomplete) token = `{${token}}`;
   if (c.optional) token = `(${token})`;
   if (c.missing) token = `[${token}]`;
