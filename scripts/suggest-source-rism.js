@@ -47,10 +47,12 @@ function summaryValue(summary, label) {
 
 function parseYears(datesRaw) {
   // "1500-1535 (1510c, damaged parts replaced 1525c)" -> use the years
-  // BEFORE any parenthesis; fall back to all years found.
+  // BEFORE any parenthesis; fall back to all years found. Years may have
+  // letters attached ("1570er Jahre", "1510c") but not digits.
+  const YEAR_RE = /(?<![0-9])1[0-9]{3}(?![0-9])/g;
   const head = String(datesRaw).split('(')[0];
-  let years = (head.match(/\b1[0-9]{3}\b/g) || []).map(Number);
-  if (!years.length) years = (String(datesRaw).match(/\b1[0-9]{3}\b/g) || []).map(Number);
+  let years = (head.match(YEAR_RE) || []).map(Number);
+  if (!years.length) years = (String(datesRaw).match(YEAR_RE) || []).map(Number);
   if (!years.length) return { from: null, to: null };
   return { from: Math.min(...years), to: Math.max(...years) };
 }
@@ -101,7 +103,20 @@ async function main() {
 
     const summary = (record.contents && record.contents.summary) || [];
     const datesRaw = summaryValue(summary, 'Dates');
-    const { from, to } = parseYears(datesRaw);
+    let { from, to } = parseYears(datesRaw);
+    // Single-year datings ("1516" — most prints): our convention stores
+    // these as from_year only, so a bare to_year "fill" would just echo
+    // what we already know. Only treat it as a discrepancy when OUR years
+    // disagree with the year itself.
+    if (from && to && from === to) {
+      if (src.from_year === from || src.to_year === to) { from = null; to = null; }
+      else if (!src.to_year) to = null;
+    }
+    // Approximate RISM datings ("1538-1545 ca.") within a couple of years
+    // of ours are agreement, not a correction worth reviewing.
+    const tolerance = /\bca\b|\bca\.|circa/i.test(datesRaw) ? 3 : 0;
+    if (from && src.from_year && Math.abs(src.from_year - from) <= tolerance) from = null;
+    if (to && src.to_year && Math.abs(src.to_year - to) <= tolerance) to = null;
 
     const resources = (record.externalResources && record.externalResources.items) || [];
     const digit = resources.find((r) => r.resourceType === 'rism:DigitizationLink' && r.url);

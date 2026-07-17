@@ -308,7 +308,10 @@
                         ${holdings ? `<div class="text-muted small">Holding: ${holdings}</div>` : ''}
                         <table class="bio-table mt-1">
                             <tr><td></td><td class="text-muted">current</td><td class="text-muted">RISM</td></tr>
-                            ${row('Dates', [src.from_year, src.to_year].filter(Boolean).join(' \u2013 '), (p.from_year || p.to_year) ? `${p.from_year || '?'} \u2013 ${p.to_year || '?'}` : null)}
+                            ${row('Dates', [src.from_year, src.to_year].filter(Boolean).join(' \u2013 '),
+                                (p.from_year || p.to_year)
+                                    ? [p.from_year || src.from_year, p.to_year || src.to_year].filter(Boolean).join(' \u2013 ')
+                                    : null)}
                             ${p.rism_dates_raw ? `<tr><td class="text-muted">RISM dating</td><td colspan="2" class="text-muted">${escapeHtml(p.rism_dates_raw)}</td></tr>` : ''}
                             ${facCell ? `<tr><td class="text-muted">Facsimile</td><td>${facCurrent}</td><td><span class="${imgCount ? '' : 'bio-fill'}">${facCell}</span></td></tr>` : ''}
                         </table>
