@@ -66,10 +66,11 @@ async function fetchRismSource(id) {
 
 async function main() {
   const sources = await pool.query(`
-    SELECT id, code, title, town, rism_link, from_year, to_year, facsimile_url
-    FROM sources
-    WHERE COALESCE(rism_link, '') <> '' AND rism_checked_at IS NULL
-    ORDER BY id
+    SELECT s.id, s.code, s.title, s.town, s.rism_link, s.from_year, s.to_year,
+           (SELECT COUNT(*) FROM source_images si WHERE si.source_id = s.id)::int AS image_count
+    FROM sources s
+    WHERE COALESCE(s.rism_link, '') <> '' AND s.rism_checked_at IS NULL
+    ORDER BY s.id
     LIMIT $1
   `, [BATCH]);
   console.log(`Checking ${sources.rows.length} RISM-linked sources...${DRY_RUN ? ' [dry run]' : ''}`);
@@ -109,11 +110,13 @@ async function main() {
     const holdings = ((record.exemplars && record.exemplars.items) || [])
       .map((h) => en(h.label)).filter(Boolean).slice(0, 3);
 
-    // Proposals: fill or correct dates; add a facsimile when we have none.
+    // Proposals: fill or correct dates; offer RISM's digitization link only
+    // when the source has NO image links at all (source_images is where
+    // facsimiles live — many sources already carry them).
     const proposal = {};
     if (from && src.from_year !== from) proposal.from_year = from;
     if (to && src.to_year !== to) proposal.to_year = to;
-    if (digit && !src.facsimile_url) proposal.facsimile_url = digit.url;
+    if (digit && src.image_count === 0) proposal.facsimile_url = digit.url;
     if (!Object.keys(proposal).length) continue; // nothing to suggest
 
     // Confidence: pure gap-filling is safe; date CORRECTIONS need a closer
@@ -144,7 +147,7 @@ async function main() {
           facsimile_label: digit ? en(digit.label) : null,
           iiif_manifest: iiif ? iiif.url : null,
           ...proposal,
-          current: { from_year: src.from_year, to_year: src.to_year, facsimile_url: src.facsimile_url },
+          current: { from_year: src.from_year, to_year: src.to_year, image_count: src.image_count },
         }),
         score,
         `sr:${src.id}`,

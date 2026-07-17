@@ -148,7 +148,8 @@ router.get('/', async (req, res) => {
              row_to_json(cmp) AS composer,
              (SELECT row_to_json(x) FROM (
                 SELECT src.code, src.title, src.type, src.format, src.town,
-                       src.from_year, src.to_year, src.facsimile_url, src.rism_link
+                       src.from_year, src.to_year, src.rism_link,
+                       (SELECT COUNT(*) FROM source_images si WHERE si.source_id = src.id)::int AS image_count
                 FROM sources src WHERE src.id = s.source_id
              ) x) AS source_record,
              (
@@ -388,18 +389,28 @@ router.post('/:id/:action', async (req, res) => {
         if (!s.source_id) throw new Error('Suggestion payload missing source');
         // RISM values win where proposed (the card shows every fill and
         // replacement before accept); fields without a proposal keep their
-        // current value. Facsimile only ever fills a gap.
+        // current value.
         const year = (v) => (Number.isInteger(parseInt(v, 10)) ? parseInt(v, 10) : null);
         const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 500) : null);
         await client.query(
           `UPDATE sources SET
              from_year = COALESCE($2, from_year),
              to_year = COALESCE($3, to_year),
-             facsimile_url = COALESCE(facsimile_url, $4),
              updated_at = CURRENT_TIMESTAMP
            WHERE id = $1`,
-          [s.source_id, year(payload.from_year), year(payload.to_year), text(payload.facsimile_url)]
+          [s.source_id, year(payload.from_year), year(payload.to_year)]
         );
+        // Facsimiles live in source_images; add the digitization link as an
+        // image entry unless that URL is already there.
+        const facUrl = text(payload.facsimile_url);
+        if (facUrl) {
+          await client.query(
+            `INSERT INTO source_images (url, label, source_id, created_at, updated_at)
+             SELECT $1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+             WHERE NOT EXISTS (SELECT 1 FROM source_images WHERE source_id = $3 AND url = $1)`,
+            [facUrl, text(payload.facsimile_label) || 'Digital facsimile (RISM)', s.source_id]
+          );
+        }
       } else if (s.kind === 'group_title') {
         if (!s.group_id) throw new Error('Suggestion payload missing group');
         // Work from the group's CURRENT titles, never the payload snapshot —

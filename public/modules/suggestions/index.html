@@ -291,9 +291,16 @@
                     return `<tr><td class="text-muted">${label}</td><td>${currentCell}</td><td>${proposedCell}</td></tr>`;
                 };
                 const facUrl = safeUrl(p.facsimile_url);
+                // The matcher only proposes a facsimile when the source has
+                // no image links; if images were added since, say so instead
+                // of claiming there are none.
+                const imgCount = parseInt(src.image_count, 10) || 0;
                 const facCell = facUrl
                     ? `<a href="${facUrl}" target="_blank" rel="noopener">${facUrl.length > 60 ? facUrl.slice(0, 60) + '\u2026' : facUrl} <i class="bi bi-box-arrow-up-right"></i></a>`
                     : null;
+                const facCurrent = imgCount > 0
+                    ? `${imgCount} image link${imgCount === 1 ? '' : 's'} already`
+                    : '<span class="text-muted">no image links</span>';
                 const holdings = (p.holdings || []).map(escapeHtml).join(' &middot; ');
                 return `
                     <div class="payload-detail">
@@ -303,9 +310,9 @@
                             <tr><td></td><td class="text-muted">current</td><td class="text-muted">RISM</td></tr>
                             ${row('Dates', [src.from_year, src.to_year].filter(Boolean).join(' \u2013 '), (p.from_year || p.to_year) ? `${p.from_year || '?'} \u2013 ${p.to_year || '?'}` : null)}
                             ${p.rism_dates_raw ? `<tr><td class="text-muted">RISM dating</td><td colspan="2" class="text-muted">${escapeHtml(p.rism_dates_raw)}</td></tr>` : ''}
-                            ${facCell ? `<tr><td class="text-muted">Facsimile</td><td>${src.facsimile_url ? escapeHtml(src.facsimile_url) : '<span class="text-muted">missing</span>'}</td><td><span class="${src.facsimile_url ? '' : 'bio-fill'}">${facCell}</span></td></tr>` : ''}
+                            ${facCell ? `<tr><td class="text-muted">Facsimile</td><td>${facCurrent}</td><td><span class="${imgCount ? '' : 'bio-fill'}">${facCell}</span></td></tr>` : ''}
                         </table>
-                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the RISM column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
+                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the RISM column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value. The facsimile link is added to the source's image links.</div>
                     </div>`;
             }
             if (s.kind === 'group_title') {

@@ -505,11 +505,6 @@
                                 <label for="rism_link" class="form-label">RISM URL</label>
                                 <input type="url" class="form-control" id="rism_link" name="rism_link">
                     </div>
-                    <div class="mb-3">
-                                <label for="facsimile_url" class="form-label">Digital facsimile URL</label>
-                                <input type="url" class="form-control" id="facsimile_url" name="facsimile_url"
-                                       placeholder="Link to a digitisation of this source">
-                    </div>
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="catalogued" name="catalogued">
                                 <label class="form-check-label" for="catalogued">Catalogued</label>
@@ -822,7 +817,6 @@
             document.getElementById('format').value = sourceData.format || '';
             document.getElementById('town').value = sourceData.town || '';
             document.getElementById('rism_link').value = sourceData.rism_link || '';
-            document.getElementById('facsimile_url').value = sourceData.facsimile_url || '';
             document.getElementById('catalogued').checked = sourceData.catalogued || false;
             document.getElementById('notes').value = sourceData.notes || '';
             document.getElementById('from_year').value = sourceData.from_year || '';
