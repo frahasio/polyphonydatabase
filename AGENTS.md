@@ -114,6 +114,14 @@ deployed. Also shipped since:
   button backed by the vendored Douay-Rheims/Vulgate files.
 - Backend CRUD dedup: composers/editors/performers/publishers/scribes now use
  `src/routes/entityRouter.js` (`createEntityRouter`).
+- Public search "Completeness" filter (`completeness=complete|needs_recon`):
+ a group does NOT need reconstruction when at least one of its compositions
+ can be assembled complete across catalogued sources — every voice marked
+ missing/incomplete in some inclusion's `clefs` also appears intact in
+ another inclusion of the SAME composition. Voices matched by `voice_number`
+ with array-position (ordinality) fallback, since pre-2025 clef records lack
+ the `voice_number` key. Optional voices and inclusions without clef data
+ never count as defects (unknown = assumed complete).
 - Group management (`/group-management.html`, July 2026 rebuild): two-pane
  workbench — search/filter list left (checkbox select, count chips, deep
  link `?group=<id>`), persistent group panel right with inline

@@ -50,6 +50,7 @@ router.get('/groups', async (req, res) => {
       source_type = '',
       source_format = '',
       anniversary_year = '',
+      completeness = '',
       sort = '',
       page = 1,
       page_size = 25
@@ -786,6 +787,59 @@ router.get('/groups', async (req, res) => {
       )`);
       queryParams.push(anniversaryYear);
       paramIndex++;
+    }
+
+    // Completeness filter ("needs reconstruction").
+    // A group does NOT need reconstruction when at least one of its
+    // compositions can be assembled complete across its catalogued sources:
+    // every voice slot (matched by voice_number in inclusions.clefs) that is
+    // marked missing or incomplete in some inclusion also appears intact
+    // (not missing, not incomplete) in at least one inclusion of the same
+    // composition. Optional voices never count as defects, and inclusions
+    // without clef data contribute no defects (unknown = assumed complete).
+    const completenessValue = completeness && completeness.trim() ? completeness.trim() : '';
+    if (completenessValue === 'complete' || completenessValue === 'needs_recon') {
+      const groupIsCompleteCondition = `EXISTS (
+        SELECT 1 FROM compositions c_cf
+        WHERE c_cf.group_id = g.id
+        AND EXISTS (
+          SELECT 1 FROM inclusions i_cf
+          JOIN sources s_cf ON i_cf.source_id = s_cf.id
+          WHERE i_cf.composition_id = c_cf.id AND s_cf.catalogued = true
+        )
+        AND NOT EXISTS (
+          -- a defective voice with no intact copy in any source
+          -- (voices matched by position in the clefs array; older records
+          -- lack the voice_number key, so ordinality is the fallback)
+          SELECT 1
+          FROM inclusions i_def
+          JOIN sources s_def ON i_def.source_id = s_def.id
+          CROSS JOIN LATERAL jsonb_array_elements(i_def.clefs) WITH ORDINALITY AS def_clef(elem, pos)
+          WHERE i_def.composition_id = c_cf.id
+            AND s_def.catalogued = true
+            AND i_def.clefs IS NOT NULL
+            AND ((def_clef.elem->>'missing')::boolean IS TRUE OR (def_clef.elem->>'incomplete')::boolean IS TRUE)
+            AND (def_clef.elem->>'optional')::boolean IS NOT TRUE
+            AND NOT EXISTS (
+              SELECT 1
+              FROM inclusions i_ok
+              JOIN sources s_ok ON i_ok.source_id = s_ok.id
+              CROSS JOIN LATERAL jsonb_array_elements(i_ok.clefs) WITH ORDINALITY AS ok_clef(elem, pos)
+              WHERE i_ok.composition_id = c_cf.id
+                AND s_ok.catalogued = true
+                AND i_ok.clefs IS NOT NULL
+                AND COALESCE((ok_clef.elem->>'voice_number')::int, ok_clef.pos::int)
+                    = COALESCE((def_clef.elem->>'voice_number')::int, def_clef.pos::int)
+                AND (ok_clef.elem->>'missing')::boolean IS NOT TRUE
+                AND (ok_clef.elem->>'incomplete')::boolean IS NOT TRUE
+            )
+        )
+      )`;
+      whereConditions.push(
+        completenessValue === 'complete'
+          ? groupIsCompleteCondition
+          : `NOT ${groupIsCompleteCondition}`
+      );
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

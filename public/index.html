@@ -672,6 +672,16 @@
                                     </div>
                                     <div class="row g-1">
                                         <div class="col-12">
+                                            <label for="searchCompleteness" class="form-label filter-label mb-0">Completeness</label>
+                                            <select class="form-select form-select-sm filter-input" id="searchCompleteness">
+                                                <option value="">All</option>
+                                                <option value="complete">Does not need reconstruction</option>
+                                                <option value="needs_recon">Needs reconstruction</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row g-1">
+                                        <div class="col-12">
                                             <label class="filter-switch">
                                                 <input type="checkbox" id="hasEditions">
                                                 <span class="filter-switch-slider"></span>
@@ -807,6 +817,18 @@
                                 <input class="form-check-input filter-input" type="checkbox" id="hasRecordingsDesktop">
                                 <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 4: Completeness -->
+                    <div class="row g-1">
+                        <div class="col-md-2">
+                            <label for="searchCompletenessDesktop" class="form-label filter-label mb-0">Completeness</label>
+                            <select class="form-select form-select-sm filter-input" id="searchCompletenessDesktop">
+                                <option value="">All</option>
+                                <option value="complete">Does not need reconstruction</option>
+                                <option value="needs_recon">Needs reconstruction</option>
+                            </select>
                         </div>
                     </div>
                     <div class="row mt-3 mb-2">
@@ -1020,6 +1042,11 @@
                 syncCheckboxFields('hasRecordings', 'hasRecordingsDesktop');
                 updateFilterHighlights();
             });
+            document.getElementById('searchCompleteness').addEventListener('change', function() {
+                syncSearchFields('searchCompleteness', 'searchCompletenessDesktop');
+                updateFilterHighlights();
+                updateSearchButtonText();
+            });
             
             // Set up sync listeners for desktop form (no auto-search)
             document.getElementById('searchTitleDesktop').addEventListener('input', function() {
@@ -1034,6 +1061,11 @@
             });
             document.getElementById('hasRecordingsDesktop').addEventListener('change', function() {
                 syncCheckboxFields('hasRecordingsDesktop', 'hasRecordings');
+                updateFilterHighlights();
+                updateSearchButtonText();
+            });
+            document.getElementById('searchCompletenessDesktop').addEventListener('change', function() {
+                syncSearchFields('searchCompletenessDesktop', 'searchCompleteness');
                 updateFilterHighlights();
                 updateSearchButtonText();
             });
@@ -1211,7 +1243,8 @@
                 'publisherscribeeditor': 'publisher_scribe_editor',
                 'cities': 'cities',
                 'sourcetypes': 'source_type',
-                'sourceformats': 'source_format'
+                'sourceformats': 'source_format',
+                'completeness': 'completeness'
             };
             
             const paramKey = filterMap[filterKey];
@@ -1256,6 +1289,7 @@
                 'searchSourceFormats': 'source_format',
                 'hasEditions': 'has_editions',
                 'hasRecordings': 'has_recordings',
+                'searchCompleteness': 'completeness',
                 'sortBy': 'sort'
             };
             
@@ -1272,7 +1306,8 @@
                 { id: 'searchClef', desktopId: 'searchClefDesktop', paramName: 'clef' },
                 { id: 'yearFrom', desktopId: 'yearFromDesktop', paramName: 'year_from' },
                 { id: 'yearTo', desktopId: 'yearToDesktop', paramName: 'year_to' },
-                { id: 'anniversaryYear', desktopId: 'anniversaryYearDesktop', paramName: 'anniversary_year' }
+                { id: 'anniversaryYear', desktopId: 'anniversaryYearDesktop', paramName: 'anniversary_year' },
+                { id: 'searchCompleteness', desktopId: 'searchCompletenessDesktop', paramName: 'completeness' }
             ];
             textInputs.forEach(({ id, desktopId, paramName }) => {
                 [id, desktopId].forEach(inputId => {
@@ -1351,7 +1386,7 @@
             // Check if there are any applied filters (not pending)
             const hasAppliedFilters = () => {
                 // Check text inputs
-                const textInputs = ['searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop', 'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop', 'anniversaryYear', 'anniversaryYearDesktop'];
+                const textInputs = ['searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop', 'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop', 'anniversaryYear', 'anniversaryYearDesktop', 'searchCompleteness', 'searchCompletenessDesktop'];
                 for (const id of textInputs) {
                     const el = document.getElementById(id);
                     if (el && el.value && el.value.trim() && el.classList.contains('filter-active')) {
@@ -1473,6 +1508,8 @@
             document.getElementById('yearToDesktop').value = '';
             document.getElementById('anniversaryYear').value = '';
             document.getElementById('anniversaryYearDesktop').value = '';
+            document.getElementById('searchCompleteness').value = '';
+            document.getElementById('searchCompletenessDesktop').value = '';
             
             // Clear all Select2 dropdowns
             const selectIds = [
@@ -1543,7 +1580,8 @@
             const textInputIds = [
                 'searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop',
                 'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop',
-                'anniversaryYear', 'anniversaryYearDesktop'
+                'anniversaryYear', 'anniversaryYearDesktop',
+                'searchCompleteness', 'searchCompletenessDesktop'
             ];
             
             textInputIds.forEach(id => {
@@ -1601,7 +1639,8 @@
             const textInputIds = [
                 'searchTitle', 'searchTitleDesktop', 'searchClef', 'searchClefDesktop',
                 'yearFrom', 'yearTo', 'yearFromDesktop', 'yearToDesktop',
-                'anniversaryYear', 'anniversaryYearDesktop'
+                'anniversaryYear', 'anniversaryYearDesktop',
+                'searchCompleteness', 'searchCompletenessDesktop'
             ];
             
             textInputIds.forEach(id => {
@@ -1662,6 +1701,11 @@
             if (params.get('has_recordings') === 'true') {
                 document.getElementById('hasRecordings').checked = true;
                 document.getElementById('hasRecordingsDesktop').checked = true;
+            }
+            if (params.get('completeness')) {
+                const completenessValue = params.get('completeness');
+                document.getElementById('searchCompleteness').value = completenessValue;
+                document.getElementById('searchCompletenessDesktop').value = completenessValue;
             }
             
             // Set multi-select filters from URL parameters for both forms
@@ -1790,6 +1834,7 @@
             const anniversaryYear = document.getElementById('anniversaryYear')?.value || document.getElementById('anniversaryYearDesktop')?.value || '';
             const hasEditions = document.getElementById('hasEditions')?.checked || document.getElementById('hasEditionsDesktop')?.checked || false;
             const hasRecordings = document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false;
+            const completeness = document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || '';
             
             if (title) params.set('title', title);
             if (composers) params.set('composers', composers);
@@ -1812,6 +1857,7 @@
             if (cities) params.set('cities', cities);
             if (hasEditions) params.set('has_editions', 'true');
             if (hasRecordings) params.set('has_recordings', 'true');
+            if (completeness) params.set('completeness', completeness);
             
             return params;
         }
@@ -2107,7 +2153,8 @@
                     year_to: yearTo,
                     anniversary_year: anniversaryYear,
                     has_editions: document.getElementById('hasEditions')?.checked || document.getElementById('hasEditionsDesktop')?.checked || false,
-                    has_recordings: document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false
+                    has_recordings: document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false,
+                    completeness: document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || ''
                 });
 
                 const response = await fetch(`/api/search/groups?${searchParams}`, {
