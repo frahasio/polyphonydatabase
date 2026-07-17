@@ -128,14 +128,19 @@
                 // preticked; accept links every ticked function.
                 const rows = (p.functions || []).map((f, i) => {
                     const isSeason = f.level === 'season';
+                    const isCluster = f.level === 'cluster';
                     const evidence = isSeason
                         ? `recurs on ${f.days} days in the season${f.share ? ` (${Math.round(f.share * 100)}% of its appearances)` : ''}`
+                        : isCluster
+                        ? `${f.days} of its appearances fall on this feast/octave${f.share ? ` (${Math.round(f.share * 100)}%)` : ''}`
                         : `proper of ${f.days} day${f.days === 1 ? '' : 's'}`;
                     const newBadge = f.new_function
                         ? ' <span class="badge bg-warning text-dark" title="Not in the catalogue yet — accepting creates it">new feast</span>'
                         : '';
                     const seasonBadge = isSeason
-                        ? ' <span class="badge bg-info text-dark">season</span>' : '';
+                        ? ' <span class="badge bg-info text-dark">season</span>'
+                        : isCluster
+                        ? ' <span class="badge bg-success">main use</span>' : '';
                     const positions = (f.positions || []).map(escapeHtml).join(' &middot; ');
                     return `
                         <div class="form-check mb-1">

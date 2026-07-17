@@ -45,6 +45,10 @@ const SEASON_MIN_DAYS = 3;
 const SEASON_MIN_SHARE = 0.5;
 const SEASON_PRESELECT_DAYS = 4;
 const SEASON_PRESELECT_SHARE = 0.6;
+// Function clusters (feast + its octave/vigil days): minimum share of the
+// incipit's appearances concentrated on one function to call it the text's
+// main purpose.
+const CLUSTER_MIN_SHARE = parseFloat(process.env.DO_CLUSTER_MIN_SHARE) || 0.34;
 const MAX_FUNCTIONS_PER_CARD = 8;
 const MAX_POSITIONS_PER_FUNCTION = 4;
 
@@ -107,6 +111,10 @@ async function main() {
     const tally = new Map();
     // Season tallies: season function name -> best per-part cluster.
     const seasonBest = new Map();
+    // Function clusters: a feast + its octave/vigil is many day files but
+    // ONE function — concentration there identifies the text's main
+    // purpose even when the raw day count looks "generic".
+    const clusterBest = new Map();
     const partDays = new Map();
     const matched = new Set();
     const citations = new Set();
@@ -125,6 +133,38 @@ async function main() {
       const specificity = unionDays.size;
       if (!partDays.has(part) || partDays.get(part) > specificity) partDays.set(part, specificity);
 
+      const samplePositions = (predicate) => {
+        const positions = new Set();
+        for (const u of units) {
+          for (const place of u.places) {
+            if (positions.size >= MAX_POSITIONS_PER_FUNCTION) break;
+            if (predicate(place)) positions.add(`${place.position} — ${place.dayLabel}`);
+          }
+        }
+        return positions;
+      };
+
+      // ---- function clustering across ALL matched days ----
+      const byFn = new Map();
+      for (const d of unionDays) {
+        for (const fn of (corpus.dayFunctions.get(d) || [])) {
+          byFn.set(fn, (byFn.get(fn) || 0) + 1);
+        }
+      }
+      for (const [fn, count] of byFn) {
+        const share = count / specificity;
+        if (count < 2 || share < CLUSTER_MIN_SHARE) continue;
+        const prev = clusterBest.get(fn);
+        if (!prev || count > prev.days) {
+          clusterBest.set(fn, {
+            days: count,
+            share,
+            positions: samplePositions((p) => p.fn === fn),
+          });
+        }
+        matched.add(units[0].sample);
+      }
+
       // ---- season clustering: which seasons do the appearances sit in? ----
       const bySeason = new Map();
       for (const d of unionDays) {
@@ -138,19 +178,15 @@ async function main() {
         if (days.size < SEASON_MIN_DAYS || share < SEASON_MIN_SHARE) continue;
         const prev = seasonBest.get(season);
         if (!prev || days.size > prev.days) {
-          // Sample positions within the season from the matched units.
-          const positions = new Set();
-          for (const u of units) {
-            for (const place of u.places) {
-              if (positions.size >= MAX_POSITIONS_PER_FUNCTION) break;
-              if (seasonOfDay(place.day) === season) positions.add(`${place.position} — ${place.dayLabel}`);
-            }
-          }
-          seasonBest.set(season, { days: days.size, share, positions });
+          seasonBest.set(season, {
+            days: days.size,
+            share,
+            positions: samplePositions((p) => seasonOfDay(p.day) === season),
+          });
         }
       }
 
-      // ---- specific propers (unchanged logic) ----
+      // ---- specific propers ----
       if (specificity >= GENERIC_DAYS) continue;
       for (const unit of units) {
         for (const place of unit.places) {
@@ -175,9 +211,38 @@ async function main() {
     }
 
     // ---- assemble the card's function list ----
+    // Function clusters (feast + octave concentration) identify the text's
+    // MAIN purpose: they lead the card, and when one exists, scattered
+    // 1-day matches elsewhere are listed but NOT preticked.
+    // The main purpose may already be LINKED to the title (the reviewer
+    // catalogued it) — it still counts as dominant, so a coincidental
+    // 1-day hit elsewhere must not be preticked; it's just not re-listed.
+    const dominantFns = [...clusterBest.keys()]
+      .filter((fn) => functionIds.has(fn) && !isRejected(title.id, functionIds.get(fn), fn));
+    const hasDominant = dominantFns.length > 0
+      || [...existingFnIds].length > 0; // an already-catalogued title needs no aggressive preticks
+
+    const clusters = dominantFns
+      .filter((fn) => !existingFnIds.has(functionIds.get(fn)))
+      .sort((a, b) => clusterBest.get(b).days - clusterBest.get(a).days)
+      .map((fn) => {
+        const c = clusterBest.get(fn);
+        return {
+          function_id: functionIds.get(fn),
+          function_name: fn,
+          level: 'cluster',
+          days: c.days,
+          share: Math.round(c.share * 100) / 100,
+          positions: [...c.positions],
+          preselected: true,
+        };
+      });
+    const clusterNames = new Set(clusters.map((f) => f.function_name.toLowerCase()));
+
     const specifics = [...tally.values()]
       .filter((t) => !(t.functionId && existingFnIds.has(t.functionId)))
       .filter((t) => !isRejected(title.id, t.functionId, t.proposedName))
+      .filter((t) => !clusterNames.has(t.proposedName.toLowerCase()))
       .sort((a, b) => a.minDays - b.minDays
         || (a.functionId ? 0 : 1) - (b.functionId ? 0 : 1)
         || b.positions.size - a.positions.size)
@@ -188,14 +253,14 @@ async function main() {
         level: 'specific',
         days: t.minDays,
         positions: [...t.positions],
-        preselected: t.minDays <= PRESELECT_MAX_DAYS,
+        preselected: !hasDominant && t.minDays <= PRESELECT_MAX_DAYS,
       }));
 
-    const specificNames = new Set(specifics.map((f) => f.function_name.toLowerCase()));
+    const takenNames = new Set([...clusterNames, ...specifics.map((f) => f.function_name.toLowerCase())]);
     const seasons = [...seasonBest.entries()]
       .filter(([season]) => functionIds.has(season)
         && !existingFnIds.has(functionIds.get(season))
-        && !specificNames.has(season.toLowerCase())
+        && !takenNames.has(season.toLowerCase())
         && !isRejected(title.id, functionIds.get(season), season))
       .sort((a, b) => b[1].days - a[1].days)
       .map(([season, s]) => ({
@@ -205,11 +270,16 @@ async function main() {
         days: s.days,
         share: Math.round(s.share * 100) / 100,
         positions: [...s.positions],
-        preselected: s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE,
+        preselected: !hasDominant && s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE,
       }));
 
-    const functions = [...specifics, ...seasons].slice(0, MAX_FUNCTIONS_PER_CARD);
+    const functions = [...clusters, ...specifics, ...seasons].slice(0, MAX_FUNCTIONS_PER_CARD);
     if (!functions.length) continue;
+    // A NEW-feast proposal is never preticked when there are alternatives —
+    // creating a function should be a deliberate reviewer choice.
+    if (functions.length > 1) {
+      for (const f of functions) if (f.new_function) f.preselected = false;
+    }
     // A card with nothing preselected and nothing specific under GENERIC
     // days would be pure noise — require at least one credible entry.
     if (!functions.some((f) => f.preselected

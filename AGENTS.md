@@ -47,9 +47,19 @@ deployed. Also shipped since:
  Pentecost-octave via day-file prefixes, see seasonOfDay) for texts that
  recur on >=3 days concentrated (>=50%) in one season — previously junked
  as generic. Accept links all TICKED functions (function_selections).
- Rubric-variant files (…t.txt/…o.txt) fold into their base day so counts
- aren't inflated. Reviewer rejections (old single-function cards included)
- are never re-proposed. Mass Gospels/Epistles are evidence (sentence-
+ Day counts use CALENDAR days: missa+horas trees, rubric variants
+ (…t.txt/…o.txt) and multiple-Mass files (…m1-m3) fold into one day.
+ FUNCTION CLUSTERS (level 'cluster', "main use" badge): appearances
+ concentrated on one function (feast + octave, >=2 days, >=34% share,
+ DO_CLUSTER_MIN_SHARE) identify a text's main purpose and lead the card
+ preticked; when a cluster exists (or the title already has functions),
+ scattered 1-day specifics are listed but NOT preticked. New-feast
+ proposals are never preticked when alternatives exist. Mass-ordinary/
+ daily-Office texts (Gloria, Sanctus, Magnificat... — kept OUTSIDE DO's
+ per-day files, so day counting can't see their ubiquity) are blocked
+ via isOrdinaryText in matching.js. Reviewer rejections (old
+ single-function cards included) are never re-proposed. Dictionary edits
+ reach pending cards on the NEXT matcher run (cards refresh in place). Mass Gospels/Epistles are evidence (sentence-
  indexed, pericope formulas stripped); TEMPORA Matins lessons are
  frequency-only (in-course scripture, coincidental); Sancti/Commune
  lessons are evidence. Latin->English feast names via the editable

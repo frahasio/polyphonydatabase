@@ -55,6 +55,7 @@ const COMMUNE_MAP = [
   [/^C6/, 'Comm. Virgins'],
   [/^C7/, 'Comm. Holy Women'],
   [/^C8/, 'Dedication of Church'],
+  [/^C9/, 'Office for the dead'], // Officium Defunctorum
   [/^C1[01]/, 'BVM'],
   [/defunct/i, 'Office for the dead'],
 ];
@@ -67,7 +68,7 @@ const COMMUNE_MAP = [
  * season is a good match for the season-level function.
  */
 export function seasonOfDay(rel) {
-  if (!rel.includes('/Tempora/')) return null;
+  if (!/(^|\/)Tempora\//.test(rel)) return null;
   const base = path.basename(rel, '.txt');
   if (/^Adv/.test(base)) return 'Advent';
   if (/^Nat/.test(base)) return 'Christmas';       // incl. Jan 2-5 files
@@ -260,6 +261,10 @@ export function enumerateDayLabels(functionNames, overrides = new Map()) {
 export function buildCorpus(functionNames, overrides = new Map()) {
   const units = new Map();
   const index = new Map();
+  // dayId -> catalogue function name. Lets the matcher cluster a text's
+  // appearances by FUNCTION: a feast + its octave are many day files but
+  // one function, and that concentration identifies a text's main purpose.
+  const dayFunctions = new Map();
   const classifyDay = makeClassifier(functionNames, overrides);
 
   const addUnit = (text, place, citation) => {
@@ -286,10 +291,15 @@ export function buildCorpus(functionNames, overrides = new Map()) {
     for (const f of fs.readdirSync(dir)) {
       if (!f.endsWith('.txt')) continue;
       const rel = `${dirRel}/${f}`;
-      // Rubric-variant files (Pasc0-3t.txt, Nat29o.txt) are the SAME
-      // calendar day as their base file — they must not inflate day
-      // counts or a text proper to 3 days looks proper to 6.
-      const dayId = rel.replace(/(\d)[a-z]+\.txt$/i, '$1.txt');
+      // CALENDAR-day key: the missa and horas trees, rubric-variant files
+      // (Pasc0-3t.txt, Nat29o.txt) and multiple-Mass files (11-02m1..m3)
+      // are all the same calendar day — folding them keeps day counts
+      // honest (a text on 3 real days must not look like 6).
+      const dayId = rel
+        .replace(/^(missa|horas)\/Latin\//, '')
+        .replace(/\.txt$/, '')
+        .replace(/m\d+$/, '')
+        .replace(/(\d)[a-z]+$/i, '$1');
       const raw = readFile(rel);
       if (!raw) continue;
       const sections = splitSections(raw);
@@ -300,6 +310,10 @@ export function buildCorpus(functionNames, overrides = new Map()) {
         .replace(/\s+/g, ' ')
         .trim();
       const cls = classifyDay(rel, label);
+      if (cls.fn) {
+        if (!dayFunctions.has(dayId)) dayFunctions.set(dayId, new Set());
+        dayFunctions.get(dayId).add(cls.fn);
+      }
       for (const [name, lines] of Object.entries(sections)) {
         const mode = sectionFilter(name); // 'evidence' | 'freq' | falsy
         if (!mode) continue;
@@ -360,7 +374,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
     : PROSE_SECTION_RE.test(s) ? 'prose'
     : FREQ_SECTION_RE.test(s) ? 'freq' : null));
 
-  return { units, index };
+  return { units, index, dayFunctions };
 }
 
 // ---------- matching ----------
