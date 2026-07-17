@@ -7,7 +7,7 @@ import { triggerCleanup } from '../cleanup.js';
 // just admins) can churn through it.
 const router = express.Router();
 
-const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title'];
+const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title', 'source_rism'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
 // Attach disambiguating context to each suggestion so reviewers can tell
@@ -141,11 +141,16 @@ router.get('/', async (req, res) => {
     params.push(limit, (page - 1) * limit);
 
     const result = await pool.query(`
-      SELECT s.id, s.kind, s.title_id, s.group_id, s.composer_id, s.payload, s.score, s.source,
+      SELECT s.id, s.kind, s.title_id, s.group_id, s.composer_id, s.source_id, s.payload, s.score, s.source,
              s.status, s.created_at,
              t.text AS title_text,
              g.display_title AS group_title,
              row_to_json(cmp) AS composer,
+             (SELECT row_to_json(x) FROM (
+                SELECT src.code, src.title, src.type, src.format, src.town,
+                       src.from_year, src.to_year, src.facsimile_url, src.rism_link
+                FROM sources src WHERE src.id = s.source_id
+             ) x) AS source_record,
              (
                SELECT COUNT(*) FROM compositions c
                WHERE s.composer_id IS NOT NULL AND s.composer_id = ANY(c.composer_id_list)
@@ -378,6 +383,22 @@ router.post('/:id/:action', async (req, res) => {
             text(payload.wikidata_id),
             text(payload.rism_id),
           ]
+        );
+      } else if (s.kind === 'source_rism') {
+        if (!s.source_id) throw new Error('Suggestion payload missing source');
+        // RISM values win where proposed (the card shows every fill and
+        // replacement before accept); fields without a proposal keep their
+        // current value. Facsimile only ever fills a gap.
+        const year = (v) => (Number.isInteger(parseInt(v, 10)) ? parseInt(v, 10) : null);
+        const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 500) : null);
+        await client.query(
+          `UPDATE sources SET
+             from_year = COALESCE($2, from_year),
+             to_year = COALESCE($3, to_year),
+             facsimile_url = COALESCE(facsimile_url, $4),
+             updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [s.source_id, year(payload.from_year), year(payload.to_year), text(payload.facsimile_url)]
         );
       } else if (s.kind === 'group_title') {
         if (!s.group_id) throw new Error('Suggestion payload missing group');

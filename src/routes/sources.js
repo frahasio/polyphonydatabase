@@ -426,6 +426,7 @@ router.get('/:id', async (req, res) => {
         s.format,
         s.town,
         s.rism_link,
+        s.facsimile_url,
         s.catalogued,
         s.notes,
         s.created_at,
@@ -646,6 +647,7 @@ router.put('/:id', async (req, res) => {
       format, 
       town, 
       rism_link, 
+      facsimile_url,
       catalogued,
       notes,
       from_year,
@@ -666,14 +668,16 @@ router.put('/:id', async (req, res) => {
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
           rism_link = $6, catalogued = $7, notes = $8, from_year = $9, to_year = $10,
-          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13
+          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13,
+          facsimile_url = $15
       WHERE id = $14
       RETURNING *
     `;
 
     const result = await pool.query(query, [
       code, title, type, format, town, rism_link, catalogued, notes,
-      from_year, to_year, from_year_annotation, to_year_annotation, now, id
+      from_year, to_year, from_year_annotation, to_year_annotation, now, id,
+      (typeof facsimile_url === 'string' && facsimile_url.trim()) ? facsimile_url.trim() : null
     ]);
 
     const newData = result.rows[0];
@@ -791,7 +795,8 @@ export async function saveSourceWithInclusions(client, sourceId, source, inclusi
       UPDATE sources 
       SET code = $1, title = $2, type = $3, format = $4, town = $5, 
           rism_link = $6, catalogued = $7, notes = $8, from_year = $9, to_year = $10,
-          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13
+          from_year_annotation = $11, to_year_annotation = $12, updated_at = $13,
+          facsimile_url = $15
       WHERE id = $14
       RETURNING *
     `;
@@ -810,7 +815,8 @@ export async function saveSourceWithInclusions(client, sourceId, source, inclusi
       source.from_year_annotation || null,
       source.to_year_annotation || null,
       now, 
-      sourceId
+      sourceId,
+      (typeof source.facsimile_url === 'string' && source.facsimile_url.trim()) ? source.facsimile_url.trim() : null
     ]);
     
     // Update relationships (publishers, scribes, source images)

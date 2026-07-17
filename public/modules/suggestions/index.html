@@ -12,6 +12,7 @@
         .suggestion-card { border-left: 4px solid #0d6efd; }
         .suggestion-card.kind-title_function { border-left-color: #6f42c1; }
         .suggestion-card.kind-recording_youtube { border-left-color: #dc3545; }
+        .suggestion-card.kind-source_rism { border-left-color: #0d6efd; }
         .suggestion-card.kind-recording_spotify { border-left-color: #198754; }
         .suggestion-card.kind-title_merge { border-left-color: #fd7e14; }
         .suggestion-card.kind-title_language { border-left-color: #0dcaf0; }
@@ -42,6 +43,7 @@
                 <button type="button" class="btn btn-outline-secondary" data-kind="title_language">Languages</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="composer_bio">Composer bios</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="group_title">Group titles</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="source_rism">Sources (RISM)</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
             </div>
@@ -275,6 +277,37 @@
                         <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the ${srcColumn} column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
                     </div>`;
             }
+            if (s.kind === 'source_rism') {
+                const src = s.source_record || {};
+                const row = (label, current, proposed) => {
+                    if (!current && !proposed) return '';
+                    let currentCell = current ? escapeHtml(String(current)) : '<span class="text-muted">missing</span>';
+                    let proposedCell = proposed ? escapeHtml(String(proposed)) : '<span class="text-muted">\u2014 (kept as is)</span>';
+                    if (proposed && !current) proposedCell = `<span class="bio-fill">${escapeHtml(String(proposed))}</span>`;
+                    else if (proposed && current && String(proposed) !== String(current)) {
+                        proposedCell = `<span class="bio-change">${escapeHtml(String(proposed))}</span>`;
+                        currentCell = `<span class="bio-old">${escapeHtml(String(current))}</span>`;
+                    }
+                    return `<tr><td class="text-muted">${label}</td><td>${currentCell}</td><td>${proposedCell}</td></tr>`;
+                };
+                const facUrl = safeUrl(p.facsimile_url);
+                const facCell = facUrl
+                    ? `<a href="${facUrl}" target="_blank" rel="noopener">${facUrl.length > 60 ? facUrl.slice(0, 60) + '\u2026' : facUrl} <i class="bi bi-box-arrow-up-right"></i></a>`
+                    : null;
+                const holdings = (p.holdings || []).map(escapeHtml).join(' &middot; ');
+                return `
+                    <div class="payload-detail">
+                        <div><a href="${safeUrl(p.rism_url)}" target="_blank" rel="noopener">RISM: ${escapeHtml(p.rism_label || p.rism_id)} <i class="bi bi-box-arrow-up-right"></i></a></div>
+                        ${holdings ? `<div class="text-muted small">Holding: ${holdings}</div>` : ''}
+                        <table class="bio-table mt-1">
+                            <tr><td></td><td class="text-muted">current</td><td class="text-muted">RISM</td></tr>
+                            ${row('Dates', [src.from_year, src.to_year].filter(Boolean).join(' \u2013 '), (p.from_year || p.to_year) ? `${p.from_year || '?'} \u2013 ${p.to_year || '?'}` : null)}
+                            ${p.rism_dates_raw ? `<tr><td class="text-muted">RISM dating</td><td colspan="2" class="text-muted">${escapeHtml(p.rism_dates_raw)}</td></tr>` : ''}
+                            ${facCell ? `<tr><td class="text-muted">Facsimile</td><td>${src.facsimile_url ? escapeHtml(src.facsimile_url) : '<span class="text-muted">missing</span>'}</td><td><span class="${src.facsimile_url ? '' : 'bio-fill'}">${facCell}</span></td></tr>` : ''}
+                        </table>
+                        <div class="text-muted mt-1" style="font-size:0.8rem">Accept applies the RISM column: <span class="bio-fill">green</span> fills a gap, <span class="bio-change">amber</span> replaces the current value.</div>
+                    </div>`;
+            }
             if (s.kind === 'group_title') {
                 // Live data from the server (current composition titles +
                 // current display title), NOT the payload snapshot — titles
@@ -406,6 +439,13 @@
                 return `<span class="fw-semibold">${escapeHtml((s.composer || {}).name || '(composer missing)')}</span>
                         <span class="text-muted">— ${n} composition${n === 1 ? '' : 's'} in the catalogue</span>`;
             }
+            if (s.kind === 'source_rism') {
+                const src = s.source_record || {};
+                const bits = [src.type, src.format, src.town].filter(Boolean).map(escapeHtml).join(' · ');
+                return `<span class="fw-semibold">${escapeHtml(src.code || '(source missing)')}</span>
+                        ${src.title ? `<span class="text-muted"> — ${escapeHtml(src.title)}</span>` : ''}
+                        ${bits ? `<div class="comp-detail text-muted mt-1">${bits}</div>` : ''}`;
+            }
             if (s.kind === 'title_function' || s.kind === 'title_language') {
                 // Show every setting that carries this title so the reviewer can
                 // see which pieces the function would apply to.
@@ -504,6 +544,7 @@
                 title_language: 'title languages',
                 composer_bio: 'composer bios',
                 group_title: 'group titles',
+                source_rism: 'RISM source data',
                 recording_youtube: 'YouTube recordings',
                 recording_spotify: 'Spotify recordings'
             };
