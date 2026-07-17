@@ -340,10 +340,19 @@
             const spEmbed = s.kind === 'recording_spotify' ? spotifyEmbedUrl(p.url) : '';
             let embedHtml = '';
             if (ytEmbed) embedHtml = `<iframe class="yt-embed mt-2" loading="lazy" src="${escapeHtml(ytEmbed)}" allowfullscreen></iframe>`;
-            else if (spEmbed) embedHtml = `<iframe class="sp-embed mt-2" loading="lazy" src="${escapeHtml(spEmbed)}" allow="encrypted-media"></iframe>`;
+            else if (spEmbed) embedHtml = `<iframe class="sp-embed mt-2" loading="lazy" src="${escapeHtml(spEmbed)}" allow="encrypted-media"></iframe>
+                <div class="text-muted small">Spotify plays the full track here if this browser is logged in at <a href="https://open.spotify.com" target="_blank" rel="noopener">open.spotify.com</a> (click play, then follow its log-in prompt once); logged out it serves its own 30-second sample.</div>`;
             // Full metadata as text — the Spotify embed truncates/scrolls long
             // classical track names, so never rely on it for identification.
             const artistsLine = (p.artists && p.artists.length) ? p.artists.map(escapeHtml).join(', ') : '';
+            // The performer is rarely in a YouTube video's TITLE — surface the
+            // channel and full description so no trip to youtube.com is needed.
+            const descHtml = p.description ? `
+                <details class="mt-1" style="max-width:480px">
+                    <summary class="text-muted small">Video description${p.channel ? ` — channel: ${escapeHtml(p.channel)}` : ''}</summary>
+                    <div class="text-muted small" style="white-space:pre-wrap; max-height:220px; overflow-y:auto">${escapeHtml(p.description)}</div>
+                </details>`
+                : (p.channel ? `<div class="text-muted small">Channel: ${escapeHtml(p.channel)}</div>` : '');
             return `
                 <div class="payload-detail">
                     <div><strong>${escapeHtml(p.track_title || p.video_title || 'Recording')}</strong>
@@ -351,6 +360,7 @@
                     </div>
                     ${artistsLine ? `<div class="text-muted">${artistsLine}${p.album ? ` — <em>${escapeHtml(p.album)}</em>` : ''}</div>` : (p.album ? `<div class="text-muted"><em>${escapeHtml(p.album)}</em></div>` : '')}
                     ${url ? `<div><a href="${url}" target="_blank" rel="noopener">${url} <i class="bi bi-box-arrow-up-right"></i></a></div>` : ''}
+                    ${descHtml}
                     ${embedHtml}
                     <div class="mt-2" style="max-width:480px">
                         <label class="form-label small mb-1" for="perf-${s.id}">Performer (saved on accept — correct spelling / match an existing one)</label>

@@ -16,6 +16,7 @@
  *   node scripts/suggest-recordings.js 80 youtube
  *   node scripts/suggest-recordings.js 500 spotify
  */
+import { pathToFileURL } from 'url';
 import { pool } from '../src/db.js';
 
 const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 2000);
@@ -117,6 +118,25 @@ async function searchYouTube(query) {
     channel: it.snippet.channelTitle,
     description: it.snippet.description,
   })).filter((v) => v.videoId);
+}
+
+/**
+ * Full descriptions for up to 50 video ids (search.list truncates them to
+ * ~160 chars, and performer names usually live deep in the description).
+ * Costs 1 quota unit per call — negligible next to the 100-unit search.
+ */
+export async function fetchYouTubeDescriptions(videoIds) {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key || !videoIds.length) return new Map();
+  const url = 'https://www.googleapis.com/youtube/v3/videos?part=snippet&id=' +
+    videoIds.slice(0, 50).join(',') + '&key=' + key;
+  const resp = await fetch(url);
+  if (!resp.ok) return new Map();
+  const data = await resp.json();
+  return new Map((data.items || []).map((it) => [it.id, {
+    description: it.snippet.description || '',
+    channel: it.snippet.channelTitle || '',
+  }]));
 }
 
 // ---- Spotify (client-credentials) ----
@@ -233,9 +253,18 @@ async function runYouTube(batch) {
         .sort((a, b) => b.score - a.score);
       if (scored.length) {
         const best = scored[0];
+        // Full description for the card: the performer is rarely in the
+        // video title but almost always in the description.
+        let description = best.v.description || '';
+        try {
+          const full = await fetchYouTubeDescriptions([best.v.videoId]);
+          if (full.has(best.v.videoId)) description = full.get(best.v.videoId).description;
+        } catch { /* truncated search description is still useful */ }
         inserted += await insertSuggestion('recording_youtube', g.id, {
           url: 'https://www.youtube.com/watch?v=' + best.v.videoId,
           video_title: best.v.title,
+          channel: best.v.channel,
+          description: description.slice(0, 2000),
           performer_name: best.v.channel,
           matched_query: query,
         }, best.score, 'youtube', `ryt:${g.id}:${best.v.videoId}`);
@@ -320,7 +349,12 @@ async function main() {
   await pool.end();
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run when executed directly — fetchYouTubeDescriptions is imported
+// by backfill scripts, and importing must not start a matcher run.
+const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
