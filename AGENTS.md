@@ -123,7 +123,10 @@ deployed. Also shipped since:
   Divinum Officium import for texts/translations and a fetch-translation
   button backed by the vendored Douay-Rheims/Vulgate files.
 - Backend CRUD dedup: composers/editors/performers/publishers/scribes now use
- `src/routes/entityRouter.js` (`createEntityRouter`).
+ `src/routes/entityRouter.js` (`createEntityRouter`). Optional cfg:
+ `listCount` (usage count in list responses) and `mergeRefs` (POST /merge
+ repoints references and deletes the merged rows) — both enabled for
+ performers; the performers page has a multi-select merge bar (July 2026).
 - Public search "Completeness" filter (`completeness=complete|needs_recon`):
  a group does NOT need reconstruction when at least one of its compositions
  can be assembled complete across catalogued sources — every voice marked
