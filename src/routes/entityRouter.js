@@ -15,9 +15,15 @@ import { requireAuth } from '../middleware/auth.js';
  * @param {string} cfg.label        Human label for 404 messages, e.g. 'Composer'
  * @param {string[]} cfg.fields     Editable columns (must include 'name' first)
  * @param {boolean} [cfg.audit]     Log an audit entry on create
+ * @param {object} [cfg.listCount]  Add a usage count to the list response:
+ *                                  { table, column, as }
+ * @param {object[]} [cfg.mergeRefs] Enable POST /merge: referencing columns
+ *                                  repointed from the merged rows to the
+ *                                  survivor, e.g. [{ table: 'recordings',
+ *                                  column: 'performer_id' }]
  */
 export function createEntityRouter(cfg) {
-  const { table, listKey, singularKey, label, fields, audit = false } = cfg;
+  const { table, listKey, singularKey, label, fields, audit = false, listCount = null, mergeRefs = null } = cfg;
   const router = express.Router();
   router.use(requireAuth);
 
@@ -31,13 +37,19 @@ export function createEntityRouter(cfg) {
   router.get('/', async (req, res) => {
     try {
       const searchTerm = req.query.search || '';
-      let query = `SELECT ${columns} FROM ${table}`;
+      const cols = ['e.id', ...fields.map((f) => `e.${f}`)].join(', ');
+      let query = listCount
+        ? `SELECT ${cols}, COUNT(rc.${listCount.column})::int AS ${listCount.as}
+           FROM ${table} e
+           LEFT JOIN ${listCount.table} rc ON rc.${listCount.column} = e.id`
+        : `SELECT ${cols} FROM ${table} e`;
       const params = [];
       if (searchTerm) {
-        query += ` WHERE name ILIKE $1`;
+        query += ` WHERE e.name ILIKE $1`;
         params.push(`%${searchTerm}%`);
       }
-      query += ` ORDER BY name`;
+      if (listCount) query += ` GROUP BY ${cols}`;
+      query += ` ORDER BY e.name`;
       const result = await pool.query(query, params);
       res.json({ [listKey]: result.rows });
     } catch (error) {
@@ -45,6 +57,74 @@ export function createEntityRouter(cfg) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+  // Merge: repoint every reference from the source rows to the target row,
+  // then delete the sources. Body: { target_id, source_ids: [...] }.
+  if (mergeRefs && mergeRefs.length) {
+    router.post('/merge', async (req, res) => {
+      const targetId = parseInt(req.body.target_id, 10);
+      const sourceIds = (Array.isArray(req.body.source_ids) ? req.body.source_ids : [])
+        .map((x) => parseInt(x, 10))
+        .filter((x) => Number.isInteger(x) && x !== targetId);
+      if (!Number.isInteger(targetId) || !sourceIds.length) {
+        return res.status(400).json({ error: 'target_id and at least one distinct source id are required' });
+      }
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const found = await client.query(
+          `SELECT id, name FROM ${table} WHERE id = ANY($1) FOR UPDATE`,
+          [[targetId, ...sourceIds]]
+        );
+        if (found.rows.length !== sourceIds.length + 1) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: `One or more ${listKey} no longer exist` });
+        }
+        let moved = 0;
+        for (const ref of mergeRefs) {
+          const r = await client.query(
+            `UPDATE ${ref.table} SET ${ref.column} = $1 WHERE ${ref.column} = ANY($2)`,
+            [targetId, sourceIds]
+          );
+          moved += r.rowCount;
+        }
+        await client.query(`DELETE FROM ${table} WHERE id = ANY($1)`, [sourceIds]);
+
+        const target = found.rows.find((r) => r.id === targetId);
+        const sources = found.rows.filter((r) => r.id !== targetId);
+        try {
+          await client.query(
+            `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              req.user?.id || null,
+              req.user?.email || 'unknown@system.local',
+              'UPDATE',
+              table,
+              targetId,
+              JSON.stringify({ action: 'merge', merged: sources }),
+              JSON.stringify({ survivor: target, references_moved: moved }),
+            ]
+          );
+        } catch (auditError) {
+          console.log('Audit logging skipped:', auditError.message);
+        }
+
+        await client.query('COMMIT');
+        res.json({
+          success: true,
+          survivor: target,
+          merged: sources.map((s) => s.name),
+          references_moved: moved,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`Error merging ${listKey}:`, error);
+        res.status(500).json({ error: 'Merge failed: ' + error.message });
+      } finally {
+        client.release();
+      }
+    });
+  }
 
   // Get one
   router.get('/:id', async (req, res) => {

@@ -8,101 +8,191 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .table-compact td, .table-compact th { padding: .35rem .5rem; vertical-align: middle; }
+        .merge-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 1050;
+            background: #212529; color: #fff; padding: .6rem 1rem;
+            display: none; box-shadow: 0 -2px 8px rgba(0,0,0,.3);
+        }
+        .merge-bar.show { display: block; }
+        .merge-bar .form-check-label { color: #fff; }
+        .toast-area { position: fixed; bottom: 4rem; right: 1rem; z-index: 1080; }
+        body.has-merge-bar { padding-bottom: 4.5rem; }
+    </style>
 </head>
 <body>
     <div class="container-fluid py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Performers</h1>
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <a href="new.html" target="_blank" class="btn btn-primary" title="Add a new performer (opens in new tab)">
-                        <i class="bi bi-plus-lg"></i> Add Performer
-                    </a>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="performersList">
-                            <!-- Performers will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 class="fw-bold mb-1">Performers</h4>
+                <p class="text-muted mb-0">Tick two or more performers to merge duplicate spellings — every recording follows the survivor</p>
             </div>
         </div>
+
+        <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+            <input type="text" class="form-control form-control-sm" id="perfSearch" placeholder="Filter performers…" style="max-width:280px">
+            <a href="new.html" target="_blank" class="btn btn-sm btn-primary" title="Add a new performer (opens in new tab)">
+                <i class="bi bi-plus-lg"></i> Add Performer
+            </a>
+        </div>
+
+        <div class="card"><div class="table-responsive">
+            <table class="table table-hover table-compact mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:36px"></th>
+                        <th>Name</th>
+                        <th class="text-end">Recordings</th>
+                        <th style="width:90px"></th>
+                    </tr>
+                </thead>
+                <tbody id="performersList">
+                    <tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div></div>
     </div>
+
+    <!-- Merge bar: appears when 2+ performers are ticked -->
+    <div class="merge-bar" id="mergeBar">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span id="mergeCount" class="fw-semibold"></span>
+            <span class="text-white-50">Keep:</span>
+            <div id="survivorChoices" class="d-flex gap-3 flex-wrap"></div>
+            <button class="btn btn-sm btn-warning ms-auto" id="mergeBtn"><i class="bi bi-union"></i> Merge</button>
+            <button class="btn btn-sm btn-outline-light" id="clearSelBtn">Cancel</button>
+        </div>
+    </div>
+
+    <div class="toast-area" id="toastArea"></div>
 
     <script src="/js/dom-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let performers = [];
+        let selected = new Set();
+
+        function toast(message, ok = true) {
+            const el = document.createElement('div');
+            el.className = `toast align-items-center text-bg-${ok ? 'success' : 'danger'} border-0 show mb-2`;
+            el.innerHTML = `<div class="d-flex"><div class="toast-body">${escapeHtml(message)}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
+            document.getElementById('toastArea').appendChild(el);
+            setTimeout(() => el.remove(), 4500);
+        }
+
         async function fetchPerformers() {
             try {
-                const response = await fetch('/api/admin/performers');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch performers');
-                }
-                const data = await response.json();
-                if (!data.performers) {
-                    throw new Error('Invalid response format');
-                }
-                displayPerformers(data.performers);
+                const response = await fetch('/api/admin/performers', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to fetch performers');
+                performers = (await response.json()).performers || [];
+                render();
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to load performers. Please try again.');
+                document.getElementById('performersList').innerHTML =
+                    '<tr><td colspan="4" class="text-center text-danger py-4">Failed to load performers</td></tr>';
             }
         }
 
-        function displayPerformers(performers) {
-            const performersList = document.getElementById('performersList');
-            
-            performersList.innerHTML = performers.map(performer => `
+        function render() {
+            const q = document.getElementById('perfSearch').value.trim().toLowerCase();
+            const rows = performers.filter(p => !q || (p.name || '').toLowerCase().includes(q));
+            document.getElementById('performersList').innerHTML = rows.length ? rows.map(p => `
                 <tr>
-                    <td>${escapeHtml(performer.name || '')}</td>
-                    <td>
-                        <a href="edit.html?id=${performer.id}" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Edit this performer (opens in new tab)">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deletePerformer(${performer.id})" title="Delete this performer">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                    <td><input type="checkbox" class="form-check-input sel-box" data-id="${p.id}" ${selected.has(p.id) ? 'checked' : ''}></td>
+                    <td>${escapeHtml(p.name || '')}</td>
+                    <td class="text-end">${p.recording_count || 0}</td>
+                    <td class="text-end">
+                        <a href="edit.html?id=${p.id}" target="_blank" class="btn btn-sm btn-outline-primary me-1" title="Edit (opens in new tab)"><i class="bi bi-pencil"></i></a>
+                        <button class="btn btn-sm btn-outline-danger del-btn" data-id="${p.id}" title="Delete"><i class="bi bi-trash"></i></button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`).join('')
+                : '<tr><td colspan="4" class="text-center text-muted py-4">No performers match</td></tr>';
+            updateMergeBar();
         }
 
-        // Delete performer
-        async function deletePerformer(id) {
-            if (!confirm('Are you sure you want to delete this performer?')) {
+        function updateMergeBar() {
+            const bar = document.getElementById('mergeBar');
+            const chosen = performers.filter(p => selected.has(p.id));
+            if (chosen.length < 2) {
+                bar.classList.remove('show');
+                document.body.classList.remove('has-merge-bar');
                 return;
             }
-
-            try {
-                const response = await fetch(`/api/admin/performers/${id}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to delete performer');
-                }
-
-                fetchPerformers();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to delete performer. Please try again.');
-            }
+            bar.classList.add('show');
+            document.body.classList.add('has-merge-bar');
+            document.getElementById('mergeCount').textContent =
+                `${chosen.length} performers selected`;
+            // Survivor radio: default to the one with most recordings.
+            const best = [...chosen].sort((a, b) => (b.recording_count || 0) - (a.recording_count || 0))[0];
+            document.getElementById('survivorChoices').innerHTML = chosen.map(p => `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="survivor" id="surv-${p.id}" value="${p.id}" ${p.id === best.id ? 'checked' : ''}>
+                    <label class="form-check-label" for="surv-${p.id}">${escapeHtml(p.name)} <span class="text-white-50">(${p.recording_count || 0})</span></label>
+                </div>`).join('');
         }
 
-        // Initialize
+        document.getElementById('performersList').addEventListener('change', e => {
+            const box = e.target.closest('.sel-box');
+            if (!box) return;
+            const id = parseInt(box.dataset.id, 10);
+            if (box.checked) selected.add(id); else selected.delete(id);
+            updateMergeBar();
+        });
+
+        document.getElementById('performersList').addEventListener('click', async e => {
+            const btn = e.target.closest('.del-btn');
+            if (!btn) return;
+            const id = parseInt(btn.dataset.id, 10);
+            const p = performers.find(x => x.id === id);
+            if (!p) return;
+            if ((p.recording_count || 0) > 0) {
+                toast(`"${p.name}" has ${p.recording_count} recording(s) — merge it into the correct spelling instead of deleting.`, false);
+                return;
+            }
+            if (!confirm(`Delete "${p.name}"?`)) return;
+            const res = await fetch(`/api/admin/performers/${id}`, { method: 'DELETE', credentials: 'include' });
+            if (res.ok) {
+                performers = performers.filter(x => x.id !== id);
+                selected.delete(id);
+                render();
+                toast(`Deleted "${p.name}"`);
+            } else toast('Delete failed', false);
+        });
+
+        document.getElementById('mergeBtn').addEventListener('click', async () => {
+            const survivorInput = document.querySelector('input[name="survivor"]:checked');
+            if (!survivorInput) return;
+            const targetId = parseInt(survivorInput.value, 10);
+            const sourceIds = [...selected].filter(id => id !== targetId);
+            const target = performers.find(p => p.id === targetId);
+            const sourceNames = performers.filter(p => sourceIds.includes(p.id)).map(p => p.name);
+            if (!confirm(`Merge ${sourceNames.map(n => `"${n}"`).join(', ')} into "${target.name}"?\n\nAll their recordings move to "${target.name}" and the merged names are deleted.`)) return;
+            const res = await fetch('/api/admin/performers/merge', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: targetId, source_ids: sourceIds })
+            });
+            if (res.ok) {
+                const result = await res.json();
+                selected.clear();
+                toast(`Merged into "${result.survivor.name}" — ${result.references_moved} recording(s) moved.`);
+                fetchPerformers();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast(err.error || 'Merge failed', false);
+            }
+        });
+
+        document.getElementById('clearSelBtn').addEventListener('click', () => {
+            selected.clear();
+            render();
+        });
+        document.getElementById('perfSearch').addEventListener('input', render);
+
         fetchPerformers();
     </script>
     <script src="/js/admin-layout.js"></script>
 </body>
-</html> 
+</html>

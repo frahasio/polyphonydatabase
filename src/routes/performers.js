@@ -7,4 +7,6 @@ export default createEntityRouter({
   label: 'Performer',
   fields: ['name'],
   audit: true,
+  listCount: { table: 'recordings', column: 'performer_id', as: 'recording_count' },
+  mergeRefs: [{ table: 'recordings', column: 'performer_id' }],
 });
