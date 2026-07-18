@@ -136,8 +136,14 @@
             color: white;
         }
 
-        /* Function names with match evidence get a hover tooltip */
+        /* Function names with match evidence get a hover tooltip (desktop)
+           or a tap-toggled popover (touch) */
         .fn-tip { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+        .fn-tip-pop {
+            display: block; white-space: pre-line; margin: .25rem 0 .35rem;
+            padding: .4rem .6rem; font-size: .8rem; color: #444;
+            background: #f6f4ee; border-left: 3px solid #6f42c1; border-radius: 4px;
+        }
         /* Secondary titles/functions: other texts set to the same music
            (contrafacta, translations) shown de-emphasised. */
         .secondary-titles, .secondary-functions {
@@ -2374,6 +2380,23 @@
             return `<a href="${u}" target="_blank" rel="noopener" class="${cssClass}">${innerHtml}</a>`;
         }
 
+        // Touch devices have no hover: tapping a dotted function name
+        // toggles the match evidence as an inline popover instead.
+        document.getElementById('resultsBody').addEventListener('click', (e) => {
+            const tipEl = e.target.closest('.fn-tip');
+            if (!tipEl) return;
+            const existing = tipEl.nextElementSibling;
+            if (existing && existing.classList.contains('fn-tip-pop')) {
+                existing.remove();
+                return;
+            }
+            document.querySelectorAll('.fn-tip-pop').forEach(el => el.remove());
+            const pop = document.createElement('span');
+            pop.className = 'fn-tip-pop';
+            pop.textContent = tipEl.dataset.tip || '';
+            tipEl.after(pop);
+        });
+
         function displayResults(data) {
             const resultsBody = document.getElementById('resultsBody');
             const paginationInfo = document.getElementById('paginationInfo');
@@ -2459,7 +2482,9 @@
                                 const tip = `\u201C${d.text}\u201D`
                                     + (d.citation ? ` (${d.citation})` : '')
                                     + (d.position ? `\n${d.position}` : '');
-                                return `<span class="fn-tip" title="${escapeHtml(tip)}">${escapeHtml(n)}</span>`;
+                                // title = desktop hover; the same text opens as a
+                                // tap-toggled popover on touch screens.
+                                return `<span class="fn-tip" title="${escapeHtml(tip)}" data-tip="${escapeHtml(tip)}" role="button" tabindex="0">${escapeHtml(n)}</span>`;
                             };
                             const primary = group.function_names || [];
                             const secondary = (group.secondary_function_names || []).filter(n => !primary.includes(n));
