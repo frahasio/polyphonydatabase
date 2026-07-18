@@ -40,7 +40,12 @@
             /* kind filter: one horizontally-scrollable row */
             #kindFilter { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
                           max-width: 100%; padding-bottom: .25rem; }
-            #kindFilter .btn { white-space: nowrap; flex: 0 0 auto; }
+            #kindFilter .btn { white-space: nowrap; flex: 0 0 auto; padding: .45rem .8rem; }
+            /* expandable rows + small controls need real tap targets */
+            .pos-details summary { padding: .3rem 0; }
+            .payload-detail .btn-sm, .payload-detail .form-control-sm, .payload-detail .form-select-sm {
+                padding-top: .4rem; padding-bottom: .4rem;
+            }
             /* actions become a full-width thumb row under the content */
             .card-layout { flex-direction: column; }
             .card-actions { width: 100%; display: flex; align-items: center; gap: .5rem; }
@@ -165,8 +170,16 @@
                         : isCluster
                         ? `${f.days} of its appearances fall on this feast/octave${f.share ? ` (${Math.round(f.share * 100)}%)` : ''}`
                         : f.days === 1 ? '' : `one of ${f.days} days sharing this text`;
+                    // "Unique" is a claim about the PART(S) that matched
+                    // this function, not the whole motet — on multipart
+                    // titles where only some parts matched, say so, or two
+                    // candidates can both truthfully say "unique" and look
+                    // contradictory.
+                    const partialParts = f.parts_total > 1 && f.parts_matched && f.parts_matched < f.parts_total;
                     const uniqueBadge = (!isSeason && !isCluster && f.days === 1)
-                        ? ' <span class="badge bg-success" title="This text appears nowhere else in the 1960 missal/breviary">unique to this day</span>'
+                        ? (partialParts
+                            ? ' <span class="badge bg-success" title="The matching part of this motet appears nowhere else in the 1960 missal/breviary — the other part(s) matched elsewhere or not at all">part unique to this day</span>'
+                            : ' <span class="badge bg-success" title="This text appears nowhere else in the 1960 missal/breviary">unique to this day</span>')
                         : '';
                     const newBadge = f.new_function
                         ? ' <span class="badge bg-warning text-dark" title="Not in the catalogue yet — accepting creates it">new feast</span>'
