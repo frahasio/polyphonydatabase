@@ -615,7 +615,11 @@ a:hover {
     border-radius: 2px;
 }
 
-.clef-optional {
+/* Optional voices fade the NOTATION only — the status tint (missing red /
+   incomplete green / canonic amber) stays at full strength so an optional
+   canonic voice still reads as canonic at a glance. */
+.clef-optional svg,
+img.clef-optional {
     opacity: 0.4;
 }
 
