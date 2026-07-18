@@ -90,17 +90,22 @@ function readFile(rel) {
   return raw;
 }
 
-/** Split into { section: [lines] }, ignoring "(rubrica ...)" variants. */
+/**
+ * Split into { section: [lines] }. Rubric-variant sections — e.g.
+ * "[Graduale] (rubrica 1960)" — are MERGED into their base section: the
+ * corpus deliberately indexes the union of every rubric set (1570
+ * Tridentine defaults + later alternates), since a motet may set the text
+ * of any era and day-folding dedupes the counts. Callers that need a
+ * single value (the [Officium] day label) take the first line only.
+ */
 function splitSections(raw) {
   const sections = {};
   let current = null;
-  let skip = false;
   for (const line of raw.split(/\r?\n/)) {
     const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
     if (m) {
-      skip = /rubrica/i.test(m[2]); // variant for another rubric set
-      current = skip ? null : m[1];
-      if (current && !sections[current]) sections[current] = [];
+      current = m[1];
+      if (!sections[current]) sections[current] = [];
       continue;
     }
     if (current) sections[current].push(line);
@@ -137,6 +142,9 @@ function resolveRef(line, sectionName, tree, selfRel, depth = 0) {
 function cleanLine(line) {
   let t = String(line).trim();
   if (!t || t === '_' || t.startsWith('!') || t.startsWith('$') || t.startsWith('&') || t.startsWith('#')) return '';
+  // Parenthesised lines are rubric conditionals/directions ("(sed rubrica
+  // 1960 ...)", "(Fit reverentia)"), not liturgical text.
+  if (t.startsWith('(')) return '';
   t = t.replace(/;;.*$/, '');            // trailing psalm refs etc.
   t = t.replace(/^v\.\s*/i, '').replace(/^[VR]\.\s*/, '');
   t = t.replace(/\s\*\s/g, ' ');         // antiphon median marker
