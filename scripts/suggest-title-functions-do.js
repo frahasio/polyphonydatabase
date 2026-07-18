@@ -362,7 +362,70 @@ async function main() {
   }
 
   console.log(`Done. ${DRY_RUN ? 'Would insert' : 'Inserted/refreshed'} ${inserted} suggestions.`);
+
+  if (!DRY_RUN) await backfillLinkEvidence(corpus, functionIds);
   await pool.end();
+}
+
+/**
+ * Annotate title->function links with the DO text they match (text +
+ * citation + position) — the public search shows these as tooltips.
+ * Only fills rows with no evidence yet; links with no DO basis (manual
+ * cataloguing, non-liturgical categories) are left NULL.
+ */
+async function backfillLinkEvidence(corpus, functionIds) {
+  const idToName = new Map([...functionIds.entries()].map(([name, id]) => [id, name]));
+  const rows = await pool.query(`
+    SELECT ft.function_id, ft.title_id, t.text
+    FROM functions_titles ft JOIN titles t ON t.id = ft.title_id
+    WHERE ft.match_text IS NULL
+  `);
+  if (!rows.rows.length) return;
+
+  // Invert the corpus: function name -> first-two-words -> matching units.
+  const byFn = new Map();
+  for (const unit of corpus.units.values()) {
+    for (const place of unit.places) {
+      if (!place.fn) continue;
+      let m = byFn.get(place.fn);
+      if (!m) { m = new Map(); byFn.set(place.fn, m); }
+      const f2 = unit.words.slice(0, 2).join(' ');
+      if (!m.has(f2)) m.set(f2, []);
+      m.get(f2).push({ unit, place });
+    }
+  }
+
+  let updated = 0;
+  for (const row of rows.rows) {
+    const fnName = idToName.get(row.function_id);
+    const m = fnName && byFn.get(fnName);
+    if (!m) continue;
+    let best = null;
+    for (const part of splitIncipitParts(row.text).map(foldSpelling)) {
+      const words = part.split(' ').filter(Boolean);
+      if (words.length < 2) continue;
+      for (const cand of (m.get(words.slice(0, 2).join(' ')) || [])) {
+        const n = Math.min(words.length, cand.unit.words.length);
+        let ok = true;
+        for (let i = 0; i < n; i++) if (words[i] !== cand.unit.words[i]) { ok = false; break; }
+        if (ok && (!best || n > best.n)) best = { unit: cand.unit, place: cand.place, n };
+      }
+    }
+    if (!best) continue;
+    await pool.query(
+      `UPDATE functions_titles SET match_text = $1, match_citation = $2, match_position = $3
+       WHERE function_id = $4 AND title_id = $5`,
+      [
+        best.unit.sample.slice(0, 200),
+        best.unit.citation || null,
+        `${best.place.position} — ${best.place.dayLabel}`,
+        row.function_id,
+        row.title_id,
+      ]
+    );
+    updated++;
+  }
+  console.log(`Evidence backfill: ${updated} of ${rows.rows.length} unannotated links matched to DO texts.`);
 }
 
 main().catch((err) => {

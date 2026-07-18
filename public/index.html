@@ -136,6 +136,8 @@
             color: white;
         }
 
+        /* Function names with match evidence get a hover tooltip */
+        .fn-tip { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
         /* Secondary titles/functions: other texts set to the same music
            (contrafacta, translations) shown de-emphasised. */
         .secondary-titles, .secondary-functions {
@@ -2446,14 +2448,27 @@
                     </td>
                     <td>
                         ${(() => {
+                            // Hover shows the liturgical text this title matches
+                            // (and its scripture ref) so no missal trip is needed.
+                            const detailFor = (n) => (group.function_details || [])
+                                .concat(group.secondary_function_details || [])
+                                .find(d => d && d.name === n);
+                            const fnHtml = (n) => {
+                                const d = detailFor(n);
+                                if (!d || !d.text) return escapeHtml(n);
+                                const tip = `\u201C${d.text}\u201D`
+                                    + (d.citation ? ` (${d.citation})` : '')
+                                    + (d.position ? `\n${d.position}` : '');
+                                return `<span class="fn-tip" title="${escapeHtml(tip)}">${escapeHtml(n)}</span>`;
+                            };
                             const primary = group.function_names || [];
                             const secondary = (group.secondary_function_names || []).filter(n => !primary.includes(n));
                             // If the display title matches no title exactly (e.g.
                             // retitled group), show everything at full strength.
-                            if (!primary.length) return secondary.map(n => escapeHtml(n)).join(', ');
-                            return escapeHtml(primary.join(', ')) + (secondary.length ? `
+                            if (!primary.length) return secondary.map(fnHtml).join(', ');
+                            return primary.map(fnHtml).join(', ') + (secondary.length ? `
                                 <div class="secondary-functions" title="Functions of other texts set to this music">
-                                    ${secondary.map(n => escapeHtml(n)).join(', ')}
+                                    ${secondary.map(fnHtml).join(', ')}
                                 </div>` : '');
                         })()}
                     </td>

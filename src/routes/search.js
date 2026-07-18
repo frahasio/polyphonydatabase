@@ -1087,6 +1087,65 @@ router.get('/groups', async (req, res) => {
           WHERE func_name IS NOT NULL
         ) as secondary_function_names,
         (
+          -- Same two lists with the DO match evidence (text/citation/
+          -- position) for hover tooltips; names formatted identically so
+          -- the client can pair them with function_names.
+          SELECT json_agg(json_build_object(
+                   'name', func_name, 'text', match_text,
+                   'citation', match_citation, 'position', match_position)
+                 ORDER BY func_name)
+          FROM (
+            SELECT DISTINCT ON (func_name) *
+            FROM (
+              SELECT 
+                CASE 
+                  WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                  WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                  WHEN func.name IS NOT NULL THEN func.name
+                  ELSE NULL
+                END as func_name,
+                ft.match_text, ft.match_citation, ft.match_position
+              FROM compositions c
+              LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+              JOIN titles t ON c.title_id = t.id
+              LEFT JOIN functions_titles ft ON t.id = ft.title_id
+              LEFT JOIN functions func ON ft.function_id = func.id
+              WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+                AND t.text = g.display_title
+            ) x
+            WHERE func_name IS NOT NULL
+            ORDER BY func_name, match_text NULLS LAST
+          ) funcs
+        ) as function_details,
+        (
+          SELECT json_agg(json_build_object(
+                   'name', func_name, 'text', match_text,
+                   'citation', match_citation, 'position', match_position)
+                 ORDER BY func_name)
+          FROM (
+            SELECT DISTINCT ON (func_name) *
+            FROM (
+              SELECT 
+                CASE 
+                  WHEN ct.name IS NOT NULL AND func.name IS NOT NULL THEN '(' || ct.name || ') ' || func.name
+                  WHEN ct.name IS NOT NULL THEN '(' || ct.name || ')'
+                  WHEN func.name IS NOT NULL THEN func.name
+                  ELSE NULL
+                END as func_name,
+                ft.match_text, ft.match_citation, ft.match_position
+              FROM compositions c
+              LEFT JOIN composition_types ct ON c.composition_type_id = ct.id
+              JOIN titles t ON c.title_id = t.id
+              LEFT JOIN functions_titles ft ON t.id = ft.title_id
+              LEFT JOIN functions func ON ft.function_id = func.id
+              WHERE c.group_id = g.id AND (func.name IS NOT NULL OR ct.name IS NOT NULL)
+                AND t.text != g.display_title
+            ) x
+            WHERE func_name IS NOT NULL
+            ORDER BY func_name, match_text NULLS LAST
+          ) funcs
+        ) as secondary_function_details,
+        (
           -- Other title texts within the group (contrafacta/translations)
           SELECT array_agg(DISTINCT t.text ORDER BY t.text)
           FROM compositions c
