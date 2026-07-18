@@ -175,6 +175,13 @@
                         ? ' <span class="badge bg-info text-dark">season</span>'
                         : isCluster
                         ? ' <span class="badge bg-success">main use</span>' : '';
+                    // Multipart corroboration: respond AND verse both found
+                    // in this day's propers is much stronger evidence.
+                    const partsBadge = (f.parts_total > 1 && f.parts_matched)
+                        ? (f.parts_matched > 1
+                            ? ` <span class="badge bg-success" title="Several parts of this motet appear in this day's propers">${f.parts_matched === f.parts_total ? 'all' : f.parts_matched} parts match</span>`
+                            : ` <span class="badge bg-secondary-subtle text-secondary-emphasis" title="Only one part of this multipart motet matches here">1 of ${f.parts_total} parts</span>`)
+                        : '';
                     // First position inline; the rest behind a summary to
                     // keep multi-candidate cards skimmable.
                     const positions = (f.positions || []).map(escapeHtml);
@@ -188,7 +195,7 @@
                                 data-fnid="${f.function_id || ''}" data-fnname="${escapeHtml(f.function_name)}"
                                 ${f.preselected ? 'checked' : ''}>
                             <label class="form-check-label" for="fnsel-${s.id}-${i}">
-                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${uniqueBadge}${newBadge}${seasonBadge}
+                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${uniqueBadge}${partsBadge}${newBadge}${seasonBadge}
                                 ${evidence ? `<span class="text-muted ms-1">${evidence}</span>` : ''}
                                 ${posHtml}
                             </label>

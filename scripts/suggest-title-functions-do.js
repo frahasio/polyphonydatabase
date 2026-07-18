@@ -171,14 +171,12 @@ async function main() {
       for (const [fn, count] of byFn) {
         const share = count / specificity;
         if (count < 2 || share < CLUSTER_MIN_SHARE) continue;
-        const prev = clusterBest.get(fn);
-        if (!prev || count > prev.days) {
-          clusterBest.set(fn, {
-            days: count,
-            share,
-            positions: samplePositions((p) => p.fn === fn),
-          });
+        if (!clusterBest.has(fn)) {
+          clusterBest.set(fn, { days: count, share, positions: samplePositions((p) => p.fn === fn), parts: new Set() });
+        } else if (count > clusterBest.get(fn).days) {
+          Object.assign(clusterBest.get(fn), { days: count, share, positions: samplePositions((p) => p.fn === fn) });
         }
+        clusterBest.get(fn).parts.add(part);
         matched.add(units[0].sample);
       }
 
@@ -214,10 +212,11 @@ async function main() {
             key = `new:${place.newName.toLowerCase()}`; functionId = null; proposedName = place.newName;
           } else continue;
           if (!tally.has(key)) {
-            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set() });
+            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), parts: new Set() });
           }
           const t = tally.get(key);
           t.minDays = Math.min(t.minDays, specificity);
+          t.parts.add(part);
           if (t.positions.size < MAX_POSITIONS_PER_FUNCTION) {
             t.positions.add(`${place.position} — ${place.dayLabel}`);
           }
@@ -239,9 +238,23 @@ async function main() {
     const hasDominant = dominantFns.length > 0
       || [...existingFnIds].length > 0; // an already-catalogued title needs no aggressive preticks
 
+    // CORROBORATION: on a multipart motet, a function matched by TWO OR
+    // MORE parts (respond + verse both in that day's propers) is far
+    // stronger evidence than a single-part hit. Corroborated candidates
+    // rank first; when any exists, uncorroborated specifics lose their
+    // pretick (the parts pointing elsewhere are usually coincidence).
+    // Requiring ALL parts would overshoot: secunda partes are often free
+    // continuations the liturgy doesn't contain.
+    const totalParts = parts.length;
+    const corroborationExists = totalParts > 1 && (
+      [...tally.values()].some((t) => t.parts.size > 1)
+      || [...clusterBest.values()].some((c) => c.parts.size > 1)
+    );
+
     const clusters = dominantFns
       .filter((fn) => !existingFnIds.has(functionIds.get(fn)))
-      .sort((a, b) => clusterBest.get(b).days - clusterBest.get(a).days)
+      .sort((a, b) => (clusterBest.get(b).parts.size - clusterBest.get(a).parts.size)
+        || (clusterBest.get(b).days - clusterBest.get(a).days))
       .map((fn) => {
         const c = clusterBest.get(fn);
         return {
@@ -251,7 +264,9 @@ async function main() {
           days: c.days,
           share: Math.round(c.share * 100) / 100,
           positions: [...c.positions],
-          preselected: true,
+          parts_matched: c.parts.size,
+          parts_total: totalParts,
+          preselected: !corroborationExists || c.parts.size > 1,
         };
       });
     const clusterNames = new Set(clusters.map((f) => f.function_name.toLowerCase()));
@@ -260,7 +275,8 @@ async function main() {
       .filter((t) => !(t.functionId && existingFnIds.has(t.functionId)))
       .filter((t) => !isRejected(title.id, t.functionId, t.proposedName))
       .filter((t) => !clusterNames.has(t.proposedName.toLowerCase()))
-      .sort((a, b) => a.minDays - b.minDays
+      .sort((a, b) => (b.parts.size - a.parts.size)
+        || (a.minDays - b.minDays)
         || (a.functionId ? 0 : 1) - (b.functionId ? 0 : 1)
         || b.positions.size - a.positions.size)
       .map((t) => ({
@@ -270,7 +286,11 @@ async function main() {
         level: 'specific',
         days: t.minDays,
         positions: [...t.positions],
-        preselected: !hasDominant && t.minDays <= PRESELECT_MAX_DAYS,
+        parts_matched: t.parts.size,
+        parts_total: totalParts,
+        preselected: t.parts.size > 1
+          ? (!hasDominant && t.minDays <= PRESELECT_MAX_DAYS + 2) // corroborated: relax the day bar
+          : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS),
       }));
 
     const takenNames = new Set([...clusterNames, ...specifics.map((f) => f.function_name.toLowerCase())]);
