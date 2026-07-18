@@ -51,10 +51,24 @@ router.get('/groups', async (req, res) => {
       source_format = '',
       anniversary_year = '',
       completeness = '',
+      inclusion_notes = '',
       sort = '',
       page = 1,
       page_size = 25
     } = req.query;
+
+    // Admin-only filter: search inclusion notes (curatorial text that often
+    // predates proper data-model fields — used to find and fix them).
+    const inclusionNotesTerm = String(inclusion_notes || '').trim();
+    if (inclusionNotesTerm) {
+      const userId = req.session?.userId;
+      const admin = userId
+        ? await pool.query(`SELECT 1 FROM users WHERE id = $1 AND role = 'admin' AND status = 'approved'`, [userId])
+        : { rows: [] };
+      if (!admin.rows.length) {
+        return res.status(403).json({ error: 'The inclusion-notes filter requires an admin login' });
+      }
+    }
 
     // Clamp pagination: invalid input falls back to defaults, page_size is
     // capped so the public API cannot request unbounded result sets.
@@ -453,6 +467,18 @@ router.get('/groups', async (req, res) => {
         return condition;
       });
       whereConditions.push(`(${cityConditions.join(' OR ')})`);
+    }
+
+    // Inclusion-notes filter (admin-gated above). % works as a wildcard,
+    // matching the title search's conventions.
+    if (inclusionNotesTerm) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM compositions c_n
+        JOIN inclusions i_n ON i_n.composition_id = c_n.id
+        WHERE c_n.group_id = g.id AND i_n.notes ILIKE $${paramIndex}
+      )`);
+      queryParams.push(`%${inclusionNotesTerm}%`);
+      paramIndex++;
     }
 
     // Has editions filter

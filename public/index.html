@@ -700,6 +700,13 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div class="row g-1 admin-only-filter" style="display:none">
+                                        <div class="col-12">
+                                            <label for="searchInclusionNotes" class="form-label filter-label mb-0">Inclusion notes (admin)</label>
+                                            <input type="text" class="form-control form-control-sm filter-input" id="searchInclusionNotes"
+                                                   placeholder="Search curatorial notes… (% wildcard)">
+                                        </div>
+                                    </div>
                                     <div class="row g-1">
                                         <div class="col-12">
                                             <label class="filter-switch">
@@ -840,7 +847,7 @@
                         </div>
                     </div>
 
-                    <!-- Row 4: Completeness -->
+                    <!-- Row 4: Completeness (+ admin-only inclusion-notes search) -->
                     <div class="row g-1">
                         <div class="col-md-2">
                             <label for="searchCompletenessDesktop" class="form-label filter-label mb-0">Completeness</label>
@@ -849,6 +856,11 @@
                                 <option value="complete">Does not need reconstruction</option>
                                 <option value="needs_recon">Needs reconstruction</option>
                             </select>
+                        </div>
+                        <div class="col-md-3 admin-only-filter" style="display:none">
+                            <label for="searchInclusionNotesDesktop" class="form-label filter-label mb-0">Inclusion notes (admin)</label>
+                            <input type="text" class="form-control form-control-sm filter-input" id="searchInclusionNotesDesktop"
+                                   placeholder="Search curatorial notes… (% wildcard)">
                         </div>
                     </div>
                     <div class="row mt-3 mb-2">
@@ -1510,6 +1522,10 @@
                 if (response.ok) {
                     const data = await response.json();
                     isUserLoggedIn = data.authenticated;
+                    // Admin-only filters (e.g. inclusion-notes search)
+                    if (data.role === 'admin') {
+                        document.querySelectorAll('.admin-only-filter').forEach(el => { el.style.display = ''; });
+                    }
                 }
             } catch (error) {
                 console.log('Auth check failed, user not logged in');
@@ -1531,6 +1547,8 @@
             document.getElementById('anniversaryYearDesktop').value = '';
             document.getElementById('searchCompleteness').value = '';
             document.getElementById('searchCompletenessDesktop').value = '';
+            document.getElementById('searchInclusionNotes').value = '';
+            document.getElementById('searchInclusionNotesDesktop').value = '';
             
             // Clear all Select2 dropdowns
             const selectIds = [
@@ -1819,6 +1837,11 @@
                 if (anniversaryYearEl) anniversaryYearEl.value = anniversaryYear;
                 document.getElementById('anniversaryYearDesktop').value = anniversaryYear;
             }
+            if (params.get('inclusion_notes')) {
+                const notesTerm = params.get('inclusion_notes');
+                document.getElementById('searchInclusionNotes').value = notesTerm;
+                document.getElementById('searchInclusionNotesDesktop').value = notesTerm;
+            }
         }
 
         function setSelectFromURL(selectId, paramName, directValue = null) {
@@ -1856,6 +1879,7 @@
             const hasEditions = document.getElementById('hasEditions')?.checked || document.getElementById('hasEditionsDesktop')?.checked || false;
             const hasRecordings = document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false;
             const completeness = document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || '';
+            const inclusionNotes = document.getElementById('searchInclusionNotes')?.value || document.getElementById('searchInclusionNotesDesktop')?.value || '';
             
             if (title) params.set('title', title);
             if (composers) params.set('composers', composers);
@@ -1879,6 +1903,7 @@
             if (hasEditions) params.set('has_editions', 'true');
             if (hasRecordings) params.set('has_recordings', 'true');
             if (completeness) params.set('completeness', completeness);
+            if (inclusionNotes) params.set('inclusion_notes', inclusionNotes);
             
             return params;
         }

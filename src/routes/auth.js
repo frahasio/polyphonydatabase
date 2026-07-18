@@ -218,10 +218,21 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// Check authentication status (no authentication required)
-router.get('/status', (req, res) => {
-  const authenticated = !!req.session?.userId;
-  res.json({ authenticated });
+// Check authentication status (no authentication required). Includes the
+// role so the public search page can show admin-only filters.
+router.get('/status', async (req, res) => {
+  const userId = req.session?.userId;
+  if (!userId) return res.json({ authenticated: false });
+  try {
+    const result = await pool.query(
+      `SELECT role FROM users WHERE id = $1 AND status = 'approved'`,
+      [userId]
+    );
+    if (!result.rows.length) return res.json({ authenticated: false });
+    res.json({ authenticated: true, role: result.rows[0].role });
+  } catch {
+    res.json({ authenticated: !!userId });
+  }
 });
 
 // Extend the session without requiring re-login (kept for older clients;
