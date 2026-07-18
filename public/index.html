@@ -2219,7 +2219,9 @@
                     anniversary_year: anniversaryYear,
                     has_editions: document.getElementById('hasEditions')?.checked || document.getElementById('hasEditionsDesktop')?.checked || false,
                     has_recordings: document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false,
-                    completeness: document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || ''
+                    has_canon: document.getElementById('hasCanon')?.checked || document.getElementById('hasCanonDesktop')?.checked || false,
+                    completeness: document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || '',
+                    inclusion_notes: document.getElementById('searchInclusionNotes')?.value || document.getElementById('searchInclusionNotesDesktop')?.value || ''
                 });
 
                 const response = await fetch(`/api/search/groups?${searchParams}`, {
