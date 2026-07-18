@@ -2,8 +2,36 @@ import express from 'express';
 import { pool } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { triggerCleanup } from '../cleanup.js';
+import { buildCorpus } from '../../scripts/lib/do-corpus.js';
+import { splitIncipitParts, foldSpelling } from '../../scripts/lib/matching.js';
 
 const router = express.Router();
+
+// ---- Divinum Officium corpus cache (feast-coverage browser) ----
+// Building the index reads ~2,300 vendored files (~3-5s); cache it and
+// rebuild only when stale so curated dictionary edits/renames show up.
+let corpusCache = { corpus: null, builtAt: 0 };
+async function getCorpus() {
+  const TTL = 10 * 60 * 1000;
+  if (corpusCache.corpus && Date.now() - corpusCache.builtAt < TTL) return corpusCache.corpus;
+  const fnRows = await pool.query('SELECT name FROM functions');
+  let overrides = new Map();
+  try {
+    const curated = await pool.query(
+      `SELECT latin, english FROM feast_translations WHERE source = 'manual' AND english IS NOT NULL AND english <> ''`
+    );
+    overrides = new Map(curated.rows.map((r) => [r.latin, r.english]));
+  } catch { /* dictionary table not migrated yet */ }
+  corpusCache = { corpus: buildCorpus(fnRows.rows.map((r) => r.name), overrides), builtAt: Date.now() };
+  return corpusCache.corpus;
+}
+
+// Rough grouping of DO position names for display.
+function positionClass(position) {
+  if (/^(Introitus|Graduale|GradualeF|GradualeP|Tractus|Sequentia|Offertorium|OffertoriumP|Communio|CommunioP)/.test(position)) return 'Mass propers';
+  if (/^(Evangelium|Lectio)/.test(position)) return 'Readings';
+  return 'Office';
+}
 
 // Apply authentication to all routes in this router
 router.use(requireAuth);
@@ -121,6 +149,94 @@ router.get('/feast-translations', async (req, res) => {
     res.json({ translations: result.rows });
   } catch (error) {
     console.error('Error fetching feast translations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Feast coverage: every Divinum Officium proper for one function, with the
+// catalogue titles whose incipits match each — the queue's title-centric
+// cards inverted into a per-feast view for browsing/repertoire planning.
+router.get('/coverage/:functionId', async (req, res) => {
+  try {
+    const functionId = parseInt(req.params.functionId, 10);
+    const fnRow = await pool.query('SELECT id, name FROM functions WHERE id = $1', [functionId]);
+    if (!fnRow.rows.length) return res.status(404).json({ error: 'Function not found' });
+    const fnName = fnRow.rows[0].name;
+
+    const corpus = await getCorpus();
+
+    // Units carrying this function, with their positions/days for it.
+    // Reading sentences shorter than 4 words are framing formulas ("In illo
+    // témpore:", "Sequéntia sancti Evangélii...") — pure noise here.
+    const feastUnits = [];
+    for (const unit of corpus.units.values()) {
+      const places = unit.places.filter((pl) => pl.fn === fnName);
+      if (!places.length) continue;
+      if (positionClass(places[0].position) === 'Readings' && unit.words.length < 4) continue;
+      const positions = [...new Set(places.map((pl) => `${pl.position} — ${pl.dayLabel}`))];
+      feastUnits.push({ unit, positions, firstPosition: places[0].position });
+    }
+    if (!feastUnits.length) return res.json({ function: fnRow.rows[0], groups: [] });
+
+    // Match catalogue titles against these units (title part must be a
+    // word-for-word prefix of the unit, same rule as the matcher).
+    const titles = await pool.query(`
+      SELECT t.id, t.text,
+             (SELECT COUNT(*) FROM compositions c WHERE c.title_id = t.id)::int AS comp_count,
+             EXISTS (SELECT 1 FROM functions_titles ft WHERE ft.title_id = t.id AND ft.function_id = $1) AS linked
+      FROM titles t
+      WHERE EXISTS (SELECT 1 FROM compositions c WHERE c.title_id = t.id)
+    `, [functionId]);
+
+    const byFirst2 = new Map();
+    for (const fu of feastUnits) {
+      const first2 = fu.unit.words.slice(0, 2).join(' ');
+      if (!byFirst2.has(first2)) byFirst2.set(first2, []);
+      byFirst2.get(first2).push(fu);
+    }
+
+    for (const fu of feastUnits) fu.titles = [];
+    for (const t of titles.rows) {
+      for (const part of splitIncipitParts(t.text).map(foldSpelling)) {
+        const words = part.split(' ').filter(Boolean);
+        if (words.length < 2) continue;
+        const candidates = byFirst2.get(words.slice(0, 2).join(' ')) || [];
+        for (const fu of candidates) {
+          const n = Math.min(words.length, fu.unit.words.length);
+          let ok = true;
+          for (let i = 0; i < n; i++) if (words[i] !== fu.unit.words[i]) { ok = false; break; }
+          if (ok && !fu.titles.some((x) => x.id === t.id)) {
+            fu.titles.push({ id: t.id, text: t.text, comp_count: t.comp_count, linked: t.linked });
+          }
+        }
+      }
+    }
+
+    // Group by position class for display; matched-title units first.
+    // Sung propers with NO matching titles stay visible (they're the gaps),
+    // but unmatched reading sentences would swamp the page — drop those.
+    const groups = {};
+    for (const fu of feastUnits) {
+      const cls = positionClass(fu.firstPosition);
+      if (cls === 'Readings' && !fu.titles.length) continue;
+      (groups[cls] ||= []).push({
+        text: fu.unit.sample,
+        citation: fu.unit.citation || null,
+        positions: fu.positions.slice(0, 4),
+        titles: fu.titles.sort((a, b) => b.comp_count - a.comp_count),
+      });
+    }
+    for (const cls of Object.keys(groups)) {
+      groups[cls].sort((a, b) => (b.titles.length ? 1 : 0) - (a.titles.length ? 1 : 0));
+      groups[cls] = groups[cls].slice(0, 60);
+    }
+    const order = ['Mass propers', 'Office', 'Readings'];
+    res.json({
+      function: fnRow.rows[0],
+      groups: order.filter((k) => groups[k]).map((k) => ({ name: k, items: groups[k] })),
+    });
+  } catch (error) {
+    console.error('Error building feast coverage:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

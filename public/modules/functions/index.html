@@ -32,6 +32,7 @@
         <ul class="nav nav-tabs mb-3" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-functions" type="button">Functions <span class="badge bg-secondary" id="fnCount"></span></button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dictionary" type="button">Feast dictionary <span class="badge bg-secondary" id="dictCount"></span></button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-coverage" type="button">Feast coverage</button></li>
         </ul>
 
         <div class="tab-content">
@@ -83,6 +84,16 @@
                     </table>
                 </div></div>
             </div>
+            <!-- ============ COVERAGE TAB ============ -->
+            <div class="tab-pane fade" id="tab-coverage">
+                <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                    <select class="form-select form-select-sm" id="covSelect" style="max-width:340px">
+                        <option value="">Choose a feast/function…</option>
+                    </select>
+                    <span class="text-muted small ms-auto">Every Divinum Officium proper for the chosen feast, with the catalogue titles that match it. Link a title directly from here; greyed rows are already linked.</span>
+                </div>
+                <div id="covResults" class="text-muted text-center py-4">Pick a function to see its propers.</div>
+            </div>
         </div>
     </div>
 
@@ -119,6 +130,9 @@
             document.getElementById('fnCount').textContent = functions.length;
             document.getElementById('functionsDatalist').innerHTML =
                 functions.map(f => `<option value="${escapeHtml(f.name)}"></option>`).join('');
+            const covSel = document.getElementById('covSelect');
+            covSel.innerHTML = '<option value="">Choose a feast/function…</option>' +
+                functions.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
             renderFunctions();
         }
 
@@ -285,6 +299,65 @@
             dictFilterMode = btn.dataset.f;
             renderDictionary();
         }));
+
+        // ---------- feast coverage tab ----------
+
+        async function loadCoverage(functionId) {
+            const box = document.getElementById('covResults');
+            box.className = 'text-muted text-center py-4';
+            box.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Building coverage (first load indexes the corpus)…';
+            const res = await fetch(`/api/admin/functions/coverage/${functionId}`, { credentials: 'include' });
+            if (!res.ok) { box.textContent = 'Failed to load coverage.'; return; }
+            const data = await res.json();
+            box.className = '';
+            if (!data.groups.length) {
+                box.className = 'text-muted text-center py-4';
+                box.textContent = 'The Divinum Officium corpus has no propers mapped to this function (it may be a devotional/non-liturgical category).';
+                return;
+            }
+            box.innerHTML = data.groups.map(g => `
+                <h6 class="mt-3 mb-2">${escapeHtml(g.name)}</h6>
+                ${g.items.map(item => `
+                    <div class="card mb-2"><div class="card-body py-2 px-3">
+                        <div style="font-size:.9rem"><em>${escapeHtml(item.text)}</em>
+                            ${item.citation ? `<span class="badge bg-light text-dark ms-1">${escapeHtml(item.citation)}</span>` : ''}
+                        </div>
+                        <div class="text-muted" style="font-size:.78rem">${item.positions.map(escapeHtml).join(' &middot; ')}</div>
+                        ${item.titles.length ? item.titles.map(t => `
+                            <div class="d-flex align-items-center gap-2 mt-1" style="font-size:.85rem" id="covt-${t.id}">
+                                <span class="${t.linked ? 'text-muted' : ''}">${escapeHtml(t.text)}
+                                    <span class="text-muted">(${t.comp_count} setting${t.comp_count === 1 ? '' : 's'})</span></span>
+                                ${t.linked
+                                    ? '<span class="badge bg-success-subtle text-success-emphasis">linked</span>'
+                                    : `<button class="btn btn-sm btn-outline-primary py-0 cov-link" data-tid="${t.id}">Link</button>`}
+                            </div>`).join('')
+                            : '<div class="text-muted mt-1" style="font-size:.8rem">No catalogue titles match this text.</div>'}
+                    </div></div>`).join('')}`).join('');
+        }
+
+        document.getElementById('covSelect').addEventListener('change', e => {
+            if (e.target.value) loadCoverage(e.target.value);
+        });
+        document.getElementById('covResults').addEventListener('click', async e => {
+            const btn = e.target.closest('.cov-link');
+            if (!btn) return;
+            const titleId = btn.dataset.tid;
+            const functionId = document.getElementById('covSelect').value;
+            btn.disabled = true;
+            const res = await fetch(`/api/admin/functions/titles/${titleId}/functions/${functionId}`, {
+                method: 'POST', credentials: 'include'
+            });
+            if (res.ok) {
+                // Same title may appear under several propers — mark all.
+                document.querySelectorAll(`#covResults [id="covt-${titleId}"] .cov-link`).forEach(b => {
+                    b.outerHTML = '<span class="badge bg-success-subtle text-success-emphasis">linked</span>';
+                });
+                toast('Linked');
+            } else {
+                btn.disabled = false;
+                toast('Link failed', false);
+            }
+        });
 
         loadFunctions();
         loadDictionary();

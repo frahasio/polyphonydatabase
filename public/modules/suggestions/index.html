@@ -30,6 +30,29 @@
         .sp-embed { width: 100%; max-width: 480px; height: 152px; border: 0; }
         .comp-detail { font-size: 0.82rem; }
         .comp-attr { display: inline-block; background: #eef; border-radius: 3px; padding: 0 0.35rem; margin: 0 0.2rem 0.2rem 0; }
+        .pos-details summary { cursor: pointer; list-style: none; }
+        .pos-details summary::-webkit-details-marker { display: none; }
+        /* ---- phone layout: thumb-sized buttons, no horizontal fiddling ---- */
+        @media (max-width: 576px) {
+            .container-fluid { padding-left: .6rem; padding-right: .6rem; }
+            h1 { font-size: 1.3rem; }
+            #tfLegend { display: none; }
+            /* kind filter: one horizontally-scrollable row */
+            #kindFilter { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+                          max-width: 100%; padding-bottom: .25rem; }
+            #kindFilter .btn { white-space: nowrap; flex: 0 0 auto; }
+            /* actions become a full-width thumb row under the content */
+            .card-layout { flex-direction: column; }
+            .card-actions { width: 100%; display: flex; align-items: center; gap: .5rem; }
+            .card-actions .score-badge { margin-bottom: 0 !important; }
+            .action-btns { display: flex !important; flex-grow: 1; }
+            .action-btns .btn { flex: 1; padding: .55rem 0; font-size: .95rem; }
+            /* bigger tap targets on the multiselect */
+            .form-check-input { width: 1.35em; height: 1.35em; }
+            .form-check { padding-left: 2em; margin-bottom: .5rem !important; }
+            .form-check .form-check-input { margin-left: -2em; }
+            .yt-embed, .sp-embed { max-width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -48,10 +71,16 @@
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
             </div>
         </div>
-        <p class="text-muted small">
+        <p class="text-muted small mb-1">
             Automatically matched suggestions awaiting a human decision. <strong>Accept</strong> writes the
             link to the catalogue, <strong>Reject</strong> hides it permanently, <strong>Skip</strong> leaves it for later.
             Nothing is applied without your say-so.
+        </p>
+        <p class="text-muted small" id="tfLegend">
+            Title-function badges: <span class="badge bg-success">unique to this day</span> the text appears nowhere else in the 1960 books &middot;
+            <span class="badge bg-success">main use</span> its appearances concentrate on this feast/octave &middot;
+            <span class="badge bg-info text-dark">season</span> recurs through one season &middot;
+            <span class="badge bg-warning text-dark">new feast</span> accepting creates the function.
         </p>
 
         <datalist id="performersDatalist"></datalist>
@@ -135,7 +164,10 @@
                         ? `recurs on ${f.days} days in the season${f.share ? ` (${Math.round(f.share * 100)}% of its appearances)` : ''}`
                         : isCluster
                         ? `${f.days} of its appearances fall on this feast/octave${f.share ? ` (${Math.round(f.share * 100)}%)` : ''}`
-                        : `proper of ${f.days} day${f.days === 1 ? '' : 's'}`;
+                        : f.days === 1 ? '' : `one of ${f.days} days sharing this text`;
+                    const uniqueBadge = (!isSeason && !isCluster && f.days === 1)
+                        ? ' <span class="badge bg-success" title="This text appears nowhere else in the 1960 missal/breviary">unique to this day</span>'
+                        : '';
                     const newBadge = f.new_function
                         ? ' <span class="badge bg-warning text-dark" title="Not in the catalogue yet — accepting creates it">new feast</span>'
                         : '';
@@ -143,34 +175,49 @@
                         ? ' <span class="badge bg-info text-dark">season</span>'
                         : isCluster
                         ? ' <span class="badge bg-success">main use</span>' : '';
-                    const positions = (f.positions || []).map(escapeHtml).join(' &middot; ');
+                    // First position inline; the rest behind a summary to
+                    // keep multi-candidate cards skimmable.
+                    const positions = (f.positions || []).map(escapeHtml);
+                    const posHtml = positions.length <= 1
+                        ? (positions[0] ? `<div class="text-muted small">${positions[0]}</div>` : '')
+                        : `<details class="pos-details"><summary class="text-muted small">${positions[0]} <span class="text-primary">+${positions.length - 1} more</span></summary>
+                             <div class="text-muted small">${positions.slice(1).join('<br>')}</div></details>`;
                     return `
                         <div class="form-check mb-1">
                             <input class="form-check-input fnsel-${s.id}" type="checkbox" id="fnsel-${s.id}-${i}"
                                 data-fnid="${f.function_id || ''}" data-fnname="${escapeHtml(f.function_name)}"
                                 ${f.preselected ? 'checked' : ''}>
                             <label class="form-check-label" for="fnsel-${s.id}-${i}">
-                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${newBadge}${seasonBadge}
-                                <span class="text-muted ms-1">${evidence}</span>
-                                ${positions ? `<div class="text-muted small">${positions}</div>` : ''}
+                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${uniqueBadge}${newBadge}${seasonBadge}
+                                ${evidence ? `<span class="text-muted ms-1">${evidence}</span>` : ''}
+                                ${posHtml}
                             </label>
                         </div>`;
                 }).join('');
-                const partBreakdown = (p.part_days && p.part_days.length > 1)
-                    ? p.part_days.map(x => `\u201C${escapeHtml(x.incipit)}\u201D: ${x.days} day${x.days === 1 ? '' : 's'}`).join(' &middot; ')
-                    : '';
+                // Where the text appears through the year — every day,
+                // including ones that produced no candidate above.
+                const breakdownHtml = (p.part_days || []).map(x => {
+                    const name = (p.part_days.length > 1) ? `\u201C${escapeHtml(x.incipit)}\u201D ` : '';
+                    if (!(x.breakdown || []).length) return '';
+                    const places = (x.breakdown || []).map(b =>
+                        `${escapeHtml(b.label)}${b.position ? ` <span class="text-muted">(${escapeHtml(b.position)})</span>` : ''}`).join(' &middot; ');
+                    const head = x.days === 1
+                        ? `${name}appears only here:`
+                        : `${name}appears on ${x.days} days${x.more ? ` (first 10 shown)` : ''}:`;
+                    return `<details class="pos-details mt-1"><summary class="text-muted small">${head} <span class="text-primary">show</span></summary>
+                            <div class="text-muted small">${places}</div></details>`;
+                }).filter(Boolean).join('');
                 const citations = (p.citations || []).map(escapeHtml).join('; ');
                 return `
                     <div class="payload-detail">
                         <div class="mb-1"><strong>Proposed functions</strong>
-                            <span class="text-muted ms-2">Divinum Officium — tick all that apply; ticked ones are linked on accept</span>
+                            <span class="text-muted ms-2 d-none d-sm-inline">tick all that apply; ticked ones are linked on accept</span>
                         </div>
                         ${rows}
-                        ${partBreakdown ? `<div class="text-muted">${partBreakdown}</div>` : ''}
-                        ${p.matched_incipit ? `<div class="text-muted">Matched text: <em>${escapeHtml(p.matched_incipit)}</em>${citations ? ` <span class="badge bg-light text-dark">${citations}</span>` : ''}</div>` : ''}
+                        ${breakdownHtml}
+                        ${p.matched_incipit ? `<div class="text-muted mt-1">Matched text: <em>${escapeHtml(p.matched_incipit)}</em>${citations ? ` <span class="badge bg-light text-dark">${citations}</span>` : ''}</div>` : ''}
                         <div class="mt-2" style="max-width:480px">
-                            <label class="form-label small mb-1" for="fnextra-${s.id}">Add another function (optional — unknown names are created)</label>
-                            <input type="text" class="form-control form-control-sm" id="fnextra-${s.id}" list="functionsDatalist" placeholder="Feast / function name">
+                            <input type="text" class="form-control form-control-sm" id="fnextra-${s.id}" list="functionsDatalist" placeholder="Add another function (created if unknown)">
                         </div>
                     </div>`;
             }
@@ -575,14 +622,14 @@
             queue.innerHTML = items.map(s => `
                 <div class="card suggestion-card kind-${escapeHtml(s.kind)} mb-3" id="suggestion-${s.id}">
                     <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                            <div class="flex-grow-1">
+                        <div class="card-layout d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div class="flex-grow-1 card-main">
                                 <div class="mb-1">${contextHtml(s)}</div>
                                 ${payloadHtml(s)}
                             </div>
-                            <div class="text-end">
+                            <div class="card-actions text-end">
                                 <span class="badge bg-light text-dark score-badge mb-2" title="Match confidence">${Math.round((s.score || 0) * 100)}%</span>
-                                <div class="btn-group btn-group-sm d-block">
+                                <div class="btn-group btn-group-sm d-block action-btns">
                                     <button class="btn btn-success" onclick="review(${s.id}, 'accept')" title="Apply to the catalogue"><i class="bi bi-check-lg"></i> Accept</button>
                                     <button class="btn btn-outline-danger" onclick="review(${s.id}, 'reject')" title="Never show again"><i class="bi bi-x-lg"></i> Reject</button>
                                     <button class="btn btn-outline-secondary" onclick="review(${s.id}, 'skip')" title="Decide later"><i class="bi bi-arrow-right"></i> Skip</button>

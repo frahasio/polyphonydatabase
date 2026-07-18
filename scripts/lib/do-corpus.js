@@ -265,6 +265,10 @@ export function buildCorpus(functionNames, overrides = new Map()) {
   // appearances by FUNCTION: a feast + its octave are many day files but
   // one function, and that concentration identifies a text's main purpose.
   const dayFunctions = new Map();
+  // dayId -> human label ("Dominica IV Post Pascha"), for EVERY day —
+  // including unmapped ferias — so cards can name every place a text
+  // appears, not just the places that became suggestions.
+  const dayLabels = new Map();
   const classifyDay = makeClassifier(functionNames, overrides);
 
   const addUnit = (text, place, citation) => {
@@ -314,6 +318,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
         if (!dayFunctions.has(dayId)) dayFunctions.set(dayId, new Set());
         dayFunctions.get(dayId).add(cls.fn);
       }
+      if (label && !dayLabels.has(dayId)) dayLabels.set(dayId, label);
       for (const [name, lines] of Object.entries(sections)) {
         const mode = sectionFilter(name); // 'evidence' | 'freq' | falsy
         if (!mode) continue;
@@ -374,7 +379,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
     : PROSE_SECTION_RE.test(s) ? 'prose'
     : FREQ_SECTION_RE.test(s) ? 'freq' : null));
 
-  return { units, index, dayFunctions };
+  return { units, index, dayFunctions, dayLabels };
 }
 
 // ---------- matching ----------

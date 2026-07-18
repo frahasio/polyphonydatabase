@@ -131,7 +131,24 @@ async function main() {
       const unionDays = new Set();
       for (const u of units) for (const d of u.days) unionDays.add(d);
       const specificity = unionDays.size;
-      if (!partDays.has(part) || partDays.get(part) > specificity) partDays.set(part, specificity);
+      // Full appearance breakdown for the card: EVERY day the incipit
+      // appears on — including days that produce no suggestion (ferial
+      // lessons, unmapped days) — with position where known, so the
+      // reviewer can see exactly how (non-)specific the text is.
+      const posByDay = new Map();
+      for (const u of units) {
+        for (const place of u.places) {
+          if (!posByDay.has(place.day)) posByDay.set(place.day, place.position);
+        }
+      }
+      const breakdown = [...unionDays].map((d) => ({
+        label: corpus.dayLabels.get(d) || d.replace(/^.*\//, ''),
+        position: posByDay.get(d) || null,
+      })).sort((a, b) => (a.position ? 0 : 1) - (b.position ? 0 : 1));
+      const prev = partDays.get(part);
+      if (!prev || prev.days > specificity) {
+        partDays.set(part, { days: specificity, breakdown: breakdown.slice(0, 10), more: Math.max(0, breakdown.length - 10) });
+      }
 
       const samplePositions = (predicate) => {
         const positions = new Set();
@@ -310,7 +327,12 @@ async function main() {
           functions,
           matched_incipit: [...matched][0] || null,
           citations: [...citations],
-          part_days: [...partDays.entries()].map(([incipit, days]) => ({ incipit, days })),
+          part_days: [...partDays.entries()].map(([incipit, info]) => ({
+            incipit,
+            days: info.days,
+            breakdown: info.breakdown,
+            more: info.more || undefined,
+          })),
         }),
         score,
         `tfm:${title.id}`,
