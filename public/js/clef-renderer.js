@@ -106,6 +106,13 @@
     return code.split('/').map(part => {
       part = part.trim().toLowerCase();
       if (TEXT_INSTRUMENTS[part]) return { type: 'text', label: TEXT_INSTRUMENTS[part] };
+      // Trailing 8 = ottava bassa ("g8"/"g28" = modern tenor G clef): the
+      // clef sits on its normal line with a small 8 hung beneath — it is
+      // NOT a clef on "line 8".
+      const oct = part.match(/^([a-z])([1-5])?8$/);
+      if (oct) {
+        return { type: 'clef', family: oct[1], line: oct[2] ? parseInt(oct[2]) : 2, octaveDown: true };
+      }
       const match = part.match(/^([a-z]+)(\d)$/);
       if (match) return { type: 'clef', family: match[1], line: parseInt(match[2]) };
       return null;
@@ -170,6 +177,21 @@
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('transform', `translate(${tx},${ty}) scale(${scaleX},${scaleY})`);
+
+    if (clefInfo.octaveDown) {
+      // Little "8" below the glyph (ottava bassa).
+      const glyphBottom = ty + (vb[1] + vb[3]) * scaleY;
+      const eight = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      eight.setAttribute('x', xOffset + targetW / 2);
+      eight.setAttribute('y', glyphBottom + 6);
+      eight.setAttribute('font-size', '7');
+      eight.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
+      eight.setAttribute('font-weight', 'bold');
+      eight.setAttribute('fill', fillColor || 'currentColor');
+      eight.setAttribute('text-anchor', 'middle');
+      eight.textContent = '8';
+      svg.appendChild(eight);
+    }
 
     if (data.fromFile) {
       const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
