@@ -44,6 +44,7 @@ router.get('/groups', async (req, res) => {
       voicing = '',
       has_editions = 'false',
       has_recordings = 'false',
+      has_canon = 'false',
       year_from = '',
       year_to = '',
       clef = '',
@@ -180,6 +181,7 @@ router.get('/groups', async (req, res) => {
     const voicingIds = voicing && voicing.trim() ? voicing.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
     const hasEditions = has_editions === 'true';
     const hasRecordings = has_recordings === 'true';
+    const hasCanon = has_canon === 'true';
     
     // Parse new filter parameters
     const yearFrom = year_from && year_from.trim() ? parseInt(year_from.trim()) : null;
@@ -494,6 +496,20 @@ router.get('/groups', async (req, res) => {
       whereConditions.push(`EXISTS (
         SELECT 1 FROM recordings r
         WHERE r.group_id = g.id
+      )`);
+    }
+
+    // Has canonic voice filter: any inclusion of any composition in the
+    // group with a clef flagged canonic.
+    if (hasCanon) {
+      whereConditions.push(`EXISTS (
+        SELECT 1
+        FROM compositions c_cn
+        JOIN inclusions i_cn ON i_cn.composition_id = c_cn.id
+        CROSS JOIN LATERAL jsonb_array_elements(i_cn.clefs) AS cn(elem)
+        WHERE c_cn.group_id = g.id
+          AND i_cn.clefs IS NOT NULL
+          AND (cn.elem->>'canonic')::boolean IS TRUE
       )`);
     }
 

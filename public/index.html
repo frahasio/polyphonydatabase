@@ -540,7 +540,7 @@
                         </p>
                         <p class="clef-explainer">
                             <span class="clef-explainer-icon" data-clef="c2" data-canonic="true"></span>
-                            <span>A yellow clef denotes a <strong>canonic</strong> voice that isn't written out in this source — it is derived from another part following the canon's rule, so the clef shown is often our best guess. The piece is still complete and performable.</span>
+                            <span>A yellow clef denotes a <strong>canonic</strong> voice — one derived from another part following a canon's rule — whether or not it is written out in the source. Where the voice isn't notated, the clef shown may be known from the canon's rule or our best guess. The piece is still complete and performable. Use the "Has canonic voice" filter to find all pieces involving canon.</span>
                         </p>
                         <p class="clef-explainer">
                             <span class="clef-explainer-icon" data-clef="f3" data-optional="true"></span>
@@ -725,6 +725,15 @@
                                             </label>
                                         </div>
                                     </div>
+                                    <div class="row g-1">
+                                        <div class="col-12">
+                                            <label class="filter-switch">
+                                                <input type="checkbox" id="hasCanon">
+                                                <span class="filter-switch-slider"></span>
+                                                <span class="filter-switch-label">Has canonic voice</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div class="row mt-3 mb-2">
                                         <div class="col-12 d-flex gap-3 justify-content-center">
                                             <button type="button" class="btn btn-primary px-4" id="searchButton">
@@ -843,6 +852,10 @@
                             <div class="form-check mb-0">
                                 <input class="form-check-input filter-input" type="checkbox" id="hasRecordingsDesktop">
                                 <label class="form-check-label filter-label small mb-0" for="hasRecordingsDesktop">Has recordings</label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input filter-input" type="checkbox" id="hasCanonDesktop">
+                                <label class="form-check-label filter-label small mb-0" for="hasCanonDesktop">Has canonic voice</label>
                             </div>
                         </div>
                     </div>
@@ -1575,7 +1588,7 @@
             });
 
             // Clear checkboxes
-            const checkboxIds = ['hasEditions', 'hasEditionsDesktop', 'hasRecordings', 'hasRecordingsDesktop'];
+            const checkboxIds = ['hasEditions', 'hasEditionsDesktop', 'hasRecordings', 'hasRecordingsDesktop', 'hasCanon', 'hasCanonDesktop'];
             checkboxIds.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.checked = false;
@@ -1741,6 +1754,10 @@
                 document.getElementById('hasRecordings').checked = true;
                 document.getElementById('hasRecordingsDesktop').checked = true;
             }
+            if (params.get('has_canon') === 'true') {
+                document.getElementById('hasCanon').checked = true;
+                document.getElementById('hasCanonDesktop').checked = true;
+            }
             if (params.get('completeness')) {
                 const completenessValue = params.get('completeness');
                 document.getElementById('searchCompleteness').value = completenessValue;
@@ -1878,6 +1895,7 @@
             const anniversaryYear = document.getElementById('anniversaryYear')?.value || document.getElementById('anniversaryYearDesktop')?.value || '';
             const hasEditions = document.getElementById('hasEditions')?.checked || document.getElementById('hasEditionsDesktop')?.checked || false;
             const hasRecordings = document.getElementById('hasRecordings')?.checked || document.getElementById('hasRecordingsDesktop')?.checked || false;
+            const hasCanon = document.getElementById('hasCanon')?.checked || document.getElementById('hasCanonDesktop')?.checked || false;
             const completeness = document.getElementById('searchCompleteness')?.value || document.getElementById('searchCompletenessDesktop')?.value || '';
             const inclusionNotes = document.getElementById('searchInclusionNotes')?.value || document.getElementById('searchInclusionNotesDesktop')?.value || '';
             
@@ -1902,6 +1920,7 @@
             if (cities) params.set('cities', cities);
             if (hasEditions) params.set('has_editions', 'true');
             if (hasRecordings) params.set('has_recordings', 'true');
+            if (hasCanon) params.set('has_canon', 'true');
             if (completeness) params.set('completeness', completeness);
             if (inclusionNotes) params.set('inclusion_notes', inclusionNotes);
             
