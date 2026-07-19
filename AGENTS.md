@@ -46,7 +46,11 @@ deployed. Also shipped since:
  at <=2 days, PLUS season-level entries (Advent/Christmas/Lent/Easter/
  Pentecost-octave via day-file prefixes, see seasonOfDay) for texts that
  recur on >=3 days concentrated (>=50%) in one season — previously junked
- as generic. Accept links all TICKED functions (function_selections).
+ as generic. Accept links all TICKED functions (function_selections). AUTO-ACCEPT:
+ multipart titles whose EVERY part matches the same day's propers link
+ automatically (existing functions only, never new ones; recorded as
+ accepted suggestions dedupe `tfa:{title_id}:{fn_id}`, auto_accepted
+ flag in payload; fully-resolved pending cards are deleted).
  Day counts use CALENDAR days: missa+horas trees, rubric variants
  (…t.txt/…o.txt) and multiple-Mass files (…m1-m3) fold into one day.
  FUNCTION CLUSTERS (level 'cluster', "main use" badge): appearances
