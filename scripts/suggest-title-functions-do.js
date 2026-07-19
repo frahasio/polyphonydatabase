@@ -102,6 +102,7 @@ async function main() {
   console.log(`Matching ${titles.rows.length} titles...${DRY_RUN ? ' [dry run]' : ''}`);
 
   let inserted = 0;
+  let autoAccepted = 0;
   for (const title of titles.rows) {
     const existingFnIds = new Set(title.existing_function_ids || []);
     const parts = splitIncipitParts(title.text).map(foldSpelling);
@@ -310,8 +311,66 @@ async function main() {
         preselected: !hasDominant && s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE,
       }));
 
-    const functions = [...clusters, ...specifics, ...seasons].slice(0, MAX_FUNCTIONS_PER_CARD);
-    if (!functions.length) continue;
+    // AUTO-ACCEPT: on a multipart motet, when EVERY part appears in the
+    // same day's propers (respond + verse both present), the match is as
+    // strong as evidence gets — link it without review. Existing functions
+    // only (never auto-create), rejections already filtered above.
+    const autoIds = new Set();
+    if (totalParts > 1) {
+      const fullMatches = [...clusters, ...specifics].filter((f) =>
+        f.function_id && f.parts_matched === totalParts);
+      for (const fm of fullMatches) {
+        autoIds.add(fm.function_id);
+        autoAccepted++;
+        if (DRY_RUN) {
+          console.log(`  AUTO ${title.id} "${title.text.slice(0, 45)}" -> ${fm.function_name} (all ${totalParts} parts)`);
+          continue;
+        }
+        await pool.query(
+          `INSERT INTO functions_titles (function_id, title_id)
+           SELECT $1, $2
+           WHERE NOT EXISTS (SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2)`,
+          [fm.function_id, title.id]
+        );
+        // Record it as an accepted suggestion so it shows in the queue's
+        // history and is never re-proposed.
+        await pool.query(
+          `INSERT INTO suggestions (kind, title_id, payload, score, source, dedupe_key, status, reviewed_at)
+           VALUES ('title_function', $1, $2, 1.0, 'divinumofficium', $3, 'accepted', NOW())
+           ON CONFLICT (dedupe_key) DO NOTHING`,
+          [
+            title.id,
+            JSON.stringify({
+              function_id: fm.function_id,
+              function_name: fm.function_name,
+              positions: fm.positions,
+              days: fm.days,
+              parts_matched: fm.parts_matched,
+              parts_total: fm.parts_total,
+              matched_incipit: [...matched][0] || null,
+              citations: [...citations],
+              auto_accepted: true,
+            }),
+            `tfa:${title.id}:${fm.function_id}`,
+          ]
+        );
+      }
+    }
+
+    const functions = [...clusters, ...specifics, ...seasons]
+      .filter((f) => !f.function_id || !autoIds.has(f.function_id))
+      .slice(0, MAX_FUNCTIONS_PER_CARD);
+    if (!functions.length) {
+      // Everything auto-accepted: clear any pending card left from earlier
+      // runs so the reviewer isn't asked about a decision already made.
+      if (autoIds.size && !DRY_RUN) {
+        await pool.query(
+          `DELETE FROM suggestions WHERE dedupe_key = $1 AND status = 'pending'`,
+          [`tfm:${title.id}`]
+        );
+      }
+      continue;
+    }
     // A NEW-feast proposal is never preticked when there are alternatives —
     // creating a function should be a deliberate reviewer choice.
     if (functions.length > 1) {
@@ -361,7 +420,7 @@ async function main() {
     if (result.rowCount) inserted++;
   }
 
-  console.log(`Done. ${DRY_RUN ? 'Would insert' : 'Inserted/refreshed'} ${inserted} suggestions.`);
+  console.log(`Done. ${DRY_RUN ? 'Would insert' : 'Inserted/refreshed'} ${inserted} suggestions; ${autoAccepted} all-parts matches auto-${DRY_RUN ? 'acceptable' : 'accepted'}.`);
 
   if (!DRY_RUN) await backfillLinkEvidence(corpus, functionIds);
   await pool.end();
