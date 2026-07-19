@@ -5,8 +5,135 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { CLEF_DISPLAY_ORDER } from '../constants.js';
+import { mapFeast } from '../../scripts/lib/matching.js';
 
 const router = express.Router();
+
+// ---- Liturgical calendar (for the "upcoming feasts" quick filters) ----
+
+/** Gregorian Easter (anonymous computus), as a UTC date. */
+function easterDate(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return Date.UTC(year, month - 1, day);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const mmdd = (d) => String(new Date(d).getUTCMonth() + 1).padStart(2, '0') + '-' + String(new Date(d).getUTCDate()).padStart(2, '0');
+
+// Major fixed feasts -> catalogue function names.
+const FIXED_FEASTS = {
+  '01-01': 'Circumcision', '01-06': 'Epiphany', '02-02': 'Candlemas',
+  '03-25': 'Annunciation', '06-24': 'John the Baptist', '06-29': 'Ss Peter & Paul',
+  '07-02': 'Visitation', '07-22': 'Mary Magdalene', '07-25': 'St James',
+  '07-26': 'St Anne', '08-06': 'Transfiguration',
+  '08-10': 'St Lawrence', '08-15': 'Assumption', '09-08': 'Nativity of BVM',
+  '09-14': 'Holy Cross', '09-29': 'St Michael', '11-01': 'All Saints',
+  '11-02': 'All Souls', '11-30': 'St Andrew', '12-08': 'Immaculate Conception',
+  '12-25': 'Christmas',
+};
+// Only these override a Sunday occurrence (roughly the I class feasts);
+// lesser feasts are shown on weekdays but a Sunday keeps its own name.
+const OVERRIDES_SUNDAY = new Set([
+  'Epiphany', 'Annunciation', 'John the Baptist', 'Ss Peter & Paul',
+  'Assumption', 'All Saints', 'Immaculate Conception', 'Christmas',
+]);
+
+/** Name the liturgical day (1960-style) for a UTC timestamp, or null. */
+function liturgicalDayName(ts) {
+  const d = new Date(ts);
+  const year = d.getUTCFullYear();
+  const dow = d.getUTCDay();
+  const easter = easterDate(year);
+  const weeks = (from) => Math.round((ts - from) / (7 * DAY_MS));
+
+  // Movable non-Sunday majors first.
+  if (ts === easter - 46 * DAY_MS) return 'Ash Wednesday';
+  if (ts === easter + 39 * DAY_MS) return 'Ascension';
+  if (ts === easter + 60 * DAY_MS) return 'Corpus Christi';
+  if (ts === easter + 68 * DAY_MS) return 'Sacred Heart';
+
+  // Major fixed feasts; only I class ones displace a Sunday.
+  const fixed = FIXED_FEASTS[mmdd(ts)];
+  if (fixed && (dow !== 0 || OVERRIDES_SUNDAY.has(fixed))) return fixed;
+
+  if (dow !== 0) return null;
+
+  // Christ the King: last Sunday of October (1960 calendar).
+  if (d.getUTCMonth() === 9 && d.getUTCDate() >= 25) return 'Christ the King';
+
+  // Advent: 4th Sunday before Christmas.
+  const christmas = Date.UTC(year, 11, 25);
+  const cdow = new Date(christmas).getUTCDay() || 7;
+  const advent1 = christmas - cdow * DAY_MS - 21 * DAY_MS;
+  if (ts >= advent1 && ts < christmas) return mapFeast(`Dominica ${weeks(advent1) + 1} Adventus`);
+  if (ts >= christmas) return 'Sunday in the Christmas Octave';
+
+  const delta = Math.round((ts - easter) / DAY_MS);
+  if (delta === -63) return mapFeast('Septuagesima');
+  if (delta === -56) return mapFeast('Sexagesima');
+  if (delta === -49) return mapFeast('Quinquagesima');
+  if (delta >= -42 && delta <= -15) return mapFeast(`Dominica ${weeks(easter - 42 * DAY_MS) + 1} in Quadragesima`);
+  if (delta === -14) return mapFeast('Dominica de Passione');
+  if (delta === -7) return mapFeast('Dominica in Palmis');
+  if (delta === 0) return mapFeast('Dominica Resurrectionis');
+  if (delta === 7) return mapFeast('Dominica in albis');
+  if (delta >= 14 && delta <= 35) return mapFeast(`Dominica ${delta / 7} post Pascha`);
+  if (delta === 42) return null; // Sunday after Ascension: no catalogue function
+  if (delta === 49) return mapFeast('Dominica Pentecostes');
+  if (delta === 56) return 'Trinity';
+  if (delta > 56 && (delta % 7 === 0)) return mapFeast(`Dominica ${(delta - 49) / 7} post Pentecosten`);
+
+  // Sundays after Epiphany (before pre-Lent).
+  const epiphany = Date.UTC(year, 0, 6);
+  if (ts > epiphany && ts < easter - 63 * DAY_MS) {
+    const n = Math.ceil((ts - epiphany) / (7 * DAY_MS));
+    return mapFeast(`Dominica ${n} post Epiphaniam`);
+  }
+  return null;
+}
+
+// Upcoming Sundays and major feasts (next ~6 weeks) that exist as catalogue
+// functions with linked titles — powers the public quick-filter chips.
+router.get('/upcoming-feasts', async (req, res) => {
+  try {
+    const now = new Date();
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const entries = [];
+    for (let i = 0; i <= 42; i++) {
+      const ts = today + i * DAY_MS;
+      const name = liturgicalDayName(ts);
+      if (name) entries.push({ date: new Date(ts).toISOString().slice(0, 10), name });
+    }
+    if (!entries.length) return res.json([]);
+    const fns = await pool.query(
+      `SELECT DISTINCT f.id, f.name
+       FROM functions f
+       JOIN functions_titles ft ON ft.function_id = f.id
+       WHERE LOWER(f.name) = ANY($1)`,
+      [[...new Set(entries.map((e) => e.name.toLowerCase()))]]
+    );
+    const byName = new Map(fns.rows.map((r) => [r.name.toLowerCase(), r]));
+    const out = [];
+    const seen = new Set();
+    for (const e of entries) {
+      const fn = byName.get(e.name.toLowerCase());
+      if (!fn || seen.has(fn.id)) continue;
+      seen.add(fn.id);
+      out.push({ date: e.date, function_id: fn.id, function_name: fn.name });
+      if (out.length >= 8) break;
+    }
+    res.json(out);
+  } catch (error) {
+    console.error('Error computing upcoming feasts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Detect whether compositions.tone is text[] (post-migration) or varchar (pre-migration).
 // Caches result so the detection query only runs once.

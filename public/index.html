@@ -136,6 +136,12 @@
             color: white;
         }
 
+        /* Upcoming-feast quick filters */
+        #upcomingFeasts .feast-chip {
+            --bs-btn-padding-y: .2rem; --bs-btn-padding-x: .6rem; --bs-btn-font-size: .8rem;
+            white-space: nowrap;
+        }
+        #upcomingFeasts .feast-chip .chip-date { opacity: .7; font-size: .72rem; }
         /* Function names with match evidence get a hover tooltip (desktop)
            or a tap-toggled popover (touch) */
         .fn-tip { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
@@ -891,6 +897,9 @@
             </div>
         </div>
 
+        <!-- Upcoming feasts: one-tap function filters for the next few weeks -->
+        <div id="upcomingFeasts" class="d-flex align-items-center gap-2 flex-wrap mt-2" style="display:none !important"></div>
+
         <!-- Sort Dropdown (between filters and table, aligned right) -->
         <div class="d-flex justify-content-end mt-3 mb-2 w-100">
             <div class="d-flex align-items-center" style="flex-wrap: nowrap;">
@@ -989,6 +998,7 @@
         let isUserLoggedIn = false;
 
         document.addEventListener('DOMContentLoaded', async function() {
+            loadUpcomingFeasts();
             await checkAuthStatus();
             const bookletNav = document.getElementById('bookletNavLink');
             if (bookletNav) {
@@ -1526,6 +1536,27 @@
                     performSearch();
                 }
             }
+        }
+
+        async function loadUpcomingFeasts() {
+            try {
+                const res = await fetch('/api/search/upcoming-feasts');
+                if (!res.ok) return;
+                const feasts = await res.json();
+                if (!feasts.length) return;
+                const box = document.getElementById('upcomingFeasts');
+                const fmt = (iso) => {
+                    const d = new Date(iso + 'T12:00:00Z');
+                    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                };
+                box.innerHTML = '<span class="text-muted small me-1"><i class="bi bi-calendar-event me-1"></i>Coming up:</span>'
+                    + feasts.map(f => `
+                        <a class="btn btn-outline-primary feast-chip" href="/?functions=${f.function_id}">
+                            ${escapeHtml(f.function_name.replace(/\s*\(Ordinary Time \d+\)\s*$/, ''))}
+                            <span class="chip-date">${escapeHtml(fmt(f.date))}</span>
+                        </a>`).join('');
+                box.style.setProperty('display', 'flex', 'important');
+            } catch (e) { /* chips are a nicety; ignore failures */ }
         }
 
         async function checkAuthStatus() {
