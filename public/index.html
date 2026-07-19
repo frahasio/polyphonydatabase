@@ -139,6 +139,7 @@
         /* Function names with match evidence get a hover tooltip (desktop)
            or a tap-toggled popover (touch) */
         .fn-tip { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+        .fn-more { font-size: .8rem; white-space: nowrap; }
         .fn-tip-pop {
             display: block; white-space: pre-line; margin: .25rem 0 .35rem;
             padding: .4rem .6rem; font-size: .8rem; color: #444;
@@ -2522,24 +2523,43 @@
                             const detailFor = (n) => (group.function_details || [])
                                 .concat(group.secondary_function_details || [])
                                 .find(d => d && d.name === n);
+                            // Compact display: the old-calendar name carries the
+                            // meaning; the Ordinary Time cross-reference lives in
+                            // the tooltip instead of the cell.
+                            const shortName = (n) => n.replace(/\s*\(Ordinary Time \d+\)\s*$/, '');
                             const fnHtml = (n) => {
                                 const d = detailFor(n);
-                                if (!d || !d.text) return escapeHtml(n);
-                                const tip = `\u201C${d.text}\u201D`
+                                const disp = shortName(n);
+                                if (!d || !d.text) {
+                                    return disp === n ? escapeHtml(n)
+                                        : `<span title="${escapeHtml(n)}">${escapeHtml(disp)}</span>`;
+                                }
+                                const tip = (disp === n ? '' : n + '\n')
+                                    + `\u201C${d.text}\u201D`
                                     + (d.citation ? ` (${d.citation})` : '')
                                     + (d.position ? `\n${d.position}` : '');
                                 // title = desktop hover; the same text opens as a
                                 // tap-toggled popover on touch screens.
-                                return `<span class="fn-tip" title="${escapeHtml(tip)}" data-tip="${escapeHtml(tip)}" role="button" tabindex="0">${escapeHtml(n)}</span>`;
+                                return `<span class="fn-tip" title="${escapeHtml(tip)}" data-tip="${escapeHtml(tip)}" role="button" tabindex="0">${escapeHtml(disp)}</span>`;
+                            };
+                            // Long lists collapse to the first few + a "+N more"
+                            // toggle; auto-accepts mean 4-5 feasts is now common.
+                            const MAX_SHOWN = 3;
+                            const fnList = (names) => {
+                                if (names.length <= MAX_SHOWN) return names.map(fnHtml).join(', ');
+                                const shown = names.slice(0, MAX_SHOWN).map(fnHtml).join(', ');
+                                const rest = names.slice(MAX_SHOWN).map(fnHtml).join(', ');
+                                return `${shown}<span class="fn-extra" style="display:none">, ${rest}</span>
+                                    <a href="#" class="fn-more" onclick="event.preventDefault(); const x=this.previousElementSibling; const open=x.style.display!=='none'; x.style.display=open?'none':'inline'; this.textContent=open?'+${names.length - MAX_SHOWN} more':'show fewer';">+${names.length - MAX_SHOWN} more</a>`;
                             };
                             const primary = group.function_names || [];
                             const secondary = (group.secondary_function_names || []).filter(n => !primary.includes(n));
                             // If the display title matches no title exactly (e.g.
                             // retitled group), show everything at full strength.
-                            if (!primary.length) return secondary.map(fnHtml).join(', ');
-                            return primary.map(fnHtml).join(', ') + (secondary.length ? `
+                            if (!primary.length) return fnList(secondary);
+                            return fnList(primary) + (secondary.length ? `
                                 <div class="secondary-functions" title="Functions of other texts set to this music">
-                                    ${secondary.map(fnHtml).join(', ')}
+                                    ${fnList(secondary)}
                                 </div>` : '');
                         })()}
                     </td>
