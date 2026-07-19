@@ -224,7 +224,14 @@ router.post('/:id/:action', async (req, res) => {
         if (!selections.length) throw new Error('No functions selected');
         for (const sel of selections) {
           let functionId = Number.isInteger(sel.id) ? sel.id : null;
+          if (functionId) {
+            // The function may have been merged/deleted since the card was
+            // generated — fall back to resolving by name.
+            const live = await client.query('SELECT 1 FROM functions WHERE id = $1', [functionId]);
+            if (!live.rows.length) functionId = null;
+          }
           if (!functionId) {
+            if (!sel.name) continue;
             const existing = await client.query(
               'SELECT id FROM functions WHERE LOWER(name) = LOWER($1) LIMIT 1',
               [sel.name]
@@ -260,6 +267,12 @@ router.post('/:id/:action', async (req, res) => {
         // since the suggestion was created gets duplicated under its old
         // name by the create-on-the-fly path.
         const nameEdited = override && override !== String(payload.function_name || '').trim();
+        if (Number.isInteger(functionId)) {
+          // Stale id (function merged/deleted since the card was made):
+          // fall through to name resolution.
+          const live = await client.query('SELECT 1 FROM functions WHERE id = $1', [functionId]);
+          if (!live.rows.length) functionId = NaN;
+        }
         if (nameEdited || !Number.isInteger(functionId)) {
           if (!chosenName) throw new Error('No feast/function name given');
           const existing = await client.query(

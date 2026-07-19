@@ -132,6 +132,94 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Merge functions: title links move to the survivor (deduplicated), the
+// feast dictionary follows, and the merged rows are deleted. Pending queue
+// cards holding a merged id self-heal on the next matcher refresh, and the
+// accept endpoint falls back to name resolution for stale ids.
+router.post('/merge', async (req, res) => {
+  const targetId = parseInt(req.body.target_id, 10);
+  const sourceIds = (Array.isArray(req.body.source_ids) ? req.body.source_ids : [])
+    .map((x) => parseInt(x, 10))
+    .filter((x) => Number.isInteger(x) && x !== targetId);
+  if (!Number.isInteger(targetId) || !sourceIds.length) {
+    return res.status(400).json({ error: 'target_id and at least one distinct source id are required' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      'SELECT id, name FROM functions WHERE id = ANY($1) FOR UPDATE',
+      [[targetId, ...sourceIds]]
+    );
+    if (found.rows.length !== sourceIds.length + 1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'One or more functions no longer exist' });
+    }
+    const target = found.rows.find((r) => r.id === targetId);
+    const sources = found.rows.filter((r) => r.id !== targetId);
+
+    // Move title links, keeping any evidence; drop links the survivor
+    // already has.
+    const moved = await client.query(
+      `UPDATE functions_titles ft SET function_id = $1
+       WHERE ft.function_id = ANY($2)
+         AND NOT EXISTS (
+           SELECT 1 FROM functions_titles x
+           WHERE x.function_id = $1 AND x.title_id = ft.title_id
+         )`,
+      [targetId, sourceIds]
+    );
+    await client.query('DELETE FROM functions_titles WHERE function_id = ANY($1)', [sourceIds]);
+
+    // The feast dictionary maps Latin day labels to function NAMES — keep
+    // curated rows pointing at the survivor.
+    let dictUpdated = 0;
+    try {
+      const dict = await client.query(
+        `UPDATE feast_translations
+         SET english = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE LOWER(english) = ANY($2)`,
+        [target.name, sources.map((s) => s.name.toLowerCase())]
+      );
+      dictUpdated = dict.rowCount;
+    } catch { /* dictionary table not migrated yet */ }
+
+    await client.query('DELETE FROM functions WHERE id = ANY($1)', [sourceIds]);
+
+    try {
+      await client.query(
+        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'UPDATE',
+          'functions',
+          targetId,
+          JSON.stringify({ action: 'merge', merged: sources }),
+          JSON.stringify({ survivor: target, links_moved: moved.rowCount, dictionary_rows: dictUpdated }),
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped:', auditError.message);
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      survivor: target,
+      merged: sources.map((s) => s.name),
+      links_moved: moved.rowCount,
+      dictionary_rows: dictUpdated,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error merging functions:', error);
+    res.status(500).json({ error: 'Merge failed: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ---- Divinum Officium feast dictionary (Latin -> English) ----
 // MUST be registered before /:id.
 
