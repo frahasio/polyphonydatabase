@@ -376,40 +376,36 @@ router.get('/groups', async (req, res) => {
         return Array.from(variations).slice(0, 6); // Limit to 6 variations max for performance
       };
       
-      // Token-based matching: every word in the query must match the group
-      // title, a composition title, or a composer name. This lets users type
-      // composer and title together ("victoria ave maria") — the composer
-      // token matches the composer, the title tokens match the title.
-      // Single-word queries behave as before.
-      const tokens = normalizeText(searchTerm).split(' ').filter(Boolean).slice(0, 6);
-
-      const tokenConditions = tokens.map((token) => {
-        // Historical spelling variations (i/j, u/v) per token, OR-ed together
-        const variationConditions = createVariations(token).map((variation) => {
-          const p = paramIndex;
-          queryParams.push(`%${variation}%`);
-          paramIndex++;
-          return `(
-            TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE $${p} OR
-            EXISTS (
-              SELECT 1 FROM compositions c2
-              JOIN titles t2 ON c2.title_id = t2.id
-              WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE $${p}
-            ) OR
-            EXISTS (
-              SELECT 1 FROM compositions c2
-              CROSS JOIN LATERAL unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS cid
-              JOIN composers comp ON comp.id = cid AND comp.id != 23
-              WHERE c2.group_id = g.id
-              AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]/-', '') ILIKE $${p}
-            )
-          )`;
-        });
-        return `(${variationConditions.join(' OR ')})`;
+      // EXACT-PHRASE matching: the search string (punctuation-normalized,
+      // with i/j & u/v folding and % wildcards) must appear verbatim in the
+      // group title or a composition title. Spaces are significant — users
+      // rely on this for precise incipit searches ("heu m" must only match
+      // "Heu mihi..."); use % explicitly to skip words. A whole-phrase
+      // match on the composer name is also accepted so a bare surname
+      // still finds a composer's works.
+      const variationConditions = createVariations(searchTerm).map((variation) => {
+        const p = paramIndex;
+        queryParams.push(`%${variation}%`);
+        paramIndex++;
+        return `(
+          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE $${p} OR
+          EXISTS (
+            SELECT 1 FROM compositions c2
+            JOIN titles t2 ON c2.title_id = t2.id
+            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE $${p}
+          ) OR
+          EXISTS (
+            SELECT 1 FROM compositions c2
+            CROSS JOIN LATERAL unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS cid
+            JOIN composers comp ON comp.id = cid AND comp.id != 23
+            WHERE c2.group_id = g.id
+            AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]/-', '') ILIKE $${p}
+          )
+        )`;
       });
 
-      if (tokenConditions.length > 0) {
-        whereConditions.push(tokenConditions.join(' AND '));
+      if (variationConditions.length > 0) {
+        whereConditions.push(`(${variationConditions.join(' OR ')})`);
       }
     }
 
