@@ -116,6 +116,7 @@
                 // Editing is only allowed by the claimer (or when unclaimed).
                 const canEdit = !claimedByOther;
                 const canOffer = canEdit && (c.status === 'enquiry' || c.status === 'offered');
+                const canMarkPaid = canEdit && c.status === 'offered' && c.price_pence;
                 const canFulfil = canEdit && c.status === 'paid';
                 const canCancel = canEdit && c.status !== 'paid' && c.status !== 'fulfilled' && c.status !== 'cancelled';
 
@@ -145,6 +146,7 @@
                                 </div>
                                 ${c.requirements ? `<div class="small mt-1"><strong>Requirements:</strong> ${escapeHtml(c.requirements)}</div>` : ''}
                                 ${c.admin_note ? `<div class="small mt-1 text-muted"><strong>Note to commissioner:</strong> ${escapeHtml(c.admin_note)}</div>` : ''}
+                                ${c.payment_note ? `<div class="small mt-1"><strong>Payment:</strong> ${escapeHtml(c.payment_note)}</div>` : ''}
                                 ${c.edition_url ? `<div class="small mt-1"><strong>Edition:</strong> ${externalLink(c.edition_url)}</div>` : ''}
                                 ${claimLine}
                             </div>
@@ -153,6 +155,7 @@
                                 <div class="btn-group btn-group-sm d-block">
                                     ${claimBtn}
                                     ${canOffer ? `<button class="btn btn-primary" onclick="openOffer(${c.id}, ${JSON.stringify(c.piece_description).replace(/"/g, '&quot;')}, ${c.price_pence || 0})">${c.status === 'offered' ? 'Revise price' : 'Set price'}</button>` : ''}
+                                    ${canMarkPaid ? `<button class="btn btn-success" onclick="markPaidCommission(${c.id})">Mark as paid</button>` : ''}
                                     ${canFulfil ? `<button class="btn btn-info" onclick="fulfilCommission(${c.id})">Mark as ready</button>` : ''}
                                     ${canCancel ? `<button class="btn btn-outline-danger" onclick="cancelCommission(${c.id})">Cancel</button>` : ''}
                                 </div>
@@ -212,6 +215,25 @@
         function releaseCommission(id) {
             if (!confirm('Release this commission back into the open list? Others will be able to claim and edit it.')) return;
             postAction(id, 'release', true);
+        }
+
+        async function markPaidCommission(id) {
+            const note = prompt(
+                'Mark this commission as paid (for payments received outside Stripe, e.g. bank transfer).\n\nHow was it paid?',
+                'Bank transfer, ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            );
+            if (note === null) return; // cancelled
+            try {
+                const res = await fetch(`/api/admin/commissions/${id}/mark-paid`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ payment_note: note.trim() })
+                });
+                const data = await res.json();
+                if (res.ok) load();
+                else alert(data.error || 'Could not mark as paid.');
+            } catch (e) { alert('Network error.'); }
         }
 
         async function fulfilCommission(id) {

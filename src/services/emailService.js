@@ -630,6 +630,14 @@ class EmailService {
     const base = process.env.BASE_URL || 'http://localhost:3000';
     const link = `${base}/commission/${commission.access_token}`;
     const price = (commission.price_pence / 100).toLocaleString('en-GB', { style: 'currency', currency: commission.currency || 'GBP' });
+    // Bank-transfer alternative: set BANK_TRANSFER_DETAILS (multi-line OK) to
+    // include account details directly; otherwise we invite a reply.
+    const bank = (process.env.BANK_TRANSFER_DETAILS || '').trim();
+    const bankBlock = bank
+      ? `<p>If you would prefer to pay by bank transfer:</p>
+        <p>${esc(bank).replace(/\n/g, '<br>')}</p>
+        <p>Please use your name as the payment reference, and reply to this email once sent so we can confirm receipt.</p>`
+      : `<p>If you would prefer to pay by bank transfer, just reply to this email and we will send our account details.</p>`;
     return this.sendMail({
       to: commission.commissioner_email,
       subject: 'Your edition commission — price and next steps',
@@ -637,8 +645,9 @@ class EmailService {
         <p>Thank you for your commission enquiry for <strong>${esc(commission.piece_description)}</strong>.</p>
         <p>We can prepare this edition for <strong>${esc(price)}</strong>.</p>
         ${commission.admin_note ? `<p>${esc(commission.admin_note)}</p>` : ''}
-        <p>To accept and pay, or to decline, please visit:</p>
+        <p>To accept and pay by card, or to decline, please visit:</p>
         <p><a href="${esc(link)}">${esc(link)}</a></p>
+        ${bankBlock}
         <p>If you'd like to discuss changes first, just reply to this email.</p>`,
     });
   }

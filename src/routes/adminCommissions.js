@@ -130,6 +130,33 @@ router.post('/:id/offer', async (req, res) => {
   }
 });
 
+// Manually mark a commission as paid — for payments taken outside Stripe
+// (bank transfer, cash, etc). Only an offered commission with a price can
+// be marked paid; the optional note records how it was paid.
+router.post('/:id/mark-paid', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10) || 0;
+    const note = String(req.body.payment_note || '').trim().slice(0, 500);
+
+    if (!(await loadEditable(req, res))) return;
+
+    const result = await pool.query(
+      `UPDATE commissions
+         SET status = 'paid', paid_at = NOW(), payment_note = $1, updated_at = NOW()
+       WHERE id = $2 AND status = 'offered' AND price_pence IS NOT NULL
+       RETURNING *`,
+      [note || 'Marked paid manually', id]
+    );
+    if (!result.rows.length) {
+      return res.status(400).json({ error: 'Only an offered commission with a price can be marked as paid' });
+    }
+    res.json({ message: 'Marked as paid', commission: result.rows[0] });
+  } catch (error) {
+    console.error('Commission mark-paid error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Mark a paid commission as delivered; emails the commissioner (optionally
 // with a link to the finished edition).
 router.post('/:id/fulfil', async (req, res) => {

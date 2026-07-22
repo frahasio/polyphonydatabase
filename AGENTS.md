@@ -114,9 +114,16 @@ deployed. Also shipped since:
  gaps are handled in `/modules/clef-voicings`; unused titles / empty groups
  / orphaned compositions remain the cleanup tool's job (dashboard button).
 - Commissions module: public enquiry (`/commissions`) -> admin price offer
-  -> Stripe Checkout -> webhook marks paid -> "mark ready" delivery email.
-  Gated by the `commissions` permission; commissions can be claimed/released
-  so only one user edits at a time.
+ -> payment -> "mark ready" delivery email. Two payment paths (July 2026):
+ Stripe Checkout (webhook marks paid; still on TEST keys, deliberately
+ dormant until a client wants card payment) and bank transfer/BACS — the
+ offer email offers it (account details from optional `BANK_TRANSFER_DETAILS`
+ config var, multi-line OK; otherwise "reply and we'll send details") and
+ the admin marks receipt via the "Mark as paid" button
+ (`POST /api/admin/commissions/:id/mark-paid`, offered+priced only;
+ `payment_note` column, migration 024, shown on the card — NULL means
+ Stripe-webhook payment). Gated by the `commissions` permission;
+ commissions can be claimed/released so only one user edits at a time.
 - Booklet: page numbering (position + independent margins), composer-aware
   edition search, ABC/HR in the Add menu, friendly permission page.
 - Booklet template library: booklet_templates table + /api/booklet/templates
@@ -189,9 +196,11 @@ queue.
 - **Heroku config vars** in use: `SESSION_SECRET`, `JWT_SECRET` (legacy,
   unused - safe to remove), `DATABASE_URL`, `EMAIL_*`, `ADMIN_EMAIL`
   (notifications go here; set to frahasio@gmail.com to avoid Gmail
-  self-forward loss), `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` /
-  `STRIPE_WEBHOOK_SECRET`, `YOUTUBE_API_KEY`, `SPOTIFY_CLIENT_ID` /
-  `SPOTIFY_CLIENT_SECRET`.
+  self-forward loss),  `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` /
+ `STRIPE_WEBHOOK_SECRET`, `YOUTUBE_API_KEY`, `SPOTIFY_CLIENT_ID` /
+ `SPOTIFY_CLIENT_SECRET`. Optional: `BANK_TRANSFER_DETAILS` (bank account
+ details included verbatim in the commission offer email; unset = the email
+ invites a reply to request them).
 - **Scheduler jobs** (Heroku Scheduler add-on): run
  `node scripts/suggest-title-functions-do.js` (Divinum Officium matcher —
  local corpus, no API, ~6 min full sweep, idempotent; a daily run picks up
