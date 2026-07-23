@@ -11,6 +11,61 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
+// Branded wrapper for commissioner-facing emails: the site's dark-red header
+// bar over a white card. Table layout + inline styles for email-client
+// compatibility (no external CSS or webfonts in email).
+function emailShell(bodyHtml) {
+  return `<div style="background-color:#f1f3f5;padding:24px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;border-collapse:separate;border-spacing:0;">
+      <tr>
+        <td style="background-color:#8b1538;background:linear-gradient(135deg,#8b1538 0%,#6d1029 100%);border-radius:8px 8px 0 0;padding:20px 28px;">
+          <span style="color:#ffffff;font-size:22px;font-weight:600;font-family:'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif;">&#9835; The Polyphony Database</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="background-color:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:28px;color:#1e293b;font-size:15px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+          ${bodyHtml}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 8px;text-align:center;font-size:12px;font-family:Arial,Helvetica,sans-serif;">
+          <a href="https://www.polyphonydatabase.com" style="color:#94a3b8;text-decoration:none;">www.polyphonydatabase.com</a>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+// "Bulletproof" email button (table-based so Outlook renders it).
+function emailButton(href, label) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+    <tr><td bgcolor="#8b1538" style="border-radius:6px;">
+      <a href="${esc(href)}" style="display:inline-block;padding:12px 30px;color:#ffffff;font-weight:bold;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:15px;">${esc(label)}</a>
+    </td></tr>
+  </table>`;
+}
+
+// Render BANK_TRANSFER_DETAILS as a table. The var is free-form: segments are
+// split on newlines and pipes; a "Label: value" segment becomes a two-cell
+// row, anything else spans the full width.
+function bankDetailsTable(raw) {
+  const segments = raw.split(/\r?\n|\|/).map((s) => s.trim()).filter(Boolean);
+  if (!segments.length) return '';
+  const cellStyle = 'padding:8px 14px;border-top:1px solid #e2e8f0;font-family:Consolas,Menlo,monospace;font-size:14px;color:#1e293b;';
+  const rows = segments.map((seg, i) => {
+    const border = i === 0 ? cellStyle.replace('border-top:1px solid #e2e8f0;', '') : cellStyle;
+    const m = seg.match(/^([^:]{1,40}):\s*(.+)$/);
+    if (m) {
+      return `<tr>
+        <td style="${border}font-family:Arial,Helvetica,sans-serif;color:#64748b;white-space:nowrap;">${esc(m[1])}</td>
+        <td style="${border}">${esc(m[2])}</td>
+      </tr>`;
+    }
+    return `<tr><td colspan="2" style="${border}">${esc(seg)}</td></tr>`;
+  }).join('');
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background-color:#f8f9fa;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px;">${rows}</table>`;
+}
+
 // Email service for sending password reset emails
 // Force deployment update
 class EmailService {
@@ -630,25 +685,28 @@ class EmailService {
     const base = process.env.BASE_URL || 'http://localhost:3000';
     const link = `${base}/commission/${commission.access_token}`;
     const price = (commission.price_pence / 100).toLocaleString('en-GB', { style: 'currency', currency: commission.currency || 'GBP' });
-    // Bank-transfer alternative: set BANK_TRANSFER_DETAILS (multi-line OK) to
+    // Bank-transfer alternative: set BANK_TRANSFER_DETAILS (newlines and/or
+    // pipes between segments, "Label: value" segments get a label column) to
     // include account details directly; otherwise we invite a reply.
     const bank = (process.env.BANK_TRANSFER_DETAILS || '').trim();
+    const bankIntro = 'If you would prefer to pay by bank transfer <em>(more of the profit gets reinvested in the database!)</em>';
     const bankBlock = bank
-      ? `<p>If you would prefer to pay by bank transfer:</p>
-        <p>${esc(bank).replace(/\n/g, '<br>')}</p>
-        <p>Please use your name as the payment reference, and reply to this email once sent so we can confirm receipt.</p>`
-      : `<p>If you would prefer to pay by bank transfer, just reply to this email and we will send our account details.</p>`;
+      ? `<p style="margin-bottom:8px;">${bankIntro}:</p>
+        ${bankDetailsTable(bank)}
+        <p>Please use your name as the payment reference, and reply to this email once sent so I can confirm receipt.</p>`
+      : `<p>${bankIntro}, just reply to this email and I will send account details.</p>`;
     return this.sendMail({
       to: commission.commissioner_email,
       subject: 'Your edition commission — price and next steps',
-      html: `<p>Dear ${esc(commission.commissioner_name)},</p>
+      html: emailShell(`<p style="margin-top:0;">Dear ${esc(commission.commissioner_name)},</p>
         <p>Thank you for your commission enquiry for <strong>${esc(commission.piece_description)}</strong>.</p>
-        <p>We can prepare this edition for <strong>${esc(price)}</strong>.</p>
+        <p>I can prepare this edition for <strong>${esc(price)}</strong>.</p>
         ${commission.admin_note ? `<p>${esc(commission.admin_note)}</p>` : ''}
-        <p>To accept and pay by card, or to decline, please visit:</p>
-        <p><a href="${esc(link)}">${esc(link)}</a></p>
+        <p style="margin-bottom:0;">To accept and pay by card, or to decline, please visit:</p>
+        ${emailButton(link, 'Pay by card')}
+        <p style="font-size:12px;color:#64748b;margin-top:0;">or copy this link: <a href="${esc(link)}" style="color:#8b1538;">${esc(link)}</a></p>
         ${bankBlock}
-        <p>If you'd like to discuss changes first, just reply to this email.</p>`,
+        <p style="margin-bottom:0;">If you'd like to discuss changes first, just reply to this email.</p>`),
     });
   }
 
@@ -660,11 +718,13 @@ class EmailService {
     return this.sendMail({
       to: commission.commissioner_email,
       subject: 'Your commissioned edition is ready',
-      html: `<p>Dear ${esc(commission.commissioner_name)},</p>
+      html: emailShell(`<p style="margin-top:0;">Dear ${esc(commission.commissioner_name)},</p>
         <p>Your commissioned edition of <strong>${esc(commission.piece_description)}</strong> is now ready.</p>
-        ${link ? `<p>You can download it here:</p><p><a href="${esc(link)}">${esc(link)}</a></p>`
+        ${link ? `<p style="margin-bottom:0;">You can download it here:</p>
+        ${emailButton(link, 'Download your edition')}
+        <p style="font-size:12px;color:#64748b;margin-top:0;">or copy this link: <a href="${esc(link)}" style="color:#8b1538;">${esc(link)}</a></p>`
                : `<p>We will be in touch with the finished edition shortly.</p>`}
-        <p>Thank you for supporting the Polyphony Database.</p>`,
+        <p style="margin-bottom:0;">Thank you for supporting the Polyphony Database.</p>`),
     });
   }
 
