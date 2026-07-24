@@ -82,7 +82,7 @@
                     <div class="card-body" id="workbenchBody">
                         <div class="text-center text-muted py-5">
                             <i class="bi bi-collection display-6"></i>
-                            <p class="mt-2 mb-0">Select a group on the left to see and edit its inclusions, editions and recordings</p>
+                            <p class="mt-2 mb-0">Select a group on the left to see and edit its compositions, editions and recordings</p>
                         </div>
                     </div>
                 </div>
@@ -233,7 +233,7 @@
 
         function countChips(g) {
             const c = (n, label) => `<span class="chip${n > 0 ? '' : ' zero'}">${n} ${label}${n === 1 ? '' : 's'}</span>`;
-            return c(parseInt(g.composition_count), 'inclusion') + c(parseInt(g.edition_count), 'edition') + c(parseInt(g.recording_count), 'recording');
+            return c(parseInt(g.composition_count), 'composition') + c(parseInt(g.edition_count), 'edition') + c(parseInt(g.recording_count), 'recording');
         }
 
         function renderResults() {
@@ -454,7 +454,7 @@
 
                 <div class="wb-section">
                     <div class="d-flex align-items-center justify-content-between">
-                        <h6 class="mb-0">Inclusions <span class="text-muted">(${g.compositions.length})</span></h6>
+                        <h6 class="mb-0">Compositions <span class="text-muted">(${g.compositions.length})</span></h6>
                         <span class="text-muted small">tick to move / split</span>
                     </div>
                     ${comps}
@@ -634,7 +634,7 @@
             if (mode === 'new') {
                 const firstComp = openGroupData.compositions.find(c => c.id === ids[0]);
                 panel.innerHTML = `
-                    <div class="mb-1 small fw-semibold">Split ${ids.length} inclusion${ids.length === 1 ? '' : 's'} into a new group</div>
+                    <div class="mb-1 small fw-semibold">Split ${ids.length} composition${ids.length === 1 ? '' : 's'} into a new group</div>
                     <div class="input-group input-group-sm" style="max-width:520px">
                         <input type="text" id="newGroupTitle" class="form-control" value="${escapeHtml(firstComp ? (firstComp.title || '') : '')}" placeholder="New group display title">
                         <button class="btn btn-primary" onclick="doMove()">Create &amp; move</button>
@@ -644,7 +644,7 @@
                 document.getElementById('newGroupTitle').focus();
             } else {
                 panel.innerHTML = `
-                    <div class="mb-1 small fw-semibold">Move ${ids.length} inclusion${ids.length === 1 ? '' : 's'} to&hellip;</div>
+                    <div class="mb-1 small fw-semibold">Move ${ids.length} composition${ids.length === 1 ? '' : 's'} to&hellip;</div>
                     <input type="text" id="moveSearch" class="form-control form-control-sm mb-1" placeholder="Search groups by title&hellip;">
                     <div id="moveResults" class="small text-muted">Type to search for the target group.</div>
                     <div class="mt-2">
