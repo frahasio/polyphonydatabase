@@ -538,6 +538,9 @@
     if (v == null) return '';
     const s = String(v).trim();
     if (!s) return '';
+    // Bootstrap's near-black — the old colour-picker default. Map to true
+    // black: printers halftone #212529, so it prints faint and fuzzy.
+    if (/^#212529$/i.test(s) || /^rgb\(\s*33\s*,\s*37\s*,\s*41\s*\)$/i.test(s)) return '#000000';
     if (/^#[0-9a-f]{3,8}$/i.test(s)) return s;
     if (/^rgba?\s*\(/i.test(s)) return s;
     if (/^[a-z][a-z0-9()%,.\s-]*$/i.test(s) && s.length < 40) return s.toLowerCase();
@@ -1535,8 +1538,11 @@
         o.titleFontKey = o.titleFontKey
           ? (BOOKLET_FONT_STACKS[o.titleFontKey] != null ? o.titleFontKey : migrateFontKey(o.titleFontKey))
           : '';
-        const tc = String(o.titleTextColor || '#212529').trim();
-        o.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+        // #212529 was the old picker default ("black"); migrate it to true
+        // #000 — printers halftone near-black RGB, which prints faint/fuzzy.
+        let tc = String(o.titleTextColor || '#000000').trim();
+        if (/^#212529$/i.test(tc)) tc = '#000000';
+        o.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#000000';
         const lc = String(o.titleLineColor || '#adb5bd').trim();
         o.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
         if (o.titleFontSizePt == null) o.titleFontSizePt = 11;
@@ -2269,7 +2275,7 @@
       loadGoogleFont(fk);
       textEl.style.fontFamily = fontStackFor(fk);
       const tc = String(b.titleTextColor || '').trim();
-      textEl.style.color = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+      textEl.style.color = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#000000';
       const lc = String(b.titleLineColor || '').trim();
       const lineCol = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
       lineL.style.backgroundColor = lineCol;
@@ -2423,6 +2429,14 @@
       var mount = document.createElement('div');
       mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:' + staffWidthPx + 'px;';
       document.body.appendChild(mount);
+      // abcjs defaults all text to Times New Roman / Helvetica, which don't
+      // exist on the Heroku dyno where the PDF is rendered — headless Chrome
+      // substitutes a blocky fallback. Pin every text class to Crimson Text
+      // (the chant lyric font, loaded from Google Fonts in both preview and
+      // export HTML), keeping abcjs's default sizes/weights so layout and
+      // note spacing are unchanged.
+      loadGoogleFont('Crimson Text');
+      var ABC_FONT = 'Crimson Text';
       var abcOpts = {
         scale: scale || 0.7,
         staffwidth: staffWidthPx,
@@ -2437,7 +2451,23 @@
         // Justify EVERY line (incl. the last/only one) to fill the full staff width,
         // so a short tune spreads across 100% of its container instead of sitting
         // ragged on the left. stretchlast:1 makes the justify test always pass.
-        format: { stretchlast: 1 },
+        format: {
+          stretchlast: 1,
+          titlefont: ABC_FONT + ' 20',
+          subtitlefont: ABC_FONT + ' 16',
+          composerfont: ABC_FONT + ' 14 italic',
+          vocalfont: ABC_FONT + ' 13 bold',
+          wordsfont: ABC_FONT + ' 16',
+          textfont: ABC_FONT + ' 16',
+          partsfont: ABC_FONT + ' 15',
+          infofont: ABC_FONT + ' 14 italic',
+          tempofont: ABC_FONT + ' 15 bold',
+          voicefont: ABC_FONT + ' 13 bold',
+          repeatfont: ABC_FONT + ' 13',
+          measurefont: ABC_FONT + ' 14 italic',
+          annotationfont: ABC_FONT + ' 12',
+          gchordfont: ABC_FONT + ' 12',
+        },
       };
       if (opts.staffColor) abcOpts.staffColor = opts.staffColor;
       if (opts.noteColor) abcOpts.noteColor = opts.noteColor;
@@ -3469,6 +3499,11 @@
       try { await document.fonts.load('400 12pt ' + _ff); } catch(e){}
       try { await document.fonts.load('italic 400 12pt ' + _ff); } catch(e){}
       try { await document.fonts.load('600 12pt ' + _ff); } catch(e){}
+      // Chant + ABC text font (incl. the 700 weight used for ABC lyrics),
+      // needed before abcjs measures text widths.
+      loadGoogleFont('Crimson Text');
+      try { await document.fonts.load('400 13px ' + CHANT_TEXT_FONT); } catch(e){}
+      try { await document.fonts.load('700 13px ' + CHANT_TEXT_FONT); } catch(e){}
       await document.fonts.ready;
     }
     var root = document.getElementById('previewPages');
@@ -3657,7 +3692,7 @@
         '</div>' +
       '</div>' +
       '<div class="d-flex flex-wrap align-items-center" style="gap:2px 4px">' +
-        '<input type="color" class="booklet-rich-color-pick" value="#212529" title="Text colour" style="width:1.55rem;height:1.55rem;padding:1px;border-radius:3px">' +
+        '<input type="color" class="booklet-rich-color-pick" value="#000000" title="Text colour" style="width:1.55rem;height:1.55rem;padding:1px;border-radius:3px">' +
         '<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:0.6rem;line-height:1.3;height:1.55rem" data-toggle-special="' + uid + '" title="Special characters">' +
           '<i class="bi bi-chevron-right" style="font-size:0.5rem"></i> \u266D' +
         '</button>' +
@@ -4260,7 +4295,7 @@
           .join('');
       const ttc = /^#[0-9a-f]{6}$/i.test(String(b.titleTextColor || '').trim())
         ? String(b.titleTextColor).trim()
-        : '#212529';
+        : '#000000';
       const tlc = /^#[0-9a-f]{6}$/i.test(String(b.titleLineColor || '').trim())
         ? String(b.titleLineColor).trim()
         : '#adb5bd';
@@ -4302,7 +4337,7 @@
         b.titleItalic = panel.querySelector('#btnTitleItalic').classList.contains('active');
         b.titleSmallCaps = panel.querySelector('#btnTitleSC').classList.contains('active');
         const tc = panel.querySelector('#edTitleTextCol').value;
-        b.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#212529';
+        b.titleTextColor = /^#[0-9a-f]{6}$/i.test(tc) ? tc : '#000000';
         const lc = panel.querySelector('#edTitleLineCol').value;
         b.titleLineColor = /^#[0-9a-f]{6}$/i.test(lc) ? lc : '#adb5bd';
         scheduleAutosave();
@@ -4921,7 +4956,7 @@
     if (type === 'title') {
       b.text = '';
       b.titleFontKey = '';
-      b.titleTextColor = '#212529';
+      b.titleTextColor = '#000000';
       b.titleLineColor = '#adb5bd';
     }
     if (type === 'edition_pdf') {

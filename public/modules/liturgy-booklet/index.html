@@ -358,6 +358,11 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            /* True black, NOT Bootstrap's #212529: printers render near-black
+               RGB as composite/halftoned grey, which comes out faint with
+               fuzzy ("wobbly") stroke edges on paper. Pure #000 maps to
+               solid black ink. */
+            color: #000;
         }
         /* Page numbers: absolutely positioned inside the margin band so they
            never affect pagination. Position variants set inline from JS. */
@@ -365,7 +370,7 @@
             position: absolute;
             font-size: 9pt;
             line-height: 1;
-            color: #333;
+            color: #000;
             z-index: 3;
         }
         .booklet-page-number--center {
@@ -579,10 +584,10 @@
             display: block;
             overflow: visible;
         }
-        .booklet-page-body > .booklet-chant-line:first-child,
-        .booklet-page-body > .booklet-clip-container:first-child {
-            padding-top: 8px;
-        }
+        /* NOTE: never add position-dependent rules (e.g. :first-child padding)
+           to .booklet-page-body children — the paginator measures each item as
+           the sole child of an off-screen page body, so any such rule makes
+           every measurement wrong and pages come out underfilled. */
         .booklet-pdf-page-unit {
             break-inside: avoid;
             page-break-inside: avoid;
