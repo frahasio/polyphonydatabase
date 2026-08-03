@@ -338,17 +338,19 @@ router.get('/groups', async (req, res) => {
     if (title.trim()) {
       const searchTerm = title.trim();
       
-      // Function to normalize text by removing punctuation but preserving % wildcards
-      const normalizeText = (text) => {
-        return text.toLowerCase()
-          .replace(/[^a-z0-9\s%{}]/g, '') // Keep % signs and {} for literal brace searches like {N}, {psalm}
-          .replace(/\s+/g, ' ')
-          .trim();
+      // Function to normalize text by removing punctuation but preserving % wildcards.
+      // keepHyphen preserves "-" (and surrounding spacing) so users can search
+      // the multi-part title separator: " - " finds all multipart titles.
+      const normalizeText = (text, keepHyphen = false) => {
+        const collapsed = text.toLowerCase()
+          .replace(keepHyphen ? /[^a-z0-9\s%{}-]/g : /[^a-z0-9\s%{}]/g, '') // Keep % signs and {} for literal brace searches like {N}, {psalm}
+          .replace(/\s+/g, ' ');
+        return keepHyphen ? collapsed : collapsed.trim();
       };
       
-      const createVariations = (searchTerm) => {
+      const createVariations = (searchTerm, keepHyphen = false) => {
         const variations = new Set();
-        const normalizedTerm = normalizeText(searchTerm);
+        const normalizedTerm = normalizeText(searchTerm, keepHyphen);
         
         // Add the normalized version
         variations.add(normalizedTerm);
@@ -383,7 +385,9 @@ router.get('/groups', async (req, res) => {
       // "Heu mihi..."); use % explicitly to skip words. A whole-phrase
       // match on the composer name is also accepted so a bare surname
       // still finds a composer's works.
-      const variationConditions = createVariations(searchTerm).map((variation) => {
+      // Empty variations (e.g. a search of pure punctuation) would produce
+      // an ILIKE '%%' that matches everything — drop them.
+      const variationConditions = createVariations(searchTerm).filter(v => v.trim()).map((variation) => {
         const p = paramIndex;
         queryParams.push(`%${variation}%`);
         paramIndex++;
@@ -403,6 +407,29 @@ router.get('/groups', async (req, res) => {
           )
         )`;
       });
+
+      // Hyphen-aware matching: multipart titles use " - " between parts.
+      // The standard normalization strips hyphens, so when the query
+      // contains one, ALSO match against the titles with hyphens kept —
+      // " - " lists every multipart title, "novum - quoniam" finds a
+      // specific part boundary.
+      if (searchTerm.includes('-')) {
+        // Use the untrimmed input so " - " keeps its surrounding spaces and
+        // matches only the spaced part separator, not hyphenated words.
+        createVariations(title, true).filter(v => v.trim()).forEach((variation) => {
+          const p = paramIndex;
+          queryParams.push(`%${variation}%`);
+          paramIndex++;
+          variationConditions.push(`(
+            TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/', '') ILIKE $${p} OR
+            EXISTS (
+              SELECT 1 FROM compositions c2
+              JOIN titles t2 ON c2.title_id = t2.id
+              WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/', '') ILIKE $${p}
+            )
+          )`);
+        });
+      }
 
       if (variationConditions.length > 0) {
         whereConditions.push(`(${variationConditions.join(' OR ')})`);
