@@ -1373,11 +1373,27 @@
         let composerNameToId = new Map();
         let composerIdToName = new Map();
 
+        // Normalize for matching: strip zero-width chars, collapse whitespace,
+        // case-insensitive. DB names sometimes carry stray spaces which would
+        // otherwise make an exact-match lookup fail silently (-> saved as Anon).
+        function normalizeComposerKey(name) {
+            return String(name)
+                .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        }
+
+        function lookupComposerId(name) {
+            if (!name) return null;
+            return composerNameToId.get(normalizeComposerKey(name)) || null;
+        }
+
         function buildComposerMaps() {
             composerNameToId.clear();
             composerIdToName.clear();
             allComposers.forEach(c => {
-                composerNameToId.set(c.name, c.id);
+                composerNameToId.set(normalizeComposerKey(c.name), c.id);
                 composerIdToName.set(c.id, c.name);
             });
         }
@@ -2615,6 +2631,24 @@
                 showValidationErrors(clefErrors);
                 return;
             }
+
+            // Warn about composer names that don't resolve to a known composer:
+            // the server silently stores unresolved composers as Anon (id 23).
+            const unmatchedComposers = new Set();
+            document.querySelectorAll('.composer-input').forEach(input => {
+                const name = input.value.trim();
+                if (name && !lookupComposerId(name)) {
+                    unmatchedComposers.add(name);
+                }
+            });
+            if (unmatchedComposers.size > 0) {
+                const proceed = confirm(
+                    `These composer names don't match any composer in the database ` +
+                    `and would be saved as Anon:\n\n${[...unmatchedComposers].join('\n')}\n\n` +
+                    `Save anyway?`
+                );
+                if (!proceed) return;
+            }
             const modal = new bootstrap.Modal(document.getElementById('saveProgressModal'));
             modal.show();
 
@@ -2821,7 +2855,7 @@
 
         function handleComposerInputChange(input) {
             const name = input.value.trim();
-            const composerId = name ? (composerNameToId.get(name) || null) : null;
+            const composerId = lookupComposerId(name);
             const inclusionIndex = parseInt(input.dataset.inclusion);
             const attrIndex = parseInt(input.dataset.attribution);
             

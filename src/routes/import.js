@@ -397,11 +397,17 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     }
     const inclRows = XLSX.utils.sheet_to_json(wb.Sheets[inclSheetName], { defval: '' });
 
-    // Pre-load composers for name resolution
+    // Pre-load composers for name resolution. Normalize keys (strip zero-width
+    // chars, collapse whitespace) so stray spaces in DB names can't break matching.
+    const normalizeComposerName = (s) => String(s)
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
     const composerResult = await pool.query('SELECT id, name FROM composers ORDER BY name');
     const composerMap = new Map();
     for (const c of composerResult.rows) {
-      composerMap.set(c.name.toLowerCase(), c.id);
+      composerMap.set(normalizeComposerName(c.name), c.id);
     }
 
     // Pre-load composition types
@@ -491,7 +497,7 @@ router.post('/parse', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       if (rawComposers) {
         const names = rawComposers.split(';').map(s => s.trim()).filter(Boolean);
         for (const name of names) {
-          const id = composerMap.get(name.toLowerCase());
+          const id = composerMap.get(normalizeComposerName(name));
           if (id) {
             composerIds.push(id);
             composerNames.push(name);
