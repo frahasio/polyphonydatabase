@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neumes Helper — chant transcription to GABC</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Neumes Helper</h1>
+    <div class="controls">
+      <label>Clef <select id="clef"></select></label>
+      <label>Start note <select id="start"></select></label>
+      <label><input type="checkbox" id="bflat" /> B♭</label>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1 · Text</h2>
+      <textarea id="textInput" placeholder="Type or paste the chant text (Latin)…"></textarea>
+      <div class="outbar">
+        <span class="hint">The grid updates live as you type. Use line breaks for new lines, and hyphens (e.g. <code>iu-bi-la</code>) to force a syllable division.</span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <div class="main-col">
+        <section class="card">
+          <h2>2 · Syllables &amp; neumes</h2>
+          <div id="grid"></div>
+        </section>
+
+        <section class="card">
+          <h2>3 · GABC output</h2>
+          <textarea id="gabc" readonly></textarea>
+          <ul id="warnings"></ul>
+          <div class="outbar">
+            <button id="copy">Copy GABC</button>
+            <button id="save">Save project</button>
+            <label class="toggle" style="border:1px solid var(--line)">Load project <input type="file" id="load" accept="application/json" hidden /></label>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-col">
+        <section class="card preview-card">
+          <h2>Notation preview</h2>
+          <div id="preview" class="preview"><span class="hint">Add neumes to see the notation preview.</span></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div class="dock" id="dock">
+    <div class="workbench">
+      <div class="dock-palette">
+        <div class="lbl hint">Click to add to the selected syllable. Keys: ▲▼ pitch · ◀▶ move · Del remove · | bar · . / , \ ^ v c s add</div>
+        <div class="barbar" id="bars"></div>
+        <div class="palette" id="palette"></div>
+      </div>
+      <div class="inspector" id="inspector"></div>
+    </div>
+  </div>
+
+  <script src="vendor/exsurge.min.js"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
