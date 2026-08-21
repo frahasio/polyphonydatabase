@@ -17,6 +17,7 @@
   const MARGIN_TOLERANCE_PX = 10;
   const LINE_H_PX = 23.2;
   var BOOKLET_FOOTER_RESERVE_PX = 30;
+  var sessionIsAdmin = false;
 
   /**
    * Curated Google Fonts for the booklet body & title typeface picker.
@@ -399,8 +400,22 @@
     });
   }
 
+  function bookletFooterReservePx() {
+    if (sessionIsAdmin) {
+      return collectCatalogueEditionCredits(state.blocks).length ? BOOKLET_FOOTER_RESERVE_PX : 0;
+    }
+    return BOOKLET_FOOTER_RESERVE_PX;
+  }
+
   function appendCreditsFooterToLastPage(pageDivs) {
     if (!pageDivs.length) return;
+    const credits = collectCatalogueEditionCredits(state.blocks);
+    var creditsText = '';
+    if (credits.length) {
+      creditsText = 'Edition credits: ' + escapeHtml(credits.join(', ')) + '.';
+    }
+    if (sessionIsAdmin && !creditsText) return;
+
     const last = pageDivs[pageDivs.length - 1];
     const inner = last.querySelector('.page-inner-flow');
     if (!inner) return;
@@ -413,12 +428,12 @@
     footer.style.lineHeight = '1.35';
     footer.style.color = '#6c757d';
     footer.style.textAlign = 'center';
-    const credits = collectCatalogueEditionCredits(state.blocks);
-    var creditsSuffix = '';
-    if (credits.length) {
-      creditsSuffix = ' Edition credits: ' + escapeHtml(credits.join(', ')) + '.';
+    if (sessionIsAdmin) {
+      footer.innerHTML = creditsText;
+    } else {
+      footer.innerHTML = 'Generated at <a href="https://polyphonydatabase.com" style="color:#6c757d;text-decoration:underline">PolyphonyDatabase.com</a>' +
+        (creditsText ? ' ' + creditsText : '');
     }
-    footer.innerHTML = 'Generated at <a href="https://polyphonydatabase.com" style="color:#6c757d;text-decoration:underline">PolyphonyDatabase.com</a>' + creditsSuffix;
     inner.appendChild(footer);
   }
 
@@ -3559,7 +3574,7 @@
       var pageHPx = getMaxPageBodyHeightPx();
       var marginTopPx = mmToPx(getBookletMarginTopMm());
       var marginBotPx = mmToPx(getBookletMarginBottomMm());
-      var pageResults = paginateFlow(flow, widthPx, pageHPx, BOOKLET_FOOTER_RESERVE_PX);
+      var pageResults = paginateFlow(flow, widthPx, pageHPx, bookletFooterReservePx());
 
       pageDivs = pageResults.map(function (pg) {
         var page = document.createElement('div');
@@ -6137,11 +6152,23 @@
     }
   }
 
-  loadAutosave();
-  applyCssVars();
-  syncControlsFromState();
-  bindUi();
-  renderBlockList();
-  renderEditor();
-  scheduleRenderPreview();
+  async function boot() {
+    try {
+      const r = await fetch('/api/auth/status', { credentials: 'include' });
+      if (r.ok) {
+        const data = await r.json();
+        sessionIsAdmin = !!(data.authenticated && data.role === 'admin');
+      }
+    } catch (_) {}
+
+    loadAutosave();
+    applyCssVars();
+    syncControlsFromState();
+    bindUi();
+    renderBlockList();
+    renderEditor();
+    scheduleRenderPreview();
+  }
+
+  boot();
 })();

@@ -1205,7 +1205,66 @@ router.get('/groups', async (req, res) => {
       ${whereClause}
     `;
 
-    // Main search query with all related data
+    // Composer summary for a group (single named composer -> name + dates,
+    // several -> 'conflicting attributions', none -> 'Anon'). Used by the
+    // hydration query for every page row, and by the id query only when
+    // sorting by composer.
+    const composerInfoLateral = `LEFT JOIN LATERAL (
+        SELECT
+          CASE 
+            WHEN named_ct > 1 THEN 'conflicting attributions'
+            WHEN named_ct = 1 THEN single_name
+            ELSE 'Anon'
+          END as composer_display,
+          CASE 
+            WHEN named_ct = 1 THEN (
+              SELECT CASE 
+                WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
+                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                WHEN comp.from_year IS NOT NULL 
+                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–)'
+                WHEN comp.to_year IS NOT NULL 
+                THEN '(–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
+                ELSE NULL
+              END
+              FROM composers comp WHERE comp.id = single_id
+            )
+            ELSE NULL
+          END as composer_dates
+        FROM (
+          SELECT 
+            COUNT(DISTINCT cid) as named_ct,
+            MIN(cid) as single_id,
+            (SELECT comp2.name FROM composers comp2 WHERE comp2.id = MIN(cid)) as single_name
+          FROM (
+            SELECT DISTINCT unnest_id as cid
+            FROM compositions c2
+            CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS unnest_id
+            WHERE c2.group_id = g.id 
+              AND c2.composer_id_list IS NOT NULL 
+              AND array_length(c2.composer_id_list, 1) > 0
+              AND unnest_id != 23
+          ) named
+        ) agg
+      ) gc_info ON true`;
+
+    // PHASE 1: find just the ids for the requested page. Runs the filters
+    // and sort over all matching groups but does NONE of the heavy JSON
+    // hydration, which previously ran for every matching row before LIMIT.
+    // g.id is appended as a tiebreaker so paging is deterministic.
+    const needsComposerSort = sort === 'composer' || sort === 'composer_desc';
+    const idQuery = `
+      SELECT g.id${needsComposerSort ? ', gc_info.composer_display' : ''}
+      FROM groups g
+      ${needsComposerSort ? composerInfoLateral : ''}
+      ${whereClause}
+      GROUP BY g.id${needsComposerSort ? ', gc_info.composer_display' : ''}
+      ${orderByClause}, g.id
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    // PHASE 2: hydrate all related data for the page's rows only
+    // (unnest ordinality preserves the phase-1 sort order).
     const searchQuery = `
       SELECT 
         g.id,
@@ -1426,57 +1485,23 @@ router.get('/groups', async (req, res) => {
           ) imgs ON s.id = imgs.source_id
           WHERE comp.group_id = g.id AND s.catalogued = true
         ) as sources
-      FROM groups g
-      LEFT JOIN LATERAL (
-        SELECT
-          CASE 
-            WHEN named_ct > 1 THEN 'conflicting attributions'
-            WHEN named_ct = 1 THEN single_name
-            ELSE 'Anon'
-          END as composer_display,
-          CASE 
-            WHEN named_ct = 1 THEN (
-              SELECT CASE 
-                WHEN comp.from_year IS NOT NULL AND comp.to_year IS NOT NULL 
-                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
-                WHEN comp.from_year IS NOT NULL 
-                THEN '(' || COALESCE(comp.from_year_annotation, '') || comp.from_year || '–)'
-                WHEN comp.to_year IS NOT NULL 
-                THEN '(–' || COALESCE(comp.to_year_annotation, '') || comp.to_year || ')'
-                ELSE NULL
-              END
-              FROM composers comp WHERE comp.id = single_id
-            )
-            ELSE NULL
-          END as composer_dates
-        FROM (
-          SELECT 
-            COUNT(DISTINCT cid) as named_ct,
-            MIN(cid) as single_id,
-            (SELECT comp2.name FROM composers comp2 WHERE comp2.id = MIN(cid)) as single_name
-          FROM (
-            SELECT DISTINCT unnest_id as cid
-            FROM compositions c2
-            CROSS JOIN unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS unnest_id
-            WHERE c2.group_id = g.id 
-              AND c2.composer_id_list IS NOT NULL 
-              AND array_length(c2.composer_id_list, 1) > 0
-              AND unnest_id != 23
-          ) named
-        ) agg
-      ) gc_info ON true
-      ${whereClause}
-      GROUP BY g.id, g.display_title, g.created_at, g.updated_at, gc_info.composer_display, gc_info.composer_dates
-      ${orderByClause}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      FROM unnest($1::integer[]) WITH ORDINALITY AS page(id, rn)
+      JOIN groups g ON g.id = page.id
+      ${composerInfoLateral}
+      ORDER BY page.rn
     `;
 
     queryParams.push(limit, offset);
 
-    const [countResult, searchResult] = await Promise.all([
+    const [countResult, idResult] = await Promise.all([
       pool.query(countQuery, queryParams.slice(0, -2)),
-      pool.query(searchQuery, queryParams)
+      pool.query(idQuery, queryParams)
     ]);
+
+    const pageIds = idResult.rows.map(r => r.id);
+    const searchResult = pageIds.length
+      ? await pool.query(searchQuery, [pageIds])
+      : { rows: [] };
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);

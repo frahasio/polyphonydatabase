@@ -368,6 +368,14 @@ body.sidebar-collapsed .admin-main {
     left: 0 !important;
   }
 
+  .sticky-header {
+    left: 0 !important;
+  }
+
+  body.sidebar-collapsed .sticky-header {
+    left: 0 !important;
+  }
+
   .header-title {
     font-size: 0.8rem;
   }

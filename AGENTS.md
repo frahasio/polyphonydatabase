@@ -166,12 +166,17 @@ deployed. Also shipped since:
 
 ## Deferred / recommended NOT to big-bang (do incrementally)
 
-- **Public search rebuild** (`src/routes/search.js`): the main group query is
-  a correlated-subquery wall (~10+ subqueries per row). A query-builder +
-  two-phase hydration would be faster, but it is the public-facing core and
-  there is no automated test suite - rebuild incrementally while touching it,
-  not speculatively. Production indexes DO exist (trigram, GIN) - see
-  `000_baseline_schema.sql`.
+- **Public search rebuild** (`src/routes/search.js`): two-phase hydration
+ SHIPPED Aug 2026 — phase 1 selects just the page of group ids (filters +
+ sort + LIMIT, with g.id as a paging tiebreaker; the composer-summary
+ lateral is only joined for composer sorts), phase 2 hydrates the ~15 heavy
+ JSON subqueries for those 25 ids only (unnest WITH ORDINALITY preserves
+ order). Previously the hydration ran for EVERY matching row before LIMIT.
+ The count query still runs the full filter set (needed for exact
+ pagination). Remaining ideas: merge count into phase 1 via COUNT(*)
+ OVER (), query-builder cleanup. No automated test suite — verify the main
+ filter/sort combos manually after touching this. Production indexes DO
+ exist (trigram, GIN) - see `000_baseline_schema.sql`.
 - **Booklet decomposition** (`public/modules/liturgy-booklet/booklet-app.js`,
   ~5,500 lines): worth splitting into modules (state/store, migrate,
   renderers, paginator, pdf export, ui) and adding undo, BUT it is a complex

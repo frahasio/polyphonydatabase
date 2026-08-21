@@ -290,21 +290,26 @@
             opacity: 1;
         }
         
-        /* Sticky header and save button */
+        /* Sticky header and save button — offset for admin sidebar + top bar */
         .sticky-header {
             position: fixed;
-            top: 0;
-            left: 0;
+            top: var(--header-height);
+            left: var(--sidebar-width);
             right: 0;
-            z-index: 1030;
+            z-index: 1025;
             background: white;
             border-bottom: 2px solid #dee2e6;
             padding: 10px 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: left 0.2s ease;
+        }
+
+        body.sidebar-collapsed .sticky-header {
+            left: var(--sidebar-collapsed-width);
         }
         
         .main-content-with-header {
-            margin-top: 80px;
+            margin-top: 56px;
         }
         
         .drag-handle {
@@ -1123,36 +1128,7 @@
             const modal = bootstrap.Modal.getInstance(document.getElementById('addInclusionModal'));
             modal.hide();
 
-            // For "end" inserts, surgically append new rows without rebuilding
-            if (position === 'end') {
-                const container = document.querySelector('.inclusions-container');
-                if (container) {
-                    // Remove blank placeholder rows before appending
-                    container.querySelectorAll('.blank-row').forEach(r => r.remove());
-
-                    for (let i = 0; i < newInclusions.length; i++) {
-                        const idx = insertIndex + i;
-                        const html = buildInclusionRow(newInclusions[i], idx, false);
-                        const temp = document.createElement('div');
-                        temp.innerHTML = html;
-                        const rowEl = temp.firstElementChild;
-                        container.appendChild(rowEl);
-                        initializeRowInteractions(rowEl);
-                        updateRowStyling(idx);
-                    }
-
-                    // Re-add a single blank row at the end
-                    const blankHtml = buildInclusionRow(createBlankInclusion(), inclusionsData.length, true);
-                    const blankTemp = document.createElement('div');
-                    blankTemp.innerHTML = blankHtml;
-                    container.appendChild(blankTemp.firstElementChild);
-                }
-            } else {
-                // For beginning/between inserts, we need to re-index all rows,
-                // so a full rebuild is the safest approach
-                displayInclusions();
-            }
-
+            displayInclusions();
             displayInclusionsPagination();
             markAsUnsaved();
         }
@@ -1707,9 +1683,9 @@
                 (inclusion.composition?.even_odd !== null && inclusion.composition?.even_odd !== undefined) ||
                 (inclusion.clefs && inclusion.clefs.some(clef => clef.clef && clef.clef.trim()));
             
-            // Add or remove has-data class
             if (hasData) {
                 row.classList.add('has-data');
+                row.classList.remove('blank-row');
             } else {
                 row.classList.remove('has-data');
             }

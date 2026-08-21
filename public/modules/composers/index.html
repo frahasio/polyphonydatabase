@@ -85,10 +85,17 @@
 
         <div class="card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
                     <a href="new.html" target="_blank" class="btn btn-primary" title="Add a new composer (opens in new tab)">
                         <i class="bi bi-plus-lg"></i> Add Composer
                     </a>
+                    <div class="input-group" style="max-width: 320px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="composerSearch" placeholder="Search composers…" autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="Clear search" style="display:none;">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -146,6 +153,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let currentLetter = 'A';  // Default to A
+        let allComposers = [];    // Full list cached from the API
+        let searchQuery = '';
 
         // Function to update URL with current state
         function updateURL() {
@@ -189,22 +198,38 @@
                 if (!data.composers) {
                     throw new Error('Invalid response format');
                 }
-                // Filter composers by first letter
-                const filteredComposers = data.composers.filter(composer => 
-                    composer.name.toUpperCase().startsWith(currentLetter)
-                );
-                displayComposers(filteredComposers);
-                updateURL();
+                allComposers = data.composers;
+                renderFilteredComposers();
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to load composers. Please try again.');
             }
         }
 
+        function renderFilteredComposers() {
+            let filtered;
+            if (searchQuery) {
+                // Search across ALL composers, ignoring the letter filter
+                const q = searchQuery.toLowerCase();
+                filtered = allComposers.filter(c => c.name.toLowerCase().includes(q));
+            } else {
+                filtered = allComposers.filter(c =>
+                    c.name.toUpperCase().startsWith(currentLetter)
+                );
+            }
+            displayComposers(filtered);
+            updateURL();
+        }
+
         function displayComposers(composers) {
             const tbody = document.getElementById('composersList');
             let currentFirstLetter = '';
             let html = '';
+
+            if (composers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center py-4">No composers found${searchQuery ? ` matching "${escapeHtml(searchQuery)}"` : ''}.</td></tr>`;
+                return;
+            }
 
             composers.forEach(composer => {
                 const firstLetter = composer.name.charAt(0).toUpperCase();
@@ -265,11 +290,35 @@
                 });
                 // Add active class to clicked button
                 button.classList.add('active');
-                // Update current letter and fetch composers
+                // Clicking a letter clears any active search
+                clearSearch(false);
                 currentLetter = button.dataset.letter;
-                fetchComposers();
+                renderFilteredComposers();
             });
         });
+
+        // Search box
+        const searchInput = document.getElementById('composerSearch');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+        function clearSearch(rerender = true) {
+            searchQuery = '';
+            searchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            if (rerender) renderFilteredComposers();
+        }
+
+        searchInput.addEventListener('input', () => {
+            searchQuery = searchInput.value.trim();
+            clearSearchBtn.style.display = searchQuery ? '' : 'none';
+            renderFilteredComposers();
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') clearSearch();
+        });
+
+        clearSearchBtn.addEventListener('click', () => clearSearch());
 
         // Initialize
         getInitialState();
