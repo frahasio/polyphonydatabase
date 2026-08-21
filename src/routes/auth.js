@@ -4,7 +4,7 @@ import validator from 'validator';
 import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { pool } from '../db.js';
-import { isAccountLocked, requireAuth } from '../middleware/auth.js';
+import { isAccountLocked, requireAuth, CATALOGUE_ENTITIES } from '../middleware/auth.js';
 import { ensureUserPermissions } from '../db.js';
 import emailService from '../services/emailService.js';
 
@@ -47,12 +47,17 @@ function hashResetToken(token) {
 // User registration
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, message } = req.body;
 
     // Validation
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
+
+    // Optional message about what access the applicant is hoping for
+    const applicationMessage = typeof message === 'string' && message.trim()
+      ? message.trim().slice(0, 2000)
+      : null;
 
     if (!validator.isEmail(email)) {
       return res.status(400).json({ error: 'Please provide a valid email address' });
@@ -78,10 +83,10 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     // Insert new user
     const result = await pool.query(
-      `INSERT INTO users (email, password_hash, name, status, role) 
-       VALUES ($1, $2, $3, 'pending', 'user') 
+      `INSERT INTO users (email, password_hash, name, status, role, application_message) 
+       VALUES ($1, $2, $3, 'pending', 'user', $4) 
        RETURNING id, email, name, status, created_at`,
-      [email.toLowerCase(), passwordHash, name.trim()]
+      [email.toLowerCase(), passwordHash, name.trim(), applicationMessage]
     );
 
     const newUser = result.rows[0];
@@ -95,7 +100,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     // Send notification email to admin
-    const adminEmailSent = await emailService.sendAdminNotificationEmail(newUser.email, newUser.name);
+    const adminEmailSent = await emailService.sendAdminNotificationEmail(newUser.email, newUser.name, applicationMessage);
     if (adminEmailSent) {
       console.log(`Admin notification email sent for new user: ${newUser.email}`);
     } else {
@@ -253,8 +258,12 @@ router.post('/refresh', requireAuth, (req, res) => {
 // Get current user info (including permissions)
 router.get('/me', requireAuth, async (req, res) => {
   let permissions = { catalogue: true, booklet_creator: true, import_source: true, commissions: true };
+  // Per-entity write levels ('write' | 'full'; absent = read-only).
+  let entityPermissions = {};
 
-  if (req.user.role !== 'admin') {
+  if (req.user.role === 'admin') {
+    CATALOGUE_ENTITIES.forEach((entity) => { entityPermissions[entity] = 'full'; });
+  } else {
     await ensureUserPermissions(req.user.id);
     const permResult = await pool.query(
       'SELECT catalogue, booklet_creator, import_source, commissions FROM user_permissions WHERE user_id = $1',
@@ -263,6 +272,11 @@ router.get('/me', requireAuth, async (req, res) => {
     if (permResult.rows.length) {
       permissions = permResult.rows[0];
     }
+    const entityResult = await pool.query(
+      'SELECT entity, level FROM user_entity_permissions WHERE user_id = $1',
+      [req.user.id]
+    );
+    entityResult.rows.forEach((row) => { entityPermissions[row.entity] = row.level; });
   }
 
   res.json({
@@ -273,7 +287,8 @@ router.get('/me', requireAuth, async (req, res) => {
       role: req.user.role,
       status: req.user.status,
       last_login: req.user.last_login,
-      permissions
+      permissions,
+      entity_permissions: entityPermissions
     }
   });
 });

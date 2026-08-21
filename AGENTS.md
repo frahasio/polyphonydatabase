@@ -133,6 +133,23 @@ deployed. Also shipped since:
   generated official templates — deliberate refresh only). Planned next:
   Divinum Officium import for texts/translations and a fetch-translation
   button backed by the vendored Douay-Rheims/Vulgate files.
+- Granular permissions (Aug 2026, migrations 025+026): user_permissions.
+ catalogue is now VIEW-only access to the admin cataloguing pages (and
+ defaults to FALSE — new users get nothing until granted on /modules/
+ permissions). Writes are gated per entity via user_entity_permissions
+ (user_id, entity, level): entities sources (incl. inclusions), composers,
+ titles, functions, groups (incl. editions/recordings), people (editors/
+ scribes/publishers/performers), suggestions (review queue); level 'write'
+ = add+edit, 'full' = also delete. No row = read-only. Enforced by
+ requireEntityPermission in src/middleware/auth.js: GET needs catalogue
+ view; POST/PUT need write; DELETE and POST ...(/merge) need full. Titles
+ live under the functions router, so that mount resolves the entity from
+ req.path (/titles/* -> titles). Admins bypass everything. /api/auth/me
+ returns entity_permissions so pages COULD hide buttons the user can't use
+ (not yet done — a permission-less click currently just gets a 403 alert).
+ The permissions page has a 3-state dropdown per entity; granting a level
+ auto-enables catalogue view. Existing catalogue users were backfilled to
+ 'full' on all entities.
 - Backend CRUD dedup: composers/editors/performers/publishers/scribes now use
  `src/routes/entityRouter.js` (`createEntityRouter`). Optional cfg:
  `listCount` (usage count in list responses) and `mergeRefs` (POST /merge

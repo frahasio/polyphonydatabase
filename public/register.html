@@ -237,6 +237,14 @@
                 <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm your password">
             </div>
 
+            <div class="form-group">
+                <label for="applicationMessage">What would you like to use the database for?</label>
+                <textarea id="applicationMessage" name="applicationMessage" rows="3" maxlength="2000"
+                    placeholder="e.g. I'd like to create liturgy booklets, or I'd like to help with cataloguing sources"
+                    style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 15px; font-family: inherit; resize: vertical;"></textarea>
+                <div class="password-requirements">Optional — this helps us set up the right access for you</div>
+            </div>
+
             <button type="submit" class="btn" id="registerBtn">
                 Submit Registration Request
             </button>
@@ -323,6 +331,7 @@
             const email = formData.get('email').trim();
             const password = formData.get('password');
             const confirmPassword = formData.get('confirmPassword');
+            const applicationMessage = (formData.get('applicationMessage') || '').trim();
 
             // Validation
             if (!name || !email || !password || !confirmPassword) {
@@ -349,7 +358,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name, email, password })
+                    body: JSON.stringify({ name, email, password, message: applicationMessage })
                 });
 
                 const data = await response.json();

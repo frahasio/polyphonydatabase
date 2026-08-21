@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool, ensureUserPermissions } from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, CATALOGUE_ENTITIES } from '../middleware/auth.js';
 import emailService from '../services/emailService.js';
 
 // Admin user management, mounted at /api/admin (moved here from the old
@@ -30,12 +30,19 @@ router.get('/users', async (req, res) => {
 
     const result = await pool.query(`
       SELECT u.id, u.email, u.name, u.status, u.role, u.created_at, u.last_login, u.login_attempts,
-             COALESCE(p.catalogue, true) AS perm_catalogue,
+             u.application_message,
+             COALESCE(p.catalogue, false) AS perm_catalogue,
              COALESCE(p.booklet_creator, false) AS perm_booklet_creator,
              COALESCE(p.import_source, false) AS perm_import_source,
-             COALESCE(p.commissions, false) AS perm_commissions
+             COALESCE(p.commissions, false) AS perm_commissions,
+             COALESCE(ep.entity_permissions, '{}'::json) AS entity_permissions
       FROM users u
       LEFT JOIN user_permissions p ON p.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT json_object_agg(uep.entity, uep.level) AS entity_permissions
+        FROM user_entity_permissions uep
+        WHERE uep.user_id = u.id
+      ) ep ON true
       ${whereClause}
       ORDER BY u.created_at DESC 
       LIMIT $1 OFFSET $2
@@ -58,12 +65,14 @@ router.get('/users', async (req, res) => {
       created_at: row.created_at,
       last_login: row.last_login,
       login_attempts: row.login_attempts,
+      application_message: row.application_message,
       permissions: {
         catalogue: row.perm_catalogue,
         booklet_creator: row.perm_booklet_creator,
         import_source: row.perm_import_source,
         commissions: row.perm_commissions
-      }
+      },
+      entity_permissions: row.entity_permissions || {}
     }));
 
     res.json({
@@ -218,15 +227,31 @@ router.put('/users/:id/role', async (req, res) => {
   }
 });
 
-// Update user feature permissions
+// Update user feature permissions. Optionally accepts `entities`, an object
+// mapping catalogue entity names to 'none' | 'write' | 'full' (see
+// CATALOGUE_ENTITIES); omitted entities are left unchanged.
 router.put('/users/:id/permissions', async (req, res) => {
   try {
     const { id } = req.params;
-    const { catalogue, booklet_creator, import_source, commissions } = req.body;
+    const { catalogue, booklet_creator, import_source, commissions, entities } = req.body;
 
     if (typeof catalogue !== 'boolean' || typeof booklet_creator !== 'boolean' ||
         typeof import_source !== 'boolean' || typeof commissions !== 'boolean') {
       return res.status(400).json({ error: 'catalogue, booklet_creator, import_source and commissions must be booleans' });
+    }
+
+    if (entities !== undefined) {
+      if (typeof entities !== 'object' || entities === null || Array.isArray(entities)) {
+        return res.status(400).json({ error: 'entities must be an object of entity -> level' });
+      }
+      for (const [entity, level] of Object.entries(entities)) {
+        if (!CATALOGUE_ENTITIES.includes(entity)) {
+          return res.status(400).json({ error: `Unknown entity: ${entity}` });
+        }
+        if (!['none', 'write', 'full'].includes(level)) {
+          return res.status(400).json({ error: `Invalid level for ${entity}: must be none, write or full` });
+        }
+      }
     }
 
     const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
@@ -244,9 +269,29 @@ router.put('/users/:id/permissions', async (req, res) => {
       [catalogue, booklet_creator, import_source, commissions, req.user.id, id]
     );
 
+    if (entities !== undefined) {
+      for (const [entity, level] of Object.entries(entities)) {
+        if (level === 'none') {
+          await pool.query(
+            'DELETE FROM user_entity_permissions WHERE user_id = $1 AND entity = $2',
+            [id, entity]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO user_entity_permissions (user_id, entity, level, updated_by)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (user_id, entity)
+             DO UPDATE SET level = $3, updated_at = NOW(), updated_by = $4`,
+            [id, entity, level, req.user.id]
+          );
+        }
+      }
+    }
+
     res.json({
       message: 'Permissions updated',
-      permissions: { catalogue, booklet_creator, import_source, commissions }
+      permissions: { catalogue, booklet_creator, import_source, commissions },
+      ...(entities !== undefined ? { entities } : {})
     });
 
   } catch (error) {

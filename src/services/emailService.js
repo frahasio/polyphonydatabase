@@ -464,14 +464,28 @@ class EmailService {
     }
   }
 
-  async sendAdminNotificationEmail(userEmail, userName) {
+  async sendAdminNotificationEmail(userEmail, userName, applicationMessage) {
     if (!this.transporter) {
       console.error('Email service not configured. Check your environment variables.');
       return false;
     }
 
     const adminEmail = 'polyphonydatabase@gmail.com';
-    const adminUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/user-management`;
+    const adminUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/users`;
+
+    // User-supplied values are interpolated into email HTML — escape them.
+    const esc = (s) => String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const safeName = esc(userName);
+    const safeEmail = esc(userEmail);
+    const messageHtml = applicationMessage
+      ? `
+              <div class="user-details">
+                <h3>Their message:</h3>
+                <p style="white-space: pre-wrap;">${esc(applicationMessage)}</p>
+              </div>`
+      : '';
     
 
     
@@ -508,13 +522,13 @@ class EmailService {
               <div class="user-details">
                 <h3>User Details:</h3>
                 <ul>
-                  <li><strong>Name:</strong> ${userName}</li>
-                  <li><strong>Email:</strong> ${userEmail}</li>
+                  <li><strong>Name:</strong> ${safeName}</li>
+                  <li><strong>Email:</strong> ${safeEmail}</li>
                   <li><strong>Status:</strong> Pending approval</li>
                   <li><strong>Registration Time:</strong> ${new Date().toLocaleString()}</li>
                 </ul>
               </div>
-              
+              ${messageHtml}
               <div class="priority">
                 <strong>Action Required:</strong> Please review and approve/reject this registration request.
               </div>
@@ -544,7 +558,7 @@ class EmailService {
         Email: ${userEmail}
         Status: Pending approval
         Registration Time: ${new Date().toLocaleString()}
-        
+        ${applicationMessage ? `\n        Their message:\n        ${applicationMessage}\n` : ''}
         Action Required: Please review and approve/reject this registration request.
         
         Review at: ${adminUrl}

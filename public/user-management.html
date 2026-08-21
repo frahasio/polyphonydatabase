@@ -240,7 +240,10 @@
 
             tbody.innerHTML = filteredUsers.map(user => `
                 <tr>
-                    <td>${escapeHtml(user.name)}</td>
+                    <td>
+                        ${escapeHtml(user.name)}
+                        ${user.application_message ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px; max-width: 320px; white-space: pre-wrap;"><em>&ldquo;${escapeHtml(user.application_message)}&rdquo;</em></div>` : ''}
+                    </td>
                     <td>${escapeHtml(user.email)}</td>
                     <td><span class="status-badge status-${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
                     <td>${escapeHtml(user.role)}</td>

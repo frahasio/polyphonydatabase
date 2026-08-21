@@ -2,7 +2,7 @@ import express from 'express';
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { pool, runMigrations } from './db.js';
-import { requireAuthWeb, requirePermission, requirePermissionWeb } from './middleware/auth.js';
+import { requireAuthWeb, requirePermission, requirePermissionWeb, requireEntityPermission } from './middleware/auth.js';
 import sourcesRouter from './routes/sources.js';
 import composersRouter from './routes/composers.js';
 import editorsRouter from './routes/editors.js';
@@ -219,17 +219,23 @@ app.get('/admin/modules*', requireAuthWeb, (req, res, next) => {
   express.static('public')(req, res, next);
 });
 
-// Admin API routes (require authentication + feature permissions)
-app.use('/api/admin/sources', requireAuthWeb, requirePermission('catalogue'), sourcesRouter);
-app.use('/api/admin/composers', requireAuthWeb, requirePermission('catalogue'), composersRouter);
-app.use('/api/admin/editors', requireAuthWeb, requirePermission('catalogue'), editorsRouter);
-app.use('/api/admin/performers', requireAuthWeb, requirePermission('catalogue'), performersRouter);
-app.use('/api/admin/publishers', requireAuthWeb, requirePermission('catalogue'), publishersRouter);
-app.use('/api/admin/scribes', requireAuthWeb, requirePermission('catalogue'), scribesRouter);
-app.use('/api/admin/functions', requireAuthWeb, requirePermission('catalogue'), functionsRouter);
-app.use('/api/admin/groups', requireAuthWeb, requirePermission('catalogue'), groupsRouter);
+// Admin API routes. Reads (GET) need the 'catalogue' view permission;
+// writes need the matching per-entity permission (write = add/edit,
+// full = also delete/merge). Admins bypass. See requireEntityPermission.
+app.use('/api/admin/sources', requireAuthWeb, requireEntityPermission('sources'), sourcesRouter);
+app.use('/api/admin/composers', requireAuthWeb, requireEntityPermission('composers'), composersRouter);
+app.use('/api/admin/editors', requireAuthWeb, requireEntityPermission('people'), editorsRouter);
+app.use('/api/admin/performers', requireAuthWeb, requireEntityPermission('people'), performersRouter);
+app.use('/api/admin/publishers', requireAuthWeb, requireEntityPermission('people'), publishersRouter);
+app.use('/api/admin/scribes', requireAuthWeb, requireEntityPermission('people'), scribesRouter);
+// Titles are managed through the functions router (/titles/* endpoints),
+// so the entity is resolved per request path.
+app.use('/api/admin/functions', requireAuthWeb,
+  requireEntityPermission((req) => req.path.startsWith('/titles') ? 'titles' : 'functions'),
+  functionsRouter);
+app.use('/api/admin/groups', requireAuthWeb, requireEntityPermission('groups'), groupsRouter);
 app.use('/api/admin/import', requireAuthWeb, requirePermission('import_source'), importRouter);
-app.use('/api/admin/suggestions', requireAuthWeb, requirePermission('catalogue'), suggestionsRouter);
+app.use('/api/admin/suggestions', requireAuthWeb, requireEntityPermission('suggestions'), suggestionsRouter);
 // User management + commissions (guard themselves with requireAdmin → JSON 401/403)
 app.use('/api/admin/commissions', requireAuthWeb, requirePermission('commissions'), adminCommissionsRouter);
 app.use('/api/admin', adminUsersRouter);

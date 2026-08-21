@@ -94,6 +94,65 @@ export const requirePermission = (permName) => {
   };
 };
 
+// Granular catalogue permissions (migration 026). Each entity bucket has a
+// per-user level: no row = read-only, 'write' = add+edit, 'full' = also
+// delete. GET/HEAD requests need only the 'catalogue' (view) permission.
+// DELETE — and POST endpoints ending in /merge, which delete the merged
+// rows — require 'full'. Admins bypass everything.
+export const CATALOGUE_ENTITIES = [
+  'sources', 'composers', 'titles', 'functions', 'groups', 'people', 'suggestions'
+];
+
+export const requireEntityPermission = (entityOrResolver) => {
+  if (typeof entityOrResolver === 'string' && !CATALOGUE_ENTITIES.includes(entityOrResolver)) {
+    throw new Error(`Invalid entity name: ${entityOrResolver}`);
+  }
+
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      if (req.user.role === 'admin') {
+        return next();
+      }
+
+      const method = req.method.toUpperCase();
+      if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+        if (await userHasPermission(req.user, 'catalogue')) return next();
+        return res.status(403).json({ error: 'You do not have permission to access this feature' });
+      }
+
+      const entity = typeof entityOrResolver === 'function'
+        ? entityOrResolver(req)
+        : entityOrResolver;
+      if (!CATALOGUE_ENTITIES.includes(entity)) {
+        console.error(`Entity permission check: unknown entity "${entity}"`);
+        return res.status(403).json({ error: 'Permission check failed' });
+      }
+
+      const result = await pool.query(
+        'SELECT level FROM user_entity_permissions WHERE user_id = $1 AND entity = $2',
+        [req.user.id, entity]
+      );
+      const level = result.rows.length ? result.rows[0].level : null;
+
+      const needsFull = method === 'DELETE' || /\/merge$/.test(req.path);
+      const allowed = needsFull ? level === 'full' : (level === 'write' || level === 'full');
+      if (allowed) return next();
+
+      return res.status(403).json({
+        error: needsFull
+          ? 'You do not have permission to delete or merge these records'
+          : 'You do not have permission to edit these records'
+      });
+    } catch (error) {
+      console.error('Entity permission check error:', error);
+      return res.status(403).json({ error: 'Permission check failed' });
+    }
+  };
+};
+
 // Check whether a (non-admin) user has the given feature permission.
 async function userHasPermission(user, permName) {
   if (user.role === 'admin') return true;

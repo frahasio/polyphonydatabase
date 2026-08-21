@@ -12,6 +12,11 @@
         .perm-switch { cursor: pointer; }
         .perm-switch.disabled { opacity: 0.6; cursor: default; }
         .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+        .level-select { min-width: 92px; font-size: 0.78rem; padding: 0.15rem 1.4rem 0.15rem 0.4rem; }
+        .level-select.level-write { background-color: #fff8e1; }
+        .level-select.level-full { background-color: #e8f5e9; }
+        #permissionsTable th { font-size: 0.72rem; white-space: nowrap; }
+        .th-group { border-bottom: none !important; text-align: center; color: #64748b; }
     </style>
 </head>
 <body>
@@ -28,21 +33,33 @@
                 <h6 class="mb-0">User Permissions</h6>
                 <small class="text-muted">Changes are saved immediately</small>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 table-responsive">
                 <table class="table table-sm table-hover mb-0" id="permissionsTable">
                     <thead>
                         <tr>
+                            <th class="th-group" colspan="2"></th>
+                            <th class="th-group" colspan="8">Catalogue — view access plus per-entity editing (– / add+edit / full incl. delete)</th>
+                            <th class="th-group" colspan="3">Other features</th>
+                        </tr>
+                        <tr>
                             <th class="ps-3">User</th>
                             <th>Role</th>
-                            <th class="text-center">Catalogue</th>
-                            <th class="text-center">Booklet Creator</th>
+                            <th class="text-center">View</th>
+                            <th class="text-center">Sources</th>
+                            <th class="text-center">Composers</th>
+                            <th class="text-center">Titles</th>
+                            <th class="text-center">Functions</th>
+                            <th class="text-center">Groups</th>
+                            <th class="text-center">People</th>
+                            <th class="text-center">Review queue</th>
+                            <th class="text-center">Booklet</th>
                             <th class="text-center">Import</th>
                             <th class="text-center">Commissions</th>
                         </tr>
                     </thead>
                     <tbody id="permissionsBody">
                         <tr>
-                            <td colspan="6" class="text-muted text-center py-4">
+                            <td colspan="13" class="text-muted text-center py-4">
                                 <i class="bi bi-hourglass-split me-1"></i>Loading users...
                             </td>
                         </tr>
@@ -98,10 +115,26 @@
                 '</div>';
         }
 
+        var ENTITIES = ['sources', 'composers', 'titles', 'functions', 'groups', 'people', 'suggestions'];
+
+        function makeLevelSelect(userId, entity, level, disabled) {
+            var cls = 'form-select level-select' +
+                (level === 'write' ? ' level-write' : level === 'full' ? ' level-full' : '');
+            return '<select class="' + cls + '"' +
+                ' data-user-id="' + userId + '"' +
+                ' data-entity="' + entity + '"' +
+                (disabled ? ' disabled title="Admins have all permissions"' : '') +
+                '>' +
+                '<option value="none"' + (!level || level === 'none' ? ' selected' : '') + '>–</option>' +
+                '<option value="write"' + (level === 'write' ? ' selected' : '') + '>Add+edit</option>' +
+                '<option value="full"' + (level === 'full' ? ' selected' : '') + '>Full</option>' +
+                '</select>';
+        }
+
         function renderTable() {
             var tbody = document.getElementById('permissionsBody');
             if (!usersCache.length) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-center py-4">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-muted text-center py-4">No users found</td></tr>';
                 return;
             }
             tbody.innerHTML = usersCache.map(function(u) {
@@ -110,10 +143,16 @@
                     : '<span class="badge bg-secondary">user</span>';
                 var isAdmin = u.role === 'admin';
                 var p = u.permissions || {};
+                var ep = u.entity_permissions || {};
+                var entityCells = ENTITIES.map(function(entity) {
+                    var level = isAdmin ? 'full' : (ep[entity] || 'none');
+                    return '<td class="text-center">' + makeLevelSelect(u.id, entity, level, isAdmin) + '</td>';
+                }).join('');
                 return '<tr>' +
                     '<td class="ps-3">' + escapeHtml(u.name || u.email) + '</td>' +
                     '<td>' + roleBadge + '</td>' +
                     '<td class="text-center">' + makeSwitch(u.id, 'catalogue', isAdmin || p.catalogue, isAdmin) + '</td>' +
+                    entityCells +
                     '<td class="text-center">' + makeSwitch(u.id, 'booklet_creator', isAdmin || p.booklet_creator, isAdmin) + '</td>' +
                     '<td class="text-center">' + makeSwitch(u.id, 'import_source', isAdmin || p.import_source, isAdmin) + '</td>' +
                     '<td class="text-center">' + makeSwitch(u.id, 'commissions', isAdmin || p.commissions, isAdmin) + '</td>' +
@@ -123,6 +162,36 @@
             tbody.querySelectorAll('.perm-switch:not([disabled])').forEach(function(sw) {
                 sw.addEventListener('change', onToggle);
             });
+            tbody.querySelectorAll('.level-select:not([disabled])').forEach(function(sel) {
+                sel.addEventListener('change', onLevelChange);
+            });
+        }
+
+        async function savePermissions(userId, perms, entities) {
+            var res = await fetch('/api/admin/users/' + userId + '/permissions', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    catalogue: !!perms.catalogue,
+                    booklet_creator: !!perms.booklet_creator,
+                    import_source: !!perms.import_source,
+                    commissions: !!perms.commissions,
+                    entities: entities
+                })
+            });
+            if (!res.ok) {
+                var err = await res.json().catch(function() { return {}; });
+                throw new Error(err.error || 'Save failed');
+            }
+        }
+
+        function entityLevelsFor(user) {
+            var out = {};
+            ENTITIES.forEach(function(entity) {
+                out[entity] = (user.entity_permissions || {})[entity] || 'none';
+            });
+            return out;
         }
 
         async function onToggle(e) {
@@ -137,21 +206,7 @@
 
             input.disabled = true;
             try {
-                var res = await fetch('/api/admin/users/' + userId + '/permissions', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        catalogue: !!perms.catalogue,
-                        booklet_creator: !!perms.booklet_creator,
-                        import_source: !!perms.import_source,
-                        commissions: !!perms.commissions
-                    })
-                });
-                if (!res.ok) {
-                    var err = await res.json().catch(function() { return {}; });
-                    throw new Error(err.error || 'Save failed');
-                }
+                await savePermissions(userId, perms, entityLevelsFor(user));
                 user.permissions = perms;
                 showToast('Permission updated', 'success');
             } catch (ex) {
@@ -159,6 +214,47 @@
                 showToast('Error: ' + ex.message, 'error');
             } finally {
                 input.disabled = false;
+            }
+        }
+
+        async function onLevelChange(e) {
+            var sel = e.target;
+            var userId = sel.getAttribute('data-user-id');
+            var entity = sel.getAttribute('data-entity');
+            var user = usersCache.find(function(u) { return String(u.id) === String(userId); });
+            if (!user) return;
+
+            var previous = (user.entity_permissions || {})[entity] || 'none';
+            var entities = entityLevelsFor(user);
+            entities[entity] = sel.value;
+
+            // Editing rights are useless without view access — grant it too.
+            var perms = Object.assign({}, user.permissions || {});
+            var grantedView = false;
+            if (sel.value !== 'none' && !perms.catalogue) {
+                perms.catalogue = true;
+                grantedView = true;
+            }
+
+            sel.disabled = true;
+            try {
+                await savePermissions(userId, perms, entities);
+                user.entity_permissions = entities;
+                user.permissions = perms;
+                sel.classList.toggle('level-write', sel.value === 'write');
+                sel.classList.toggle('level-full', sel.value === 'full');
+                if (grantedView) {
+                    var viewSwitch = document.getElementById('perm-' + userId + '-catalogue');
+                    if (viewSwitch) viewSwitch.checked = true;
+                    showToast('Permission updated (view access enabled too)', 'success');
+                } else {
+                    showToast('Permission updated', 'success');
+                }
+            } catch (ex) {
+                sel.value = previous;
+                showToast('Error: ' + ex.message, 'error');
+            } finally {
+                sel.disabled = false;
             }
         }
 
@@ -173,7 +269,7 @@
                 renderTable();
             } catch (e) {
                 document.getElementById('permissionsBody').innerHTML =
-                    '<tr><td colspan="6" class="text-danger text-center py-4">' +
+                    '<tr><td colspan="13" class="text-danger text-center py-4">' +
                     '<i class="bi bi-exclamation-triangle me-1"></i>Error loading users: ' + e.message +
                     '</td></tr>';
             }
