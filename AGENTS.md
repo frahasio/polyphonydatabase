@@ -34,7 +34,7 @@ deployed. Also shipped since:
   or groups with editions/recordings; `saveSourceWithInclusions` now deletes
   removed inclusions inside the save transaction.
 - Migration runner + Heroku release phase.
-- Review queue (`/modules/suggestions`) fed by seven matchers:
+- Review queue (`/modules/suggestions`) fed by eight matchers:
  `scripts/suggest-title-functions.js` (Cantus Index title->function),
  `scripts/suggest-title-functions-do.js` (Divinum Officium title->function:
  indexes the vendored data/divinumofficium corpus — every Mass proper +
@@ -94,11 +94,26 @@ deployed. Also shipped since:
  + `wikidata_id` on accept; checkpoint `composers.wikidata_checked_at`,
  name kept from v1; rejects born-after-1750 namesakes; skips no-op
  suggestions; supports --dry-run. Grove has no API — RISM is the
- authoritative alternative) and `scripts/suggest-group-titles.js` (groups whose
+ authoritative alternative), `scripts/suggest-group-titles.js` (groups whose
  display_title matches none of their compositions' titles; reviewer picks
  from the group's actual titles, or — when the group has a single distinct
  composition title — can flip the direction and retitle the composition(s)
- to the display title, `apply_to_compositions`, feast links carried over). Accept semantics: recordings/functions
+ to the display title, `apply_to_compositions`, feast links carried over)
+ and `scripts/suggest-anon-matches.js` (anon resolver, Aug 2026: pairs of
+ compositions in DIFFERENT groups with the same title_id, an identical
+ sorted_clef_combination_required in some source each, no conflicting
+ type/tone/even-odd/voices, at least one side anon — the card shows both
+ sides with per-source clefs + source-image links so the reviewer compares
+ the actual music. Ambiguity filter: a composition matching > 5 candidates
+ is dropped (generic Magnificats etc.), a mutually UNIQUE pair scores
+ highest ('matches N candidates' badge otherwise), max 20 pairs per title.
+ Accept = same piece: moves the chosen composition into the kept group
+ (reviewer radio, default the named side); an emptied group's
+ editions/recordings follow the move, pending suggestions are repointed,
+ and the empty group is deleted. Reject = permanent 'not the same' — the
+ dedupe key `am:{compA}:{compB}` is never re-proposed. Local SQL only,
+ cheap manual run, supports --dry-run; run it only AFTER deploying the
+ anon_match queue support). Accept semantics: recordings/functions
  write real rows; title_merge merges (reviewer picks survivor);
  title_language sets `titles.language`; composer_bio APPLIES the Wikidata
  values — cited, so they win over ours where they differ (green = fills
@@ -237,8 +252,9 @@ queue.
  cap; per-platform checkpoints `groups.youtube_checked_at` /
  `spotify_checked_at`, migration 017) and
  `node scripts/suggest-composer-bios.js 50` (Wikidata, polite ~2 req/s, no
- hard quota). `suggest-title-languages.js`, `suggest-title-merges.js` and
- `suggest-group-titles.js` are cheap manual runs, not scheduled.
+ hard quota). `suggest-title-languages.js`, `suggest-title-merges.js`,
+ `suggest-group-titles.js` and `suggest-anon-matches.js` are cheap manual
+ runs, not scheduled.
 - **Matcher tuning:** the Cantus feast->function map in
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.

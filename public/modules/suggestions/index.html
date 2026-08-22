@@ -18,6 +18,7 @@
         .suggestion-card.kind-title_language { border-left-color: #0dcaf0; }
         .suggestion-card.kind-composer_bio { border-left-color: #20c997; }
         .suggestion-card.kind-group_title { border-left-color: #6c757d; }
+        .suggestion-card.kind-anon_match { border-left-color: #d63384; }
         .bio-table td { padding: 0.1rem 0.6rem 0.1rem 0; font-size: 0.85rem; }
         .bio-fill { background: #d1e7dd; border-radius: 3px; padding: 0 0.3rem; }
         .bio-change { background: #fff3cd; border-radius: 3px; padding: 0 0.3rem; }
@@ -71,6 +72,7 @@
                 <button type="button" class="btn btn-outline-secondary" data-kind="title_language">Languages</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="composer_bio">Composer bios</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="group_title">Group titles</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="anon_match">Anon matches</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="source_rism">Sources (RISM)</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
@@ -281,6 +283,7 @@
                     </div>`;
             }
             if (s.kind === 'title_merge') return ''; // rendered entirely by contextHtml
+            if (s.kind === 'anon_match') return ''; // rendered entirely by contextHtml
             if (s.kind === 'title_language') {
                 const evidence = (p.evidence || []).map(escapeHtml).join(', ');
                 const langOptions = languagesList.length ? languagesList : [{ id: p.language_id, name: p.language_name }];
@@ -500,7 +503,83 @@
                 </div>`;
         }
 
+        // Readable clef line from an inclusion's clefs jsonb:
+        // "C1 C3 C4 F4", with (opt) for optional and [canon] for canonic voices.
+        function clefLine(clefs) {
+            if (!Array.isArray(clefs) || !clefs.length) return '';
+            return clefs.map(c => {
+                if (!c || !c.clef) return '?';
+                let v = escapeHtml(c.clef);
+                if (c.canonic) v += '<span class="text-warning">[canon]</span>';
+                else if (c.optional) v += '<span class="text-muted">(opt)</span>';
+                return v;
+            }).join(' ');
+        }
+
+        // One side of an anon-match card: composer, group, attributes, and
+        // every source appearance with links to that source's images so the
+        // reviewer can compare the actual music.
+        function anonSideHtml(s, comp, checked, otherMatches) {
+            if (!comp) {
+                return `<div class="merge-option mb-2 text-muted">This composition no longer exists (deleted or merged elsewhere) — accept or reject to clear the card.</div>`;
+            }
+            const who = comp.composers
+                ? `<span class="fw-semibold">${escapeHtml(comp.composers)}</span>`
+                : '<span class="badge bg-secondary">Anon</span>';
+            // Ambiguity hint from the matcher: 1 = this setting matched ONLY
+            // the other side (strong); more = it also matched other settings,
+            // so compare carefully before grouping.
+            const ambiguity = parseInt(otherMatches, 10) > 1
+                ? ` <span class="badge bg-warning text-dark" title="This setting also matched other candidates — check the images carefully">matches ${otherMatches} candidates</span>`
+                : '';
+            const grpBits = [];
+            if (comp.group_comp_count > 1) grpBits.push(`${comp.group_comp_count} settings in group`);
+            if (comp.edition_count > 0) grpBits.push(`${comp.edition_count} edition${comp.edition_count === 1 ? '' : 's'}`);
+            if (comp.recording_count > 0) grpBits.push(`${comp.recording_count} recording${comp.recording_count === 1 ? '' : 's'}`);
+            const inclRows = (comp.inclusions || []).map(i => {
+                const years = [i.from_year, i.to_year].filter(Boolean).join('–');
+                const imgs = (i.images || []).map((im, idx) => {
+                    const u = safeUrl(im.url);
+                    if (!u) return '';
+                    return `<a href="${u}" target="_blank" rel="noopener">${escapeHtml(im.label || ('images ' + (idx + 1)))} <i class="bi bi-image"></i></a>`;
+                }).filter(Boolean).join(' · ');
+                const clefs = clefLine(i.clefs);
+                return `<div class="comp-detail">• <strong>${escapeHtml(i.code)}</strong>${years ? ` <span class="text-muted">(${years})</span>` : ''}${i.position ? `, ${escapeHtml(i.position)}` : ''}${clefs ? ` — ${clefs}` : ''}
+                        ${imgs ? `<div class="ms-3">${imgs}</div>` : '<div class="ms-3 text-muted">no source images linked</div>'}</div>`;
+            }).join('');
+            return `
+                <div class="form-check merge-option mb-2">
+                    <input class="form-check-input" type="radio" name="keep-${s.id}" id="keep-${s.id}-${comp.group_id}" value="${comp.group_id}" ${checked ? 'checked' : ''}>
+                    <label class="form-check-label d-block" for="keep-${s.id}-${comp.group_id}">
+                        ${who}
+                        <span class="text-muted">— group: ${escapeHtml(comp.group_title || '(untitled)')}</span>
+                        ${grpBits.length ? `<span class="text-muted small"> · ${grpBits.join(' · ')}</span>` : ''}${ambiguity}
+                        <div class="mt-1">${compositionDescriptor(comp)}</div>
+                        ${inclRows ? `<div class="mt-1">${inclRows}</div>` : ''}
+                    </label>
+                </div>`;
+        }
+
         function contextHtml(s) {
+            if (s.kind === 'anon_match') {
+                const p = s.payload || {};
+                const a = s.comp_a, b = s.comp_b;
+                if (a && b && a.group_id === b.group_id) {
+                    return `<span class="fw-semibold">${escapeHtml(p.title_text || '')}</span>
+                            <div class="text-success comp-detail mt-1"><i class="bi bi-check2-circle"></i>
+                            <strong>Already resolved</strong> — the two settings are now in the same group
+                            (fixed elsewhere since this was flagged). Accept clears this card without changing anything.</div>`;
+                }
+                const keepDefault = parseInt(p.keep_group_id, 10);
+                const aChecked = a ? (a.group_id === keepDefault || !b) : false;
+                return `
+                    <div class="mb-1"><span class="fw-semibold">${escapeHtml(p.title_text || (a && a.title_text) || '')}</span>
+                        <span class="text-muted comp-detail"> — two settings in different groups share this title and an identical clef set${(p.shared_clefs || []).length ? ` (${p.shared_clefs.map(escapeHtml).join(', ')})` : ''}. Compare the sources below.</span>
+                    </div>
+                    <div class="mb-1 text-muted comp-detail"><strong>Accept</strong> groups them as the same piece, keeping the selected group (the other setting moves into it) — <strong>Reject</strong> records permanently that they are different pieces.</div>
+                    ${anonSideHtml(s, a, aChecked, p.comp1_matches)}
+                    ${anonSideHtml(s, b, !aChecked, p.comp2_matches)}`;
+            }
             if (s.kind === 'title_merge') {
                 if (s.other_title_exists === false) {
                     return `<span class="fw-semibold">${escapeHtml(s.title_text || '')}</span>
@@ -621,6 +700,7 @@
                 title_language: 'title languages',
                 composer_bio: 'composer bios',
                 group_title: 'group titles',
+                anon_match: 'anon matches',
                 source_rism: 'RISM source data',
                 recording_youtube: 'YouTube recordings',
                 recording_spotify: 'Spotify recordings'
@@ -707,6 +787,8 @@
                 }
                 const primaryRadio = document.querySelector(`input[name="primary-${id}"]:checked`);
                 if (primaryRadio) fields.primary_title_id = parseInt(primaryRadio.value, 10);
+                const keepRadio = document.querySelector(`input[name="keep-${id}"]:checked`);
+                if (keepRadio) fields.keep_group_id = parseInt(keepRadio.value, 10);
                 if (Object.keys(fields).length) body = JSON.stringify(fields);
             }
             try {

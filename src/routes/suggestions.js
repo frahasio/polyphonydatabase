@@ -7,7 +7,7 @@ import { triggerCleanup } from '../cleanup.js';
 // just admins) can churn through it.
 const router = express.Router();
 
-const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title', 'source_rism'];
+const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title', 'source_rism', 'anon_match'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
 // Attach disambiguating context to each suggestion so reviewers can tell
@@ -91,7 +91,57 @@ async function enrichWithContext(rows) {
     eds.rows.forEach((r) => { (editionsByTitle[r.title_id] ||= []).push(r); });
   }
 
+  // anon_match cards compare two compositions live: current attributes,
+  // group membership, and every inclusion with its source's image links —
+  // the reviewer decides by looking at the actual music.
+  const anonCompIds = [...new Set(rows
+    .filter((r) => r.kind === 'anon_match')
+    .flatMap((r) => [parseInt((r.payload || {}).comp1_id, 10), parseInt((r.payload || {}).comp2_id, 10)])
+    .filter(Number.isInteger))];
+  const anonComps = {};
+  if (anonCompIds.length) {
+    const comps = await pool.query(
+      `SELECT c.id, c.group_id, c.number_of_voices, c.tone, c.tone_connector, c.even_odd,
+              ct.name AS type_name, ti.text AS title_text,
+              g.display_title AS group_title,
+              (SELECT string_agg(DISTINCT comp.name, ', ')
+                 FROM composers comp
+                 WHERE comp.id = ANY(c.composer_id_list) AND comp.id != 23) AS composers,
+              (SELECT COUNT(*) FROM compositions x WHERE x.group_id = c.group_id)::int AS group_comp_count,
+              (SELECT COUNT(*) FROM editions e WHERE e.group_id = c.group_id)::int AS edition_count,
+              (SELECT COUNT(*) FROM recordings rec WHERE rec.group_id = c.group_id)::int AS recording_count
+       FROM compositions c
+       LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
+       LEFT JOIN titles ti ON ti.id = c.title_id
+       LEFT JOIN groups g ON g.id = c.group_id
+       WHERE c.id = ANY($1)`,
+      [anonCompIds]
+    );
+    comps.rows.forEach((r) => { anonComps[r.id] = { ...r, inclusions: [] }; });
+
+    const incl = await pool.query(
+      `SELECT i.composition_id, i.position, i.clefs,
+              s.code, s.title AS source_title, s.from_year, s.to_year,
+              COALESCE((SELECT json_agg(json_build_object('url', si.url, 'label', si.label) ORDER BY si.id)
+                        FROM source_images si WHERE si.source_id = s.id), '[]'::json) AS images
+       FROM inclusions i
+       JOIN sources s ON s.id = i.source_id
+       WHERE i.composition_id = ANY($1)
+       ORDER BY s.code, i."order"`,
+      [anonCompIds]
+    );
+    incl.rows.forEach((r) => {
+      if (anonComps[r.composition_id]) anonComps[r.composition_id].inclusions.push(r);
+    });
+  }
+
   rows.forEach((r) => {
+    if (r.kind === 'anon_match') {
+      const p = r.payload || {};
+      r.comp_a = anonComps[parseInt(p.comp1_id, 10)] || null;
+      r.comp_b = anonComps[parseInt(p.comp2_id, 10)] || null;
+      return;
+    }
     if (r.group_id) {
       r.editions = editionsByGroup[r.group_id] || [];
       r.compositions = compsByGroup[r.group_id] || [];
@@ -509,6 +559,75 @@ router.post('/:id/:action', async (req, res) => {
             [chosen, s.group_id]
           );
         }
+      } else if (s.kind === 'anon_match') {
+        // Accept = the reviewer confirmed the two settings are the same
+        // piece: move the other composition into the kept group. Reject is
+        // the permanent "not the same" record (the dedupe key stops the
+        // matcher ever re-proposing the pair).
+        const compA = parseInt(payload.comp1_id, 10);
+        const compB = parseInt(payload.comp2_id, 10);
+        if (!Number.isInteger(compA) || !Number.isInteger(compB)) {
+          throw new Error('Suggestion payload missing compositions');
+        }
+        const live = await client.query(
+          'SELECT id, group_id FROM compositions WHERE id = ANY($1) FOR UPDATE',
+          [[compA, compB]]
+        );
+        if (live.rows.length < 2) {
+          // One side was deleted/merged elsewhere; nothing to compare any more.
+          await client.query(
+            `UPDATE suggestions SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
+            [req.user.id, s.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ success: true, status: 'rejected', note: 'A composition in this pair no longer exists.' });
+        }
+        const rowA = live.rows.find((r) => r.id === compA);
+        const rowB = live.rows.find((r) => r.id === compB);
+        if (rowA.group_id === rowB.group_id) {
+          // Already grouped (e.g. via group management) — accept just clears the card.
+          await client.query(
+            `UPDATE suggestions SET status = 'accepted', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
+            [req.user.id, s.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ success: true, status: 'accepted', note: 'Already in the same group; nothing to change.' });
+        }
+        // The reviewer picks which group survives; default is the matcher's
+        // suggestion (the named side), falling back to comp A's group.
+        const groupIds = [rowA.group_id, rowB.group_id];
+        const requested = parseInt(req.body.keep_group_id, 10);
+        const fallback = parseInt(payload.keep_group_id, 10);
+        const target = groupIds.includes(requested) ? requested
+          : groupIds.includes(fallback) ? fallback
+          : rowA.group_id;
+        const moving = rowA.group_id === target ? rowB : rowA;
+        const sourceGroup = moving.group_id;
+
+        await client.query(
+          'UPDATE compositions SET group_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          [target, moving.id]
+        );
+        const remaining = await client.query(
+          'SELECT 1 FROM compositions WHERE group_id = $1 LIMIT 1',
+          [sourceGroup]
+        );
+        if (!remaining.rows.length) {
+          // The emptied group's editions/recordings belong to the same piece
+          // the reviewer just confirmed, so they follow the composition.
+          await client.query('UPDATE editions SET group_id = $1 WHERE group_id = $2', [target, sourceGroup]);
+          await client.query('UPDATE recordings SET group_id = $1 WHERE group_id = $2', [target, sourceGroup]);
+          // Keep this suggestion row out of the group's delete cascade, and
+          // repoint other pending suggestions (e.g. recordings) at the
+          // surviving group instead of losing them.
+          await client.query('UPDATE suggestions SET group_id = NULL WHERE id = $1', [s.id]);
+          await client.query(
+            `UPDATE suggestions SET group_id = $1 WHERE group_id = $2 AND status = 'pending' AND id <> $3`,
+            [target, sourceGroup, s.id]
+          );
+          await client.query('DELETE FROM groups WHERE id = $1', [sourceGroup]);
+        }
+        await client.query('UPDATE groups SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [target]);
       } else if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
         const url = String(payload.url || '').trim();
         // The reviewer may correct the performer name at accept time (the API
