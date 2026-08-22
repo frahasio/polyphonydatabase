@@ -6,13 +6,22 @@
  * 'anon_match' suggestions to the review queue with links to the source
  * images so a reviewer can compare the actual music.
  *
+ * Chronology (hard filter): a pair is IMPOSSIBLE when the anon side sits in
+ * a source whose latest possible date is before every named-side composer
+ * was born — such pairs are never proposed, and any pending card for them
+ * is removed on the next run. Provenance (soft weight): the named composer
+ * already having attributed works in the anon's source (or another source
+ * from the same town) boosts the score and shows as a badge; its absence
+ * costs nothing (plenty of Palestrina in Spanish sources he never visited).
+ *
  * Accepting GROUPS the two (the anonymous setting moves into the kept
  * group; an emptied group's editions/recordings follow it). Rejecting
  * permanently records that the two are NOT the same piece — the dedupe key
  * stays behind and the pair is never proposed again.
  *
  * Usage: node scripts/suggest-anon-matches.js [maxPairs] [--dry-run]
- * Local SQL only (no APIs), cheap to re-run; ON CONFLICT keeps it idempotent.
+ * Local SQL only (no APIs), cheap to re-run; re-runs refresh the score and
+ * evidence on still-pending cards in place.
  */
 import { pool } from '../src/db.js';
 
@@ -34,7 +43,7 @@ async function main() {
   const result = await pool.query(`
     WITH comp AS (
       SELECT c.id, c.group_id, c.title_id, c.composition_type_id, c.tone,
-             c.even_odd, c.number_of_voices,
+             c.even_odd, c.number_of_voices, c.composer_id_list,
              EXISTS (
                SELECT 1 FROM unnest(COALESCE(c.composer_id_list, '{}'::integer[])) AS u(x)
                WHERE x IS NOT NULL AND x != 23
@@ -55,9 +64,18 @@ async function main() {
            a.composition_type_id AS a_type, b.composition_type_id AS b_type,
            a.tone AS a_tone, b.tone AS b_tone,
            a.even_odd AS a_eo, b.even_odd AS b_eo,
+           a.composer_id_list AS a_composers, b.composer_id_list AS b_composers,
            ARRAY(SELECT unnest(a.combos) INTERSECT SELECT unnest(b.combos)) AS shared_combos,
            (SELECT COUNT(*) FROM inclusions i WHERE i.composition_id = a.id) AS a_incl,
-           (SELECT COUNT(*) FROM inclusions i WHERE i.composition_id = b.id) AS b_incl
+           (SELECT COUNT(*) FROM inclusions i WHERE i.composition_id = b.id) AS b_incl,
+           (SELECT json_agg(json_build_object('id', s.id, 'code', s.code, 'town', s.town,
+                                              'from_year', s.from_year, 'to_year', s.to_year))
+              FROM inclusions i JOIN sources s ON s.id = i.source_id
+             WHERE i.composition_id = a.id) AS a_sources,
+           (SELECT json_agg(json_build_object('id', s.id, 'code', s.code, 'town', s.town,
+                                              'from_year', s.from_year, 'to_year', s.to_year))
+              FROM inclusions i JOIN sources s ON s.id = i.source_id
+             WHERE i.composition_id = b.id) AS b_sources
     FROM comp a
     JOIN comp b
       ON b.title_id = a.title_id
@@ -78,12 +96,117 @@ async function main() {
 
   console.log(`${result.rows.length} candidate pair(s) found.`);
 
+  // Chronology + provenance context for the named side: birth years rule
+  // out impossible matches; a composer's attributed presence in the anon's
+  // source (or another source from the same town) strengthens a match.
+  const namedIds = new Set();
+  result.rows.forEach((r) => {
+    [...(r.a_named ? r.a_composers || [] : []), ...(r.b_named ? r.b_composers || [] : [])]
+      .forEach((id) => { if (id && id !== 23) namedIds.add(id); });
+  });
+  const composerBirth = new Map();      // composer id -> birth year (from_year)
+  const composerSources = new Map();    // composer id -> Set(source ids with his attributed works)
+  const composerTowns = new Map();      // composer id -> Set(normalized towns of those sources)
+  if (namedIds.size) {
+    const info = await pool.query(
+      'SELECT id, from_year FROM composers WHERE id = ANY($1)',
+      [[...namedIds]]
+    );
+    info.rows.forEach((r) => { if (Number.isInteger(r.from_year)) composerBirth.set(r.id, r.from_year); });
+    const attributed = await pool.query(
+      `SELECT DISTINCT u.cid, i.source_id, LOWER(TRIM(s.town)) AS town
+       FROM compositions c
+       CROSS JOIN LATERAL unnest(COALESCE(c.composer_id_list, '{}'::integer[])) AS u(cid)
+       JOIN inclusions i ON i.composition_id = c.id
+       JOIN sources s ON s.id = i.source_id
+       WHERE u.cid = ANY($1)`,
+      [[...namedIds]]
+    );
+    attributed.rows.forEach((r) => {
+      if (!composerSources.has(r.cid)) composerSources.set(r.cid, new Set());
+      composerSources.get(r.cid).add(r.source_id);
+      if (r.town) {
+        if (!composerTowns.has(r.cid)) composerTowns.set(r.cid, new Set());
+        composerTowns.get(r.cid).add(r.town);
+      }
+    });
+  }
+
+  // Impossible pairs: the anon side sits in a source whose LATEST possible
+  // date is before every named-side composer was born — the piece existed
+  // before he did. Only applies when all named composers have known births
+  // and the source is dated. Provenance never excludes (plenty of Palestrina
+  // in Spain), it only boosts.
+  function pairContext(r) {
+    const sides = [
+      { named: r.a_named, comps: r.a_composers || [], sources: r.a_sources || [] },
+      { named: r.b_named, comps: r.b_composers || [], sources: r.b_sources || [] },
+    ];
+    const named = sides.find((s) => s.named);
+    const anon = sides.find((s) => !s.named);
+    if (!named || !anon) return { impossible: false, provenance: null, provenance_detail: null };
+    const compIds = named.comps.filter((id) => id && id !== 23);
+    const births = compIds.map((id) => composerBirth.get(id)).filter((v) => Number.isInteger(v));
+    let impossible = false;
+    if (compIds.length && births.length === compIds.length) {
+      const earliestBirth = Math.min(...births);
+      impossible = anon.sources.some((s) => {
+        const latest = Number.isInteger(s.to_year) ? s.to_year : s.from_year;
+        return Number.isInteger(latest) && latest < earliestBirth;
+      });
+    }
+    let provenance = null;
+    let provenance_detail = null;
+    const srcUnion = new Set();
+    const townUnion = new Set();
+    compIds.forEach((id) => {
+      (composerSources.get(id) || []).forEach((x) => srcUnion.add(x));
+      (composerTowns.get(id) || []).forEach((x) => townUnion.add(x));
+    });
+    const sameSource = anon.sources.filter((s) => srcUnion.has(s.id));
+    if (sameSource.length) {
+      provenance = 'same_source';
+      provenance_detail = [...new Set(sameSource.map((s) => s.code))];
+    } else {
+      const sameTown = anon.sources.filter((s) => s.town && townUnion.has(String(s.town).trim().toLowerCase()));
+      if (sameTown.length) {
+        provenance = 'same_town';
+        provenance_detail = [...new Set(sameTown.map((s) => s.town))];
+      }
+    }
+    return { impossible, provenance, provenance_detail };
+  }
+
+  const possible = [];
+  const impossibleKeys = [];
+  for (const r of result.rows) {
+    const ctx = pairContext(r);
+    if (ctx.impossible) {
+      impossibleKeys.push(`am:${r.a_id}:${r.b_id}`);
+      continue;
+    }
+    r.provenance = ctx.provenance;
+    r.provenance_detail = ctx.provenance_detail;
+    possible.push(r);
+  }
+  if (impossibleKeys.length) {
+    console.log(`${impossibleKeys.length} pair(s) excluded as impossible (a source of the anon predates the composer's birth).`);
+    if (!DRY_RUN) {
+      // Earlier runs may have queued pairs the date check now rules out.
+      const del = await pool.query(
+        `DELETE FROM suggestions WHERE dedupe_key = ANY($1) AND status IN ('pending', 'skipped')`,
+        [impossibleKeys]
+      );
+      if (del.rowCount) console.log(`Removed ${del.rowCount} now-impossible pending suggestion(s) from the queue.`);
+    }
+  }
+
   // Ambiguity: how many candidate partners each composition has. An anon
   // whose ONLY plausible match is one named setting is the gold case; a
   // generic text (Magnificat in a standard clef set...) matches dozens of
   // settings pairwise and is unreviewable — those pairs are dropped.
   const degree = new Map();
-  result.rows.forEach((r) => {
+  possible.forEach((r) => {
     degree.set(r.a_id, (degree.get(r.a_id) || 0) + 1);
     degree.set(r.b_id, (degree.get(r.b_id) || 0) + 1);
   });
@@ -91,10 +214,11 @@ async function main() {
 
   // Corroborating attributes raise confidence; a named side makes the pair
   // more valuable (it resolves the anon to a known piece); a mutually
-  // unique match is the strongest signal of all.
+  // unique match is the strongest signal of all; the composer's attributed
+  // presence in the anon's source (or its town) adds provenance weight.
   let dropped = 0;
   const scored = [];
-  for (const r of result.rows) {
+  for (const r of possible) {
     const maxDeg = Math.max(degree.get(r.a_id), degree.get(r.b_id));
     if (maxDeg > MAX_DEGREE) { dropped++; continue; }
     let score = 0.4; // same title + identical clefs
@@ -104,9 +228,11 @@ async function main() {
     if (r.a_named || r.b_named) score += 0.1;
     if (maxDeg === 1) score += 0.25;       // each side matches ONLY the other
     else if (maxDeg === 2) score += 0.1;
+    if (r.provenance === 'same_source') score += 0.1;
+    else if (r.provenance === 'same_town') score += 0.05;
     scored.push({
       ...r,
-      score: Math.round(score * 100) / 100,
+      score: Math.min(1, Math.round(score * 100) / 100),
       a_matches: degree.get(r.a_id),
       b_matches: degree.get(r.b_id),
     });
@@ -139,15 +265,21 @@ async function main() {
     const keepGroup = keepA ? r.a_group : r.b_group;
 
     if (DRY_RUN) {
-      console.log(`  [${r.score}] "${r.title_text}" comp #${r.a_id} (g${r.a_group}${r.a_named ? ', named' : ', anon'}) ~ comp #${r.b_id} (g${r.b_group}${r.b_named ? ', named' : ', anon'}) clefs ${r.shared_combos.join('/')}`);
+      const prov = r.provenance ? ` [${r.provenance}: ${(r.provenance_detail || []).join(', ')}]` : '';
+      console.log(`  [${r.score}] "${r.title_text}" comp #${r.a_id} (g${r.a_group}${r.a_named ? ', named' : ', anon'}) ~ comp #${r.b_id} (g${r.b_group}${r.b_named ? ', named' : ', anon'}) clefs ${r.shared_combos.join('/')}${prov}`);
       inserted++;
       continue;
     }
 
+    // ON CONFLICT DO UPDATE (pending only): a re-run refreshes the score and
+    // evidence on cards nobody has reviewed yet, so scoring improvements
+    // reach the queue without touching decided suggestions.
     const insert = await pool.query(
       `INSERT INTO suggestions (kind, group_id, payload, score, source, dedupe_key)
        VALUES ('anon_match', $1, $2, $3, 'anon-matcher', $4)
-       ON CONFLICT (dedupe_key) DO NOTHING`,
+       ON CONFLICT (dedupe_key) DO UPDATE
+         SET payload = EXCLUDED.payload, score = EXCLUDED.score
+         WHERE suggestions.status = 'pending'`,
       [
         keepGroup,
         JSON.stringify({
@@ -160,6 +292,11 @@ async function main() {
           // match) — shown on the card as a confidence hint.
           comp1_matches: r.a_matches,
           comp2_matches: r.b_matches,
+          // Provenance of the named composer relative to the anon's sources:
+          // 'same_source' (attributed works in that very source) or
+          // 'same_town' (attributed works in another source from the town).
+          provenance: r.provenance || null,
+          provenance_detail: r.provenance_detail || null,
         }),
         r.score,
         `am:${r.a_id}:${r.b_id}`,

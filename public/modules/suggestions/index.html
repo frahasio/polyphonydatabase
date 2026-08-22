@@ -572,8 +572,16 @@
                 }
                 const keepDefault = parseInt(p.keep_group_id, 10);
                 const aChecked = a ? (a.group_id === keepDefault || !b) : false;
+                // Provenance: the named composer's attributed works already
+                // appear in the anon's source (strong) or its town (weaker).
+                const provDetail = (p.provenance_detail || []).map(escapeHtml).join(', ');
+                const provBadge = p.provenance === 'same_source'
+                    ? ` <span class="badge bg-success" title="The composer's attributed works already appear in the anon's source${provDetail ? ': ' + provDetail : ''}">composer already in this source</span>`
+                    : p.provenance === 'same_town'
+                    ? ` <span class="badge bg-info text-dark" title="The composer's attributed works appear in other sources from this town">composer known in ${provDetail || 'this town'}</span>`
+                    : '';
                 return `
-                    <div class="mb-1"><span class="fw-semibold">${escapeHtml(p.title_text || (a && a.title_text) || '')}</span>
+                    <div class="mb-1"><span class="fw-semibold">${escapeHtml(p.title_text || (a && a.title_text) || '')}</span>${provBadge}
                         <span class="text-muted comp-detail"> — two settings in different groups share this title and an identical clef set${(p.shared_clefs || []).length ? ` (${p.shared_clefs.map(escapeHtml).join(', ')})` : ''}. Compare the sources below.</span>
                     </div>
                     <div class="mb-1 text-muted comp-detail"><strong>Accept</strong> groups them as the same piece, keeping the selected group (the other setting moves into it) — <strong>Reject</strong> records permanently that they are different pieces.</div>
