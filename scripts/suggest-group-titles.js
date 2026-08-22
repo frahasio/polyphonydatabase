@@ -39,6 +39,25 @@ function normFirstWord(text) {
 }
 
 async function main() {
+  // Housekeeping: pending cards whose group no longer mismatches (fixed via
+  // the titles editor, group management, or an earlier auto-fix) are no-ops —
+  // resolve them so the queue only shows real decisions.
+  if (!DRY_RUN) {
+    const stale = await pool.query(`
+      UPDATE suggestions s
+      SET status = 'accepted', reviewed_at = NOW(),
+          payload = payload || '{"auto_accepted": true}'::jsonb
+      WHERE s.kind = 'group_title' AND s.status IN ('pending', 'skipped')
+        AND EXISTS (
+          SELECT 1 FROM groups g
+          JOIN compositions c ON c.group_id = g.id
+          JOIN titles t ON t.id = c.title_id
+          WHERE g.id = s.group_id AND t.text = g.display_title
+        )
+    `);
+    if (stale.rowCount) console.log(`Cleared ${stale.rowCount} stale card(s) for groups already resolved.`);
+  }
+
   const groups = await pool.query(`
     SELECT g.id, g.display_title,
            ARRAY_AGG(t.text) AS comp_titles
