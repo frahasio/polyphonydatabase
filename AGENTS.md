@@ -101,7 +101,8 @@ deployed. Also shipped since:
  to the display title, `apply_to_compositions`, feast links carried over)
  and `scripts/suggest-anon-matches.js` (anon resolver, Aug 2026: pairs of
  compositions in DIFFERENT groups with the same title_id, an identical
- sorted_clef_combination_required in some source each, no conflicting
+ sorted_clef_combination_all — optional clefs included, since the same
+ piece has the same optional voices — in some source each, no conflicting
  type/tone/even-odd/voices, at least one side anon — the card shows both
  sides with per-source clefs + source-image links so the reviewer compares
  the actual music. Ambiguity filter: a composition matching > 5 candidates
@@ -113,7 +114,8 @@ deployed. Also shipped since:
  unlikely); (2) CHRONOLOGY — a pair is impossible when the anon sits in a
  source whose latest date predates every named-side composer's birth.
  Neither is ever proposed, and now-impossible pending cards are DELETED
- on the next run. PROVENANCE (soft weight, never excludes — plenty of Palestrina in
+ on the next run — as are pending cards whose pair is no longer a raw
+ candidate at all (rule changes, recataloguing). PROVENANCE (soft weight, never excludes — plenty of Palestrina in
  Spanish sources): the named composer already having attributed works in
  the anon's source (+0.1, green badge) or another source from the same
  town (+0.05, blue badge) boosts the score; country isn't recorded on

@@ -1,7 +1,8 @@
 /**
  * Anon-resolver matcher: find pairs of compositions in DIFFERENT groups that
- * look like the same piece — same title, identical clef combination in at
- * least one catalogued source each, and no conflicting attributes (type,
+ * look like the same piece — same title, identical FULL clef combination
+ * (optional clefs included: the same piece has the same optional voices) in
+ * at least one catalogued source each, and no conflicting attributes (type,
  * tone, even/odd, voices) — where at least one side is anonymous. Writes
  * 'anon_match' suggestions to the review queue with links to the source
  * images so a reviewer can compare the actual music.
@@ -40,9 +41,11 @@ async function main() {
   console.log(`Finding anon compositions matching another group's setting (max ${MAX_PAIRS})${DRY_RUN ? ' [dry run]' : ''}...`);
 
   // "named" = has a composer other than Anonymous (id 23).
-  // Clef combos come from the trigger-maintained sorted_clef_combination_required
-  // column: an identical non-optional clef set in at least one source on each
-  // side is required.
+  // Clef combos come from the trigger-maintained sorted_clef_combination_all
+  // column: an identical FULL clef set — optional clefs included — in at
+  // least one source on each side is required. If two settings are the same
+  // piece their optional voices match too, so a required-only match with
+  // differing optional clefs is a different piece.
   const result = await pool.query(`
     WITH comp AS (
       SELECT c.id, c.group_id, c.title_id, c.composition_type_id, c.tone,
@@ -52,11 +55,11 @@ async function main() {
                WHERE x IS NOT NULL AND x != 23
              ) AS named,
              ARRAY(
-               SELECT DISTINCT i.sorted_clef_combination_required
+               SELECT DISTINCT i.sorted_clef_combination_all
                FROM inclusions i
                WHERE i.composition_id = c.id
-                 AND i.sorted_clef_combination_required IS NOT NULL
-                 AND i.sorted_clef_combination_required <> ''
+                 AND i.sorted_clef_combination_all IS NOT NULL
+                 AND i.sorted_clef_combination_all <> ''
              ) AS combos
       FROM compositions c
       WHERE c.group_id IS NOT NULL AND c.title_id IS NOT NULL
@@ -98,6 +101,20 @@ async function main() {
   `);
 
   console.log(`${result.rows.length} candidate pair(s) found.`);
+
+  // Rule changes (e.g. optional clefs now counting) can invalidate pairs
+  // queued by earlier runs: any pending/skipped card whose pair is no longer
+  // a raw candidate (title/clefs/attributes no longer match) is removed.
+  if (!DRY_RUN) {
+    const candidateKeys = result.rows.map((r) => `am:${r.a_id}:${r.b_id}`);
+    const stale = await pool.query(
+      `DELETE FROM suggestions
+        WHERE kind = 'anon_match' AND status IN ('pending', 'skipped')
+          AND NOT (dedupe_key = ANY($1))`,
+      [candidateKeys]
+    );
+    if (stale.rowCount) console.log(`Removed ${stale.rowCount} stale card(s) whose pair no longer matches.`);
+  }
 
   // Chronology + provenance context for the named side: birth years rule
   // out impossible matches; a composer's attributed presence in the anon's
