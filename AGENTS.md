@@ -107,10 +107,13 @@ deployed. Also shipped since:
  the actual music. Ambiguity filter: a composition matching > 5 candidates
  is dropped (generic Magnificats etc.), a mutually UNIQUE pair scores
  highest ('matches N candidates' badge otherwise), max 20 pairs per title.
- CHRONOLOGY (hard filter): a pair is impossible when the anon sits in a
- source whose latest date predates every named-side composer's birth —
- never proposed, and now-impossible pending cards are DELETED on the next
- run. PROVENANCE (soft weight, never excludes — plenty of Palestrina in
+ HARD FILTERS: (1) SHARED SOURCE — the two candidates appearing in the
+ same source means they are different pieces (one work copied twice in a
+ source, once unattributed, unnoticed at cataloguing is vanishingly
+ unlikely); (2) CHRONOLOGY — a pair is impossible when the anon sits in a
+ source whose latest date predates every named-side composer's birth.
+ Neither is ever proposed, and now-impossible pending cards are DELETED
+ on the next run. PROVENANCE (soft weight, never excludes — plenty of Palestrina in
  Spanish sources): the named composer already having attributed works in
  the anon's source (+0.1, green badge) or another source from the same
  town (+0.05, blue badge) boosts the score; country isn't recorded on
