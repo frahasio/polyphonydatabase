@@ -9,7 +9,10 @@
  * Chronology (hard filter): a pair is IMPOSSIBLE when the anon side sits in
  * a source whose latest possible date is before every named-side composer
  * was born — such pairs are never proposed, and any pending card for them
- * is removed on the next run. Provenance (soft weight): the named composer
+ * is removed on the next run. Shared source (hard filter): two candidates
+ * appearing in the SAME source are different pieces — the chance of one
+ * work being copied twice in a source, once unattributed, without the
+ * cataloguer noticing is vanishingly small. Provenance (soft weight): the named composer
  * already having attributed works in the anon's source (or another source
  * from the same town) boosts the score and shows as a badge; its absence
  * costs nothing (plenty of Palestrina in Spanish sources he never visited).
@@ -132,16 +135,23 @@ async function main() {
     });
   }
 
-  // Impossible pairs: the anon side sits in a source whose LATEST possible
-  // date is before every named-side composer was born — the piece existed
-  // before he did. Only applies when all named composers have known births
-  // and the source is dated. Provenance never excludes (plenty of Palestrina
-  // in Spain), it only boosts.
+  // Impossible pairs: (1) the two candidates appear in the SAME source —
+  // one work copied twice in a source, once unattributed, unnoticed at
+  // cataloguing time is vanishingly unlikely, so they are different pieces;
+  // (2) the anon side sits in a source whose LATEST possible date is before
+  // every named-side composer was born — the piece existed before he did
+  // (only applies when all named composers have known births and the source
+  // is dated). Provenance never excludes (plenty of Palestrina in Spain),
+  // it only boosts.
   function pairContext(r) {
     const sides = [
       { named: r.a_named, comps: r.a_composers || [], sources: r.a_sources || [] },
       { named: r.b_named, comps: r.b_composers || [], sources: r.b_sources || [] },
     ];
+    const aSourceIds = new Set((r.a_sources || []).map((s) => s.id));
+    if ((r.b_sources || []).some((s) => aSourceIds.has(s.id))) {
+      return { impossible: true, provenance: null, provenance_detail: null };
+    }
     const named = sides.find((s) => s.named);
     const anon = sides.find((s) => !s.named);
     if (!named || !anon) return { impossible: false, provenance: null, provenance_detail: null };
@@ -190,7 +200,7 @@ async function main() {
     possible.push(r);
   }
   if (impossibleKeys.length) {
-    console.log(`${impossibleKeys.length} pair(s) excluded as impossible (a source of the anon predates the composer's birth).`);
+    console.log(`${impossibleKeys.length} pair(s) excluded as impossible (shared source, or a source of the anon predates the composer's birth).`);
     if (!DRY_RUN) {
       // Earlier runs may have queued pairs the date check now rules out.
       const del = await pool.query(
