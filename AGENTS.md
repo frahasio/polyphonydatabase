@@ -34,7 +34,7 @@ deployed. Also shipped since:
   or groups with editions/recordings; `saveSourceWithInclusions` now deletes
   removed inclusions inside the save transaction.
 - Migration runner + Heroku release phase.
-- Review queue (`/modules/suggestions`) fed by eight matchers:
+- Review queue (`/modules/suggestions`) fed by nine matchers:
  `scripts/suggest-title-functions.js` (Cantus Index title->function),
  `scripts/suggest-title-functions-do.js` (Divinum Officium title->function:
  indexes the vendored data/divinumofficium corpus — every Mass proper +
@@ -127,7 +127,26 @@ deployed. Also shipped since:
  and the empty group is deleted. Reject = permanent 'not the same' — the
  dedupe key `am:{compA}:{compB}` is never re-proposed. Local SQL only,
  cheap manual run, supports --dry-run; run it only AFTER deploying the
- anon_match queue support). Accept semantics: recordings/functions
+ anon_match queue support) and `scripts/suggest-composition-types.js`
+ (type suggester, Aug 2026: proposes a composition type per TITLE with
+ untyped settings — one card per title, dedupe `ctype:{title_id}:{type_id}`,
+ pending cards refreshed in place, cards for since-fully-typed titles
+ deleted. Rules: CONSENSUS (typed settings of the same title all agree —
+ self-bootstraps, no dictionary; titles whose typed settings disagree are
+ skipped), KEYWORDS (missa/mass/messe/misa -> Mass, requiem first ->
+ Requiem/Burial service, passio -> Passion, lamentatio -> Lamentation,
+ litaniae -> Litany, alleluia -> Alleluia, magnificat / nunc dimittis ->
+ Alternatim psalm/canticle), TONE (every untyped setting of the title
+ carries a psalm tone -> Alternatim psalm/canticle). Accept sets
+ composition_type_id on the title's STILL-untyped settings only (manual
+ types never overwritten); reviewer can pick a different type on the card.
+ composition_types.id is bigint — normalize pg's string ids to numbers.
+ Cheap local SQL, manual run). The anon-match tab has a composition-type
+ dropdown filter (`comp_type` param: type id matches either side of the
+ pair, 'untyped' = neither side typed) so reviewers take the pair queue a
+ genre at a time — it gets sharper as type suggestions are accepted, since
+ ~82% of compositions were untyped (there is no 'Motet' type; untyped
+ effectively means motet). Accept semantics: recordings/functions
  write real rows; title_merge merges (reviewer picks survivor);
  title_language sets `titles.language`; composer_bio APPLIES the Wikidata
  values — cited, so they win over ours where they differ (green = fills
@@ -278,8 +297,8 @@ queue.
  `spotify_checked_at`, migration 017) and
  `node scripts/suggest-composer-bios.js 50` (Wikidata, polite ~2 req/s, no
  hard quota). `suggest-title-languages.js`, `suggest-title-merges.js`,
- `suggest-group-titles.js` and `suggest-anon-matches.js` are cheap manual
- runs, not scheduled.
+ `suggest-group-titles.js`, `suggest-anon-matches.js` and
+ `suggest-composition-types.js` are cheap manual runs, not scheduled.
 - **Matcher tuning:** the Cantus feast->function map in
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.

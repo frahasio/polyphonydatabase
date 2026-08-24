@@ -19,6 +19,7 @@
         .suggestion-card.kind-composer_bio { border-left-color: #20c997; }
         .suggestion-card.kind-group_title { border-left-color: #6c757d; }
         .suggestion-card.kind-anon_match { border-left-color: #d63384; }
+        .suggestion-card.kind-composition_type { border-left-color: #ffc107; }
         .bio-table td { padding: 0.1rem 0.6rem 0.1rem 0; font-size: 0.85rem; }
         .bio-fill { background: #d1e7dd; border-radius: 3px; padding: 0 0.3rem; }
         .bio-change { background: #fff3cd; border-radius: 3px; padding: 0 0.3rem; }
@@ -73,10 +74,21 @@
                 <button type="button" class="btn btn-outline-secondary" data-kind="composer_bio">Composer bios</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="group_title">Group titles</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="anon_match">Anon matches</button>
+                <button type="button" class="btn btn-outline-secondary" data-kind="composition_type">Types</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="source_rism">Sources (RISM)</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_youtube">YouTube</button>
                 <button type="button" class="btn btn-outline-secondary" data-kind="recording_spotify">Spotify</button>
             </div>
+        </div>
+        <!-- Genre filter for the anon-match tab: generic texts (Magnificats,
+             hymns, psalms...) dominate the pair list, so reviewers can take
+             the queue a type at a time. Matches on either side's recorded
+             type; run the type matcher to fill missing types and sharpen it. -->
+        <div class="mb-2" id="anonTypeFilterWrap" style="display:none; max-width:340px">
+            <select class="form-select form-select-sm" id="anonTypeFilter">
+                <option value="">All composition types</option>
+                <option value="untyped">Untyped only (mostly motets etc.)</option>
+            </select>
         </div>
         <p class="text-muted small mb-1">
             Automatically matched suggestions awaiting a human decision. <strong>Accept</strong> writes the
@@ -284,6 +296,33 @@
             }
             if (s.kind === 'title_merge') return ''; // rendered entirely by contextHtml
             if (s.kind === 'anon_match') return ''; // rendered entirely by contextHtml
+            if (s.kind === 'composition_type') {
+                // Accept types every STILL-untyped setting of this title (the
+                // settings list above shows each one's current type, if any);
+                // manually typed settings are never overwritten.
+                const ruleBadge = p.rule === 'consensus'
+                    ? ' <span class="badge bg-success" title="Other settings of this very title are already typed this way">already typed on this title</span>'
+                    : p.rule === 'tone'
+                    ? ' <span class="badge bg-info text-dark" title="Recorded tones are psalm tones">has psalm tone(s)</span>'
+                    : '';
+                // composition_types.id is bigint, so the API serves ids as
+                // strings while the payload stores a number — compare as strings.
+                const typeOptions = (compositionTypesList.length ? compositionTypesList : [{ id: p.type_id, name: p.type_name }])
+                    .map(t => `<option value="${t.id}" ${String(t.id) === String(p.type_id) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
+                const n = parseInt(p.untyped_count, 10) || 0;
+                return `
+                    <div class="payload-detail">
+                        <div><strong>Proposed type:</strong>
+                            <span class="badge bg-warning text-dark">${escapeHtml(p.type_name)}</span>${ruleBadge}
+                            ${p.evidence ? `<span class="text-muted ms-2">${escapeHtml(p.evidence)}</span>` : ''}
+                        </div>
+                        <div class="text-muted mt-1">Accept sets the type on the ${n === 1 ? 'setting' : n + ' settings'} of this title still untyped when you click — settings typed by hand are left alone.</div>
+                        <div class="mt-2" style="max-width:300px">
+                            <label class="form-label small mb-1" for="ctype-${s.id}">Type saved on accept</label>
+                            <select class="form-select form-select-sm" id="ctype-${s.id}">${typeOptions}</select>
+                        </div>
+                    </div>`;
+            }
             if (s.kind === 'title_language') {
                 const evidence = (p.evidence || []).map(escapeHtml).join(', ');
                 const langOptions = languagesList.length ? languagesList : [{ id: p.language_id, name: p.language_name }];
@@ -610,7 +649,7 @@
                         ${src.title ? `<span class="text-muted"> — ${escapeHtml(src.title)}</span>` : ''}
                         ${bits ? `<div class="comp-detail text-muted mt-1">${bits}</div>` : ''}`;
             }
-            if (s.kind === 'title_function' || s.kind === 'title_language') {
+            if (s.kind === 'title_function' || s.kind === 'title_language' || s.kind === 'composition_type') {
                 // Show every setting that carries this title so the reviewer can
                 // see which pieces the function would apply to.
                 const comps = (s.compositions || []).slice(0, 6).map(c => {
@@ -663,6 +702,21 @@
             } catch (e) { /* select falls back to the guessed language only */ }
         }
 
+        let compositionTypesList = [];
+        let compositionTypesLoaded = false;
+        async function loadCompositionTypes() {
+            if (compositionTypesLoaded) return;
+            compositionTypesLoaded = true;
+            try {
+                const res = await fetch('/api/search/composition-types', { credentials: 'include' });
+                if (!res.ok) return;
+                compositionTypesList = await res.json() || [];
+                const sel = document.getElementById('anonTypeFilter');
+                sel.innerHTML += compositionTypesList
+                    .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+            } catch (e) { /* filter falls back to All; card select falls back to the proposed type */ }
+        }
+
         let functionsLoaded = false;
         async function loadFunctionsDatalist() {
             if (functionsLoaded) return;
@@ -681,12 +735,17 @@
             loadPerformersDatalist();
             loadFunctionsDatalist();
             await loadLanguages(); // cards need the list before rendering
+            await loadCompositionTypes(); // anon filter + type cards need it
+            document.getElementById('anonTypeFilterWrap').style.display =
+                currentKind === 'anon_match' ? 'block' : 'none';
             document.getElementById('loading').style.display = 'block';
             document.getElementById('queue').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
             try {
                 const params = new URLSearchParams({ status: 'pending', limit: 25 });
                 if (currentKind) params.set('kind', currentKind);
+                const typeFilter = document.getElementById('anonTypeFilter').value;
+                if (currentKind === 'anon_match' && typeFilter) params.set('comp_type', typeFilter);
                 const res = await fetch('/api/admin/suggestions?' + params.toString(), { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to load suggestions (' + res.status + ')');
                 const data = await res.json();
@@ -709,6 +768,7 @@
                 composer_bio: 'composer bios',
                 group_title: 'group titles',
                 anon_match: 'anon matches',
+                composition_type: 'type suggestions',
                 source_rism: 'RISM source data',
                 recording_youtube: 'YouTube recordings',
                 recording_spotify: 'Spotify recordings'
@@ -786,6 +846,8 @@
                 }
                 const langSelect = document.getElementById('lang-' + id);
                 if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
+                const typeSelect = document.getElementById('ctype-' + id);
+                if (typeSelect) fields.type_id = parseInt(typeSelect.value, 10);
                 const gtDir = document.querySelector(`input[name="gtdir-${id}"]:checked`);
                 if (gtDir && gtDir.value === 'comps') {
                     fields.apply_to_compositions = true;
@@ -817,6 +879,8 @@
                 alert('Error: ' + e.message);
             }
         }
+
+        document.getElementById('anonTypeFilter').addEventListener('change', load);
 
         document.querySelectorAll('#kindFilter button').forEach(btn => {
             btn.addEventListener('click', () => {

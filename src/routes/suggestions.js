@@ -7,7 +7,7 @@ import { triggerCleanup } from '../cleanup.js';
 // just admins) can churn through it.
 const router = express.Router();
 
-const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title', 'source_rism', 'anon_match'];
+const KINDS = ['title_function', 'recording_youtube', 'recording_spotify', 'title_merge', 'title_language', 'composer_bio', 'group_title', 'source_rism', 'anon_match', 'composition_type'];
 const REVIEW_ACTIONS = { accept: 'accepted', reject: 'rejected', skip: 'skipped' };
 
 // Attach disambiguating context to each suggestion so reviewers can tell
@@ -187,6 +187,24 @@ router.get('/', async (req, res) => {
     if (kind) {
       params.push(kind);
       where += ` AND s.kind = $${params.length}`;
+    }
+    // Anon-match cards can be narrowed by composition type: 'untyped' means
+    // neither side has a type recorded; an id matches when either side has
+    // it (the matcher already guarantees the pair's types never conflict).
+    // Generic texts (Magnificats, hymns, psalms...) dominate the queue, so
+    // reviewers work through it a genre at a time.
+    if (kind === 'anon_match' && req.query.comp_type) {
+      const pairComps = `SELECT 1 FROM compositions cf
+             WHERE cf.id IN (((s.payload->>'comp1_id')::int), ((s.payload->>'comp2_id')::int))`;
+      if (req.query.comp_type === 'untyped') {
+        where += ` AND NOT EXISTS (${pairComps} AND cf.composition_type_id IS NOT NULL)`;
+      } else {
+        const typeId = parseInt(req.query.comp_type, 10);
+        if (Number.isInteger(typeId)) {
+          params.push(typeId);
+          where += ` AND EXISTS (${pairComps} AND cf.composition_type_id = $${params.length})`;
+        }
+      }
     }
     params.push(limit, (page - 1) * limit);
 
@@ -559,6 +577,21 @@ router.post('/:id/:action', async (req, res) => {
             [chosen, s.group_id]
           );
         }
+      } else if (s.kind === 'composition_type') {
+        if (!s.title_id) throw new Error('Suggestion payload missing title');
+        // Sets the type on every setting of this title that is STILL untyped
+        // at accept time — types added manually in the meantime are never
+        // overwritten. The reviewer may pick a different type at accept.
+        const bodyType = parseInt(req.body.type_id, 10);
+        const typeId = Number.isInteger(bodyType) ? bodyType : parseInt(payload.type_id, 10);
+        if (!Number.isInteger(typeId)) throw new Error('No composition type given');
+        const type = await client.query('SELECT id FROM composition_types WHERE id = $1', [typeId]);
+        if (!type.rows.length) throw new Error('Unknown composition type');
+        await client.query(
+          `UPDATE compositions SET composition_type_id = $1, updated_at = CURRENT_TIMESTAMP
+           WHERE title_id = $2 AND composition_type_id IS NULL`,
+          [typeId, s.title_id]
+        );
       } else if (s.kind === 'anon_match') {
         // Accept = the reviewer confirmed the two settings are the same
         // piece: move the other composition into the kept group. Reject is
