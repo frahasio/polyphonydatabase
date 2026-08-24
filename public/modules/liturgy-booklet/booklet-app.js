@@ -5298,6 +5298,13 @@
     return { html: html, manifest: manifest, pageNumbersPosition: pnConfig.position };
   }
 
+  // Last successful server render, keyed by the exact request payload. If the
+  // booklet hasn't changed, the rebuilt payload is byte-identical, so a proof
+  // followed by a download (or a repeated download) reuses the PDF instead of
+  // rendering it twice.
+  var pdfCacheBody = null;
+  var pdfCacheBlob = null;
+
   /**
    * Build the booklet server-side and return the finished PDF as a Blob
    * (null on failure — the user has already been alerted). `btn` gets a
@@ -5311,17 +5318,19 @@
     try {
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
       var mh = buildPdfManifestAndHtml(pages);
+      var body = JSON.stringify({
+        html: mh.html,
+        pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
+        manifest: mh.manifest,
+        pageNumbersPosition: mh.pageNumbersPosition,
+        pageNumberVMm: getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM),
+        pageNumberHMm: getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM),
+        title: state.projectTitle || '',
+      });
+      if (pdfCacheBlob && pdfCacheBody === body) return pdfCacheBlob;
       var r = await fetch('/api/booklet/pdf', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({
-          html: mh.html,
-          pageSize: state.settings.pageSize === 'A5' ? 'A5' : 'A4',
-          manifest: mh.manifest,
-          pageNumbersPosition: mh.pageNumbersPosition,
-          pageNumberVMm: getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM),
-          pageNumberHMm: getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM),
-          title: state.projectTitle || '',
-        }),
+        body: body,
       });
       if (!r.ok) {
         var msg = 'Server PDF export failed (status ' + r.status + ').';
@@ -5329,7 +5338,10 @@
         alert(msg);
         return null;
       }
-      return await r.blob();
+      var blob = await r.blob();
+      pdfCacheBody = body;
+      pdfCacheBlob = blob;
+      return blob;
     } catch (e) {
       console.error(e);
       alert('PDF export failed (network or server error).');
@@ -5357,13 +5369,11 @@
   // by the server's Chrome. Wrapping can differ by a line, so the proof
   // modal shows the server's actual output before downloading.
 
-  var proofBlob = null;
   var proofBlobUrl = null;
 
   async function proofPdf() {
     var blob = await requestServerPdf(document.getElementById('btnProofPdf'));
     if (!blob) return;
-    proofBlob = blob;
     if (proofBlobUrl) URL.revokeObjectURL(proofBlobUrl);
     proofBlobUrl = URL.createObjectURL(blob);
     var frame = document.getElementById('proofPdfFrame');
@@ -6100,12 +6110,13 @@
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
     document.getElementById('btnProofPdf')?.addEventListener('click', () => proofPdf());
-    document.getElementById('btnProofDownload')?.addEventListener('click', () => { if (proofBlob) savePdfBlob(proofBlob); });
+    // The proof was just rendered, so this hits the payload cache in
+    // requestServerPdf and saves instantly without a second server render.
+    document.getElementById('btnProofDownload')?.addEventListener('click', () => downloadPdf());
     document.getElementById('modalProofPdf')?.addEventListener('hidden.bs.modal', () => {
       var frame = document.getElementById('proofPdfFrame');
       if (frame) frame.src = 'about:blank';
       if (proofBlobUrl) { URL.revokeObjectURL(proofBlobUrl); proofBlobUrl = null; }
-      proofBlob = null;
     });
 
     (function bindNewProject() {
