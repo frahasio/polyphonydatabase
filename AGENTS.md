@@ -154,7 +154,18 @@ deployed. Also shipped since:
  Stripe-webhook payment). Gated by the `commissions` permission;
  commissions can be claimed/released so only one user edits at a time.
 - Booklet: page numbering (position + independent margins), composer-aware
-  edition search, ABC/HR in the Add menu, friendly permission page.
+  edition search, ABC/HR in the Add menu, friendly permission page. PDF export
+  is server-side only (Puppeteer); an on-demand "Proof" modal shows the
+  server's actual PDF (cached — proof then download reuses one render) since
+  browser vs headless-Chrome text metrics can wrap long lines differently.
+  Page splits (Aug 2026): `measureLineCutPoints` measures the REAL rendered
+  line boxes of splittable blocks (text-node client rects merged into lines;
+  parallel columns share lines, drop caps fuse their spanned lines, img/svg
+  are opaque) and cuts at mid-gap between lines — the old arithmetic snap
+  (header + n*lineHeight) drifted off-grid with titles/margins/fractional
+  line heights and sliced through lines, which asc/desc clip covers only
+  partly hid and server drift exposed. Arithmetic `bestLineSnap` retained
+  only as fallback when nothing is measurable.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

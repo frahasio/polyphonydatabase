@@ -2918,6 +2918,101 @@
     return snapped > 0 ? snapped : targetPx;
   }
 
+  /**
+   * Measure the REAL rendered line boxes of a splittable block and derive safe
+   * cut heights (px from the block's top) that fall between lines. The
+   * arithmetic snap (header + n * lineHeight) silently drifts off the true
+   * line grid whenever a block contains a title, paragraph margins, drop caps
+   * or fractional pt->px line heights — and a drifted cut slices through a
+   * line of text, which the clip covers then only just about hide (and the
+   * server's slightly different text metrics expose). Cutting at measured
+   * boundaries removes that whole failure class.
+   *
+   * Returns { lines: [{top,bottom,rich}], cuts: [y,...] } (both ascending) or
+   * null when nothing is measurable — callers fall back to the arithmetic snap.
+   */
+  function measureLineCutPoints(el, widthPx) {
+    var mount = document.getElementById('bookletMeasureMount');
+    if (!mount) return null;
+    mount.innerHTML = '';
+    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;overflow:visible;';
+    var ctx = ensureMeasurePageContext(mount, widthPx);
+    ctx.body.innerHTML = '';
+    var clone = el.cloneNode(true);
+    ctx.body.appendChild(clone);
+    mount.appendChild(ctx.page);
+
+    var rects = [];
+    try {
+      var cloneTop = clone.getBoundingClientRect().top;
+      function pushRect(r, rich) {
+        if (r.height > 1 && r.width > 0.5) {
+          rects.push({ top: r.top - cloneTop, bottom: r.bottom - cloneTop, rich: rich });
+        }
+      }
+      var walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+      var n;
+      while ((n = walker.nextNode())) {
+        if (!n.textContent || !n.textContent.trim()) continue;
+        var rich = !!(n.parentElement && n.parentElement.closest('.booklet-richtext'));
+        var range = document.createRange();
+        range.selectNodeContents(n);
+        var rs = range.getClientRects();
+        for (var i = 0; i < rs.length; i++) pushRect(rs[i], rich);
+      }
+      // Graphics must never be sliced either: treat each as one opaque "line".
+      clone.querySelectorAll('img, svg, canvas, hr').forEach(function (g) {
+        pushRect(g.getBoundingClientRect(), false);
+      });
+    } catch (e) {
+      rects = [];
+    }
+
+    mount.removeChild(ctx.page);
+    ctx.body.innerHTML = '';
+    mount.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:1px;height:1px;overflow:hidden;';
+
+    if (!rects.length) return null;
+    rects.sort(function (a, b) { return a.top - b.top; });
+    // Merge vertically-overlapping rects into lines. Parallel columns share
+    // line boxes; a drop cap spanning several lines merges them into one
+    // uncuttable band.
+    var lines = [];
+    for (var j = 0; j < rects.length; j++) {
+      var r = rects[j];
+      var last = lines[lines.length - 1];
+      if (last && r.top < last.bottom - 0.25) {
+        if (r.bottom > last.bottom) last.bottom = r.bottom;
+        if (r.top < last.top) last.top = r.top;
+        last.rich = last.rich || r.rich;
+      } else {
+        lines.push({ top: r.top, bottom: r.bottom, rich: r.rich });
+      }
+    }
+    if (lines.length < 2) return null;
+    var cuts = [];
+    for (var k = 1; k < lines.length; k++) {
+      cuts.push((lines[k - 1].bottom + lines[k].top) / 2);
+    }
+    return { lines: lines, cuts: cuts };
+  }
+
+  function cutInfoHasRich(cutInfo) {
+    if (!cutInfo) return false;
+    for (var i = 0; i < cutInfo.lines.length; i++) if (cutInfo.lines[i].rich) return true;
+    return false;
+  }
+
+  /** Count measured lines fully inside [fromY, toY]; body-text lines only when richOnly. */
+  function countMeasuredLines(lines, fromY, toY, richOnly) {
+    var c = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var L = lines[i];
+      if (L.top >= fromY - 0.5 && L.bottom <= toY + 0.5 && (!richOnly || L.rich)) c++;
+    }
+    return c;
+  }
+
   function createClippedView(el, fromPx, toPx, widthPx, clipClass, lineHPx) {
     var isTop = clipClass === 'booklet-clip-top';
     var isMid = clipClass === 'booklet-clip-mid';
@@ -3074,43 +3169,81 @@
       return { header: header, footer: footer };
     }
 
-    function splitContinuation(el, totalH, startOffset, w) {
+    function splitContinuation(el, totalH, startOffset, w, cutInfo) {
       var elLh = getElementLineHeightPx(el);
       var minOrphanH = minOrphan * elLh;
+      var cutHasRich = cutInfoHasRich(cutInfo);
+      var capMax = pageHPx + marginTolPx;
       var offset = startOffset;
-      while (offset < totalH) {
+      var guard = 0;
+      while (offset < totalH && guard++ < 1000) {
         var rem = totalH - offset;
-        var snap = bestLineSnap(pageHPx, pageHPx + marginTolPx, 0, 0, elLh);
-        if (rem <= snap.h) {
+        var fitsAsFinal;
+        if (cutInfo) {
+          fitsAsFinal = rem <= capMax;
+        } else {
+          var fsnap = bestLineSnap(pageHPx, capMax, 0, 0, elLh);
+          fitsAsFinal = rem <= fsnap.h;
+        }
+        if (fitsAsFinal) {
           curEls = [createClippedView(el, offset, totalH, w, 'booklet-clip-bottom', elLh)];
           curHeights = [rem];
           curGaps = [0];
           curGapFlex = [false];
           break;
         }
-        var sliceH = snap.h;
-        var afterRem = totalH - offset - sliceH;
-        if (afterRem > 0 && afterRem < minOrphanH && sliceH > minOrphanH) {
-          var pullLines = minOrphan - Math.max(0, Math.floor(afterRem / elLh));
-          sliceH = Math.max(elLh, sliceH - pullLines * elLh);
+        var sliceEnd = null;
+        if (cutInfo) {
+          // Largest measured between-lines boundary that fits this page.
+          for (var c = cutInfo.cuts.length - 1; c >= 0; c--) {
+            var y = cutInfo.cuts[c];
+            if (y <= offset + 1) break;
+            if (y - offset > capMax) continue;
+            var linesRest = countMeasuredLines(cutInfo.lines, y, Number.MAX_VALUE, cutHasRich);
+            if (linesRest > 0 && linesRest < minOrphan) continue;
+            sliceEnd = y;
+            break;
+          }
+        }
+        if (sliceEnd == null) {
+          var snap = bestLineSnap(pageHPx, capMax, 0, 0, elLh);
+          var sliceH = snap.h;
+          var afterRem = totalH - offset - sliceH;
+          if (afterRem > 0 && afterRem < minOrphanH && sliceH > minOrphanH) {
+            var pullLines = minOrphan - Math.max(0, Math.floor(afterRem / elLh));
+            sliceH = Math.max(elLh, sliceH - pullLines * elLh);
+          }
+          sliceEnd = offset + sliceH;
         }
         var cls = offset === 0 ? 'booklet-clip-top' : 'booklet-clip-mid';
-        var clip = createClippedView(el, offset, offset + sliceH, w, cls, elLh);
-        var padBot = Math.max(-marginTolPx, pageHPx - sliceH);
+        var clip = createClippedView(el, offset, sliceEnd, w, cls, elLh);
+        var padBot = Math.max(-marginTolPx, pageHPx - (sliceEnd - offset));
         pushPage([clip], [0], 0, padBot);
-        offset += sliceH;
+        offset = sliceEnd;
       }
     }
 
-    function placeOnNewPage(el, h, splittable, w) {
+    function placeOnNewPage(el, h, splittable, w, cutInfo) {
       if (h <= pageHPx + marginTolPx || !splittable) {
         curEls = [el];
         curHeights = [h];
         curGaps = [0];
         curGapFlex = [false];
       } else {
-        splitContinuation(el, h, 0, w);
+        splitContinuation(el, h, 0, w, cutInfo);
       }
+    }
+
+    function getCutInfoFor(item, el) {
+      if (item.measureKey) {
+        var sig = item.measureSig + '|cuts|w' + widthPx;
+        var cached = flowHeightCache.get(item.measureKey + '#cuts');
+        if (cached && cached.sig === sig) return cached.info;
+        var info = measureLineCutPoints(el, widthPx);
+        flowHeightCache.set(item.measureKey + '#cuts', { sig: sig, info: info });
+        return info;
+      }
+      return measureLineCutPoints(el, widthPx);
     }
 
     for (var i = 0; i < flowItems.length; i++) {
@@ -3164,21 +3297,26 @@
         var maxRemaining = pageHPx + marginTolPx - minAbove;
 
         if (maxRemaining >= 60) {
-          var offsets;
-          if (item.measureKey) {
-            var offSig = item.measureSig + '|off|w' + widthPx;
-            var offCached = flowHeightCache.get(item.measureKey + '#off');
-            if (offCached && offCached.sig === offSig) {
-              offsets = { header: offCached.header, footer: offCached.footer };
+          var cutInfo = getCutInfoFor(item, el);
+          var offsets = null;
+          if (!cutInfo) {
+            // Arithmetic fallback needs the title/footer offsets.
+            if (item.measureKey) {
+              var offSig = item.measureSig + '|off|w' + widthPx;
+              var offCached = flowHeightCache.get(item.measureKey + '#off');
+              if (offCached && offCached.sig === offSig) {
+                offsets = { header: offCached.header, footer: offCached.footer };
+              } else {
+                offsets = measureBlockOffsets(el, widthPx);
+                flowHeightCache.set(item.measureKey + '#off', { sig: offSig, header: offsets.header, footer: offsets.footer });
+              }
             } else {
               offsets = measureBlockOffsets(el, widthPx);
-              flowHeightCache.set(item.measureKey + '#off', { sig: offSig, header: offsets.header, footer: offsets.footer });
             }
-          } else {
-            offsets = measureBlockOffsets(el, widthPx);
           }
           var elLineH = getElementLineHeightPx(el);
           var minOrphanH = minOrphan * elLineH;
+          var cutHasRich = cutInfoHasRich(cutInfo);
           var deltas = [-gapFlexPx, 0, gapFlexPx];
           var best = null;
 
@@ -3189,13 +3327,30 @@
             var maxA = pageHPx + marginTolPx - above;
             if (maxA < 20) continue;
 
-            var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
-            if (snap.h < 20) continue;
-            var splitH = Math.min(snap.h, h);
-            var textInFirst = splitH - (offsets.header || 0) - (offsets.footer || 0);
-            var remainder = h - splitH;
-            if (textInFirst < minOrphanH && splitH < h) continue;
-            if (remainder > 0 && remainder < minOrphanH) continue;
+            var splitH = null;
+            if (cutInfo) {
+              // Cut at the largest measured between-lines boundary that fits.
+              for (var c = cutInfo.cuts.length - 1; c >= 0; c--) {
+                var y = cutInfo.cuts[c];
+                if (y > maxA) continue;
+                if (y < 20) break;
+                var linesFirst = countMeasuredLines(cutInfo.lines, 0, y, cutHasRich);
+                if (linesFirst < minOrphan) break;
+                var linesRest = countMeasuredLines(cutInfo.lines, y, Number.MAX_VALUE, cutHasRich);
+                if (linesRest > 0 && linesRest < minOrphan) continue;
+                splitH = y;
+                break;
+              }
+              if (splitH == null) continue;
+            } else {
+              var snap = bestLineSnap(Math.max(0, avail), Math.max(0, maxA), offsets.header, offsets.footer, elLineH);
+              if (snap.h < 20) continue;
+              splitH = Math.min(snap.h, h);
+              var textInFirst = splitH - (offsets.header || 0) - (offsets.footer || 0);
+              if (textInFirst < minOrphanH && splitH < h) continue;
+              var remainder = h - splitH;
+              if (remainder > 0 && remainder < minOrphanH) continue;
+            }
             var total = above + splitH;
             var absPad = Math.abs(pageHPx - total);
 
@@ -3223,24 +3378,24 @@
             pendingGapMm = defaultGapMm;
 
             if (best.splitH < h) {
-              splitContinuation(el, h, best.splitH, widthPx);
+              splitContinuation(el, h, best.splitH, widthPx, cutInfo);
             }
           } else {
             flushPage();
-            placeOnNewPage(el, h, true, widthPx);
+            placeOnNewPage(el, h, true, widthPx, cutInfo);
           }
         } else {
           flushPage();
-          placeOnNewPage(el, h, true, widthPx);
+          placeOnNewPage(el, h, true, widthPx, getCutInfoFor(item, el));
         }
       }
       else if (item.splittable) {
         if (curEls.length) flushPage();
-        placeOnNewPage(el, h, true, widthPx);
+        placeOnNewPage(el, h, true, widthPx, getCutInfoFor(item, el));
       }
       else {
         if (curEls.length) flushPage();
-        placeOnNewPage(el, h, false, widthPx);
+        placeOnNewPage(el, h, false, widthPx, null);
       }
 
       if (item.gapMm != null) pendingGapMm = item.gapMm;
