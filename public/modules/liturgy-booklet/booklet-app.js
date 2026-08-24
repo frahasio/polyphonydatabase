@@ -5298,10 +5298,14 @@
     return { html: html, manifest: manifest, pageNumbersPosition: pnConfig.position };
   }
 
-  async function downloadPdf() {
+  /**
+   * Build the booklet server-side and return the finished PDF as a Blob
+   * (null on failure — the user has already been alerted). `btn` gets a
+   * spinner while the request is in flight.
+   */
+  async function requestServerPdf(btn) {
     var pages = exportPageElements.filter(function (el) { return el && el.isConnected && el.dataset.placeholder !== 'true'; });
-    if (!pages.length) { alert('Add content before downloading a PDF.'); return; }
-    var btn = document.getElementById('btnDownloadPdf');
+    if (!pages.length) { alert('Add content before exporting a PDF.'); return null; }
     var oldText = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Building\u2026'; }
     try {
@@ -5323,20 +5327,49 @@
         var msg = 'Server PDF export failed (status ' + r.status + ').';
         try { var j = await r.json(); if (j && j.error) msg = j.error; } catch (e) { /* ignore */ }
         alert(msg);
-        return;
+        return null;
       }
-      var blob = await r.blob();
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet') + '.pdf';
-      a.click();
-      URL.revokeObjectURL(a.href);
+      return await r.blob();
     } catch (e) {
       console.error(e);
       alert('PDF export failed (network or server error).');
+      return null;
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = oldText; }
     }
+  }
+
+  function savePdfBlob(blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = safeFilenameBase(state.projectTitle, 'liturgy-booklet') + '.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function downloadPdf() {
+    var blob = await requestServerPdf(document.getElementById('btnDownloadPdf'));
+    if (blob) savePdfBlob(blob);
+  }
+
+  // ---- Server PDF proof view -------------------------------------------
+  // The editing preview is rendered by the user's browser; the exported PDF
+  // by the server's Chrome. Wrapping can differ by a line, so the proof
+  // modal shows the server's actual output before downloading.
+
+  var proofBlob = null;
+  var proofBlobUrl = null;
+
+  async function proofPdf() {
+    var blob = await requestServerPdf(document.getElementById('btnProofPdf'));
+    if (!blob) return;
+    proofBlob = blob;
+    if (proofBlobUrl) URL.revokeObjectURL(proofBlobUrl);
+    proofBlobUrl = URL.createObjectURL(blob);
+    var frame = document.getElementById('proofPdfFrame');
+    if (frame) frame.src = proofBlobUrl;
+    var modalEl = document.getElementById('modalProofPdf');
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
 
   // ---- Template library ----------------------------------------------
@@ -6066,6 +6099,14 @@
       if (f) loadJsonFile(f);
     });
     document.getElementById('btnDownloadPdf')?.addEventListener('click', () => downloadPdf());
+    document.getElementById('btnProofPdf')?.addEventListener('click', () => proofPdf());
+    document.getElementById('btnProofDownload')?.addEventListener('click', () => { if (proofBlob) savePdfBlob(proofBlob); });
+    document.getElementById('modalProofPdf')?.addEventListener('hidden.bs.modal', () => {
+      var frame = document.getElementById('proofPdfFrame');
+      if (frame) frame.src = 'about:blank';
+      if (proofBlobUrl) { URL.revokeObjectURL(proofBlobUrl); proofBlobUrl = null; }
+      proofBlob = null;
+    });
 
     (function bindNewProject() {
       var modalEl = document.getElementById('modalNewProject');
