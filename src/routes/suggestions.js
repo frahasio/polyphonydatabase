@@ -135,7 +135,39 @@ async function enrichWithContext(rows) {
     });
   }
 
+  // composition_type cards decide per SETTING (settings of a title do not
+  // all necessarily share a type), so each card needs the title's untyped
+  // settings individually — with each one's sources' titles, which usually
+  // give the genre away (a piece in "Hymni per annum" is a hymn).
+  const ctypeTitleIds = [...new Set(rows
+    .filter((r) => r.kind === 'composition_type' && r.title_id)
+    .map((r) => r.title_id))];
+  const untypedByTitle = {};
+  if (ctypeTitleIds.length) {
+    const comps = await pool.query(
+      `SELECT c.id, c.title_id, c.number_of_voices, c.tone, c.tone_connector, c.even_odd,
+              g.display_title AS group_title,
+              (SELECT string_agg(DISTINCT comp.name, ', ')
+                 FROM composers comp
+                 WHERE comp.id = ANY(c.composer_id_list) AND comp.id != 23) AS composers,
+              COALESCE((SELECT json_agg(json_build_object('code', src.code, 'title', src.title) ORDER BY src.code)
+                        FROM (SELECT DISTINCT s2.code, s2.title
+                              FROM inclusions i JOIN sources s2 ON s2.id = i.source_id
+                              WHERE i.composition_id = c.id) src), '[]'::json) AS sources
+       FROM compositions c
+       LEFT JOIN groups g ON g.id = c.group_id
+       WHERE c.title_id = ANY($1) AND c.composition_type_id IS NULL
+       ORDER BY c.id`,
+      [ctypeTitleIds]
+    );
+    comps.rows.forEach((r) => { (untypedByTitle[r.title_id] ||= []).push(r); });
+  }
+
   rows.forEach((r) => {
+    if (r.kind === 'composition_type') {
+      r.untyped_comps = untypedByTitle[r.title_id] || [];
+      return;
+    }
     if (r.kind === 'anon_match') {
       const p = r.payload || {};
       r.comp_a = anonComps[parseInt(p.comp1_id, 10)] || null;
@@ -579,18 +611,39 @@ router.post('/:id/:action', async (req, res) => {
         }
       } else if (s.kind === 'composition_type') {
         if (!s.title_id) throw new Error('Suggestion payload missing title');
-        // Sets the type on every setting of this title that is STILL untyped
-        // at accept time — types added manually in the meantime are never
-        // overwritten. The reviewer may pick a different type at accept.
+        // Per-setting decision: only the settings the reviewer TICKED get
+        // the type — settings of one title don't all necessarily share it.
+        // Still-untyped guard: types added manually in the meantime are
+        // never overwritten. The reviewer may pick a different type too.
         const bodyType = parseInt(req.body.type_id, 10);
         const typeId = Number.isInteger(bodyType) ? bodyType : parseInt(payload.type_id, 10);
         if (!Number.isInteger(typeId)) throw new Error('No composition type given');
         const type = await client.query('SELECT id FROM composition_types WHERE id = $1', [typeId]);
         if (!type.rows.length) throw new Error('Unknown composition type');
+        const compIds = (Array.isArray(req.body.composition_ids) ? req.body.composition_ids : [])
+          .map((v) => parseInt(v, 10))
+          .filter(Number.isInteger);
+        if (!compIds.length) {
+          // Nothing tickable left (every setting typed by hand since the
+          // card was made) — accept just clears the card.
+          const left = await client.query(
+            'SELECT 1 FROM compositions WHERE title_id = $1 AND composition_type_id IS NULL LIMIT 1',
+            [s.title_id]
+          );
+          if (left.rows.length) throw new Error('No settings ticked');
+          await client.query(
+            `UPDATE suggestions SET status = 'accepted', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
+            [req.user.id, s.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ success: true, status: 'accepted', note: 'All settings already typed; nothing to change.' });
+        }
+        // title_id in the WHERE keeps a tampered/stale id list from typing
+        // unrelated compositions.
         await client.query(
           `UPDATE compositions SET composition_type_id = $1, updated_at = CURRENT_TIMESTAMP
-           WHERE title_id = $2 AND composition_type_id IS NULL`,
-          [typeId, s.title_id]
+           WHERE id = ANY($2) AND title_id = $3 AND composition_type_id IS NULL`,
+          [typeId, compIds, s.title_id]
         );
       } else if (s.kind === 'anon_match') {
         // Accept = the reviewer confirmed the two settings are the same

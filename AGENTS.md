@@ -136,10 +136,15 @@ deployed. Also shipped since:
  skipped), KEYWORDS (missa/mass/messe/misa -> Mass, requiem first ->
  Requiem/Burial service, passio -> Passion, lamentatio -> Lamentation,
  litaniae -> Litany, alleluia -> Alleluia, magnificat / nunc dimittis ->
- Alternatim psalm/canticle), TONE (every untyped setting of the title
- carries a psalm tone -> Alternatim psalm/canticle). Accept sets
- composition_type_id on the title's STILL-untyped settings only (manual
- types never overwritten); reviewer can pick a different type on the card.
+ Alternatim psalm/canticle), TONE (>=1 untyped setting of the title
+ carries a psalm tone -> Alternatim psalm/canticle). The DECISION is per
+ SETTING — settings of one title do NOT all share a type: the card lists
+ each untyped setting with a tick-box (composer, group, attrs, and its
+ sources' code + TITLE, which usually betrays the genre), preticked except
+ tone-rule cards which pretick only toned settings. Accept types the
+ TICKED, still-untyped settings only (composition_ids in the body; manual
+ types never overwritten; empty-and-none-left clears the card); reviewer
+ can pick a different type on the card.
  composition_types.id is bigint — normalize pg's string ids to numbers.
  Cheap local SQL, manual run). The anon-match tab has a composition-type
  dropdown filter (`comp_type` param: type id matches either side of the

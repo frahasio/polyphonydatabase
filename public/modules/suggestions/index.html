@@ -297,9 +297,10 @@
             if (s.kind === 'title_merge') return ''; // rendered entirely by contextHtml
             if (s.kind === 'anon_match') return ''; // rendered entirely by contextHtml
             if (s.kind === 'composition_type') {
-                // Accept types every STILL-untyped setting of this title (the
-                // settings list above shows each one's current type, if any);
-                // manually typed settings are never overwritten.
+                // Per-setting decision: settings of one title don't all
+                // necessarily share a type, so each untyped setting gets its
+                // own tick-box — with its sources' titles, which usually give
+                // the genre away. Accept types the TICKED settings only.
                 const ruleBadge = p.rule === 'consensus'
                     ? ' <span class="badge bg-success" title="Other settings of this very title are already typed this way">already typed on this title</span>'
                     : p.rule === 'tone'
@@ -309,14 +310,35 @@
                 // strings while the payload stores a number — compare as strings.
                 const typeOptions = (compositionTypesList.length ? compositionTypesList : [{ id: p.type_id, name: p.type_name }])
                     .map(t => `<option value="${t.id}" ${String(t.id) === String(p.type_id) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
-                const n = parseInt(p.untyped_count, 10) || 0;
+                const comps = s.untyped_comps || [];
+                const rows = comps.map((c, i) => {
+                    const who = c.composers ? escapeHtml(c.composers) : 'Anon';
+                    const grp = c.group_title ? ` — ${escapeHtml(c.group_title)}` : '';
+                    const srcs = (c.sources || []).map(src =>
+                        `<strong>${escapeHtml(src.code)}</strong>${src.title ? ` <span class="text-muted">— ${escapeHtml(src.title)}</span>` : ''}`
+                    ).join('<br>');
+                    const hasTone = Array.isArray(c.tone) ? c.tone.filter(Boolean).length > 0 : Boolean(c.tone);
+                    // Tone-rule cards pretick only the settings that actually
+                    // carry a tone; other rules pretick everything.
+                    const preticked = p.rule === 'tone' ? hasTone : true;
+                    return `
+                        <div class="form-check mb-1">
+                            <input class="form-check-input ctsel-${s.id}" type="checkbox" id="ctsel-${s.id}-${i}"
+                                data-compid="${c.id}" ${preticked ? 'checked' : ''}>
+                            <label class="form-check-label d-block" for="ctsel-${s.id}-${i}">
+                                ${who}${grp} ${compositionDescriptor(c)}
+                                ${srcs ? `<div class="comp-detail ms-1">${srcs}</div>` : '<div class="comp-detail ms-1 text-muted">no sources catalogued</div>'}
+                            </label>
+                        </div>`;
+                }).join('');
                 return `
                     <div class="payload-detail">
                         <div><strong>Proposed type:</strong>
                             <span class="badge bg-warning text-dark">${escapeHtml(p.type_name)}</span>${ruleBadge}
                             ${p.evidence ? `<span class="text-muted ms-2">${escapeHtml(p.evidence)}</span>` : ''}
                         </div>
-                        <div class="text-muted mt-1">Accept sets the type on the ${n === 1 ? 'setting' : n + ' settings'} of this title still untyped when you click — settings typed by hand are left alone.</div>
+                        <div class="text-muted mt-1">Tick the settings this type applies to — not every setting of a title has the same type; the source titles are usually the clue. Accept types the ticked ones only (settings typed by hand meanwhile are left alone); the rest stay untyped.</div>
+                        <div class="mt-2">${rows || '<div class="text-muted">No untyped settings left — accept or reject to clear the card.</div>'}</div>
                         <div class="mt-2" style="max-width:300px">
                             <label class="form-label small mb-1" for="ctype-${s.id}">Type saved on accept</label>
                             <select class="form-select form-select-sm" id="ctype-${s.id}">${typeOptions}</select>
@@ -649,7 +671,12 @@
                         ${src.title ? `<span class="text-muted"> — ${escapeHtml(src.title)}</span>` : ''}
                         ${bits ? `<div class="comp-detail text-muted mt-1">${bits}</div>` : ''}`;
             }
-            if (s.kind === 'title_function' || s.kind === 'title_language' || s.kind === 'composition_type') {
+            if (s.kind === 'composition_type') {
+                // The payload block lists each untyped setting with its own
+                // tick-box and sources — the context line is just the title.
+                return `<span class="fw-semibold">${escapeHtml(s.title_text || '(title missing)')}</span>`;
+            }
+            if (s.kind === 'title_function' || s.kind === 'title_language') {
                 // Show every setting that carries this title so the reviewer can
                 // see which pieces the function would apply to.
                 const comps = (s.compositions || []).slice(0, 6).map(c => {
@@ -847,7 +874,19 @@
                 const langSelect = document.getElementById('lang-' + id);
                 if (langSelect) fields.language_id = parseInt(langSelect.value, 10);
                 const typeSelect = document.getElementById('ctype-' + id);
-                if (typeSelect) fields.type_id = parseInt(typeSelect.value, 10);
+                if (typeSelect) {
+                    fields.type_id = parseInt(typeSelect.value, 10);
+                    // Per-setting tick-boxes: accept types the ticked ones only.
+                    // No boxes at all = nothing untyped left; accept clears the card.
+                    const boxes = [...document.querySelectorAll('.ctsel-' + id)];
+                    const ticked = boxes.filter(cb => cb.checked).map(cb => parseInt(cb.dataset.compid, 10));
+                    if (boxes.length && !ticked.length) {
+                        if (card) card.style.opacity = '1';
+                        alert('Tick at least one setting before accepting (or Reject / Skip the card).');
+                        return;
+                    }
+                    fields.composition_ids = ticked;
+                }
                 const gtDir = document.querySelector(`input[name="gtdir-${id}"]:checked`);
                 if (gtDir && gtDir.value === 'comps') {
                     fields.apply_to_compositions = true;

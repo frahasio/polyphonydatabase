@@ -1,9 +1,11 @@
 /**
  * Type-suggesting matcher: proposes a composition type for titles whose
- * settings are (partly) untyped. One card per title; accepting sets the
- * type on every setting of that title that is STILL untyped at accept time
- * (manual types are never overwritten), and the reviewer can pick a
- * different type on the card before accepting.
+ * settings are (partly) untyped. One card per title, but the DECISION is
+ * per setting: the card lists every untyped setting with a tick-box (and
+ * its sources' titles, which usually give the genre away) and accepting
+ * types only the TICKED, still-untyped ones — settings of a title do NOT
+ * all necessarily share a type. The reviewer can also pick a different
+ * type on the card before accepting.
  *
  * Rules, strongest first:
  *   1. CONSENSUS — some settings of the title are already typed and they
@@ -15,9 +17,9 @@
  *      Mass (requiem / missa pro defunctis -> Requiem first), passio ->
  *      Passion, lamentatio -> Lamentation, litaniae -> Litany, alleluia ->
  *      Alleluia, magnificat / nunc dimittis -> Alternatim psalm/canticle.
- *   3. TONE — a recorded tone is a psalm tone: when EVERY untyped setting
- *      of the title carries one, propose Alternatim psalm/canticle (mixed
- *      titles are skipped).
+ *   3. TONE — a recorded tone is a psalm tone: when at least one untyped
+ *      setting of the title carries one, propose Alternatim psalm/canticle
+ *      (the card preticks only the toned settings).
  *
  * Usage: node scripts/suggest-composition-types.js [maxCards] [--dry-run]
  * Local SQL only, cheap manual run. Dedupe key ctype:{titleId}:{typeId} —
@@ -76,8 +78,8 @@ async function main() {
            COUNT(*) FILTER (WHERE c.composition_type_id IS NOT NULL)::int AS typed,
            ARRAY(SELECT DISTINCT x.composition_type_id FROM compositions x
                  WHERE x.title_id = t.id AND x.composition_type_id IS NOT NULL) AS typed_types,
-           bool_and(COALESCE(cardinality(c.tone), 0) > 0)
-             FILTER (WHERE c.composition_type_id IS NULL) AS untyped_all_toned
+           COUNT(*) FILTER (WHERE c.composition_type_id IS NULL
+                              AND COALESCE(cardinality(c.tone), 0) > 0)::int AS untyped_toned
     FROM titles t
     JOIN compositions c ON c.title_id = t.id
     GROUP BY t.id, t.text
@@ -113,11 +115,11 @@ async function main() {
           break;
         }
       }
-      if (!typeId && r.untyped_all_toned && typeIdByName.has('Alternatim psalm/canticle')) {
+      if (!typeId && r.untyped_toned > 0 && typeIdByName.has('Alternatim psalm/canticle')) {
         typeId = typeIdByName.get('Alternatim psalm/canticle');
         score = 0.7;
         rule = 'tone';
-        evidence = `all ${r.untyped} untyped setting${r.untyped === 1 ? '' : 's'} carry a psalm tone`;
+        evidence = `${r.untyped_toned} of ${r.untyped} untyped setting${r.untyped === 1 ? '' : 's'} carr${r.untyped_toned === 1 ? 'ies' : 'y'} a psalm tone`;
       }
     }
     if (!typeId) continue;
