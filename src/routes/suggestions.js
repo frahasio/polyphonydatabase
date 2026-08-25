@@ -138,14 +138,18 @@ async function enrichWithContext(rows) {
   // composition_type cards decide per SETTING (settings of a title do not
   // all necessarily share a type), so each card needs the title's untyped
   // settings individually — with each one's sources' titles, which usually
-  // give the genre away (a piece in "Hymni per annum" is a hymn).
+  // give the genre away (a piece in "Hymni per annum" is a hymn). The
+  // already-typed settings ride along too so consensus evidence ("N are
+  // already typed X") is VISIBLE on the card, not just asserted.
   const ctypeTitleIds = [...new Set(rows
     .filter((r) => r.kind === 'composition_type' && r.title_id)
     .map((r) => r.title_id))];
   const untypedByTitle = {};
+  const typedByTitle = {};
   if (ctypeTitleIds.length) {
     const comps = await pool.query(
       `SELECT c.id, c.title_id, c.number_of_voices, c.tone, c.tone_connector, c.even_odd,
+              ct.name AS type_name,
               g.display_title AS group_title,
               (SELECT string_agg(DISTINCT comp.name, ', ')
                  FROM composers comp
@@ -155,17 +159,21 @@ async function enrichWithContext(rows) {
                               FROM inclusions i JOIN sources s2 ON s2.id = i.source_id
                               WHERE i.composition_id = c.id) src), '[]'::json) AS sources
        FROM compositions c
+       LEFT JOIN composition_types ct ON ct.id = c.composition_type_id
        LEFT JOIN groups g ON g.id = c.group_id
-       WHERE c.title_id = ANY($1) AND c.composition_type_id IS NULL
+       WHERE c.title_id = ANY($1)
        ORDER BY c.id`,
       [ctypeTitleIds]
     );
-    comps.rows.forEach((r) => { (untypedByTitle[r.title_id] ||= []).push(r); });
+    comps.rows.forEach((r) => {
+      (r.type_name ? (typedByTitle[r.title_id] ||= []) : (untypedByTitle[r.title_id] ||= [])).push(r);
+    });
   }
 
   rows.forEach((r) => {
     if (r.kind === 'composition_type') {
       r.untyped_comps = untypedByTitle[r.title_id] || [];
+      r.typed_comps = typedByTitle[r.title_id] || [];
       return;
     }
     if (r.kind === 'anon_match') {

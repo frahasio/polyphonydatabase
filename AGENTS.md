@@ -140,11 +140,15 @@ deployed. Also shipped since:
  carries a psalm tone -> Alternatim psalm/canticle). The DECISION is per
  SETTING — settings of one title do NOT all share a type: the card lists
  each untyped setting with a tick-box (composer, group, attrs, and its
- sources' code + TITLE, which usually betrays the genre), preticked except
- tone-rule cards which pretick only toned settings. Accept types the
- TICKED, still-untyped settings only (composition_ids in the body; manual
- types never overwritten; empty-and-none-left clears the card); reviewer
- can pick a different type on the card.
+ sources' code + TITLE, which usually betrays the genre). Preticking: ANY
+ Alternatim proposal (whatever rule made it) preticks only settings with
+ a recorded tone — toneless ones may be motet-style; other proposals
+ pretick all. The title's ALREADY-TYPED settings are shown live in a
+ collapsible block so consensus evidence is verifiable (a warning shows
+ if they changed since the card was made). Accept types the TICKED,
+ still-untyped settings only (composition_ids in the body; manual types
+ never overwritten; empty-and-none-left clears the card); reviewer can
+ pick a different type on the card.
  composition_types.id is bigint — normalize pg's string ids to numbers.
  Cheap local SQL, manual run). The anon-match tab has a composition-type
  dropdown filter (`comp_type` param: type id matches either side of the
@@ -301,9 +305,11 @@ queue.
  cap; per-platform checkpoints `groups.youtube_checked_at` /
  `spotify_checked_at`, migration 017) and
  `node scripts/suggest-composer-bios.js 50` (Wikidata, polite ~2 req/s, no
- hard quota). `suggest-title-languages.js`, `suggest-title-merges.js`,
- `suggest-group-titles.js`, `suggest-anon-matches.js` and
- `suggest-composition-types.js` are cheap manual runs, not scheduled.
+ hard quota) and `node scripts/suggest-composition-types.js 500` (daily;
+ local SQL only, ~1 min — tops the Types tab back up to 500 and prunes
+ cards for titles typed in the meantime). `suggest-title-languages.js`,
+ `suggest-title-merges.js`, `suggest-group-titles.js` and
+ `suggest-anon-matches.js` are cheap manual runs, not scheduled.
 - **Matcher tuning:** the Cantus feast->function map in
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.

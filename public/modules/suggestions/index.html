@@ -311,16 +311,19 @@
                 const typeOptions = (compositionTypesList.length ? compositionTypesList : [{ id: p.type_id, name: p.type_name }])
                     .map(t => `<option value="${t.id}" ${String(t.id) === String(p.type_id) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('');
                 const comps = s.untyped_comps || [];
+                const srcLine = (c) => (c.sources || []).map(src =>
+                    `<strong>${escapeHtml(src.code)}</strong>${src.title ? ` <span class="text-muted">— ${escapeHtml(src.title)}</span>` : ''}`
+                ).join('<br>');
+                // Alternatim proposals pretick only settings with a recorded
+                // psalm tone (whatever rule produced the card) — the toneless
+                // ones may be motet-style settings, so they start unticked.
+                const alternatimProposal = /alternatim/i.test(p.type_name || '');
                 const rows = comps.map((c, i) => {
                     const who = c.composers ? escapeHtml(c.composers) : 'Anon';
                     const grp = c.group_title ? ` — ${escapeHtml(c.group_title)}` : '';
-                    const srcs = (c.sources || []).map(src =>
-                        `<strong>${escapeHtml(src.code)}</strong>${src.title ? ` <span class="text-muted">— ${escapeHtml(src.title)}</span>` : ''}`
-                    ).join('<br>');
+                    const srcs = srcLine(c);
                     const hasTone = Array.isArray(c.tone) ? c.tone.filter(Boolean).length > 0 : Boolean(c.tone);
-                    // Tone-rule cards pretick only the settings that actually
-                    // carry a tone; other rules pretick everything.
-                    const preticked = p.rule === 'tone' ? hasTone : true;
+                    const preticked = (alternatimProposal || p.rule === 'tone') ? hasTone : true;
                     return `
                         <div class="form-check mb-1">
                             <input class="form-check-input ctsel-${s.id}" type="checkbox" id="ctsel-${s.id}-${i}"
@@ -331,13 +334,34 @@
                             </label>
                         </div>`;
                 }).join('');
+                // Consensus evidence made visible: the settings of this title
+                // that ALREADY carry a type (live data — if they were retyped
+                // or merged since the card was made, this reflects it).
+                const typedComps = s.typed_comps || [];
+                const typedRows = typedComps.slice(0, 5).map(c => {
+                    const who = c.composers ? escapeHtml(c.composers) : 'Anon';
+                    const grp = c.group_title ? ` — ${escapeHtml(c.group_title)}` : '';
+                    const srcs = srcLine(c);
+                    return `<div class="comp-detail">• ${who}${grp} <span class="badge bg-light text-dark">${escapeHtml(c.type_name)}</span>${srcs ? `<div class="ms-3">${srcs}</div>` : ''}</div>`;
+                }).join('');
+                const typedMore = typedComps.length > 5 ? `<div class="comp-detail text-muted">…and ${typedComps.length - 5} more typed setting(s)</div>` : '';
+                const typedBlock = typedRows
+                    ? `<details class="pos-details mt-2"><summary class="text-muted small">Settings of this title already typed (${typedComps.length}) <span class="text-primary">show</span></summary>
+                           <div class="mt-1">${typedRows}${typedMore}</div></details>`
+                    : (p.rule === 'consensus'
+                        ? '<div class="text-warning small mt-2"><i class="bi bi-exclamation-triangle"></i> The typed settings this proposal was based on have since changed — check carefully before accepting.</div>'
+                        : '');
+                const tickNote = alternatimProposal
+                    ? ' Settings <strong>without a recorded psalm tone start unticked</strong> — they may be motet-style settings; tick them only if sure.'
+                    : ' All are ticked to start — <strong>untick any that don\u2019t apply</strong>.';
                 return `
                     <div class="payload-detail">
                         <div><strong>Proposed type:</strong>
                             <span class="badge bg-warning text-dark">${escapeHtml(p.type_name)}</span>${ruleBadge}
                             ${p.evidence ? `<span class="text-muted ms-2">${escapeHtml(p.evidence)}</span>` : ''}
                         </div>
-                        <div class="text-muted mt-1">Tick the settings this type applies to — not every setting of a title has the same type; the source titles are usually the clue. Accept types the ticked ones only (settings typed by hand meanwhile are left alone); the rest stay untyped.</div>
+                        <div class="text-muted mt-1">Not every setting of a title shares a type — accept types the <strong>ticked settings only</strong> (the rest stay untyped; anything typed by hand meanwhile is left alone). The source titles are usually the clue.${tickNote}</div>
+                        ${typedBlock}
                         <div class="mt-2">${rows || '<div class="text-muted">No untyped settings left — accept or reject to clear the card.</div>'}</div>
                         <div class="mt-2" style="max-width:300px">
                             <label class="form-label small mb-1" for="ctype-${s.id}">Type saved on accept</label>
