@@ -505,13 +505,13 @@
         .booklet-ornamental-initial-layer {
             position: absolute;
             inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
             box-sizing: border-box;
             font: inherit;
             line-height: 1;
+            padding-left: 0.14em;
             pointer-events: none;
+            white-space: nowrap;
         }
         .booklet-ornamental-initial-letter {
             color: var(--booklet-reading-drop-cap-color, #000);
@@ -533,7 +533,11 @@
             display: none;
         }
         .booklet-ornamental-initial--fallback .booklet-ornamental-initial-letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-feature-settings: normal;
+            padding-left: 0;
         }
         .booklet-richtext p,
         .booklet-richtext div {
