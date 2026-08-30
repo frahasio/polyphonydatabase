@@ -119,6 +119,9 @@ app.get('/booklet', requireAuthWeb, requirePermissionWeb('booklet_creator'), (re
 // closes the UI exposure. Login/register/reset pages and public assets
 // (css/js/images/vendor) remain unauthenticated.
 const protectedStaticPrefixes = ['/modules/'];
+// Server-side booklet PDF pages have no login cookie, so locally bundled
+// font files used by their exported HTML must remain anonymously fetchable.
+const publicStaticPrefixes = ['/modules/liturgy-booklet/fonts/'];
 const protectedStaticPages = new Set([
   '/admin-dashboard.html',
   '/user-management.html',
@@ -126,7 +129,9 @@ const protectedStaticPages = new Set([
 ]);
 app.use((req, res, next) => {
   const p = req.path;
-  if (protectedStaticPrefixes.some((prefix) => p.startsWith(prefix)) || protectedStaticPages.has(p)) {
+  const isPublicStatic = publicStaticPrefixes.some((prefix) => p.startsWith(prefix));
+  if (!isPublicStatic &&
+      (protectedStaticPrefixes.some((prefix) => p.startsWith(prefix)) || protectedStaticPages.has(p))) {
     return requireAuthWeb(req, res, next);
   }
   next();
