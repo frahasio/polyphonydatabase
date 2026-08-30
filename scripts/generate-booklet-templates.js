@@ -87,6 +87,7 @@ const HOUSE_SETTINGS = {
   fontFamilyKey: 'EB Garamond',
   rubricColor: '#8b1538',
   liturgicalSymbolColor: '#000000',
+  autoHyphenate: true,
   pageNumbers: 'footer-center',
   pageNumberVMm: 6,
   pageNumberSkipFirst: true,

@@ -207,7 +207,10 @@ deployed. Also shipped since:
   the selected page-number colour when their numbers are stamped. Exsurge chant
   rendering applies the same symbol colour to GABC special characters such as
   `V/.` and `R/.`; the global colour is part of the chant-cache key so changing
-  it refreshes already-rendered SVGs.
+  it refreshes already-rendered SVGs. Reading blocks use bundled Hypher Latin
+  and English patterns to insert discretionary soft hyphens at render time
+  (enabled by the Layout "Automatic hyphenation" switch); saved HTML/JSON is
+  untouched, and measured pagination sees the final hyphenated line boxes.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

@@ -134,6 +134,7 @@
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
       liturgicalSymbolColor: '#000000',
+      autoHyphenate: true,
       pageNumbers: 'off',
       pageNumberStart: 1,
       pageNumberSkipFirst: false,
@@ -168,6 +169,7 @@
         fontFamilyKey: BOOKLET_DEFAULT_FONT,
         rubricColor: '#8b1538',
         liturgicalSymbolColor: '#000000',
+        autoHyphenate: true,
         pageNumbers: 'off',
         pageNumberStart: 1,
         pageNumberSkipFirst: false,
@@ -1646,6 +1648,7 @@
     const lsc = parsed.settings.liturgicalSymbolColor || '#000000';
     parsed.settings.liturgicalSymbolColor =
       /^#[0-9a-f]{6}$/i.test(lsc) ? lsc : '#000000';
+    parsed.settings.autoHyphenate = parsed.settings.autoHyphenate !== false;
     const pnc = parsed.settings.pageNumberColor || '#000000';
     parsed.settings.pageNumberColor = /^#[0-9a-f]{6}$/i.test(pnc) ? pnc : '#000000';
     const mg = Number(parsed.settings.marginMm);
@@ -1957,6 +1960,8 @@
     if (pnColor) pnColor.value = state.settings.pageNumberColor || '#000000';
     var symbolColor = document.getElementById('inpLiturgicalSymbolColor');
     if (symbolColor) symbolColor.value = state.settings.liturgicalSymbolColor || '#000000';
+    var autoHyphenate = document.getElementById('chkAutoHyphenate');
+    if (autoHyphenate) autoHyphenate.checked = state.settings.autoHyphenate !== false;
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
@@ -2286,8 +2291,40 @@
     }
   }
 
-  function fillReadingRichText(el, html, useDropCap, block) {
+  function applyAutomaticHyphenation(root, language) {
+    const lang = language === 'en' ? 'en' : 'la';
+    root.lang = lang;
+    if (state.settings.autoHyphenate === false) return;
+    root.classList.add('booklet-auto-hyphenate');
+    const hypher = window.Hypher && window.Hypher.languages
+      ? window.Hypher.languages[lang]
+      : null;
+    if (!hypher || typeof hypher.hyphenateText !== 'function') return;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        const parent = node.parentElement;
+        if (
+          !node.nodeValue ||
+          !/\p{L}{6}/u.test(node.nodeValue) ||
+          parent?.closest('.versiculum, .liturgical-symbol, .booklet-ornamental-initial')
+        ) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) nodes.push(node);
+    nodes.forEach(function (textNode) {
+      textNode.nodeValue = hypher.hyphenateText(textNode.nodeValue, 6);
+    });
+  }
+
+  function fillReadingRichText(el, html, useDropCap, block, language) {
     el.appendChild(sanitizeToFragment(html || ''));
+    applyAutomaticHyphenation(el, language);
     if (!useDropCap) return;
     const b = block || {};
     const dropCapStyle = b.dropCapStyle;
@@ -2365,12 +2402,12 @@
         innerL.className = 'booklet-richtext reading';
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
-        fillReadingRichText(innerL, b.text, b.dropCapOriginal, b);
+        fillReadingRichText(innerL, b.text, b.dropCapOriginal, b, 'la');
         const innerR = document.createElement('div');
         innerR.className = 'booklet-richtext reading';
         innerR.style.fontSize = (b.translationFontSizePt || 11) + 'pt';
         innerR.style.lineHeight = _lhPt;
-        fillReadingRichText(innerR, b.translation, b.dropCapTranslation, b);
+        fillReadingRichText(innerR, b.translation, b.dropCapTranslation, b, 'en');
         tdL.appendChild(innerL);
         tdR.appendChild(innerR);
         tr.appendChild(tdL);
@@ -2383,7 +2420,7 @@
         p.className = 'reading booklet-richtext';
         p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         p.style.lineHeight = _lhPt;
-        fillReadingRichText(p, b.text, b.dropCapOriginal, b);
+        fillReadingRichText(p, b.text, b.dropCapOriginal, b, 'la');
         wrap.appendChild(p);
       }
     } else if (b.type === 'image') {
@@ -2995,7 +3032,7 @@
         b.titleBold, b.titleItalic, b.titleSmallCaps,
         b.imageWidthPx, b.imageAlign, b.dataBase64,
         b.hrLineColor, b.heightMm,
-        state.settings.fontFamilyKey, state.settings.pageSize
+        state.settings.fontFamilyKey, state.settings.pageSize, state.settings.autoHyphenate
       ]);
       out.push({ t: 'flow', el: el, splittable: splittable, gapMm: gapAfter, measureKey: b.id + '#s', measureSig: staticSig });
     }
@@ -6487,6 +6524,11 @@
     };
     bindLayoutColor('inpPageNumberColor', 'pageNumberColor', '#000000');
     bindLayoutColor('inpLiturgicalSymbolColor', 'liturgicalSymbolColor', '#000000');
+    document.getElementById('chkAutoHyphenate')?.addEventListener('change', function (e) {
+      state.settings.autoHyphenate = !!e.target.checked;
+      scheduleAutosave();
+      markLayoutStale();
+    });
     bindLayoutSetting('inpPageNumberVMm', 'pageNumberVMm', 0, 50, DEFAULT_PAGE_NUMBER_V_MM);
     bindLayoutSetting('inpPageNumberHMm', 'pageNumberHMm', 0, 80, DEFAULT_PAGE_NUMBER_H_MM);
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);

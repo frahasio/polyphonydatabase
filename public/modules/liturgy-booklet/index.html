@@ -455,6 +455,10 @@
         .booklet-richtext {
             white-space: normal;
             word-wrap: break-word;
+            -webkit-hyphens: manual;
+            hyphens: manual;
+        }
+        .booklet-richtext.booklet-auto-hyphenate {
             -webkit-hyphens: auto;
             hyphens: auto;
             -webkit-hyphenate-limit-chars: 6 3 2;
@@ -1079,6 +1083,10 @@
                         <span>Symbols</span>
                         <input type="color" id="inpLiturgicalSymbolColor" class="form-control form-control-color form-control-sm" value="#000000">
                     </label>
+                    <div class="form-check d-flex align-items-end mb-0" title="Insert discretionary soft hyphens using local Latin and English dictionaries. Stored text is not altered.">
+                        <input class="form-check-input" type="checkbox" id="chkAutoHyphenate" checked>
+                        <label class="form-check-label small ms-1" for="chkAutoHyphenate">Automatic hyphenation</label>
+                    </div>
                     <div class="form-check d-flex align-items-end mb-0" title="Leave the first page unnumbered (e.g. a cover), numbering continues from the second page.">
                         <input class="form-check-input" type="checkbox" id="chkPageNumberSkipFirst">
                         <label class="form-check-label small ms-1" for="chkPageNumberSkipFirst">No nº on first</label>
@@ -1343,6 +1351,9 @@
     </div>
 
     <script src="/vendor/jgabc/jquery.min.js"></script>
+    <script src="/vendor/jgabc/jquery.hypher.js"></script>
+    <script src="/vendor/jgabc/patterns/la-hypher.js"></script>
+    <script src="/vendor/jgabc/patterns/en-us.js"></script>
     <script src="/vendor/jgabc/exsurge.min.js"></script>
     <script src="/vendor/jgabc/util.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
