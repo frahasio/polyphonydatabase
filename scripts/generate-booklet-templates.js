@@ -174,6 +174,7 @@ function makeBuilder(key, skeleton) {
         sectionSourceRef: sourceRef || '',
         dropCapStyle: base.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain',
         dropCapColor: base.dropCapColor || '',
+        dropCapDecorationColor: base.dropCapDecorationColor || '',
         dropCapSizeEm: base.dropCapSizeEm ?? null,
         dropCapMarginTopEm: base.dropCapMarginTopEm ?? null,
         dropCapMarginRightEm: base.dropCapMarginRightEm ?? null,

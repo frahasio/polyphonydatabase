@@ -495,19 +495,37 @@
             margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
             margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
             padding-top: var(--booklet-drop-cap-offset, 0.05em);
-            color: var(--booklet-reading-drop-cap-color, var(--booklet-rubric-color, #8b1538));
+            color: var(--booklet-reading-drop-cap-color, #000);
             font-family: 'Capo Rose', serif;
             font-size: var(--booklet-reading-drop-cap-size, 2.75em);
+            font-feature-settings: 'ss01' 1;
             font-style: normal;
             font-weight: 400;
             line-height: 1;
+            position: relative;
             text-transform: uppercase;
+        }
+        .booklet-ornamental-initial::before {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--booklet-reading-drop-cap-decoration-color, var(--booklet-rubric-color, #8b1538));
+            content: attr(data-cap-letter);
+            font: inherit;
+            font-feature-settings: 'ss02' 1;
+            pointer-events: none;
         }
         .booklet-ornamental-initial--fallback {
             font-family: inherit;
             font-size: var(--booklet-reading-drop-cap-size, 2.4em);
+            font-feature-settings: normal;
             font-weight: inherit;
             text-transform: none;
+        }
+        .booklet-ornamental-initial--fallback::before {
+            content: none;
         }
         .booklet-richtext p,
         .booklet-richtext div {

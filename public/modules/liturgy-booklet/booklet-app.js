@@ -1477,6 +1477,10 @@
         o.dropCapColor = /^#[0-9a-f]{6}$/i.test(String(o.dropCapColor || '').trim())
           ? String(o.dropCapColor).trim()
           : '';
+        o.dropCapDecorationColor =
+          /^#[0-9a-f]{6}$/i.test(String(o.dropCapDecorationColor || '').trim())
+            ? String(o.dropCapDecorationColor).trim()
+            : '';
         const normalizeOptionalCapNumber = function (value, min, max) {
           const number = Number(value);
           return value !== '' && value != null && Number.isFinite(number)
@@ -2232,6 +2236,7 @@
       const letter = (hit.value.match(/\p{L}/u) || [''])[0];
       cap.className = 'booklet-ornamental-initial' +
         (/^[JU]$/i.test(letter) ? ' booklet-ornamental-initial--fallback' : '');
+      cap.dataset.capLetter = hit.value;
       cap.textContent = hit.value;
       const frag = document.createDocumentFragment();
       const end = hit.index + hit.value.length;
@@ -2257,6 +2262,12 @@
     };
     if (/^#[0-9a-f]{6}$/i.test(String(b.dropCapColor || '').trim())) {
       el.style.setProperty('--booklet-reading-drop-cap-color', String(b.dropCapColor).trim());
+    }
+    if (/^#[0-9a-f]{6}$/i.test(String(b.dropCapDecorationColor || '').trim())) {
+      el.style.setProperty(
+        '--booklet-reading-drop-cap-decoration-color',
+        String(b.dropCapDecorationColor).trim()
+      );
     }
     setCapNumber('--booklet-reading-drop-cap-size', b.dropCapSizeEm, 1, 8);
     setCapNumber('--booklet-reading-drop-cap-margin-top', b.dropCapMarginTopEm, -2, 2);
@@ -2939,7 +2950,7 @@
         b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
         b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
         b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.dropCapStyle,
-        b.dropCapColor, b.dropCapSizeEm, b.dropCapMarginTopEm,
+        b.dropCapColor, b.dropCapDecorationColor, b.dropCapSizeEm, b.dropCapMarginTopEm,
         b.dropCapMarginRightEm, b.dropCapMarginBottomEm, b.dropCapMarginLeftEm, b.fontScale,
         b.titleFontKey, b.titleTextColor, b.titleLineColor, b.titleFontSizePt,
         b.titleBold, b.titleItalic, b.titleSmallCaps,
@@ -4676,7 +4687,11 @@
       const ornamentalCap = b.dropCapStyle === 'ornamental';
       const capColor = /^#[0-9a-f]{6}$/i.test(String(b.dropCapColor || '').trim())
         ? String(b.dropCapColor).trim()
-        : (ornamentalCap ? '#8b1538' : '#000000');
+        : '#000000';
+      const capDecorationColor =
+        /^#[0-9a-f]{6}$/i.test(String(b.dropCapDecorationColor || '').trim())
+          ? String(b.dropCapDecorationColor).trim()
+          : '#8b1538';
       const capSize = b.dropCapSizeEm != null
         ? Math.min(8, Math.max(1, Number(b.dropCapSizeEm) || 2.4))
         : (ornamentalCap ? 2.75 : 2.4);
@@ -4715,8 +4730,10 @@
             </select></label>
         </div>
         <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
-          <label class="d-flex flex-column gap-0" style="width:4rem" title="Drop-cap colour, independent of the reading text."><span class="form-label small mb-0">Cap colour</span>
+          <label class="d-flex flex-column gap-0" style="width:4rem" title="Letter colour, independent of the reading text."><span class="form-label small mb-0">Letter</span>
             <input type="color" class="form-control form-control-color form-control-sm w-100" id="edReadDropCapColor" value="${escapeAttr(capColor)}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4rem" title="Floral decoration colour for ornamental initials."><span class="form-label small mb-0">Flowers</span>
+            <input type="color" class="form-control form-control-color form-control-sm w-100" id="edReadDropCapDecorationColor" value="${escapeAttr(capDecorationColor)}"></label>
           <label class="d-flex flex-column gap-0" style="width:4.5rem" title="Drop-cap size relative to the surrounding text."><span class="form-label small mb-0">Size (em)</span>
             <input type="number" class="form-control form-control-sm" id="edReadDropCapSize" min="1" max="8" step="0.05" value="${capSize}"></label>
           <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Top (em)</span>
@@ -4793,6 +4810,8 @@
           : 'plain';
         var dcc = panel.querySelector('#edReadDropCapColor')?.value;
         b.dropCapColor = /^#[0-9a-f]{6}$/i.test(dcc || '') ? dcc : '';
+        var dcdc = panel.querySelector('#edReadDropCapDecorationColor')?.value;
+        b.dropCapDecorationColor = /^#[0-9a-f]{6}$/i.test(dcdc || '') ? dcdc : '';
         const boundedCapInput = function (selector, min, max, fallback) {
           const number = parseFloat(panel.querySelector(selector)?.value);
           return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
@@ -4825,11 +4844,15 @@
           panel.querySelector('#edReadDropCapSize').value = ornamental ? '2.75' : '2.4';
         }
         if (!b.dropCapColor) {
-          panel.querySelector('#edReadDropCapColor').value = ornamental ? '#8b1538' : '#000000';
+          panel.querySelector('#edReadDropCapColor').value = '#000000';
+        }
+        if (!b.dropCapDecorationColor) {
+          panel.querySelector('#edReadDropCapDecorationColor').value = '#8b1538';
         }
         pushMetaRead();
       });
       panel.querySelector('#edReadDropCapColor')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapDecorationColor')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadDropCapSize')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadDropCapMarginTop')?.addEventListener('input', pushMetaRead);
       panel.querySelector('#edReadDropCapMarginRight')?.addEventListener('input', pushMetaRead);
