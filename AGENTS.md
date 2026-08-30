@@ -204,7 +204,10 @@ deployed. Also shipped since:
   settings also expose independent page-number and in-text liturgical-symbol
   colours; the latter covers V/R/A bars plus crosses and daggers. Both colours
   are carried into server-rendered PDF HTML, and merged edition pages receive
-  the selected page-number colour when their numbers are stamped.
+  the selected page-number colour when their numbers are stamped. Exsurge chant
+  rendering applies the same symbol colour to GABC special characters such as
+  `V/.` and `R/.`; the global colour is part of the chant-cache key so changing
+  it refreshes already-rendered SVGs.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

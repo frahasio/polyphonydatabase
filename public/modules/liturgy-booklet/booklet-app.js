@@ -1310,6 +1310,9 @@
     ctxt.specialCharProperties['font-family'] = "'Versiculum'";
     ctxt.specialCharProperties['font-variant'] = 'normal';
     ctxt.specialCharProperties['font-weight'] = '400';
+    const symbolColor = String(state.settings.liturgicalSymbolColor || '#000000');
+    ctxt.specialCharProperties.fill =
+      /^#[0-9a-f]{6}$/i.test(symbolColor) ? symbolColor : '#000000';
     var defaultSpecialCharText = ctxt.specialCharText;
     ctxt.specialCharText = function (char) {
       return defaultSpecialCharText(char).toLowerCase();
@@ -2771,6 +2774,7 @@
           b.chantVertSpacing, b.chantLineGap,
           b.chantDropCapScale, b.chantUseDropCap, b.chantLyricLanguage,
           b.chantTextFont, b.chantStaffColor, b.chantRubricColor,
+          state.settings.liturgicalSymbolColor,
           b.chantAnnotationSizeAdj, b.chantAnnotationYAdj,
           b.chantTranslation, b.chantTranslationLeftPct, b.chantTranslationGapMm,
           b.chantTranslationBorder, b.chantTranslationFontSizePt,
