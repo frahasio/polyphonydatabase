@@ -214,6 +214,14 @@ deployed. Also shipped since:
   The Latin dictionary is selected in JS rather than with `lang="la"`:
   EB Garamond's OpenType Latin localisation turns U into the historical
   V-shaped form when that language tag is present.
+  Exsurge chant underlay inherits the booklet body font by default; each
+  GABC block can override it from the same curated font list. Selected
+  fonts are loaded before Exsurge measures lyrics, since changing typeface
+  can alter chant system wrapping. Each generated chant SVG's embedded
+  stylesheet is uniquely scoped: Exsurge otherwise emits the same global
+  `svg.Exsurge .lyric` selector in every SVG, making the final chant's
+  font and size paint every preceding chant despite their correct layout
+  measurements.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

@@ -105,7 +105,7 @@ const HOUSE_CHANT_STYLE = {
   chantDropCapScale: 1,
   chantUseDropCap: true,
   chantLyricLanguage: 'latin',
-  chantTextFont: 'crimson',
+  chantTextFont: 'body',
   chantRubricColor: '',
   chantAnnotationSizeAdj: 0,
   chantAnnotationYAdj: 0,

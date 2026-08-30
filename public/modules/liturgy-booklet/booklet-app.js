@@ -87,6 +87,12 @@
     return BOOKLET_FONT_STACKS[family] || "'" + family + "', serif";
   }
 
+  function chantFontKeyFor(block) {
+    const key = block && block.chantTextFont;
+    if (key && key !== 'body' && BOOKLET_FONT_STACKS[key] != null) return key;
+    return state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
+  }
+
   /**
    * Dynamically inject a Google Fonts <link> into the page <head>.
    * No-ops if the font is already loaded.
@@ -102,8 +108,6 @@
       encodeURIComponent(family) + ':ital,wght@0,400;0,600;0,700;1,400;1,700&display=swap';
     document.head.appendChild(link);
   }
-
-  const CHANT_TEXT_FONT = "'Crimson Text', serif";
 
   function parseBoundedNumber(raw, min, max, fallback) {
     const n = parseFloat(String(raw).trim().replace(',', '.'));
@@ -260,6 +264,7 @@
   let selectedBlockId = null;
   let autosaveTimer = null;
   let previewToken = 0;
+  let chantSvgStyleScope = 0;
   /** @type {HTMLElement[]} */
   let exportPageElements = [];
   let bookletSpreadIndex = 0;
@@ -1283,7 +1288,7 @@
     ctxt.setGlyphScaling((1 / 16) * glyphMult);
     const lyricPx = Number(b.chantNeumeSize) || 23;
     const glyphRatio = glyphMult / 1.4;
-    ctxt.setFont(CHANT_TEXT_FONT, (lyricPx / 0.9) * glyphRatio);
+    ctxt.setFont(fontStackFor(chantFontKeyFor(b)), (lyricPx / 0.9) * glyphRatio);
     const hSpacing = Number(b.chantHorizSpacing) || 1.0;
     ctxt.interSyllabicMultiplier = 2.5 * hSpacing;
     ctxt.minLyricWordSpacing *= hSpacing;
@@ -1557,7 +1562,13 @@
             : (Number(cd.chantDropCapScale) || 1);
         if (o.chantUseDropCap === undefined) o.chantUseDropCap = true;
         if (o.chantLyricLanguage !== 'english') o.chantLyricLanguage = 'latin';
-        o.chantTextFont = 'crimson';
+        // `crimson` was the old hard-coded renderer marker, not a user-selected
+        // override. Migrate it (and unknown values) to the booklet body font.
+        if (!o.chantTextFont || o.chantTextFont === 'crimson' || o.chantTextFont === 'inherit') {
+          o.chantTextFont = 'body';
+        } else if (o.chantTextFont !== 'body' && BOOKLET_FONT_STACKS[o.chantTextFont] == null) {
+          o.chantTextFont = 'body';
+        }
         if (o.chantRubricColor === undefined) o.chantRubricColor = '';
         else {
           const cr = String(o.chantRubricColor).trim();
@@ -2060,6 +2071,18 @@
 
       var svgs = temp.querySelectorAll('svg');
       svgs.forEach(function (svg, svgIdx) {
+        // Exsurge emits generic `svg.Exsurge .lyric` rules in every SVG.
+        // Unscoped, the final chant's stylesheet wins throughout the document:
+        // spacing is measured at each block's requested size/font, but every
+        // visible lyric is painted using the final block's settings.
+        var styleScopeClass = 'booklet-chant-svg-' + (++chantSvgStyleScope);
+        svg.classList.add(styleScopeClass);
+        svg.querySelectorAll('style').forEach(function (styleEl) {
+          styleEl.textContent = styleEl.textContent.replace(
+            /svg\.Exsurge/g,
+            'svg.Exsurge.' + styleScopeClass
+          );
+        });
         svg.setAttribute('overflow', 'visible');
         svg.style.overflow = 'visible';
         svg.querySelectorAll('text.annotation').forEach(function (ann) {
@@ -3858,11 +3881,17 @@
       try { await document.fonts.load('400 12pt ' + _ff); } catch(e){}
       try { await document.fonts.load('italic 400 12pt ' + _ff); } catch(e){}
       try { await document.fonts.load('600 12pt ' + _ff); } catch(e){}
-      // Chant + ABC text font (incl. the 700 weight used for ABC lyrics),
-      // needed before abcjs measures text widths.
-      loadGoogleFont('Crimson Text');
-      try { await document.fonts.load('400 13px ' + CHANT_TEXT_FONT); } catch(e){}
-      try { await document.fonts.load('700 13px ' + CHANT_TEXT_FONT); } catch(e){}
+      // Load every selected chant underlay font before Exsurge measures lyrics.
+      var chantFontKeys = new Set([state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT]);
+      state.blocks.forEach(function (block) {
+        if (block.type === 'chant_gabc') chantFontKeys.add(chantFontKeyFor(block));
+      });
+      for (const chantFontKey of chantFontKeys) {
+        loadGoogleFont(chantFontKey);
+        var chantFontStack = fontStackFor(chantFontKey);
+        try { await document.fonts.load('400 13px ' + chantFontStack); } catch(e){}
+        try { await document.fonts.load('700 13px ' + chantFontStack); } catch(e){}
+      }
       await document.fonts.ready;
     }
     var root = document.getElementById('previewPages');
@@ -5142,6 +5171,15 @@
       const crc = String(b.chantRubricColor || '').trim();
       const crcVal = /^#[0-9a-f]{6}$/i.test(crc) ? crc : '#000000';
       const clang = b.chantLyricLanguage === 'english' ? 'english' : 'latin';
+      const chantFontSelection =
+        b.chantTextFont && BOOKLET_FONT_STACKS[b.chantTextFont] != null
+          ? b.chantTextFont
+          : 'body';
+      const chantFontOptions = Object.keys(BOOKLET_FONTS).map(function (fontName) {
+        return '<option value="' + escapeAttr(fontName) + '"' +
+          (chantFontSelection === fontName ? ' selected' : '') + '>' +
+          escapeHtml(fontName) + '</option>';
+      }).join('');
       const ctSplit = b.chantTranslationLeftPct != null ? b.chantTranslationLeftPct : 60;
       const ctGap = b.chantTranslationGapMm != null ? b.chantTranslationGapMm : 4;
       panel.innerHTML = `
@@ -5175,6 +5213,11 @@
           <select id="edChantLyricLang" class="form-select form-select-sm mb-2">
             <option value="latin"${clang === 'latin' ? ' selected' : ''}>Latin syllabification</option>
             <option value="english"${clang === 'english' ? ' selected' : ''}>English syllabification</option>
+          </select>
+          <label class="form-label mb-0" style="font-size:0.74rem">Underlay font</label>
+          <select id="edChantTextFont" class="form-select form-select-sm mb-2">
+            <option value="body"${chantFontSelection === 'body' ? ' selected' : ''}>Booklet font (inherit)</option>
+            ${chantFontOptions}
           </select>
           <label class="form-label mb-0" style="font-size:0.74rem">Staff colour</label>
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -5236,6 +5279,14 @@
       panel.querySelector('#edChantLyricLang')?.addEventListener('change', function () {
         b.chantLyricLanguage =
           panel.querySelector('#edChantLyricLang').value === 'english' ? 'english' : 'latin';
+        scheduleAutosave();
+        markLayoutStale();
+        renderBlockList();
+      });
+      panel.querySelector('#edChantTextFont')?.addEventListener('change', function () {
+        var selectedFont = panel.querySelector('#edChantTextFont').value;
+        b.chantTextFont = BOOKLET_FONT_STACKS[selectedFont] != null ? selectedFont : 'body';
+        if (b.chantTextFont !== 'body') loadGoogleFont(b.chantTextFont);
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -5418,7 +5469,7 @@
       b.chantDropCapScale = 1;
       b.chantUseDropCap = true;
       b.chantLyricLanguage = 'latin';
-      b.chantTextFont = 'crimson';
+      b.chantTextFont = 'body';
       b.chantRubricColor = '';
       b.chantAnnotationSizeAdj = 0;
       b.chantAnnotationYAdj = 0;
