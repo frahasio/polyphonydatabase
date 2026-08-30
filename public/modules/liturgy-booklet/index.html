@@ -494,7 +494,7 @@
             margin-right: var(--booklet-reading-drop-cap-margin-right, 0.08em);
             margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
             margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
-            padding-top: var(--booklet-drop-cap-offset, 0.05em);
+            padding: 0;
             color: var(--booklet-reading-drop-cap-color, #000);
             font-family: 'Capo Rose', serif;
             font-size: var(--booklet-reading-drop-cap-size, 2.75em);
@@ -503,6 +503,7 @@
             font-weight: 400;
             line-height: 1;
             position: relative;
+            transform: translateY(var(--booklet-drop-cap-offset, 0.05em));
             text-transform: uppercase;
         }
         .booklet-ornamental-initial::before {
