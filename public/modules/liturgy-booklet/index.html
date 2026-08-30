@@ -380,7 +380,7 @@
             font-family: var(--booklet-body-font);
             font-size: calc(var(--booklet-page-number-size-pt, 9) * 1pt);
             line-height: 1;
-            color: #000;
+            color: var(--booklet-page-number-color, #000);
             z-index: 3;
         }
         .booklet-page-number--center {
@@ -468,6 +468,12 @@
             font-style: normal;
             font-weight: normal;
             line-height: 0;
+            color: var(--booklet-liturgical-symbol-color, inherit);
+        }
+        .booklet-richtext .liturgical-symbol,
+        .booklet-rich-ed .liturgical-symbol,
+        .booklet-page .liturgical-symbol {
+            color: var(--booklet-liturgical-symbol-color, inherit);
             vertical-align: baseline;
         }
         .booklet-drop-cap:not(.booklet-drop-cap--ornamental)::first-letter {
@@ -1064,6 +1070,14 @@
                     <label class="d-flex flex-column gap-0" title="Page-number size in points. Page numbers use the booklet body typeface.">
                         <span>Nº size (pt)</span>
                         <input type="number" id="inpPageNumberSizePt" class="form-control form-control-sm" style="width:4rem" min="6" max="24" step="0.5" value="9">
+                    </label>
+                    <label class="d-flex flex-column gap-0" title="Colour of page numbers in the preview and exported PDF.">
+                        <span>Nº colour</span>
+                        <input type="color" id="inpPageNumberColor" class="form-control form-control-color form-control-sm" value="#000000">
+                    </label>
+                    <label class="d-flex flex-column gap-0" title="Colour of V-bar, R-bar, crosses and daggers embedded in body text.">
+                        <span>Symbols</span>
+                        <input type="color" id="inpLiturgicalSymbolColor" class="form-control form-control-color form-control-sm" value="#000000">
                     </label>
                     <div class="form-check d-flex align-items-end mb-0" title="Leave the first page unnumbered (e.g. a cover), numbering continues from the second page.">
                         <input class="form-check-input" type="checkbox" id="chkPageNumberSkipFirst">

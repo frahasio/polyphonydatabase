@@ -229,6 +229,9 @@ router.post('/pdf', requireAuth, async (req, res) => {
       const PN_SIZE = Number.isFinite(requestedPnSize)
         ? Math.min(24, Math.max(6, requestedPnSize))
         : 9;
+      const PN_COLOR = /^#[0-9a-f]{6}$/i.test(String(req.body.pageNumberColor || ''))
+        ? String(req.body.pageNumberColor)
+        : '#000000';
       const MM_TO_PT = 2.83465;
       // Distances from the page edge, matching the on-screen page-number
       // margins (fall back to sensible defaults).
@@ -239,7 +242,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
       async function pageNumberImage(pageNumber) {
         const text = String(pageNumber);
         if (pnImageCache.has(text)) return pnImageCache.get(text);
-        const rendered = await page.evaluate(({ value, sizePt }) => {
+        const rendered = await page.evaluate(({ value, sizePt, color }) => {
           const scale = 4;
           const fontPx = sizePt * (96 / 72) * scale;
           const family = getComputedStyle(document.documentElement)
@@ -256,7 +259,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
           canvas.height = ascent + descent + pad * 2;
           const draw = canvas.getContext('2d');
           draw.font = fontPx + 'px ' + family;
-          draw.fillStyle = '#000';
+          draw.fillStyle = color;
           draw.textBaseline = 'alphabetic';
           draw.fillText(value, pad, pad + ascent);
           return {
@@ -264,7 +267,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
             widthPt: (canvas.width / scale) * (72 / 96),
             heightPt: (canvas.height / scale) * (72 / 96),
           };
-        }, { value: text, sizePt: PN_SIZE });
+        }, { value: text, sizePt: PN_SIZE, color: PN_COLOR });
         const image = await finalDoc.embedPng(Buffer.from(rendered.png, 'base64'));
         const result = { image, width: rendered.widthPt, height: rendered.heightPt };
         pnImageCache.set(text, result);

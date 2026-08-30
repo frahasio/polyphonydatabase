@@ -133,12 +133,14 @@
       previewDisplay: 'scroll',
       fontFamilyKey: BOOKLET_DEFAULT_FONT,
       rubricColor: '#8b1538',
+      liturgicalSymbolColor: '#000000',
       pageNumbers: 'off',
       pageNumberStart: 1,
       pageNumberSkipFirst: false,
       pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
       pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
       pageNumberSizePt: DEFAULT_PAGE_NUMBER_SIZE_PT,
+      pageNumberColor: '#000000',
     },
     blocks: [],
   };
@@ -165,12 +167,14 @@
         previewDisplay: 'scroll',
         fontFamilyKey: BOOKLET_DEFAULT_FONT,
         rubricColor: '#8b1538',
+        liturgicalSymbolColor: '#000000',
         pageNumbers: 'off',
         pageNumberStart: 1,
         pageNumberSkipFirst: false,
         pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
         pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
         pageNumberSizePt: DEFAULT_PAGE_NUMBER_SIZE_PT,
+        pageNumberColor: '#000000',
       },
       blocks: [],
     };
@@ -522,8 +526,18 @@
       '--booklet-page-number-size-pt',
       String(getSetting('pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT))
     );
+    const pnc = state.settings.pageNumberColor || '#000000';
+    root.style.setProperty(
+      '--booklet-page-number-color',
+      /^#[0-9a-f]{6}$/i.test(pnc) ? pnc : '#000000'
+    );
     const rc = state.settings.rubricColor || '#8b1538';
     root.style.setProperty('--booklet-rubric-color', /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538');
+    const lsc = state.settings.liturgicalSymbolColor || '#000000';
+    root.style.setProperty(
+      '--booklet-liturgical-symbol-color',
+      /^#[0-9a-f]{6}$/i.test(lsc) ? lsc : '#000000'
+    );
     var dco = Number(state.settings.dropCapOffsetEm);
     root.style.setProperty('--booklet-drop-cap-offset', (Number.isFinite(dco) ? dco : 0.05) + 'em');
   }
@@ -645,7 +659,7 @@
       }
     }
 
-    var liturgicalRe = /\\V\.|\\R\.|\\A\.|\\[+]|℣|℟|✠/g;
+    var liturgicalRe = /\\V\.|\\R\.|\\A\.|\\[+]|℣|℟|[†‡☩✝✞✟✠]/g;
     var liturgicalMap = {
       '\\V.': 'v', '\\R.': 'r', '\\A.': 'a', '\\+': '\u2720',
       '\u2123': 'v', '\u211F': 'r', '\u2720': '\u2720'
@@ -659,7 +673,9 @@
       while ((m = liturgicalRe.exec(text)) !== null) {
         if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
         var sp = document.createElement('span');
-        sp.className = 'versiculum';
+        sp.className = /^(?:\\V\.|\\R\.|\\A\.|\\[+]|℣|℟|✠)$/.test(m[0])
+          ? 'versiculum'
+          : 'liturgical-symbol';
         sp.textContent = liturgicalMap[m[0]] || m[0];
         frag.appendChild(sp);
         last = liturgicalRe.lastIndex;
@@ -803,9 +819,12 @@
     return escapeHtml(text)
       .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
       .replace(/_([^_]+)_/g, '<em>$1</em>')
+      .replace(/([†‡☩✝✞✟✠])/g, '<span class="liturgical-symbol">$1</span>')
       .replace(/\\V\./g, '<span class="versiculum">v</span>')
       .replace(/\\R\./g, '<span class="versiculum">r</span>')
       .replace(/\\A\./g, '<span class="versiculum">a</span>')
+      .replace(/℣/g, '<span class="versiculum">v</span>')
+      .replace(/℟/g, '<span class="versiculum">r</span>')
       .replace(/\\[+]/g, '<span class="versiculum">\u2720</span>')
       // "//" = manual line break within the same translation cell (a real
       // newline would instead pair the text with the NEXT chant system).
@@ -1621,6 +1640,11 @@
     );
     const rc = parsed.settings.rubricColor || '#8b1538';
     parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
+    const lsc = parsed.settings.liturgicalSymbolColor || '#000000';
+    parsed.settings.liturgicalSymbolColor =
+      /^#[0-9a-f]{6}$/i.test(lsc) ? lsc : '#000000';
+    const pnc = parsed.settings.pageNumberColor || '#000000';
+    parsed.settings.pageNumberColor = /^#[0-9a-f]{6}$/i.test(pnc) ? pnc : '#000000';
     const mg = Number(parsed.settings.marginMm);
     parsed.settings.marginMm = Number.isFinite(mg)
       ? Math.min(40, Math.max(6, Math.round(mg)))
@@ -1926,6 +1950,10 @@
     syncNum('inpPageNumberVMm', 'pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
     syncNum('inpPageNumberHMm', 'pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
     syncNum('inpPageNumberSizePt', 'pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT);
+    var pnColor = document.getElementById('inpPageNumberColor');
+    if (pnColor) pnColor.value = state.settings.pageNumberColor || '#000000';
+    var symbolColor = document.getElementById('inpLiturgicalSymbolColor');
+    if (symbolColor) symbolColor.value = state.settings.liturgicalSymbolColor || '#000000';
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
@@ -5500,7 +5528,9 @@
       '--booklet-font-scale',
       '--booklet-body-font',
       '--booklet-page-number-size-pt',
+      '--booklet-page-number-color',
       '--booklet-rubric-color',
+      '--booklet-liturgical-symbol-color',
       '--booklet-drop-cap-offset',
     ];
     return names
@@ -5679,6 +5709,7 @@
         pageNumberVMm: getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM),
         pageNumberHMm: getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM),
         pageNumberSizePt: getSetting('pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT),
+        pageNumberColor: state.settings.pageNumberColor || '#000000',
         title: state.projectTitle || '',
       });
       if (pdfCacheBlob && pdfCacheBody === body) return pdfCacheBlob;
@@ -6439,6 +6470,19 @@
       scheduleAutosave();
       markLayoutStale();
     });
+    var bindLayoutColor = function (id, key, fallback) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        var value = String(el.value || '');
+        state.settings[key] = /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+        applyCssVars();
+        scheduleAutosave();
+        markLayoutStale();
+      });
+    };
+    bindLayoutColor('inpPageNumberColor', 'pageNumberColor', '#000000');
+    bindLayoutColor('inpLiturgicalSymbolColor', 'liturgicalSymbolColor', '#000000');
     bindLayoutSetting('inpPageNumberVMm', 'pageNumberVMm', 0, 50, DEFAULT_PAGE_NUMBER_V_MM);
     bindLayoutSetting('inpPageNumberHMm', 'pageNumberHMm', 0, 80, DEFAULT_PAGE_NUMBER_H_MM);
     bindLayoutSetting('inpGapTolerance', 'gapTolerancePx', 0, 20, GAP_FLEX_PX);

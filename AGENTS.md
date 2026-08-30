@@ -200,7 +200,11 @@ deployed. Also shipped since:
   Drop-cap colour, em size, and four margins are independently adjustable
   per reading block and are carried into the server-rendered PDF HTML. Capo
   Sfogliato's `ss02` letter and `ss01` floral layers are overlaid so ornamental
-  initials have separately adjustable letter and decoration colours.
+  initials have separately adjustable letter and decoration colours. Layout
+  settings also expose independent page-number and in-text liturgical-symbol
+  colours; the latter covers V/R/A bars plus crosses and daggers. Both colours
+  are carried into server-rendered PDF HTML, and merged edition pages receive
+  the selected page-number colour when their numbers are stamped.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

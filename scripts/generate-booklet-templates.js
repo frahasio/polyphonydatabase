@@ -86,9 +86,11 @@ const HOUSE_SETTINGS = {
   previewDisplay: 'scroll',
   fontFamilyKey: 'EB Garamond',
   rubricColor: '#8b1538',
+  liturgicalSymbolColor: '#000000',
   pageNumbers: 'footer-center',
   pageNumberVMm: 6,
   pageNumberSkipFirst: true,
+  pageNumberColor: '#000000',
 };
 
 // Propers style (from the hand-made Mass booklets): large initial drop caps
