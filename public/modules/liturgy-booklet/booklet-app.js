@@ -2293,7 +2293,11 @@
 
   function applyAutomaticHyphenation(root, language) {
     const lang = language === 'en' ? 'en' : 'la';
-    root.lang = lang;
+    // Do not set lang="la" on the rendered element: EB Garamond's OpenType
+    // Latin localisation deliberately substitutes historical V-shaped glyphs
+    // for U. Hypher receives the language explicitly, so no lang attribute is
+    // needed for discretionary break insertion.
+    root.dataset.hyphenLanguage = lang;
     if (state.settings.autoHyphenate === false) return;
     root.classList.add('booklet-auto-hyphenate');
     const hypher = window.Hypher && window.Hypher.languages

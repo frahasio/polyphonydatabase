@@ -211,6 +211,9 @@ deployed. Also shipped since:
   and English patterns to insert discretionary soft hyphens at render time
   (enabled by the Layout "Automatic hyphenation" switch); saved HTML/JSON is
   untouched, and measured pagination sees the final hyphenated line boxes.
+  The Latin dictionary is selected in JS rather than with `lang="la"`:
+  EB Garamond's OpenType Latin localisation turns U into the historical
+  V-shaped form when that language tag is present.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored
