@@ -352,7 +352,13 @@ async function main() {
 
   let n = 0;
   const bid = () => `poc_ic_vespers_${n++}`;
-  const clone = (part, overrides = {}) => ({ ...JSON.parse(JSON.stringify(part)), id: bid(), ...overrides });
+  const clone = (part, overrides = {}) => {
+    const copy = { ...JSON.parse(JSON.stringify(part)), id: bid(), ...overrides };
+    if (copy.type === 'reading') {
+      copy.dropCapStyle = copy.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain';
+    }
+    return copy;
+  };
   const titleBlock = (text, pt2 = 12) => ({
     id: bid(), type: 'title', text,
     titleFontKey: '', titleTextColor: '#212529', titleLineColor: '#adb5bd',

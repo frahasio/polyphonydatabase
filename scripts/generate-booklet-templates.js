@@ -172,6 +172,7 @@ function makeBuilder(key, skeleton) {
         translation: english ? textToHtml(english) : '',
         sectionTitle: '',
         sectionSourceRef: sourceRef || '',
+        dropCapStyle: base.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain',
       };
     },
     chant(gabc, translation, slot) {

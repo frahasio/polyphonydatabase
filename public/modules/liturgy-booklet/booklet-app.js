@@ -1473,6 +1473,7 @@
         if (o.translationFontSizePt == null) o.translationFontSizePt = 11;
         if (o.dropCapOriginal === undefined) o.dropCapOriginal = !!o.useDropCap;
         if (o.dropCapTranslation === undefined) o.dropCapTranslation = false;
+        o.dropCapStyle = o.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain';
         delete o.useDropCap;
       }
       if (o.type === 'chant_gabc') {
@@ -2187,6 +2188,57 @@
     });
   }
 
+  /**
+   * Wrap the first alphabetic grapheme in sanitized rich text so the
+   * ornamental initial has stable square dimensions even inside nested
+   * div/span markup. Text before the letter is left exactly where it was.
+   */
+  function wrapOrnamentalDropCap(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      const text = textNode.nodeValue || '';
+      let segments;
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        segments = Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text), function (s) {
+          return { value: s.segment, index: s.index };
+        });
+      } else {
+        let offset = 0;
+        segments = Array.from(text, function (value) {
+          const segment = { value: value, index: offset };
+          offset += value.length;
+          return segment;
+        });
+      }
+      const hit = segments.find(function (segment) { return /\p{L}/u.test(segment.value); });
+      if (!hit) continue;
+
+      const cap = document.createElement('span');
+      const letter = (hit.value.match(/\p{L}/u) || [''])[0];
+      cap.className = 'booklet-ornamental-initial' +
+        (/^[JU]$/i.test(letter) ? ' booklet-ornamental-initial--fallback' : '');
+      cap.textContent = hit.value;
+      const frag = document.createDocumentFragment();
+      const end = hit.index + hit.value.length;
+      if (hit.index) frag.appendChild(document.createTextNode(text.slice(0, hit.index)));
+      frag.appendChild(cap);
+      if (end < text.length) frag.appendChild(document.createTextNode(text.slice(end)));
+      textNode.parentNode.replaceChild(frag, textNode);
+      return;
+    }
+  }
+
+  function fillReadingRichText(el, html, useDropCap, dropCapStyle) {
+    el.appendChild(sanitizeToFragment(html || ''));
+    if (!useDropCap) return;
+    el.classList.add('booklet-drop-cap');
+    if (dropCapStyle === 'ornamental') {
+      el.classList.add('booklet-drop-cap--ornamental');
+      wrapOrnamentalDropCap(el);
+    }
+  }
+
   function buildStaticSectionEl(b) {
     const wrap = document.createElement('div');
     wrap.className = 'booklet-section';
@@ -2231,15 +2283,15 @@
           tdL.style.borderRight = '1px solid #adb5bd';
         }
         const innerL = document.createElement('div');
-        innerL.className = 'booklet-richtext reading' + (b.dropCapOriginal ? ' booklet-drop-cap' : '');
+        innerL.className = 'booklet-richtext reading';
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
-        innerL.appendChild(sanitizeToFragment(b.text || ''));
+        fillReadingRichText(innerL, b.text, b.dropCapOriginal, b.dropCapStyle);
         const innerR = document.createElement('div');
-        innerR.className = 'booklet-richtext reading' + (b.dropCapTranslation ? ' booklet-drop-cap' : '');
+        innerR.className = 'booklet-richtext reading';
         innerR.style.fontSize = (b.translationFontSizePt || 11) + 'pt';
         innerR.style.lineHeight = _lhPt;
-        innerR.appendChild(sanitizeToFragment(b.translation || ''));
+        fillReadingRichText(innerR, b.translation, b.dropCapTranslation, b.dropCapStyle);
         tdL.appendChild(innerL);
         tdR.appendChild(innerR);
         tr.appendChild(tdL);
@@ -2249,10 +2301,10 @@
       } else {
         appendSectionHeading(wrap, b);
         const p = document.createElement('div');
-        p.className = 'reading booklet-richtext' + (b.dropCapOriginal ? ' booklet-drop-cap' : '');
+        p.className = 'reading booklet-richtext';
         p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         p.style.lineHeight = _lhPt;
-        p.appendChild(sanitizeToFragment(b.text || ''));
+        fillReadingRichText(p, b.text, b.dropCapOriginal, b.dropCapStyle);
         wrap.appendChild(p);
       }
     } else if (b.type === 'image') {
@@ -2856,7 +2908,7 @@
         b.sectionTitleGapMm,
         b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
         b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
-        b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.fontScale,
+        b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.dropCapStyle, b.fontScale,
         b.titleFontKey, b.titleTextColor, b.titleLineColor, b.titleFontSizePt,
         b.titleBold, b.titleItalic, b.titleSmallCaps,
         b.imageWidthPx, b.imageAlign, b.dataBase64,
@@ -4610,6 +4662,11 @@
             <input type="number" class="form-control form-control-sm" id="edReadLineHeight" min="6" max="50" step="0.5" value="${b.lineHeightPt || 16}"></label>
           <label class="d-flex flex-column gap-0" style="width:6.5rem" title="Space between the title/source row and the text below it."><span class="form-label small mb-0">Gap below title</span>
             <input type="number" class="form-control form-control-sm" id="edReadTitleGap" min="0" max="30" step="0.5" value="${b.sectionTitleGapMm != null ? b.sectionTitleGapMm : 1}"></label>
+          <label class="d-flex flex-column gap-0" style="width:7.5rem" title="Ornamental applies to enabled reading drop caps only. J and U automatically use the body font."><span class="form-label small mb-0">Drop cap style</span>
+            <select class="form-select form-select-sm" id="selReadDropCapStyle">
+              <option value="plain" ${b.dropCapStyle !== 'ornamental' ? 'selected' : ''}>Plain</option>
+              <option value="ornamental" ${b.dropCapStyle === 'ornamental' ? 'selected' : ''}>Ornamental</option>
+            </select></label>
         </div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
           <div class="form-check form-check-inline ms-2 mb-0">
@@ -4671,6 +4728,9 @@
         b.translationFontSizePt = Number.isFinite(trs) ? Math.min(36, Math.max(6, trs)) : 11;
         b.dropCapOriginal = !!panel.querySelector('#chkDropCapOrig')?.checked;
         b.dropCapTranslation = !!panel.querySelector('#chkDropCapTrans')?.checked;
+        b.dropCapStyle = panel.querySelector('#selReadDropCapStyle')?.value === 'ornamental'
+          ? 'ornamental'
+          : 'plain';
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -4686,6 +4746,7 @@
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#chkDropCapOrig')?.addEventListener('change', pushMetaRead);
       panel.querySelector('#chkDropCapTrans')?.addEventListener('change', pushMetaRead);
+      panel.querySelector('#selReadDropCapStyle')?.addEventListener('change', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;
@@ -5128,6 +5189,9 @@
       b.sourceFontSizePt = 9;
       b.sourceColor = '';
       b.sectionTitleGapMm = 1;
+      b.dropCapOriginal = false;
+      b.dropCapTranslation = false;
+      b.dropCapStyle = 'plain';
     }
     if (type === 'image') {
       b.mime = 'image/png';
@@ -5319,6 +5383,7 @@
       '--booklet-body-font',
       '--booklet-page-number-size-pt',
       '--booklet-rubric-color',
+      '--booklet-drop-cap-offset',
     ];
     return names
       .map(function (n) {

@@ -10,6 +10,15 @@
     <link rel="stylesheet" href="/vendor/jgabc/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
     <style>
+        /* Capo Rose by Michele Casanova, bundled under the SIL OFL 1.1.
+           Source: https://codeberg.org/m-casanova/CapoRose */
+        @font-face {
+            font-family: 'Capo Rose';
+            src: url('/modules/liturgy-booklet/fonts/capo_rose.otf') format('opentype');
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+        }
         :root {
             --booklet-margin-left-mm: 16;
             --booklet-margin-right-mm: 16;
@@ -461,7 +470,7 @@
             line-height: 0;
             vertical-align: baseline;
         }
-        .booklet-drop-cap::first-letter {
+        .booklet-drop-cap:not(.booklet-drop-cap--ornamental)::first-letter {
             float: left;
             font-size: 2.4em;
             line-height: 0.8;
@@ -469,6 +478,30 @@
             margin-right: 0.02em;
             font-weight: inherit;
             padding-top: var(--booklet-drop-cap-offset, 0.05em);
+        }
+        .booklet-ornamental-initial {
+            float: left;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            width: 1em;
+            height: 1em;
+            margin-right: 0.08em;
+            padding-top: var(--booklet-drop-cap-offset, 0.05em);
+            color: var(--booklet-rubric-color, #8b1538);
+            font-family: 'Capo Rose', serif;
+            font-size: 2.75em;
+            font-style: normal;
+            font-weight: 400;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+        .booklet-ornamental-initial--fallback {
+            font-family: inherit;
+            font-size: 2.4em;
+            font-weight: inherit;
+            text-transform: none;
         }
         .booklet-richtext p,
         .booklet-richtext div {

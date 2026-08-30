@@ -193,7 +193,10 @@ deployed. Also shipped since:
   (header + n*lineHeight) drifted off-grid with titles/margins/fractional
   line heights and sliced through lines, which asc/desc clip covers only
   partly hid and server drift exposed. Arithmetic `bestLineSnap` retained
-  only as fallback when nothing is measurable.
+  only as fallback when nothing is measurable. Reading-block drop caps now
+  have a per-block plain/ornamental selector (plain remains the default);
+  ornamental initials use the locally bundled OFL Capo Rose font and fall
+  back to the body typeface for J/U, which the display font substitutes.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored
