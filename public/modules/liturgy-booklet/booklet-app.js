@@ -205,10 +205,11 @@
    * off / suppressed for that page. Shared by the preview stamp and the PDF
    * manifest so edition pages merged server-side get the same sequence.
    */
-  function pageNumberFor(pageIdx) {
+  function pageNumberFor(pageIdx, pageEl) {
     var cfg = getPageNumberConfig();
     if (cfg.position === 'off') return null;
     if (cfg.skipFirst && pageIdx === 0) return null;
+    if (pageEl && pageEl.dataset.blankPage === 'true') return null;
     return cfg.start + pageIdx;
   }
 
@@ -227,7 +228,7 @@
     var vMm = getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
     var hMm = getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
     pageDivs.forEach(function (page, idx) {
-      var n = pageNumberFor(idx);
+      var n = pageNumberFor(idx, page);
       if (n == null) return;
       var el = document.createElement('div');
       el.className = 'booklet-page-number' + (isCenter ? ' booklet-page-number--center' : '');
@@ -910,6 +911,9 @@
     if (t === 'page_break') {
       return { icon: '', color: '', label: 'Page break', noIcon: true, itemBg: '#e9ecef' };
     }
+    if (t === 'blank_page') {
+      return { icon: '', color: '', label: 'Blank page', noIcon: true, itemBg: '#f5f5f5' };
+    }
     if (t === 'spacer') {
       return { icon: '', color: '', label: 'Spacer', noIcon: true, itemBg: '#f0f4f8' };
     }
@@ -969,6 +973,9 @@
     }
     if (b.type === 'page_break') {
       return 'Page break';
+    }
+    if (b.type === 'blank_page') {
+      return 'Blank page (number suppressed)';
     }
     if (b.type === 'spacer') {
       return 'Spacer (' + (b.heightMm || 10) + 'mm)';
@@ -1431,6 +1438,11 @@
         return o;
       }
       if (b.type === 'page_break') {
+        const o = { ...b };
+        if (o.hidden === undefined) o.hidden = false;
+        return o;
+      }
+      if (b.type === 'blank_page') {
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
         return o;
@@ -2793,6 +2805,10 @@
         out.push({ t: 'break' });
         continue;
       }
+      if (b.type === 'blank_page') {
+        out.push({ t: 'blank' });
+        continue;
+      }
       if (b.type === 'spacer') {
         var hMm = parseBoundedNumber(b.heightMm, -100, 100, 10);
         var hPx = mmToPx(hMm);
@@ -3307,12 +3323,13 @@
       return out;
     }
 
-    function pushPage(els, gaps, padTop, padBot) {
+    function pushPage(els, gaps, padTop, padBot, blank) {
       pages.push({
         elements: els,
         adjustedGaps: gaps,
         padTopAdjust: Math.round(padTop * 10) / 10,
-        padBottomAdjust: Math.round(padBot * 10) / 10
+        padBottomAdjust: Math.round(padBot * 10) / 10,
+        blank: !!blank
       });
     }
 
@@ -3461,6 +3478,11 @@
     for (var i = 0; i < flowItems.length; i++) {
       var item = flowItems[i];
       if (item.t === 'break') { flushPage(); continue; }
+      if (item.t === 'blank') {
+        flushPage();
+        pushPage([], [], 0, pageHPx, true);
+        continue;
+      }
 
       var el = item.el;
       var h;
@@ -3953,6 +3975,10 @@
         var page = document.createElement('div');
         page.className = 'booklet-page';
         page.dataset.size = size;
+        if (pg.blank) {
+          page.classList.add('booklet-page--blank');
+          page.dataset.blankPage = 'true';
+        }
         if (pg.padTopAdjust || pg.padBottomAdjust) {
           page.style.paddingTop = (marginTopPx + (pg.padTopAdjust || 0)) + 'px';
           page.style.paddingBottom = (marginBotPx + (pg.padBottomAdjust || 0)) + 'px';
@@ -4153,6 +4179,7 @@
     { type: 'image', icon: 'bi-image', label: 'Image' },
     { type: 'edition_pdf', icon: 'bi-file-earmark-pdf', label: 'Polyphony edition PDF' },
     { type: 'page_break', icon: 'bi-file-earmark-break', label: 'Force page break' },
+    { type: 'blank_page', icon: 'bi-file-earmark', label: 'Blank page' },
     { type: 'abc_notation', icon: 'bi-music-note-list', label: 'Music (ABC notation)' },
     { type: 'spacer', icon: 'bi-arrows-expand', label: 'Vertical spacer' },
     { type: 'hr', icon: 'bi-hr', label: 'Horizontal rule' },
@@ -4380,6 +4407,11 @@
     if (b.type === 'page_break') {
       panel.innerHTML =
         '<p class="small text-muted mb-0" title="The following section will begin on a new page in the on-screen preview and in the downloaded PDF.">Starts a new page after the previous section.</p>';
+      return;
+    }
+    if (b.type === 'blank_page') {
+      panel.innerHTML =
+        '<p class="small text-muted mb-0">Inserts one completely blank page. It remains part of the page count, but its printed page number is automatically suppressed.</p>';
       return;
     }
     if (b.type === 'spacer') {
@@ -5513,7 +5545,7 @@
       b.abcTranslationVAlign = 'middle';
       b.abcTranslationTextAlign = 'left';
     }
-    if (type !== 'page_break' && type !== 'spacer' && type !== 'hr') {
+    if (type !== 'page_break' && type !== 'blank_page' && type !== 'spacer' && type !== 'hr') {
       b.hidden = false;
     } else {
       b.hidden = false;
@@ -5762,7 +5794,7 @@
             type: 'edition',
             url: unit.dataset.editionUrl,
             pdfPage: parseInt(unit.dataset.editionPage, 10) || 1,
-            pageNumber: pageNumberFor(i),
+            pageNumber: pageNumberFor(i, p),
           });
         } else {
           contentPages.push(p);

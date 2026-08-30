@@ -222,6 +222,9 @@ deployed. Also shipped since:
   `svg.Exsurge .lyric` selector in every SVG, making the final chant's
   font and size paint every preceding chant despite their correct layout
   measurements.
+  A `blank_page` block inserts one physical page, advances the page count,
+  and suppresses the printed number on that page automatically. This
+  replaces the former page-break + spacer + page-break workaround.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored
