@@ -195,11 +195,11 @@ deployed. Also shipped since:
   partly hid and server drift exposed. Arithmetic `bestLineSnap` retained
   only as fallback when nothing is measurable. Reading-block drop caps now
   have a per-block plain/ornamental selector (plain remains the default);
-  ornamental initials use the locally bundled OFL Capo Rose font and fall
-  back to the body typeface for J/U, which the display font substitutes.
+  ornamental initials use the locally bundled OFL Capo Sfogliato font,
+  which supplies distinct forms for the full A-Z alphabet.
   Drop-cap colour, em size, and four margins are independently adjustable
   per reading block and are carried into the server-rendered PDF HTML. Capo
-  Rose's `ss01` letter and `ss02` floral layers are overlaid so ornamental
+  Sfogliato's `ss02` letter and `ss01` floral layers are overlaid so ornamental
   initials have separately adjustable letter and decoration colours.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official

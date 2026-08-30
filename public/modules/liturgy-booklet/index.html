@@ -10,11 +10,11 @@
     <link rel="stylesheet" href="/vendor/jgabc/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
     <style>
-        /* Capo Rose by Michele Casanova, bundled under the SIL OFL 1.1.
-           Source: https://codeberg.org/m-casanova/CapoRose */
+        /* Capo Sfogliato by Michele Casanova, bundled under the SIL OFL 1.1.
+           Source: https://codeberg.org/m-casanova/CapoSfogliato */
         @font-face {
-            font-family: 'Capo Rose';
-            src: url('/modules/liturgy-booklet/fonts/capo_rose.otf') format('opentype');
+            font-family: 'Capo Sfogliato';
+            src: url('/modules/liturgy-booklet/fonts/capo_sfogliato.woff2') format('woff2');
             font-style: normal;
             font-weight: 400;
             font-display: block;
@@ -493,7 +493,7 @@
             margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
             margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
             padding: 0;
-            font-family: 'Capo Rose', serif;
+            font-family: 'Capo Sfogliato', serif;
             font-size: var(--booklet-reading-drop-cap-size, 2.75em);
             font-style: normal;
             font-weight: 400;
@@ -509,35 +509,19 @@
             box-sizing: border-box;
             font: inherit;
             line-height: 1;
-            padding-left: 0.14em;
+            padding-left: 0;
             pointer-events: none;
             white-space: nowrap;
         }
         .booklet-ornamental-initial-letter {
             color: var(--booklet-reading-drop-cap-color, #000);
-            font-feature-settings: 'ss01' 1;
+            font-feature-settings: 'ss02' 1;
         }
         .booklet-ornamental-initial-decoration::before {
             color: var(--booklet-reading-drop-cap-decoration-color, var(--booklet-rubric-color, #8b1538));
             content: attr(data-cap-letter);
             font: inherit;
-            font-feature-settings: 'ss02' 1;
-        }
-        .booklet-ornamental-initial--fallback {
-            font-family: inherit;
-            font-size: var(--booklet-reading-drop-cap-size, 2.4em);
-            font-weight: inherit;
-            text-transform: none;
-        }
-        .booklet-ornamental-initial--fallback .booklet-ornamental-initial-decoration {
-            display: none;
-        }
-        .booklet-ornamental-initial--fallback .booklet-ornamental-initial-letter {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-feature-settings: normal;
-            padding-left: 0;
+            font-feature-settings: 'ss01' 1;
         }
         .booklet-richtext p,
         .booklet-richtext div {

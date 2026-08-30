@@ -2233,9 +2233,7 @@
       if (!hit) continue;
 
       const cap = document.createElement('span');
-      const letter = (hit.value.match(/\p{L}/u) || [''])[0];
-      cap.className = 'booklet-ornamental-initial' +
-        (/^[JU]$/i.test(letter) ? ' booklet-ornamental-initial--fallback' : '');
+      cap.className = 'booklet-ornamental-initial';
       cap.setAttribute('aria-label', hit.value);
       const decoration = document.createElement('span');
       decoration.className =
