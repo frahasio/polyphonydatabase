@@ -1474,6 +1474,20 @@
         if (o.dropCapOriginal === undefined) o.dropCapOriginal = !!o.useDropCap;
         if (o.dropCapTranslation === undefined) o.dropCapTranslation = false;
         o.dropCapStyle = o.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain';
+        o.dropCapColor = /^#[0-9a-f]{6}$/i.test(String(o.dropCapColor || '').trim())
+          ? String(o.dropCapColor).trim()
+          : '';
+        const normalizeOptionalCapNumber = function (value, min, max) {
+          const number = Number(value);
+          return value !== '' && value != null && Number.isFinite(number)
+            ? Math.min(max, Math.max(min, number))
+            : null;
+        };
+        o.dropCapSizeEm = normalizeOptionalCapNumber(o.dropCapSizeEm, 1, 8);
+        o.dropCapMarginTopEm = normalizeOptionalCapNumber(o.dropCapMarginTopEm, -2, 2);
+        o.dropCapMarginRightEm = normalizeOptionalCapNumber(o.dropCapMarginRightEm, -1, 3);
+        o.dropCapMarginBottomEm = normalizeOptionalCapNumber(o.dropCapMarginBottomEm, -2, 2);
+        o.dropCapMarginLeftEm = normalizeOptionalCapNumber(o.dropCapMarginLeftEm, -1, 3);
         delete o.useDropCap;
       }
       if (o.type === 'chant_gabc') {
@@ -2229,10 +2243,26 @@
     }
   }
 
-  function fillReadingRichText(el, html, useDropCap, dropCapStyle) {
+  function fillReadingRichText(el, html, useDropCap, block) {
     el.appendChild(sanitizeToFragment(html || ''));
     if (!useDropCap) return;
+    const b = block || {};
+    const dropCapStyle = b.dropCapStyle;
     el.classList.add('booklet-drop-cap');
+    const setCapNumber = function (property, value, min, max) {
+      const number = Number(value);
+      if (value !== '' && value != null && Number.isFinite(number)) {
+        el.style.setProperty(property, Math.min(max, Math.max(min, number)) + 'em');
+      }
+    };
+    if (/^#[0-9a-f]{6}$/i.test(String(b.dropCapColor || '').trim())) {
+      el.style.setProperty('--booklet-reading-drop-cap-color', String(b.dropCapColor).trim());
+    }
+    setCapNumber('--booklet-reading-drop-cap-size', b.dropCapSizeEm, 1, 8);
+    setCapNumber('--booklet-reading-drop-cap-margin-top', b.dropCapMarginTopEm, -2, 2);
+    setCapNumber('--booklet-reading-drop-cap-margin-right', b.dropCapMarginRightEm, -1, 3);
+    setCapNumber('--booklet-reading-drop-cap-margin-bottom', b.dropCapMarginBottomEm, -2, 2);
+    setCapNumber('--booklet-reading-drop-cap-margin-left', b.dropCapMarginLeftEm, -1, 3);
     if (dropCapStyle === 'ornamental') {
       el.classList.add('booklet-drop-cap--ornamental');
       wrapOrnamentalDropCap(el);
@@ -2286,12 +2316,12 @@
         innerL.className = 'booklet-richtext reading';
         innerL.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         innerL.style.lineHeight = _lhPt;
-        fillReadingRichText(innerL, b.text, b.dropCapOriginal, b.dropCapStyle);
+        fillReadingRichText(innerL, b.text, b.dropCapOriginal, b);
         const innerR = document.createElement('div');
         innerR.className = 'booklet-richtext reading';
         innerR.style.fontSize = (b.translationFontSizePt || 11) + 'pt';
         innerR.style.lineHeight = _lhPt;
-        fillReadingRichText(innerR, b.translation, b.dropCapTranslation, b.dropCapStyle);
+        fillReadingRichText(innerR, b.translation, b.dropCapTranslation, b);
         tdL.appendChild(innerL);
         tdR.appendChild(innerR);
         tr.appendChild(tdL);
@@ -2304,7 +2334,7 @@
         p.className = 'reading booklet-richtext';
         p.style.fontSize = (b.bodyFontSizePt || 11) + 'pt';
         p.style.lineHeight = _lhPt;
-        fillReadingRichText(p, b.text, b.dropCapOriginal, b.dropCapStyle);
+        fillReadingRichText(p, b.text, b.dropCapOriginal, b);
         wrap.appendChild(p);
       }
     } else if (b.type === 'image') {
@@ -2908,7 +2938,9 @@
         b.sectionTitleGapMm,
         b.bodyFontSizePt, b.translationFontSizePt, b.lineHeightPt, b.titleFontSizePt,
         b.sourceFontSizePt, b.rubricColor, b.parallelLeftPct, b.parallelGapMm,
-        b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.dropCapStyle, b.fontScale,
+        b.parallelBorder, b.dropCapOriginal, b.dropCapTranslation, b.dropCapStyle,
+        b.dropCapColor, b.dropCapSizeEm, b.dropCapMarginTopEm,
+        b.dropCapMarginRightEm, b.dropCapMarginBottomEm, b.dropCapMarginLeftEm, b.fontScale,
         b.titleFontKey, b.titleTextColor, b.titleLineColor, b.titleFontSizePt,
         b.titleBold, b.titleItalic, b.titleSmallCaps,
         b.imageWidthPx, b.imageAlign, b.dataBase64,
@@ -4641,6 +4673,20 @@
     } else if (b.type === 'reading') {
       const split = b.parallelLeftPct != null ? b.parallelLeftPct : 50;
       const gap = b.parallelGapMm != null ? b.parallelGapMm : 4;
+      const ornamentalCap = b.dropCapStyle === 'ornamental';
+      const capColor = /^#[0-9a-f]{6}$/i.test(String(b.dropCapColor || '').trim())
+        ? String(b.dropCapColor).trim()
+        : (ornamentalCap ? '#8b1538' : '#000000');
+      const capSize = b.dropCapSizeEm != null
+        ? Math.min(8, Math.max(1, Number(b.dropCapSizeEm) || 2.4))
+        : (ornamentalCap ? 2.75 : 2.4);
+      const capMarginValue = function (value, fallback) {
+        return value != null && Number.isFinite(Number(value)) ? Number(value) : fallback;
+      };
+      const capMarginTop = capMarginValue(b.dropCapMarginTopEm, 0);
+      const capMarginRight = capMarginValue(b.dropCapMarginRightEm, ornamentalCap ? 0.08 : 0.08);
+      const capMarginBottom = capMarginValue(b.dropCapMarginBottomEm, 0);
+      const capMarginLeft = capMarginValue(b.dropCapMarginLeftEm, 0);
       panel.innerHTML = `
         ${editorLayoutPanelHtml(b, true, false)}
         <div class="row g-1 mb-1">
@@ -4667,6 +4713,20 @@
               <option value="plain" ${b.dropCapStyle !== 'ornamental' ? 'selected' : ''}>Plain</option>
               <option value="ornamental" ${b.dropCapStyle === 'ornamental' ? 'selected' : ''}>Ornamental</option>
             </select></label>
+        </div>
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
+          <label class="d-flex flex-column gap-0" style="width:4rem" title="Drop-cap colour, independent of the reading text."><span class="form-label small mb-0">Cap colour</span>
+            <input type="color" class="form-control form-control-color form-control-sm w-100" id="edReadDropCapColor" value="${escapeAttr(capColor)}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem" title="Drop-cap size relative to the surrounding text."><span class="form-label small mb-0">Size (em)</span>
+            <input type="number" class="form-control form-control-sm" id="edReadDropCapSize" min="1" max="8" step="0.05" value="${capSize}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Top (em)</span>
+            <input type="number" class="form-control form-control-sm" id="edReadDropCapMarginTop" min="-2" max="2" step="0.02" value="${capMarginTop}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Right (em)</span>
+            <input type="number" class="form-control form-control-sm" id="edReadDropCapMarginRight" min="-1" max="3" step="0.02" value="${capMarginRight}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Bottom (em)</span>
+            <input type="number" class="form-control form-control-sm" id="edReadDropCapMarginBottom" min="-2" max="2" step="0.02" value="${capMarginBottom}"></label>
+          <label class="d-flex flex-column gap-0" style="width:4.5rem"><span class="form-label small mb-0">Left (em)</span>
+            <input type="number" class="form-control form-control-sm" id="edReadDropCapMarginLeft" min="-1" max="3" step="0.02" value="${capMarginLeft}"></label>
         </div>
         <hr class="my-1"><div class="d-flex align-items-center gap-1 mb-1"><small class="fw-semibold text-muted">Original</small>
           <div class="form-check form-check-inline ms-2 mb-0">
@@ -4731,6 +4791,19 @@
         b.dropCapStyle = panel.querySelector('#selReadDropCapStyle')?.value === 'ornamental'
           ? 'ornamental'
           : 'plain';
+        var dcc = panel.querySelector('#edReadDropCapColor')?.value;
+        b.dropCapColor = /^#[0-9a-f]{6}$/i.test(dcc || '') ? dcc : '';
+        const boundedCapInput = function (selector, min, max, fallback) {
+          const number = parseFloat(panel.querySelector(selector)?.value);
+          return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+        };
+        b.dropCapSizeEm = boundedCapInput(
+          '#edReadDropCapSize', 1, 8, b.dropCapStyle === 'ornamental' ? 2.75 : 2.4
+        );
+        b.dropCapMarginTopEm = boundedCapInput('#edReadDropCapMarginTop', -2, 2, 0);
+        b.dropCapMarginRightEm = boundedCapInput('#edReadDropCapMarginRight', -1, 3, 0.08);
+        b.dropCapMarginBottomEm = boundedCapInput('#edReadDropCapMarginBottom', -2, 2, 0);
+        b.dropCapMarginLeftEm = boundedCapInput('#edReadDropCapMarginLeft', -1, 3, 0);
         scheduleAutosave();
         markLayoutStale();
         renderBlockList();
@@ -4746,7 +4819,22 @@
       panel.querySelector('#edReadTransSize').addEventListener('input', pushMetaRead);
       panel.querySelector('#chkDropCapOrig')?.addEventListener('change', pushMetaRead);
       panel.querySelector('#chkDropCapTrans')?.addEventListener('change', pushMetaRead);
-      panel.querySelector('#selReadDropCapStyle')?.addEventListener('change', pushMetaRead);
+      panel.querySelector('#selReadDropCapStyle')?.addEventListener('change', function (event) {
+        const ornamental = event.target.value === 'ornamental';
+        if (b.dropCapSizeEm == null) {
+          panel.querySelector('#edReadDropCapSize').value = ornamental ? '2.75' : '2.4';
+        }
+        if (!b.dropCapColor) {
+          panel.querySelector('#edReadDropCapColor').value = ornamental ? '#8b1538' : '#000000';
+        }
+        pushMetaRead();
+      });
+      panel.querySelector('#edReadDropCapColor')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapSize')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapMarginTop')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapMarginRight')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapMarginBottom')?.addEventListener('input', pushMetaRead);
+      panel.querySelector('#edReadDropCapMarginLeft')?.addEventListener('input', pushMetaRead);
       const push = () => {
         b.text = edO.innerHTML;
         b.translation = edT.innerHTML;

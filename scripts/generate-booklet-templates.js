@@ -173,6 +173,12 @@ function makeBuilder(key, skeleton) {
         sectionTitle: '',
         sectionSourceRef: sourceRef || '',
         dropCapStyle: base.dropCapStyle === 'ornamental' ? 'ornamental' : 'plain',
+        dropCapColor: base.dropCapColor || '',
+        dropCapSizeEm: base.dropCapSizeEm ?? null,
+        dropCapMarginTopEm: base.dropCapMarginTopEm ?? null,
+        dropCapMarginRightEm: base.dropCapMarginRightEm ?? null,
+        dropCapMarginBottomEm: base.dropCapMarginBottomEm ?? null,
+        dropCapMarginLeftEm: base.dropCapMarginLeftEm ?? null,
       };
     },
     chant(gabc, translation, slot) {

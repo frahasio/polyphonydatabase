@@ -472,10 +472,13 @@
         }
         .booklet-drop-cap:not(.booklet-drop-cap--ornamental)::first-letter {
             float: left;
-            font-size: 2.4em;
+            font-size: var(--booklet-reading-drop-cap-size, 2.4em);
             line-height: 0.8;
-            padding-right: 0.06em;
-            margin-right: 0.02em;
+            margin-top: var(--booklet-reading-drop-cap-margin-top, 0);
+            margin-right: var(--booklet-reading-drop-cap-margin-right, 0.08em);
+            margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
+            margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
+            color: var(--booklet-reading-drop-cap-color, inherit);
             font-weight: inherit;
             padding-top: var(--booklet-drop-cap-offset, 0.05em);
         }
@@ -487,11 +490,14 @@
             box-sizing: border-box;
             width: 1em;
             height: 1em;
-            margin-right: 0.08em;
+            margin-top: var(--booklet-reading-drop-cap-margin-top, 0);
+            margin-right: var(--booklet-reading-drop-cap-margin-right, 0.08em);
+            margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
+            margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
             padding-top: var(--booklet-drop-cap-offset, 0.05em);
-            color: var(--booklet-rubric-color, #8b1538);
+            color: var(--booklet-reading-drop-cap-color, var(--booklet-rubric-color, #8b1538));
             font-family: 'Capo Rose', serif;
-            font-size: 2.75em;
+            font-size: var(--booklet-reading-drop-cap-size, 2.75em);
             font-style: normal;
             font-weight: 400;
             line-height: 1;
@@ -499,7 +505,7 @@
         }
         .booklet-ornamental-initial--fallback {
             font-family: inherit;
-            font-size: 2.4em;
+            font-size: var(--booklet-reading-drop-cap-size, 2.4em);
             font-weight: inherit;
             text-transform: none;
         }

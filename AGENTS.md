@@ -197,6 +197,8 @@ deployed. Also shipped since:
   have a per-block plain/ornamental selector (plain remains the default);
   ornamental initials use the locally bundled OFL Capo Rose font and fall
   back to the body typeface for J/U, which the display font substitutes.
+  Drop-cap colour, em size, and four margins are independently adjustable
+  per reading block and are carried into the server-rendered PDF HTML.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored
