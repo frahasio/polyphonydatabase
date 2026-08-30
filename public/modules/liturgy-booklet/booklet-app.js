@@ -2236,8 +2236,17 @@
       const letter = (hit.value.match(/\p{L}/u) || [''])[0];
       cap.className = 'booklet-ornamental-initial' +
         (/^[JU]$/i.test(letter) ? ' booklet-ornamental-initial--fallback' : '');
-      cap.dataset.capLetter = hit.value;
-      cap.textContent = hit.value;
+      cap.setAttribute('aria-label', hit.value);
+      const decoration = document.createElement('span');
+      decoration.className =
+        'booklet-ornamental-initial-layer booklet-ornamental-initial-decoration';
+      decoration.dataset.capLetter = hit.value;
+      decoration.setAttribute('aria-hidden', 'true');
+      const glyph = document.createElement('span');
+      glyph.className = 'booklet-ornamental-initial-layer booklet-ornamental-initial-letter';
+      glyph.textContent = hit.value;
+      cap.appendChild(decoration);
+      cap.appendChild(glyph);
       const frag = document.createDocumentFragment();
       const end = hit.index + hit.value.length;
       if (hit.index) frag.appendChild(document.createTextNode(text.slice(0, hit.index)));

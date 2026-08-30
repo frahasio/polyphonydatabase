@@ -484,9 +484,7 @@
         }
         .booklet-ornamental-initial {
             float: left;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
             box-sizing: border-box;
             width: 1em;
             height: 1em;
@@ -495,10 +493,8 @@
             margin-bottom: var(--booklet-reading-drop-cap-margin-bottom, 0);
             margin-left: var(--booklet-reading-drop-cap-margin-left, 0);
             padding: 0;
-            color: var(--booklet-reading-drop-cap-color, #000);
             font-family: 'Capo Rose', serif;
             font-size: var(--booklet-reading-drop-cap-size, 2.75em);
-            font-feature-settings: 'ss01' 1;
             font-style: normal;
             font-weight: 400;
             line-height: 1;
@@ -506,27 +502,38 @@
             transform: translateY(var(--booklet-drop-cap-offset, 0.05em));
             text-transform: uppercase;
         }
-        .booklet-ornamental-initial::before {
+        .booklet-ornamental-initial-layer {
             position: absolute;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-sizing: border-box;
+            font: inherit;
+            line-height: 1;
+            pointer-events: none;
+        }
+        .booklet-ornamental-initial-letter {
+            color: var(--booklet-reading-drop-cap-color, #000);
+            font-feature-settings: 'ss01' 1;
+        }
+        .booklet-ornamental-initial-decoration::before {
             color: var(--booklet-reading-drop-cap-decoration-color, var(--booklet-rubric-color, #8b1538));
             content: attr(data-cap-letter);
             font: inherit;
             font-feature-settings: 'ss02' 1;
-            pointer-events: none;
         }
         .booklet-ornamental-initial--fallback {
             font-family: inherit;
             font-size: var(--booklet-reading-drop-cap-size, 2.4em);
-            font-feature-settings: normal;
             font-weight: inherit;
             text-transform: none;
         }
-        .booklet-ornamental-initial--fallback::before {
-            content: none;
+        .booklet-ornamental-initial--fallback .booklet-ornamental-initial-decoration {
+            display: none;
+        }
+        .booklet-ornamental-initial--fallback .booklet-ornamental-initial-letter {
+            font-feature-settings: normal;
         }
         .booklet-richtext p,
         .booklet-richtext div {
