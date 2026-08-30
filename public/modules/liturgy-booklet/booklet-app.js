@@ -12,6 +12,7 @@
   const DEFAULT_SECTION_GAP_AFTER_MM = 8;
   const DEFAULT_PAGE_NUMBER_V_MM = 8;
   const DEFAULT_PAGE_NUMBER_H_MM = 12;
+  const DEFAULT_PAGE_NUMBER_SIZE_PT = 9;
   const DEFAULT_BLOCK_FONT_SCALE = 1;
   const GAP_FLEX_PX = 4;
   const MARGIN_TOLERANCE_PX = 10;
@@ -137,6 +138,7 @@
       pageNumberSkipFirst: false,
       pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
       pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
+      pageNumberSizePt: DEFAULT_PAGE_NUMBER_SIZE_PT,
     },
     blocks: [],
   };
@@ -168,6 +170,7 @@
         pageNumberSkipFirst: false,
         pageNumberVMm: DEFAULT_PAGE_NUMBER_V_MM,
         pageNumberHMm: DEFAULT_PAGE_NUMBER_H_MM,
+        pageNumberSizePt: DEFAULT_PAGE_NUMBER_SIZE_PT,
       },
       blocks: [],
     };
@@ -515,6 +518,10 @@
     const fk = state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
     loadGoogleFont(fk);
     root.style.setProperty('--booklet-body-font', fontStackFor(fk));
+    root.style.setProperty(
+      '--booklet-page-number-size-pt',
+      String(getSetting('pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT))
+    );
     const rc = state.settings.rubricColor || '#8b1538';
     root.style.setProperty('--booklet-rubric-color', /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538');
     var dco = Number(state.settings.dropCapOffsetEm);
@@ -1587,6 +1594,12 @@
     parsed.settings.previewDisplay =
       parsed.settings.previewDisplay === 'booklet' ? 'booklet' : 'scroll';
     parsed.settings.fontFamilyKey = migrateFontKey(parsed.settings.fontFamilyKey);
+    parsed.settings.pageNumberSizePt = parseBoundedNumber(
+      parsed.settings.pageNumberSizePt,
+      6,
+      24,
+      DEFAULT_PAGE_NUMBER_SIZE_PT
+    );
     const rc = parsed.settings.rubricColor || '#8b1538';
     parsed.settings.rubricColor = /^#[0-9a-f]{6}$/i.test(rc) ? rc : '#8b1538';
     const mg = Number(parsed.settings.marginMm);
@@ -1893,6 +1906,7 @@
     if (pnSkip) pnSkip.checked = pnCfg.skipFirst;
     syncNum('inpPageNumberVMm', 'pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
     syncNum('inpPageNumberHMm', 'pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
+    syncNum('inpPageNumberSizePt', 'pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT);
     syncNum('inpGapTolerance', 'gapTolerancePx', GAP_FLEX_PX);
     syncNum('inpMarginTolerance', 'marginTolerancePx', MARGIN_TOLERANCE_PX);
     syncNum('inpOrphanLines', 'minOrphanLines', 3);
@@ -5303,6 +5317,7 @@
       '--booklet-margin-bottom-mm',
       '--booklet-font-scale',
       '--booklet-body-font',
+      '--booklet-page-number-size-pt',
       '--booklet-rubric-color',
     ];
     return names
@@ -5480,6 +5495,7 @@
         pageNumbersPosition: mh.pageNumbersPosition,
         pageNumberVMm: getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM),
         pageNumberHMm: getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM),
+        pageNumberSizePt: getSetting('pageNumberSizePt', DEFAULT_PAGE_NUMBER_SIZE_PT),
         title: state.projectTitle || '',
       });
       if (pdfCacheBlob && pdfCacheBody === body) return pdfCacheBlob;
@@ -6231,6 +6247,14 @@
         state.settings.pageNumberSkipFirst = !!e.target.checked;
         scheduleAutosave();
         markLayoutStale();
+    });
+    document.getElementById('inpPageNumberSizePt')?.addEventListener('change', function (e) {
+      var size = parseBoundedNumber(e.target.value, 6, 24, DEFAULT_PAGE_NUMBER_SIZE_PT);
+      state.settings.pageNumberSizePt = Math.round(size * 2) / 2;
+      e.target.value = String(state.settings.pageNumberSizePt);
+      applyCssVars();
+      scheduleAutosave();
+      markLayoutStale();
     });
     bindLayoutSetting('inpPageNumberVMm', 'pageNumberVMm', 0, 50, DEFAULT_PAGE_NUMBER_V_MM);
     bindLayoutSetting('inpPageNumberHMm', 'pageNumberHMm', 0, 80, DEFAULT_PAGE_NUMBER_H_MM);

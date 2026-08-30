@@ -4,7 +4,7 @@ import { lookup } from 'dns/promises';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { requireAuth } from '../middleware/auth.js';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 
 const router = express.Router();
 
@@ -225,29 +225,71 @@ router.post('/pdf', requireAuth, async (req, res) => {
         ['footer-center', 'footer-outer', 'header-center', 'header-outer'].includes(req.body.pageNumbersPosition)
         ? req.body.pageNumbersPosition
         : null;
-      const pnFont = pnPosition ? await finalDoc.embedFont(StandardFonts.TimesRoman) : null;
-      const PN_SIZE = 11; // ≈ 9pt visual weight of the HTML stamp
+      const requestedPnSize = Number(req.body.pageNumberSizePt);
+      const PN_SIZE = Number.isFinite(requestedPnSize)
+        ? Math.min(24, Math.max(6, requestedPnSize))
+        : 9;
       const MM_TO_PT = 2.83465;
       // Distances from the page edge, matching the on-screen page-number
       // margins (fall back to sensible defaults).
       const vPt = (Number(req.body.pageNumberVMm) >= 0 ? Number(req.body.pageNumberVMm) : 8) * MM_TO_PT;
       const hPt = (Number(req.body.pageNumberHMm) >= 0 ? Number(req.body.pageNumberHMm) : 12) * MM_TO_PT;
+      const pnImageCache = new Map();
 
-      function stampEditionPageNumber(page, pageNumber) {
-        if (!pnFont || !Number.isInteger(pageNumber)) return;
-        const { width, height } = page.getSize();
+      async function pageNumberImage(pageNumber) {
         const text = String(pageNumber);
-        const textWidth = pnFont.widthOfTextAtSize(text, PN_SIZE);
+        if (pnImageCache.has(text)) return pnImageCache.get(text);
+        const rendered = await page.evaluate(({ value, sizePt }) => {
+          const scale = 4;
+          const fontPx = sizePt * (96 / 72) * scale;
+          const family = getComputedStyle(document.documentElement)
+            .getPropertyValue('--booklet-body-font')
+            .trim() || 'serif';
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          context.font = fontPx + 'px ' + family;
+          const metrics = context.measureText(value);
+          const pad = 2 * scale;
+          const ascent = Math.ceil(metrics.actualBoundingBoxAscent || fontPx * 0.8);
+          const descent = Math.ceil(metrics.actualBoundingBoxDescent || fontPx * 0.2);
+          canvas.width = Math.ceil(metrics.width) + pad * 2;
+          canvas.height = ascent + descent + pad * 2;
+          const draw = canvas.getContext('2d');
+          draw.font = fontPx + 'px ' + family;
+          draw.fillStyle = '#000';
+          draw.textBaseline = 'alphabetic';
+          draw.fillText(value, pad, pad + ascent);
+          return {
+            png: canvas.toDataURL('image/png').split(',')[1],
+            widthPt: (canvas.width / scale) * (72 / 96),
+            heightPt: (canvas.height / scale) * (72 / 96),
+          };
+        }, { value: text, sizePt: PN_SIZE });
+        const image = await finalDoc.embedPng(Buffer.from(rendered.png, 'base64'));
+        const result = { image, width: rendered.widthPt, height: rendered.heightPt };
+        pnImageCache.set(text, result);
+        return result;
+      }
+
+      async function stampEditionPageNumber(targetPage, pageNumber) {
+        if (!pnPosition || !Number.isInteger(pageNumber)) return;
+        const numberImage = await pageNumberImage(pageNumber);
+        const { width, height } = targetPage.getSize();
         const isFooter = pnPosition.startsWith('footer');
-        const y = isFooter ? vPt : height - vPt - PN_SIZE;
+        const y = isFooter ? vPt : height - vPt - numberImage.height;
         let x;
         if (pnPosition.endsWith('center')) {
-          x = (width - textWidth) / 2;
+          x = (width - numberImage.width) / 2;
         } else {
           // Outer edge: odd numbers recto (right), even verso (left).
-          x = pageNumber % 2 === 1 ? width - hPt - textWidth : hPt;
+          x = pageNumber % 2 === 1 ? width - hPt - numberImage.width : hPt;
         }
-        page.drawText(text, { x, y, size: PN_SIZE, font: pnFont, color: rgb(0.2, 0.2, 0.2) });
+        targetPage.drawImage(numberImage.image, {
+          x,
+          y,
+          width: numberImage.width,
+          height: numberImage.height,
+        });
       }
 
       for (const entry of manifest) {
@@ -271,7 +313,7 @@ router.post('/pdf', requireAuth, async (req, res) => {
             if (pageIdx < editionDoc.getPageCount()) {
               const [copied] = await finalDoc.copyPages(editionDoc, [pageIdx]);
               const added = finalDoc.addPage(copied);
-              stampEditionPageNumber(added, parseInt(entry.pageNumber, 10));
+              await stampEditionPageNumber(added, parseInt(entry.pageNumber, 10));
             }
           } catch (edErr) {
             console.warn('booklet pdf: edition page merge failed for', entry.url, edErr.message);
