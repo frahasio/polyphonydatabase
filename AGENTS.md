@@ -222,9 +222,21 @@ deployed. Also shipped since:
   `svg.Exsurge .lyric` selector in every SVG, making the final chant's
   font and size paint every preceding chant despite their correct layout
   measurements.
-  A `blank_page` block inserts one physical page, advances the page count,
-  and suppresses the printed number on that page automatically. This
-  replaces the former page-break + spacer + page-break workaround.
+ A `blank_page` block inserts one physical page, advances the page count,
+ and suppresses the printed number on that page automatically. This
+ replaces the former page-break + spacer + page-break workaround.
+ PDF export server (Sept 2026, after live H12/503 timeouts): renders on the
+ eco dyno took 11–19s and drifted past Heroku's HARD 30s router limit — the
+ content was fine (same booklet rendered in ~3s locally). `src/routes/
+ booklet.js` now keeps ONE shared Chrome alive (lazy launch, closed after
+ 60s idle to give the dyno its memory back; relaunched if disconnected),
+ serializes renders via a promise-chain lock (two concurrent Chromes would
+ exhaust the 512MB dyno), and uses `setContent(waitUntil:'load')` + a
+ bounded 8s `document.fonts.ready` wait instead of `networkidle0`, which
+ stalled on hung CDN connections and wasted its 500ms idle window. Each
+ render logs a timing breakdown (browser/content/pdf+merge) for future
+ diagnosis. A 503 on /api/booklet/pdf = H12: check `heroku logs` for the
+ "booklet pdf:" timing lines.
 - Booklet template library: booklet_templates table + /api/booklet/templates
   + in-app library modal (browse/search/load/publish; admins manage official
   ones). Seeded with 126 Mass-propers templates generated from the vendored

@@ -96,13 +96,150 @@ function resolveChromeExecutable(puppeteerModule) {
 }
 
 /**
+ * PDF engine lifecycle. Heroku's router kills any request at a hard 30s
+ * (H12 -> 503), and renders on an eco dyno were taking 11-19s with a fresh
+ * Chrome launch per request — close enough to tip over the limit. So:
+ * - one shared Chrome, launched lazily and kept for BROWSER_IDLE_CLOSE_MS
+ *   after the last render (proof + download bursts reuse it), then closed
+ *   to give the dyno its memory back;
+ * - renders are serialized, since two concurrent Chromes would exhaust the
+ *   512MB dyno anyway.
+ */
+const BROWSER_IDLE_CLOSE_MS = 60 * 1000;
+let sharedBrowserPromise = null;
+let browserIdleTimer = null;
+let renderChain = Promise.resolve();
+
+class PdfEngineError extends Error {
+  constructor(clientMessage) {
+    super(clientMessage);
+    this.clientMessage = clientMessage;
+  }
+}
+
+async function loadPuppeteerLaunch() {
+  let mod;
+  try {
+    mod = await import('puppeteer');
+  } catch (impErr) {
+    console.error('booklet pdf: puppeteer ESM import failed', impErr);
+    try {
+      const { createRequire } = await import('module');
+      const require = createRequire(import.meta.url);
+      mod = require('puppeteer');
+    } catch (reqErr) {
+      console.error('booklet pdf: puppeteer require() failed', reqErr);
+      throw new PdfEngineError(
+        'PDF engine unavailable: the puppeteer package failed to load on this server. ' +
+          'Confirm `npm install` ran on deploy and see README “Liturgy booklet PDF export”.'
+      );
+    }
+  }
+  const launch =
+    typeof mod.launch === 'function'
+      ? mod.launch.bind(mod)
+      : mod.default && typeof mod.default.launch === 'function'
+        ? mod.default.launch.bind(mod.default)
+        : null;
+  if (!launch) {
+    console.error('booklet pdf: puppeteer has no launch()');
+    throw new PdfEngineError(
+      'PDF engine misconfigured: puppeteer module loaded but launch() is missing.'
+    );
+  }
+  return { mod, launch };
+}
+
+async function launchBrowser() {
+  const { mod, launch } = await loadPuppeteerLaunch();
+  const chromePath = resolveChromeExecutable(mod);
+  const launchOpts = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+    ],
+  };
+  if (chromePath) {
+    launchOpts.executablePath = chromePath;
+  }
+  try {
+    return await launch(launchOpts);
+  } catch (launchErr) {
+    console.error('booklet pdf: puppeteer launch failed', launchErr);
+    const hint =
+      process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN
+        ? 'Check that PUPPETEER_EXECUTABLE_PATH / GOOGLE_CHROME_BIN points to a real binary on this host.'
+        : 'Set PUPPETEER_EXECUTABLE_PATH (or GOOGLE_CHROME_BIN) to system Chrome/Chromium, or rely on Puppeteer’s downloaded browser after a successful postinstall.';
+    throw new PdfEngineError(
+      'Chrome/Chromium could not be started for PDF export. ' +
+        hint +
+        ' See README section “Liturgy booklet PDF export (server)”. ' +
+        'Server log: ' +
+        String(launchErr && launchErr.message ? launchErr.message : launchErr)
+    );
+  }
+}
+
+async function getSharedBrowser() {
+  if (browserIdleTimer) {
+    clearTimeout(browserIdleTimer);
+    browserIdleTimer = null;
+  }
+  if (sharedBrowserPromise) {
+    try {
+      const existing = await sharedBrowserPromise;
+      const connected =
+        typeof existing.connected === 'boolean' ? existing.connected : existing.isConnected();
+      if (connected) return existing;
+    } catch {
+      /* previous launch failed; relaunch below */
+    }
+    sharedBrowserPromise = null;
+  }
+  sharedBrowserPromise = launchBrowser();
+  try {
+    return await sharedBrowserPromise;
+  } catch (err) {
+    sharedBrowserPromise = null;
+    throw err;
+  }
+}
+
+function scheduleBrowserIdleClose() {
+  if (browserIdleTimer) clearTimeout(browserIdleTimer);
+  browserIdleTimer = setTimeout(function () {
+    browserIdleTimer = null;
+    const p = sharedBrowserPromise;
+    sharedBrowserPromise = null;
+    if (p) {
+      p.then(function (b) { return b.close(); }).catch(function () {});
+    }
+  }, BROWSER_IDLE_CLOSE_MS);
+  if (typeof browserIdleTimer.unref === 'function') browserIdleTimer.unref();
+}
+
+function withRenderLock(fn) {
+  const run = renderChain.then(fn, fn);
+  renderChain = run.then(
+    function () {},
+    function () {}
+  );
+  return run;
+}
+
+/**
  * Booklet PDF: headless Chromium via Puppeteer. Matches on-screen print CSS more closely than
  * WeasyPrint (different layout engine) or raster html2canvas. Page breaks follow the same
  * print rules as the preview (e.g. .booklet-page + break-after).
  * Body is parsed by app-level express.json (raised limit for this payload).
  */
 router.post('/pdf', requireAuth, async (req, res) => {
-  let browser;
+  let page;
   try {
     const html = req.body && typeof req.body.html === 'string' ? req.body.html : '';
     const pageSize = req.body && req.body.pageSize === 'A5' ? 'A5' : 'A4';
@@ -115,84 +252,30 @@ router.post('/pdf', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Document too large' });
     }
 
-    let launch;
-    let mod;
-    try {
-      mod = await import('puppeteer');
-    } catch (impErr) {
-      console.error('booklet pdf: puppeteer ESM import failed', impErr);
-      try {
-        const { createRequire } = await import('module');
-        const require = createRequire(import.meta.url);
-        mod = require('puppeteer');
-      } catch (reqErr) {
-        console.error('booklet pdf: puppeteer require() failed', reqErr);
-        return res.status(503).json({
-          error:
-            'PDF engine unavailable: the puppeteer package failed to load on this server. ' +
-            'Confirm `npm install` ran on deploy and see README “Liturgy booklet PDF export”.',
-        });
-      }
-    }
-    launch =
-      typeof mod.launch === 'function'
-        ? mod.launch.bind(mod)
-        : mod.default && typeof mod.default.launch === 'function'
-          ? mod.default.launch.bind(mod.default)
-          : null;
-    if (!launch) {
-      console.error('booklet pdf: puppeteer has no launch()');
-      return res.status(503).json({
-        error: 'PDF engine misconfigured: puppeteer module loaded but launch() is missing.',
-      });
-    }
-
-    const chromePath = resolveChromeExecutable(mod);
-
-    const launchOpts = {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-background-networking',
-      ],
-    };
-    if (chromePath) {
-      launchOpts.executablePath = chromePath;
-    }
-
-    try {
-      browser = await launch(launchOpts);
-    } catch (launchErr) {
-      console.error('booklet pdf: puppeteer launch failed', launchErr);
-      const hint =
-        process.env.PUPPETEER_EXECUTABLE_PATH || process.env.GOOGLE_CHROME_BIN
-          ? 'Check that PUPPETEER_EXECUTABLE_PATH / GOOGLE_CHROME_BIN points to a real binary on this host.'
-          : 'Set PUPPETEER_EXECUTABLE_PATH (or GOOGLE_CHROME_BIN) to system Chrome/Chromium, or rely on Puppeteer’s downloaded browser after a successful postinstall.';
-      return res.status(503).json({
-        error:
-          'Chrome/Chromium could not be started for PDF export. ' +
-          hint +
-          ' See README section “Liturgy booklet PDF export (server)”. ' +
-          'Server log: ' +
-          String(launchErr && launchErr.message ? launchErr.message : launchErr),
-      });
-    }
-    const page = await browser.newPage();
+    await withRenderLock(async () => {
+    const t0 = Date.now();
+    const browser = await getSharedBrowser();
+    const tLaunch = Date.now();
+    page = await browser.newPage();
     await page.emulateMediaType('print');
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    // 'load' (stylesheets + images) rather than 'networkidle0': idle-tracking
+    // stalls on any hung CDN connection and its 500ms quiet window is wasted
+    // time; web fonts are awaited explicitly below (bounded — a slow font
+    // host must not push the whole request past Heroku's 30s H12 limit).
+    await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     await page.evaluate(function () {
       return new Promise(function (resolve) {
         if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(resolve).catch(resolve);
+          var done = false;
+          var finish = function () { if (!done) { done = true; resolve(); } };
+          document.fonts.ready.then(finish).catch(finish);
+          setTimeout(finish, 8000);
         } else {
           resolve();
         }
       });
     });
+    const tContent = Date.now();
     // Chrome uses document.title as the PDF /Title; otherwise it falls back to
     // the page URL ("about:blank") which then shows in PDF viewers' title bars.
     await page.evaluate(function (t) {
@@ -335,19 +418,30 @@ router.post('/pdf', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', 'inline; filename="' + filenameBase + '.pdf"');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(finalBuffer);
+    console.log(
+      'booklet pdf: ok in ' + (Date.now() - t0) + 'ms ' +
+      '(browser ' + (tLaunch - t0) + 'ms, content ' + (tContent - tLaunch) + 'ms, ' +
+      'pdf+merge ' + (Date.now() - tContent) + 'ms, ' + Math.round(finalBuffer.length / 1024) + 'KB)'
+    );
+    });
   } catch (err) {
     console.error('booklet pdf:', err);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'PDF generation failed' });
-    }
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (closeErr) {
-        console.warn('booklet pdf browser close', closeErr);
+      if (err instanceof PdfEngineError) {
+        res.status(503).json({ error: err.clientMessage });
+      } else {
+        res.status(500).json({ error: 'PDF generation failed' });
       }
     }
+  } finally {
+    if (page) {
+      try {
+        await page.close();
+      } catch (closeErr) {
+        console.warn('booklet pdf page close', closeErr);
+      }
+    }
+    scheduleBrowserIdleClose();
   }
 });
 
