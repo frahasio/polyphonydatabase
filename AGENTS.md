@@ -230,9 +230,11 @@ deployed. Also shipped since:
   `svg.Exsurge .lyric` selector in every SVG, making the final chant's
   font and size paint every preceding chant despite their correct layout
   measurements.
- A `blank_page` block inserts one physical page, advances the page count,
- and suppresses the printed number on that page automatically. This
- replaces the former page-break + spacer + page-break workaround.
+ A `blank_page` block inserts one physical page, advances the physical page
+ list, suppresses the printed number, and is excluded from the numbering
+ sequence (so the next numbered page continues cleanly). A `page_break` can
+ optionally suppress the number on the *following* page and/or exclude that
+ page from the count — for inside-cover small print and other front matter.
  PDF export server (Sept 2026, after live H12/503 timeouts): renders on the
  eco dyno took 11–19s and drifted past Heroku's HARD 30s router limit — the
  content was fine (same booklet rendered in ~3s locally). `src/routes/

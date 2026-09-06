@@ -204,16 +204,39 @@
   }
 
   /**
+   * Whether this physical page advances the printed page-number sequence.
+   * Cover (skipFirst), blank pages, and explicit front-matter breaks do not.
+   */
+  function pageCountsInSequence(pageEl, pageIdx) {
+    var cfg = getPageNumberConfig();
+    if (cfg.skipFirst && pageIdx === 0) return false;
+    if (!pageEl) return true;
+    if (pageEl.dataset.blankPage === 'true') return false;
+    if (pageEl.dataset.excludeFromCount === 'true') return false;
+    return true;
+  }
+
+  /**
    * The number printed on page pageIdx (0-based), or null when numbering is
    * off / suppressed for that page. Shared by the preview stamp and the PDF
    * manifest so edition pages merged server-side get the same sequence.
+   * `pageEls` (optional) is the full page list — needed so unnumbered
+   * front-matter pages can be excluded from the count.
    */
-  function pageNumberFor(pageIdx, pageEl) {
+  function pageNumberFor(pageIdx, pageEl, pageEls) {
     var cfg = getPageNumberConfig();
     if (cfg.position === 'off') return null;
     if (cfg.skipFirst && pageIdx === 0) return null;
     if (pageEl && pageEl.dataset.blankPage === 'true') return null;
-    return cfg.start + pageIdx;
+    if (pageEl && pageEl.dataset.suppressPageNumber === 'true') return null;
+    if (pageEl && pageEl.dataset.excludeFromCount === 'true') return null;
+    var countedBefore = 0;
+    var pages = Array.isArray(pageEls) ? pageEls : [];
+    for (var i = 0; i < pageIdx; i++) {
+      if (pageCountsInSequence(pages[i], i)) countedBefore++;
+    }
+    if (!pageCountsInSequence(pageEl, pageIdx)) return null;
+    return cfg.start + countedBefore;
   }
 
   /** Stamp .booklet-page-number divs onto rendered pages (preview + export HTML). */
@@ -231,7 +254,7 @@
     var vMm = getSetting('pageNumberVMm', DEFAULT_PAGE_NUMBER_V_MM);
     var hMm = getSetting('pageNumberHMm', DEFAULT_PAGE_NUMBER_H_MM);
     pageDivs.forEach(function (page, idx) {
-      var n = pageNumberFor(idx, page);
+      var n = pageNumberFor(idx, page, pageDivs);
       if (n == null) return;
       var el = document.createElement('div');
       el.className = 'booklet-page-number' + (isCenter ? ' booklet-page-number--center' : '');
@@ -975,10 +998,15 @@
       return tx || 'Title (empty)';
     }
     if (b.type === 'page_break') {
+      if (b.suppressPageNumber) {
+        return b.excludeFromPageCount === false
+          ? 'Page break · next page unnumbered'
+          : 'Page break · next page unnumbered (not counted)';
+      }
       return 'Page break';
     }
     if (b.type === 'blank_page') {
-      return 'Blank page (number suppressed)';
+      return 'Blank page (unnumbered, not counted)';
     }
     if (b.type === 'spacer') {
       return 'Spacer (' + (b.heightMm || 10) + 'mm)';
@@ -1443,6 +1471,11 @@
       if (b.type === 'page_break') {
         const o = { ...b };
         if (o.hidden === undefined) o.hidden = false;
+        o.suppressPageNumber = !!o.suppressPageNumber;
+        // When suppressing, default to excluding from the count (front matter).
+        o.excludeFromPageCount = o.suppressPageNumber
+          ? o.excludeFromPageCount !== false
+          : !!o.excludeFromPageCount;
         return o;
       }
       if (b.type === 'blank_page') {
@@ -2805,7 +2838,11 @@
       var b = state.blocks[bi];
       if (b.hidden) continue;
       if (b.type === 'page_break') {
-        out.push({ t: 'break' });
+        out.push({
+          t: 'break',
+          suppressPageNumber: !!b.suppressPageNumber,
+          excludeFromPageCount: !!b.suppressPageNumber && b.excludeFromPageCount !== false,
+        });
         continue;
       }
       if (b.type === 'blank_page') {
@@ -3303,6 +3340,9 @@
     var defaultGapMm = getSetting('sectionGapMm', DEFAULT_SECTION_GAP_AFTER_MM);
     var pendingGapMm = defaultGapMm;
     var minOrphan = getSetting('minOrphanLines', 3);
+    // Active after a page_break with suppress options; applies to every page
+    // until the next page_break / blank_page (so multi-page front matter works).
+    var activePageFlags = { suppressPageNumber: false, excludeFromPageCount: false };
 
     function numFlexGaps() {
       var n = 0;
@@ -3326,13 +3366,21 @@
       return out;
     }
 
-    function pushPage(els, gaps, padTop, padBot, blank) {
+    function pushPage(els, gaps, padTop, padBot, blankOrOpts) {
+      var opts = {};
+      if (blankOrOpts === true) opts = { blank: true };
+      else if (blankOrOpts && typeof blankOrOpts === 'object') opts = blankOrOpts;
+      var blank = !!opts.blank;
+      var suppress = blank || !!opts.suppressPageNumber || activePageFlags.suppressPageNumber;
+      var exclude = blank || !!opts.excludeFromPageCount || activePageFlags.excludeFromPageCount;
       pages.push({
         elements: els,
         adjustedGaps: gaps,
         padTopAdjust: Math.round(padTop * 10) / 10,
         padBottomAdjust: Math.round(padBot * 10) / 10,
-        blank: !!blank
+        blank: blank,
+        suppressPageNumber: suppress,
+        excludeFromPageCount: exclude,
       });
     }
 
@@ -3480,10 +3528,22 @@
 
     for (var i = 0; i < flowItems.length; i++) {
       var item = flowItems[i];
-      if (item.t === 'break') { flushPage(); continue; }
+      if (item.t === 'break') {
+        flushPage();
+        activePageFlags = {
+          suppressPageNumber: !!item.suppressPageNumber,
+          excludeFromPageCount: !!item.excludeFromPageCount,
+        };
+        continue;
+      }
       if (item.t === 'blank') {
         flushPage();
-        pushPage([], [], 0, pageHPx, true);
+        activePageFlags = { suppressPageNumber: false, excludeFromPageCount: false };
+        pushPage([], [], 0, pageHPx, {
+          blank: true,
+          suppressPageNumber: true,
+          excludeFromPageCount: true,
+        });
         continue;
       }
 
@@ -3982,6 +4042,8 @@
           page.classList.add('booklet-page--blank');
           page.dataset.blankPage = 'true';
         }
+        if (pg.suppressPageNumber) page.dataset.suppressPageNumber = 'true';
+        if (pg.excludeFromPageCount) page.dataset.excludeFromCount = 'true';
         if (pg.padTopAdjust || pg.padBottomAdjust) {
           page.style.paddingTop = (marginTopPx + (pg.padTopAdjust || 0)) + 'px';
           page.style.paddingBottom = (marginBotPx + (pg.padBottomAdjust || 0)) + 'px';
@@ -4408,13 +4470,44 @@
       return;
     }
     if (b.type === 'page_break') {
+      var suppress = !!b.suppressPageNumber;
+      var exclude = suppress && b.excludeFromPageCount !== false;
       panel.innerHTML =
-        '<p class="small text-muted mb-0" title="The following section will begin on a new page in the on-screen preview and in the downloaded PDF.">Starts a new page after the previous section.</p>';
+        '<p class="small text-muted mb-2">Starts a new page after the previous section.</p>' +
+        '<div class="form-check mb-1">' +
+        '<input class="form-check-input" type="checkbox" id="edBreakSuppressPn"' + (suppress ? ' checked' : '') + '>' +
+        '<label class="form-check-label small" for="edBreakSuppressPn">No page number on the following page</label>' +
+        '</div>' +
+        '<div class="form-check mb-0">' +
+        '<input class="form-check-input" type="checkbox" id="edBreakExcludeCount"' + (exclude ? ' checked' : '') + (suppress ? '' : ' disabled') + '>' +
+        '<label class="form-check-label small" for="edBreakExcludeCount">Don\u2019t count that page toward numbering</label>' +
+        '</div>' +
+        '<p class="small text-muted mt-2 mb-0">Use for inside covers / front matter: break with both options on, then your small-print blocks (all pages until the next break stay unnumbered), then a normal page break before the Mass.</p>';
+      var chkSup = panel.querySelector('#edBreakSuppressPn');
+      var chkEx = panel.querySelector('#edBreakExcludeCount');
+      function syncBreakFlags() {
+        b.suppressPageNumber = !!(chkSup && chkSup.checked);
+        if (!b.suppressPageNumber) {
+          b.excludeFromPageCount = false;
+          if (chkEx) { chkEx.checked = false; chkEx.disabled = true; }
+        } else {
+          if (chkEx) chkEx.disabled = false;
+          b.excludeFromPageCount = !!(chkEx && chkEx.checked);
+        }
+        scheduleAutosave();
+        markLayoutStale();
+        renderBlockList();
+      }
+      if (chkSup) chkSup.addEventListener('change', function () {
+        if (chkSup.checked && chkEx && !chkEx.checked) chkEx.checked = true;
+        syncBreakFlags();
+      });
+      if (chkEx) chkEx.addEventListener('change', syncBreakFlags);
       return;
     }
     if (b.type === 'blank_page') {
       panel.innerHTML =
-        '<p class="small text-muted mb-0">Inserts one completely blank page. It remains part of the page count, but its printed page number is automatically suppressed.</p>';
+        '<p class="small text-muted mb-0">Inserts one completely blank page. Its page number is suppressed and it is not counted toward numbering (so the next numbered page continues the sequence cleanly).</p>';
       return;
     }
     if (b.type === 'spacer') {
@@ -5519,6 +5612,10 @@
     if (type === 'spacer') {
       b.heightMm = 10;
     }
+    if (type === 'page_break') {
+      b.suppressPageNumber = false;
+      b.excludeFromPageCount = false;
+    }
     if (type === 'hr') {
       b.hrLineColor = '#adb5bd';
     }
@@ -5798,7 +5895,7 @@
             type: 'edition',
             url: unit.dataset.editionUrl,
             pdfPage: parseInt(unit.dataset.editionPage, 10) || 1,
-            pageNumber: pageNumberFor(i, p),
+            pageNumber: pageNumberFor(i, p, pages),
           });
         } else {
           contentPages.push(p);
