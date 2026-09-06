@@ -13,6 +13,9 @@
  * (payload.multi): a text may genuinely have 4-5 uses through the year.
  * Two kinds of entry:
  *   - specific: the text opens a proper of a small number of days.
+ *     One-day saint-day hits are omitted when a Commune, multi-day feast,
+ *     cluster, or season alternative exists — unless the title names that
+ *     saint. Sole saint-day appearances are still listed.
  *   - season:   the text recurs on MANY days but concentrated in one
  *     season (Advent / Christmas / Lent / Easter / Pentecost octave) —
  *     previously these were discarded as "generic"; now they're matched
@@ -27,7 +30,7 @@
  * Usage: node scripts/suggest-title-functions-do.js [--dry-run]
  */
 import { pool } from '../src/db.js';
-import { splitIncipitParts, foldSpelling, isOrdinaryText } from './lib/matching.js';
+import { splitIncipitParts, foldSpelling, isOrdinaryText, normalizeIncipit } from './lib/matching.js';
 import { buildCorpus, matchPart, seasonOfDay } from './lib/do-corpus.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -51,6 +54,46 @@ const SEASON_PRESELECT_SHARE = 0.6;
 const CLUSTER_MIN_SHARE = parseFloat(process.env.DO_CLUSTER_MIN_SHARE) || 0.34;
 const MAX_FUNCTIONS_PER_CARD = 8;
 const MAX_POSITIONS_PER_FUNCTION = 4;
+
+// One-day saint specifics are noise when the same text also matches a
+// Commune, season, cluster, or multi-day feast — keep the common use, not
+// every saint who borrowed it. List them only when they are the sole
+// appearance(s), or the title itself names the saint ("… Caecilia").
+function isCommuneFunction(name) {
+  return /^comm\.?\s/i.test(String(name || ''));
+}
+function isSaintFunction(name) {
+  const n = String(name || '').trim();
+  if (!n || isCommuneFunction(n)) return false;
+  return /^(st\.?|ss\.?)\s+/i.test(n) || /^sanct[aoi]/i.test(n);
+}
+function titleMentionsSaint(titleText, functionName) {
+  const title = foldSpelling(normalizeIncipit(titleText));
+  if (!title) return false;
+  const raw = String(functionName || '')
+    .replace(/^(st\.?|ss\.?|sanct[aoi]?e?)\s+/i, '')
+    .replace(/\s+&\s+/g, ' ')
+    .replace(/\b(the|of|and|bvm)\b/gi, ' ');
+  const tokens = foldSpelling(normalizeIncipit(raw))
+    .split(' ')
+    .filter((w) => w.length >= 4);
+  if (!tokens.length) return false;
+  return tokens.some((w) => title.includes(w));
+}
+function filterObscureSaintSpecifics(specifics, { titleText, clusters, seasons }) {
+  const hasStrong = clusters.length > 0
+    || seasons.length > 0
+    || specifics.some((s) => isCommuneFunction(s.function_name) || s.days >= 2);
+  if (!hasStrong) return specifics; // sole appearance(s): keep them
+  return specifics.filter((s) => {
+    if (isCommuneFunction(s.function_name)) return true;
+    if (s.days >= 2) return true;
+    const saintLike = isSaintFunction(s.function_name) || s.new_function;
+    if (!saintLike) return true; // temporale etc.
+    if (titleMentionsSaint(titleText, s.function_name)) return true;
+    return false;
+  });
+}
 
 async function main() {
   const fnRows = await pool.query('SELECT id, name FROM functions');
@@ -311,13 +354,21 @@ async function main() {
         preselected: !hasDominant && s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE,
       }));
 
+    // Drop 1-day obscure saints when a Commune / multi-day / cluster /
+    // season alternative exists — unless the title names that saint.
+    const keptSpecifics = filterObscureSaintSpecifics(specifics, {
+      titleText: title.text,
+      clusters,
+      seasons,
+    });
+
     // AUTO-ACCEPT: on a multipart motet, when EVERY part appears in the
     // same day's propers (respond + verse both present), the match is as
     // strong as evidence gets — link it without review. Existing functions
     // only (never auto-create), rejections already filtered above.
     const autoIds = new Set();
     if (totalParts > 1) {
-      const fullMatches = [...clusters, ...specifics].filter((f) =>
+      const fullMatches = [...clusters, ...keptSpecifics].filter((f) =>
         f.function_id && f.parts_matched === totalParts);
       for (const fm of fullMatches) {
         autoIds.add(fm.function_id);
@@ -357,7 +408,7 @@ async function main() {
       }
     }
 
-    const functions = [...clusters, ...specifics, ...seasons]
+    const functions = [...clusters, ...keptSpecifics, ...seasons]
       .filter((f) => !f.function_id || !autoIds.has(f.function_id))
       .slice(0, MAX_FUNCTIONS_PER_CARD);
     if (!functions.length) {
