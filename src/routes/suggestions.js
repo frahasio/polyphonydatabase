@@ -298,6 +298,172 @@ router.get('/', async (req, res) => {
   }
 });
 
+const KIND_LABELS = {
+  title_function: 'title → feast',
+  recording_youtube: 'YouTube recording',
+  recording_spotify: 'Spotify recording',
+  title_merge: 'title merge',
+  title_language: 'title language',
+  composer_bio: 'composer biography',
+  group_title: 'group display title',
+  source_rism: 'RISM source enrichment',
+  anon_match: 'anonymous match',
+  composition_type: 'composition type',
+};
+
+async function describeSuggestionAudit(client, s, newStatus, payload, body = {}) {
+  const verb = newStatus === 'accepted' ? 'Accepted' : newStatus === 'rejected' ? 'Rejected' : 'Skipped';
+  const kindLabel = KIND_LABELS[s.kind] || s.kind;
+  const details = {
+    action: 'suggestion_review',
+    kind: s.kind,
+    kind_label: kindLabel,
+    status: newStatus,
+    suggestion_id: s.id,
+  };
+  let subject = '';
+
+  if (s.group_id) {
+    const g = await client.query(
+      `SELECT g.display_title,
+              (
+                SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
+                FROM compositions c
+                JOIN composers comp ON comp.id = ANY(c.composer_id_list) AND comp.id <> 23
+                WHERE c.group_id = g.id
+              ) AS composers
+       FROM groups g WHERE g.id = $1`,
+      [s.group_id]
+    );
+    if (g.rows.length) {
+      details.group_id = s.group_id;
+      details.group_title = g.rows[0].display_title;
+      details.composers = g.rows[0].composers || null;
+      subject = [g.rows[0].composers, g.rows[0].display_title].filter(Boolean).join(' — ');
+    }
+  }
+
+  if (s.title_id) {
+    const t = await client.query('SELECT text FROM titles WHERE id = $1', [s.title_id]);
+    if (t.rows.length) {
+      details.title_id = s.title_id;
+      details.title_text = t.rows[0].text;
+      if (!subject) subject = t.rows[0].text;
+    }
+  }
+
+  if (s.composer_id) {
+    const c = await client.query('SELECT name FROM composers WHERE id = $1', [s.composer_id]);
+    if (c.rows.length) {
+      details.composer_id = s.composer_id;
+      details.composer_name = c.rows[0].name;
+      if (!subject) subject = c.rows[0].name;
+    }
+  }
+
+  if (s.kind === 'recording_youtube' || s.kind === 'recording_spotify') {
+    const performer = (typeof body.performer_name === 'string' && body.performer_name.trim())
+      || String(payload.performer_name || '').trim();
+    const url = String(payload.url || '').trim();
+    if (performer) details.performer_name = performer;
+    if (url) details.url = url;
+    if (payload.track_name) details.track_name = payload.track_name;
+    if (payload.video_title) details.video_title = payload.video_title;
+    const piece = subject || 'unknown piece';
+    const by = performer ? ` (${performer})` : '';
+    return {
+      record_title: `${verb} ${kindLabel}: ${piece}${by}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'title_function') {
+    const feast = (typeof body.function_name === 'string' && body.function_name.trim())
+      || String(payload.function_name || '').trim();
+    if (feast) details.function_name = feast;
+    if (Array.isArray(body.function_selections)) {
+      details.function_names = body.function_selections
+        .map((sel) => String((sel && sel.function_name) || '').trim())
+        .filter(Boolean);
+    }
+    const feastBit = details.function_names?.length
+      ? details.function_names.join('; ')
+      : (feast || 'feast');
+    return {
+      record_title: `${verb} ${kindLabel}: "${subject || 'title'}" → ${feastBit}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'title_merge') {
+    const otherId = parseInt(payload.other_title_id, 10);
+    if (Number.isInteger(otherId)) {
+      const other = await client.query('SELECT text FROM titles WHERE id = $1', [otherId]);
+      if (other.rows.length) details.other_title_text = other.rows[0].text;
+    }
+    return {
+      record_title: `${verb} ${kindLabel}: "${subject || 'title'}"${details.other_title_text ? ` ↔ "${details.other_title_text}"` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'title_language') {
+    const lang = (typeof body.language_name === 'string' && body.language_name.trim())
+      || String(payload.language_name || payload.language || '').trim();
+    if (lang) details.language_name = lang;
+    return {
+      record_title: `${verb} ${kindLabel}: "${subject || 'title'}"${lang ? ` → ${lang}` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'composer_bio') {
+    return {
+      record_title: `${verb} ${kindLabel}: ${subject || 'composer'}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'group_title') {
+    const chosen = typeof body.display_title === 'string' ? body.display_title.trim() : '';
+    if (chosen) details.display_title = chosen;
+    if (body.apply_to_compositions === true) details.apply_to_compositions = true;
+    return {
+      record_title: `${verb} ${kindLabel}: ${subject || 'group'}${chosen ? ` → "${chosen}"` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'composition_type') {
+    const typeName = String(payload.type_name || '').trim();
+    if (typeName) details.type_name = typeName;
+    return {
+      record_title: `${verb} ${kindLabel}: "${subject || 'title'}"${typeName ? ` → ${typeName}` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'anon_match') {
+    return {
+      record_title: `${verb} ${kindLabel}${subject ? `: ${subject}` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  if (s.kind === 'source_rism') {
+    const code = String(payload.code || payload.rism_id || '').trim();
+    return {
+      record_title: `${verb} ${kindLabel}${code ? `: ${code}` : ''}`,
+      changes: { new: details },
+    };
+  }
+
+  return {
+    record_title: `${verb} ${kindLabel}${subject ? `: ${subject}` : ''}`,
+    changes: { new: details },
+  };
+}
+
 // Review a suggestion: accept applies the change, reject/skip just record it.
 router.post('/:id/:action', async (req, res) => {
   const newStatus = REVIEW_ACTIONS[req.params.action];
@@ -764,16 +930,18 @@ router.post('/:id/:action', async (req, res) => {
     );
 
     try {
+      const audit = await describeSuggestionAudit(client, s, newStatus, payload, req.body);
       await client.query(
-        `SELECT log_audit_entry($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO audit_log (user_id, user_email, action, table_name, record_id, record_title, changes, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
         [
           req.user.id,
           req.user.email,
           'UPDATE',
           'suggestions',
           s.id,
-          null,
-          JSON.stringify({ kind: s.kind, action: newStatus, title_id: s.title_id, group_id: s.group_id, composer_id: s.composer_id }),
+          audit.record_title,
+          JSON.stringify(audit.changes),
         ]
       );
     } catch (auditError) {

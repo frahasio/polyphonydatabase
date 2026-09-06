@@ -888,6 +888,7 @@
                 'composers': 'music-note-beamed',
                 'functions': 'gear',
                 'titles': 'card-text',
+                'suggestions': 'lightbulb',
                 'users': 'person',
                 'source': 'book',
                 'edition': 'file-earmark-pdf',
@@ -907,6 +908,7 @@
                 'composers': 'secondary',
                 'functions': 'dark',
                 'titles': 'light',
+                'suggestions': 'info',
                 'users': 'danger',
                 'source': 'primary',
                 'edition': 'success',
@@ -1179,6 +1181,40 @@
                 if (changes.old && changes.old.action === 'function_unassigned') {
                     const unassignData = changes.old;
                     return `Function "${unassignData.function_name}" unassigned from title "${unassignData.title_text}"`;
+                }
+
+                if (changes.new && changes.new.action === 'suggestion_review') {
+                    const d = changes.new;
+                    const bits = [];
+                    if (d.kind_label || d.kind) bits.push(d.kind_label || d.kind);
+                    if (d.status) bits.push(d.status);
+                    if (d.performer_name) bits.push(`performer: ${d.performer_name}`);
+                    if (d.function_name) bits.push(`feast: ${d.function_name}`);
+                    if (d.function_names && d.function_names.length) bits.push(`feasts: ${d.function_names.join('; ')}`);
+                    if (d.language_name) bits.push(`language: ${d.language_name}`);
+                    if (d.type_name) bits.push(`type: ${d.type_name}`);
+                    if (d.display_title) bits.push(`display: ${d.display_title}`);
+                    if (d.url) bits.push(d.url);
+                    if (d.group_title && d.composers) bits.push(`${d.composers} — ${d.group_title}`);
+                    else if (d.group_title) bits.push(d.group_title);
+                    else if (d.title_text) bits.push(d.title_text);
+                    else if (d.composer_name) bits.push(d.composer_name);
+                    return bits.join(' · ');
+                }
+
+                // Legacy suggestion audits (ids only, wrapped by log_audit_entry)
+                if (changes.new && changes.new.kind && (changes.new.action === 'accepted' || changes.new.action === 'rejected' || changes.new.action === 'skipped')) {
+                    const d = changes.new;
+                    const bits = [d.kind.replace(/_/g, ' '), d.action];
+                    if (d.group_id) bits.push(`group #${d.group_id}`);
+                    if (d.title_id) bits.push(`title #${d.title_id}`);
+                    if (d.composer_id) bits.push(`composer #${d.composer_id}`);
+                    return bits.join(' · ');
+                }
+
+                if (changes.new && changes.new.action === 'title_reassign_groups') {
+                    const d = changes.new;
+                    return `Moved ${d.compositions_moved || 0} setting(s) from "${d.from_title_text}" to "${d.to_title_text}"`;
                 }
                 
                 // Handle regular field changes

@@ -58,13 +58,20 @@
         body.has-selection {
             padding-bottom: 90px;
         }
+        #reassignGroupsList .form-check {
+            border-bottom: 1px solid #eee;
+            padding: 0.55rem 0.25rem;
+        }
+        #reassignGroupsList .form-check:last-child { border-bottom: 0; }
+        #reassignTitleHits .list-group-item { cursor: pointer; }
+        #reassignTitleHits .list-group-item.active { background: #eef4ff; color: inherit; border-color: #b6c4d6; }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h4 class="fw-bold mb-0">Titles</h4>
-            <span class="text-muted small">Click a row to select &middot; Edit changes title, language and feasts in place &middot; bar below for bulk actions</span>
+            <span class="text-muted small">Click a row to select &middot; Edit for text/language/feasts &middot; Settings to reassign groups after a bad merge &middot; bar below for bulk actions</span>
         </div>
         <datalist id="fnDatalist"></datalist>
         <div class="toast-area" id="toastArea"></div>
@@ -239,6 +246,68 @@
         </div>
     </div>
 
+    <!-- Reassign groups / settings to another title -->
+    <div class="modal fade" id="reassignGroupsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reassign settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Peel selected groups off <strong id="reassignFromTitle"></strong> onto another title.
+                        Only compositions that currently use this title are moved.
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary" onclick="reassignSelectAll(true)">Select all</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="reassignSelectAll(false)">Clear</button>
+                        </div>
+                        <span class="small text-muted" id="reassignSelectedCount">0 selected</span>
+                    </div>
+                    <div id="reassignGroupsList" class="border rounded px-2 mb-3" style="max-height: 280px; overflow-y: auto;">
+                        <div class="text-muted py-3 text-center">Loading&hellip;</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Destination title</label>
+                        <div class="btn-group btn-group-sm mb-2" role="group">
+                            <input type="radio" class="btn-check" name="reassignDestMode" id="reassignModeExisting" checked autocomplete="off">
+                            <label class="btn btn-outline-primary" for="reassignModeExisting">Existing title</label>
+                            <input type="radio" class="btn-check" name="reassignDestMode" id="reassignModeNew" autocomplete="off">
+                            <label class="btn btn-outline-primary" for="reassignModeNew">Create new title</label>
+                        </div>
+                        <div id="reassignExistingPane">
+                            <input type="text" class="form-control form-control-sm" id="reassignTitleSearch"
+                                   placeholder="Search titles&hellip;" autocomplete="off">
+                            <div id="reassignTitleHits" class="list-group mt-1" style="max-height: 160px; overflow-y: auto;"></div>
+                            <div class="form-text" id="reassignChosenTitle">No destination selected</div>
+                        </div>
+                        <div id="reassignNewPane" style="display:none">
+                            <input type="text" class="form-control form-control-sm mb-2" id="reassignNewText"
+                                   placeholder="New title text">
+                            <select class="form-select form-select-sm" id="reassignNewLang">
+                                <option value="">(same language as source, if any)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="reassignUpdateDisplay" checked>
+                        <label class="form-check-label" for="reassignUpdateDisplay">
+                            Also update group display titles that still match the old title text
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="reassignSubmitBtn" onclick="performReassignGroups()" disabled>
+                        Reassign selected
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Merge Titles Modal -->
     <div class="modal fade" id="mergeModal" tabindex="-1">
         <div class="modal-dialog">
@@ -365,7 +434,7 @@
                                 <th style="width:9rem">Language</th>
                                 <th>Feasts / functions</th>
                                 <th class="text-end" style="width:5.5rem">Comps</th>
-                                <th style="width:9.5rem"></th>
+                                <th style="width:14rem"></th>
                             </tr>
                         </thead>
                         <tbody>${titles.map(titleRowHtml).join('')}</tbody>
@@ -388,7 +457,11 @@
                     <td>${t.language_name ? `<span class="badge bg-primary language-badge">${escapeHtml(t.language_name)}</span>` : '<span class="text-muted">&mdash;</span>'}</td>
                     <td>${fnBadges}</td>
                     <td class="text-end composition-count">${escapeHtml(t.composition_count)}</td>
-                    <td class="text-end">
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-secondary" title="Reassign settings to another title"
+                                onclick="event.stopPropagation(); openReassignGroupsModal(${t.id})">
+                            <i class="bi bi-arrow-left-right"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); startInlineEdit(${t.id})">
                             <i class="bi bi-pencil"></i> Edit
                         </button>
@@ -510,6 +583,194 @@
                 toast('Title updated');
             } catch (e) {
                 toast(e.message, false);
+            }
+        }
+
+        // ===== Reassign groups (undo a bad title merge at setting grain) =====
+        let reassignState = null; // { fromId, fromText, groups, chosenTitleId, chosenTitleText }
+
+        async function openReassignGroupsModal(titleId) {
+            const t = allTitles.find(x => x.id === titleId);
+            reassignState = {
+                fromId: titleId,
+                fromText: t ? t.text : String(titleId),
+                groups: [],
+                chosenTitleId: null,
+                chosenTitleText: null,
+            };
+            document.getElementById('reassignFromTitle').textContent = reassignState.fromText;
+            document.getElementById('reassignGroupsList').innerHTML =
+                '<div class="text-muted py-3 text-center">Loading&hellip;</div>';
+            document.getElementById('reassignTitleSearch').value = '';
+            document.getElementById('reassignTitleHits').innerHTML = '';
+            document.getElementById('reassignNewText').value = '';
+            document.getElementById('reassignChosenTitle').textContent = 'No destination selected';
+            document.getElementById('reassignModeExisting').checked = true;
+            toggleReassignDestMode();
+            const langSel = document.getElementById('reassignNewLang');
+            langSel.innerHTML = '<option value="">(same language as source, if any)</option>'
+                + (languages || []).map(l =>
+                    `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+            updateReassignSubmitState();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('reassignGroupsModal')).show();
+
+            try {
+                const res = await fetch(`/api/admin/functions/titles/${titleId}/groups`, { credentials: 'include' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Failed to load groups');
+                reassignState.fromText = data.title?.text || reassignState.fromText;
+                document.getElementById('reassignFromTitle').textContent = reassignState.fromText;
+                reassignState.groups = data.groups || [];
+                renderReassignGroupsList();
+            } catch (e) {
+                document.getElementById('reassignGroupsList').innerHTML =
+                    `<div class="text-danger py-3 text-center">${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function renderReassignGroupsList() {
+            const list = document.getElementById('reassignGroupsList');
+            if (!reassignState.groups.length) {
+                list.innerHTML = '<div class="text-muted py-3 text-center">No groups use this title</div>';
+                updateReassignSubmitState();
+                return;
+            }
+            list.innerHTML = reassignState.groups.map(g => {
+                const meta = [
+                    g.composers || 'Anonymous',
+                    g.voices ? `${g.voices}v` : null,
+                    g.types || null,
+                    g.matching_composition_count > 1 ? `${g.matching_composition_count} comps` : null,
+                    g.sources || null,
+                ].filter(Boolean).join(' · ');
+                const displayNote = (g.display_title && g.display_title !== reassignState.fromText)
+                    ? ` <span class="text-muted">(display: ${escapeHtml(g.display_title)})</span>`
+                    : '';
+                return `
+                    <div class="form-check">
+                        <input class="form-check-input reassign-group-cb" type="checkbox" value="${g.id}"
+                               id="rg-${g.id}" onchange="updateReassignSubmitState()">
+                        <label class="form-check-label w-100" for="rg-${g.id}">
+                            <span class="fw-semibold">Group #${g.id}</span>${displayNote}
+                            <div class="small text-muted">${escapeHtml(meta)}</div>
+                        </label>
+                    </div>`;
+            }).join('');
+            updateReassignSubmitState();
+        }
+
+        function reassignSelectAll(on) {
+            document.querySelectorAll('.reassign-group-cb').forEach(cb => { cb.checked = !!on; });
+            updateReassignSubmitState();
+        }
+
+        function toggleReassignDestMode() {
+            const existing = document.getElementById('reassignModeExisting').checked;
+            document.getElementById('reassignExistingPane').style.display = existing ? '' : 'none';
+            document.getElementById('reassignNewPane').style.display = existing ? 'none' : '';
+            updateReassignSubmitState();
+        }
+
+        function updateReassignSubmitState() {
+            const n = document.querySelectorAll('.reassign-group-cb:checked').length;
+            document.getElementById('reassignSelectedCount').textContent =
+                `${n} selected` + (reassignState ? ` of ${reassignState.groups.length}` : '');
+            const existing = document.getElementById('reassignModeExisting').checked;
+            const destOk = existing
+                ? !!(reassignState && reassignState.chosenTitleId)
+                : !!(document.getElementById('reassignNewText').value.trim());
+            document.getElementById('reassignSubmitBtn').disabled = !(n && destOk);
+        }
+
+        let reassignSearchTimer = null;
+        document.getElementById('reassignTitleSearch')?.addEventListener('input', () => {
+            clearTimeout(reassignSearchTimer);
+            reassignSearchTimer = setTimeout(searchReassignTitles, 250);
+        });
+        document.getElementById('reassignNewText')?.addEventListener('input', updateReassignSubmitState);
+        document.getElementById('reassignModeExisting')?.addEventListener('change', toggleReassignDestMode);
+        document.getElementById('reassignModeNew')?.addEventListener('change', toggleReassignDestMode);
+
+        async function searchReassignTitles() {
+            const q = document.getElementById('reassignTitleSearch').value.trim();
+            const hits = document.getElementById('reassignTitleHits');
+            if (q.length < 2) {
+                hits.innerHTML = '';
+                return;
+            }
+            try {
+                const res = await fetch(
+                    `/api/admin/functions/titles/search?search=${encodeURIComponent(q)}&limit=15`,
+                    { credentials: 'include' }
+                );
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Search failed');
+                const titles = (data.titles || []).filter(t => t.id !== reassignState?.fromId);
+                if (!titles.length) {
+                    hits.innerHTML = '<div class="list-group-item small text-muted">No matches</div>';
+                    return;
+                }
+                hits.innerHTML = titles.map(t => `
+                    <button type="button" class="list-group-item list-group-item-action py-2 ${reassignState?.chosenTitleId === t.id ? 'active' : ''}"
+                            data-id="${t.id}" data-text="${escapeHtml(t.text)}"
+                            onclick="chooseReassignTitle(parseInt(this.dataset.id,10), this.dataset.text)">
+                        <span class="fw-semibold">${escapeHtml(t.text)}</span>
+                        <span class="small text-muted ms-1">(${escapeHtml(t.composition_count)} comps)</span>
+                    </button>`).join('');
+            } catch (e) {
+                hits.innerHTML = `<div class="list-group-item small text-danger">${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function chooseReassignTitle(id, text) {
+            if (!reassignState) return;
+            reassignState.chosenTitleId = id;
+            reassignState.chosenTitleText = text;
+            document.getElementById('reassignChosenTitle').textContent = `Selected: ${text}`;
+            document.querySelectorAll('#reassignTitleHits .list-group-item').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.id, 10) === id);
+            });
+            updateReassignSubmitState();
+        }
+
+        async function performReassignGroups() {
+            if (!reassignState) return;
+            const groupIds = [...document.querySelectorAll('.reassign-group-cb:checked')]
+                .map(cb => parseInt(cb.value, 10));
+            if (!groupIds.length) return toast('Select at least one group', false);
+
+            const body = {
+                from_title_id: reassignState.fromId,
+                group_ids: groupIds,
+                update_display_titles: document.getElementById('reassignUpdateDisplay').checked,
+            };
+            if (document.getElementById('reassignModeExisting').checked) {
+                if (!reassignState.chosenTitleId) return toast('Choose a destination title', false);
+                body.to_title_id = reassignState.chosenTitleId;
+            } else {
+                const text = document.getElementById('reassignNewText').value.trim();
+                if (!text) return toast('Enter a new title text', false);
+                body.new_title_text = text;
+                const lang = document.getElementById('reassignNewLang').value;
+                if (lang) body.language = parseInt(lang, 10);
+            }
+
+            const btn = document.getElementById('reassignSubmitBtn');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/admin/functions/titles/reassign-groups', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Reassign failed');
+                bootstrap.Modal.getInstance(document.getElementById('reassignGroupsModal'))?.hide();
+                toast(`Moved ${data.compositions_moved} composition(s) in ${data.groups_touched} group(s) → "${data.to_title_text}"`);
+                if (typeof searchTitles === 'function') searchTitles();
+            } catch (e) {
+                toast(e.message, false);
+                updateReassignSubmitState();
             }
         }
     </script>

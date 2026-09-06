@@ -1500,6 +1500,188 @@ router.put('/titles/:id', async (req, res) => {
   }
 });
 
+// Groups (settings) that carry a given title — used by the titles page to
+// peel selected settings onto another title after a bad merge.
+router.get('/titles/:id/groups', async (req, res) => {
+  try {
+    const titleId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(titleId)) return res.status(400).json({ error: 'Invalid title id' });
+
+    const title = await pool.query('SELECT id, text, language FROM titles WHERE id = $1', [titleId]);
+    if (!title.rows.length) return res.status(404).json({ error: 'Title not found' });
+
+    const groups = await pool.query(
+      `SELECT
+         g.id,
+         g.display_title,
+         COUNT(DISTINCT c.id)::int AS composition_count,
+         COUNT(DISTINCT c.id) FILTER (WHERE c.title_id = $1)::int AS matching_composition_count,
+         (
+           SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
+           FROM compositions c2
+           JOIN composers comp ON comp.id = ANY(c2.composer_id_list) AND comp.id <> 23
+           WHERE c2.group_id = g.id AND c2.title_id = $1
+         ) AS composers,
+         (
+           SELECT string_agg(DISTINCT ct.name, ', ' ORDER BY ct.name)
+           FROM compositions c2
+           JOIN composition_types ct ON ct.id = c2.composition_type_id
+           WHERE c2.group_id = g.id AND c2.title_id = $1
+         ) AS types,
+         (
+           SELECT string_agg(DISTINCT c2.number_of_voices::text, ', ' ORDER BY c2.number_of_voices::text)
+           FROM compositions c2
+           WHERE c2.group_id = g.id AND c2.title_id = $1 AND c2.number_of_voices IS NOT NULL
+         ) AS voices,
+         (
+           SELECT string_agg(DISTINCT s.code, ', ' ORDER BY s.code)
+           FROM compositions c2
+           JOIN inclusions i ON i.composition_id = c2.id
+           JOIN sources s ON s.id = i.source_id
+           WHERE c2.group_id = g.id AND c2.title_id = $1
+         ) AS sources
+       FROM groups g
+       JOIN compositions c ON c.group_id = g.id
+       WHERE EXISTS (
+         SELECT 1 FROM compositions cx
+         WHERE cx.group_id = g.id AND cx.title_id = $1
+       )
+       GROUP BY g.id, g.display_title
+       ORDER BY composers NULLS LAST, g.display_title, g.id`,
+      [titleId]
+    );
+
+    res.json({ title: title.rows[0], groups: groups.rows });
+  } catch (error) {
+    console.error('Error listing title groups:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reassign selected groups' compositions from one title onto another
+// (existing id, or create from new_title_text). Optional display_title sync
+// when a group's label still echoes the old title text.
+router.post('/titles/reassign-groups', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const fromTitleId = parseInt(req.body.from_title_id, 10);
+    const groupIds = (Array.isArray(req.body.group_ids) ? req.body.group_ids : [])
+      .map((v) => parseInt(v, 10))
+      .filter(Number.isInteger);
+    let toTitleId = parseInt(req.body.to_title_id, 10);
+    const newTitleText = typeof req.body.new_title_text === 'string'
+      ? req.body.new_title_text.trim()
+      : '';
+    const language = req.body.language === null || req.body.language === ''
+      ? null
+      : (Number.isInteger(parseInt(req.body.language, 10)) ? parseInt(req.body.language, 10) : undefined);
+    const updateDisplayTitles = req.body.update_display_titles !== false;
+
+    if (!Number.isInteger(fromTitleId) || !groupIds.length) {
+      throw new Error('from_title_id and group_ids are required');
+    }
+    if (!Number.isInteger(toTitleId) && !newTitleText) {
+      throw new Error('Provide to_title_id or new_title_text');
+    }
+
+    const fromTitle = await client.query('SELECT id, text, language FROM titles WHERE id = $1', [fromTitleId]);
+    if (!fromTitle.rows.length) throw new Error('Source title not found');
+    const fromText = fromTitle.rows[0].text;
+
+    if (!Number.isInteger(toTitleId)) {
+      const existing = await client.query('SELECT id FROM titles WHERE text = $1', [newTitleText]);
+      if (existing.rows.length) {
+        toTitleId = existing.rows[0].id;
+      } else {
+        const lang = language !== undefined ? language : fromTitle.rows[0].language;
+        const created = await client.query(
+          `INSERT INTO titles (text, language, created_at, updated_at)
+           VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id, text`,
+          [newTitleText, lang]
+        );
+        toTitleId = created.rows[0].id;
+      }
+    }
+
+    if (toTitleId === fromTitleId) {
+      throw new Error('Destination title is the same as the source');
+    }
+
+    const toTitle = await client.query('SELECT id, text FROM titles WHERE id = $1', [toTitleId]);
+    if (!toTitle.rows.length) throw new Error('Destination title not found');
+    const toText = toTitle.rows[0].text;
+
+    const moved = await client.query(
+      `UPDATE compositions
+       SET title_id = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE group_id = ANY($2) AND title_id = $3
+       RETURNING id, group_id`,
+      [toTitleId, groupIds, fromTitleId]
+    );
+
+    let displayUpdated = 0;
+    if (updateDisplayTitles && moved.rows.length) {
+      const touchedGroups = [...new Set(moved.rows.map((r) => r.group_id))];
+      const upd = await client.query(
+        `UPDATE groups
+         SET display_title = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ANY($2) AND display_title = $3
+         RETURNING id`,
+        [toText, touchedGroups, fromText]
+      );
+      displayUpdated = upd.rows.length;
+    }
+
+    try {
+      await client.query(
+        `INSERT INTO audit_log (user_id, user_email, action, table_name, record_id, record_title, changes, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)`,
+        [
+          req.user?.id || null,
+          req.user?.email || 'unknown@system.local',
+          'UPDATE',
+          'titles',
+          toTitleId,
+          `Reassigned ${moved.rows.length} setting(s): "${fromText}" → "${toText}"`,
+          JSON.stringify({
+            action: 'title_reassign_groups',
+            from_title_id: fromTitleId,
+            from_title_text: fromText,
+            to_title_id: toTitleId,
+            to_title_text: toText,
+            group_ids: groupIds,
+            compositions_moved: moved.rows.length,
+            display_titles_updated: displayUpdated,
+          }),
+        ]
+      );
+    } catch (auditError) {
+      console.log('Audit logging skipped:', auditError.message);
+    }
+
+    await client.query('COMMIT');
+    triggerCleanup(true, 'all', 'after title group reassign', 3000);
+
+    res.json({
+      success: true,
+      from_title_id: fromTitleId,
+      to_title_id: toTitleId,
+      to_title_text: toText,
+      compositions_moved: moved.rows.length,
+      groups_touched: [...new Set(moved.rows.map((r) => r.group_id))].length,
+      display_titles_updated: displayUpdated,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error reassigning title groups:', error);
+    res.status(400).json({ error: error.message || 'Failed to reassign groups' });
+  } finally {
+    client.release();
+  }
+});
+
 // Merge titles - combines multiple titles into one and updates all references
 router.post('/titles/merge', async (req, res) => {
   const client = await pool.connect();

@@ -320,7 +320,9 @@ router.get('/recent-activity', async (req, res) => {
       return res.json({ activity: auditActivity.rows });
     }
     
-    // Get audit log entries with enhanced record titles
+    // Get audit log entries with enhanced record titles. Suggestion reviews
+    // used to land as "Record #?" via get_record_title; resolve those (and
+    // any still-opaque titles) from the suggestion + related entities.
     const auditActivity = await pool.query(`
       SELECT 
         al.user_email,
@@ -328,7 +330,52 @@ router.get('/recent-activity', async (req, res) => {
         al.table_name,
         al.record_id,
         CASE 
-          WHEN al.record_title IS NOT NULL AND al.record_title != '' AND al.record_title NOT LIKE 'Untitled %' THEN al.record_title
+          WHEN al.table_name = 'suggestions' AND (
+            al.record_title IS NULL OR al.record_title = '' OR al.record_title LIKE 'Untitled %'
+            OR al.record_title LIKE 'Record #%' OR al.record_title = 'Unknown Record'
+          ) THEN (
+            SELECT CASE
+              WHEN s.kind IN ('recording_youtube', 'recording_spotify') THEN
+                initcap(replace(COALESCE(al.changes->'new'->>'status', al.changes->'new'->>'action', 'reviewed'), '_', ' '))
+                || ' ' || CASE s.kind WHEN 'recording_spotify' THEN 'Spotify' ELSE 'YouTube' END
+                || ' recording: '
+                || COALESCE(
+                     NULLIF(TRIM(BOTH ' — ' FROM CONCAT_WS(' — ',
+                       (SELECT string_agg(DISTINCT comp.name, ', ' ORDER BY comp.name)
+                          FROM compositions c
+                          JOIN composers comp ON comp.id = ANY(c.composer_id_list) AND comp.id <> 23
+                         WHERE c.group_id = s.group_id),
+                       g.display_title
+                     )), ''),
+                     'group #' || s.group_id::text
+                   )
+                || COALESCE(' (' || NULLIF(s.payload->>'performer_name', '') || ')', '')
+              WHEN s.kind = 'title_function' THEN
+                'Reviewed title → feast: '
+                || COALESCE(t.text, 'title #' || s.title_id::text)
+                || COALESCE(' → ' || NULLIF(s.payload->>'function_name', ''), '')
+              WHEN s.kind = 'title_merge' THEN
+                'Reviewed title merge: ' || COALESCE(t.text, 'title #' || s.title_id::text)
+              WHEN s.kind = 'composer_bio' THEN
+                'Reviewed composer biography: ' || COALESCE(c.name, 'composer #' || s.composer_id::text)
+              ELSE
+                'Reviewed ' || replace(s.kind, '_', ' ')
+                || COALESCE(': ' || t.text, ': ' || g.display_title, ': ' || c.name, '')
+            END
+            FROM suggestions s
+            LEFT JOIN groups g ON g.id = s.group_id
+            LEFT JOIN titles t ON t.id = s.title_id
+            LEFT JOIN composers c ON c.id = s.composer_id
+            WHERE s.id = al.record_id
+          )
+          WHEN al.record_title IS NOT NULL AND al.record_title != '' AND al.record_title NOT LIKE 'Untitled %'
+               AND al.record_title NOT LIKE 'Record #%' THEN al.record_title
+          WHEN al.changes::jsonb #>> '{new,action}' = 'suggestion_review' THEN
+            COALESCE(
+              NULLIF(al.record_title, ''),
+              initcap(replace(al.changes->'new'->>'status', '_', ' '))
+                || ' ' || COALESCE(al.changes->'new'->>'kind_label', al.changes->'new'->>'kind', 'suggestion')
+            )
           WHEN al.table_name = 'titles' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'text' THEN al.changes->'new'->>'text'
           WHEN al.table_name = 'sources' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'code' THEN al.changes->'new'->>'code'
           WHEN al.table_name = 'groups' AND al.changes::jsonb ? 'new' AND al.changes->'new' ? 'display_title' THEN al.changes->'new'->>'display_title'
@@ -343,7 +390,7 @@ router.get('/recent-activity', async (req, res) => {
             FROM sources s 
             WHERE s.id = al.record_id
           )
-          ELSE 'Unknown Record'
+          ELSE COALESCE(NULLIF(al.record_title, ''), 'Unknown Record')
         END as record_title,
         al.changes,
         al.created_at
