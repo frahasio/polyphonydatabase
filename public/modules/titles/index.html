@@ -59,10 +59,25 @@
             padding-bottom: 90px;
         }
         #reassignGroupsList .form-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
             border-bottom: 1px solid #eee;
-            padding: 0.55rem 0.25rem;
+            padding: 0.55rem 0.5rem;
+            margin: 0;
+            min-height: auto;
         }
         #reassignGroupsList .form-check:last-child { border-bottom: 0; }
+        #reassignGroupsList .form-check-input {
+            float: none;
+            margin: 0.2rem 0 0;
+            flex-shrink: 0;
+        }
+        #reassignGroupsList .form-check-label {
+            padding-left: 0;
+            flex: 1;
+            min-width: 0;
+        }
         #reassignTitleHits .list-group-item { cursor: pointer; }
         #reassignTitleHits .list-group-item.active { background: #eef4ff; color: inherit; border-color: #b6c4d6; }
     </style>
