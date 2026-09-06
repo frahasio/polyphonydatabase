@@ -8,7 +8,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/vendor/jgabc/style.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap">
+    <!-- Body fonts are self-hosted (same-origin woff2). Google Fonts at PDF
+         export time made Chrome embed body text as Type3, which prints faint
+         and wobbly on many printers. Local faces embed as TrueType CID. -->
+    <link rel="stylesheet" href="/modules/liturgy-booklet/fonts/booklet-fonts.css">
     <style>
         /* Capo Sfogliato by Michele Casanova, bundled under the SIL OFL 1.1.
            Source: https://codeberg.org/m-casanova/CapoSfogliato */

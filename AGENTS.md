@@ -217,7 +217,15 @@ deployed. Also shipped since:
   Exsurge chant underlay inherits the booklet body font by default; each
   GABC block can override it from the same curated font list. Selected
   fonts are loaded before Exsurge measures lyrics, since changing typeface
-  can alter chant system wrapping. Each generated chant SVG's embedded
+  can alter chant system wrapping. Body faces (EB Garamond, Crimson Text,
+  and the rest of the picker) are self-hosted as same-origin woff2 under
+  `public/modules/liturgy-booklet/fonts/` (`booklet-fonts.css`, regenerated
+  by `scripts/fetch-booklet-fonts.mjs`) — Google Fonts at Puppeteer export
+  time made Chrome embed body text as anonymous Type3, which printed
+  faint/wobbly on many printers; local woff2 embeds as TrueType CID like
+  Capo Sfogliato. That fonts tree stays anonymously fetchable (see
+  `publicStaticPrefixes` in `src/index.js`) so headless Chrome can load them
+  without a session cookie. Each generated chant SVG's embedded
   stylesheet is uniquely scoped: Exsurge otherwise emits the same global
   `svg.Exsurge .lyric` selector in every SVG, making the final chant's
   font and size paint every preceding chant despite their correct layout

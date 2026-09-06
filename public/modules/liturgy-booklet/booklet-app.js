@@ -94,18 +94,21 @@
   }
 
   /**
-   * Dynamically inject a Google Fonts <link> into the page <head>.
-   * No-ops if the font is already loaded.
+   * Ensure the self-hosted booklet font stylesheet is present.
+   * All picker faces live in /modules/liturgy-booklet/fonts/booklet-fonts.css
+   * (same-origin woff2) so Puppeteer PDF export embeds them as TrueType CID
+   * rather than Type3 — Google Fonts at render time printed faint/wobbly.
+   * The `family` argument is kept for call-site compatibility; loading is
+   * all-or-nothing via the shared sheet (already linked from index.html).
    */
   function loadGoogleFont(family) {
-    if (!family) return;
-    var id = 'booklet-gfont-' + family.replace(/\s+/g, '-').toLowerCase();
+    void family;
+    var id = 'booklet-fonts-local';
     if (document.getElementById(id)) return;
     var link = document.createElement('link');
     link.id = id;
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=' +
-      encodeURIComponent(family) + ':ital,wght@0,400;0,600;0,700;1,400;1,700&display=swap';
+    link.href = '/modules/liturgy-booklet/fonts/booklet-fonts.css';
     document.head.appendChild(link);
   }
 
@@ -5670,9 +5673,10 @@
   }
 
   /**
-   * Full HTML document for headless Chromium. Google Font <link> tags injected
-   * by loadGoogleFont() are automatically picked up, so preview and PDF use
-   * the exact same typefaces — no system-font dependency on the server.
+   * Full HTML document for headless Chromium. Stylesheet <link> tags (including
+   * the self-hosted booklet-fonts.css) are copied into the export so preview
+   * and PDF use the same same-origin faces — no Google Fonts / system-font
+   * dependency on the dyno.
    */
   function buildBookletServerPdfHtml(pageElements) {
     const origin = window.location.origin;
