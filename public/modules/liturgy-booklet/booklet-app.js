@@ -4350,8 +4350,13 @@
         ev.dataTransfer.setData('text/plain', b.id);
         ev.dataTransfer.effectAllowed = 'move';
         div.classList.add('dragging');
+        // Pin scroll to the dragged row so any style change can't jump the list.
+        var pinTop = div.getBoundingClientRect().top;
+        var pinScroll = el.scrollTop;
         requestAnimationFrame(function () {
           el.classList.add('block-list-dragging');
+          var delta = div.getBoundingClientRect().top - pinTop;
+          if (delta) el.scrollTop = pinScroll + delta;
         });
       });
       div.addEventListener('dragend', function () {
