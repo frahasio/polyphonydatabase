@@ -18,6 +18,12 @@
  * from the same town) boosts the score and shows as a badge; its absence
  * costs nothing (plenty of Palestrina in Spanish sources he never visited).
  *
+ * Soft scoring also favours rarer titles and rarer shared clef sets (so the
+ * queue leads with distinctive pieces rather than yet another standard-
+ * cleffed Ave / Magnificat). A minimum score threshold
+ * (ANON_MATCH_MIN_SCORE, default 0.62) drops the long tail of merely-
+ * plausible pairs without hard-gating on any single signal.
+ *
  * Accepting GROUPS the two (the anonymous setting moves into the kept
  * group; an emptied group's editions/recordings follow it). Rejecting
  * permanently records that the two are NOT the same piece — the dedupe key
@@ -36,6 +42,26 @@ const MAX_PAIRS = Math.min(Math.max(parseInt(args[0], 10) || 500, 1), 5000);
 // a standard clef set) is probably a generic text where clef identity is
 // coincidence — cap what one title may contribute, best-scored pairs first.
 const MAX_PAIRS_PER_TITLE = 20;
+// Floor after soft weights: bare title+clefs alone sits well below this.
+const MIN_SCORE = Math.min(1, Math.max(0, parseFloat(process.env.ANON_MATCH_MIN_SCORE) || 0.62));
+
+function titleRarityBonus(settingsCount) {
+  const n = parseInt(settingsCount, 10) || 0;
+  if (n <= 2) return 0.22;
+  if (n <= 4) return 0.16;
+  if (n <= 8) return 0.10;
+  if (n <= 16) return 0.05;
+  return 0;
+}
+
+function clefRarityBonus(uses) {
+  const n = parseInt(uses, 10) || 0;
+  if (n <= 2) return 0.18;
+  if (n <= 5) return 0.12;
+  if (n <= 12) return 0.07;
+  if (n <= 30) return 0.03;
+  return 0;
+}
 
 async function main() {
   console.log(`Finding anon compositions matching another group's setting (max ${MAX_PAIRS})${DRY_RUN ? ' [dry run]' : ''}...`);
@@ -239,32 +265,73 @@ async function main() {
   });
   const MAX_DEGREE = 5;
 
-  // Corroborating attributes raise confidence; a named side makes the pair
-  // more valuable (it resolves the anon to a known piece); a mutually
-  // unique match is the strongest signal of all; the composer's attributed
-  // presence in the anon's source (or its town) adds provenance weight.
+  // Rarity context: how many settings share this title, and how often each
+  // shared clef combo appears across the catalogue. Soft weights only —
+  // nothing is gated on rarity alone.
+  const titleIds = [...new Set(possible.map((r) => r.title_id))];
+  const titleCounts = new Map();
+  if (titleIds.length) {
+    const tc = await pool.query(
+      `SELECT title_id, COUNT(*)::int AS n FROM compositions
+       WHERE title_id = ANY($1) GROUP BY title_id`,
+      [titleIds]
+    );
+    tc.rows.forEach((row) => titleCounts.set(row.title_id, row.n));
+  }
+  const clefCombos = [...new Set(possible.flatMap((r) => r.shared_combos || []))];
+  const clefUses = new Map();
+  if (clefCombos.length) {
+    const cc = await pool.query(
+      `SELECT sorted_clef_combination_all AS combo, COUNT(*)::int AS n
+       FROM inclusions
+       WHERE sorted_clef_combination_all = ANY($1)
+       GROUP BY sorted_clef_combination_all`,
+      [clefCombos]
+    );
+    cc.rows.forEach((row) => clefUses.set(row.combo, row.n));
+  }
+
+  // Soft weights: corroborating attributes, uniqueness, provenance, and
+  // rarity of the title / shared clef set. Base alone sits below MIN_SCORE
+  // so common-title + common-clefs pairs need several boosts to queue.
   let dropped = 0;
+  let belowFloor = 0;
   const scored = [];
   for (const r of possible) {
     const maxDeg = Math.max(degree.get(r.a_id), degree.get(r.b_id));
     if (maxDeg > MAX_DEGREE) { dropped++; continue; }
-    let score = 0.4; // same title + identical clefs
-    if (r.a_type !== null && r.b_type !== null) score += 0.1;
-    if ((r.a_tone || []).length && (r.b_tone || []).length) score += 0.1;
-    if (r.a_eo !== null && r.b_eo !== null) score += 0.05;
-    if (r.a_named || r.b_named) score += 0.1;
-    if (maxDeg === 1) score += 0.25;       // each side matches ONLY the other
-    else if (maxDeg === 2) score += 0.1;
-    if (r.provenance === 'same_source') score += 0.1;
+
+    const titleSettings = titleCounts.get(r.title_id) || 0;
+    const comboUses = (r.shared_combos || []).map((c) => clefUses.get(c) || 9999);
+    const clefUse = comboUses.length ? Math.min(...comboUses) : 9999;
+
+    let score = 0.28; // same title + identical clefs
+    if (r.a_named || r.b_named) score += 0.10;
+    if (maxDeg === 1) score += 0.18;
+    else if (maxDeg === 2) score += 0.08;
+    if (r.provenance === 'same_source') score += 0.10;
     else if (r.provenance === 'same_town') score += 0.05;
+    if (r.a_type !== null && r.b_type !== null) score += 0.08;
+    if ((r.a_tone || []).length && (r.b_tone || []).length) score += 0.08;
+    if (r.a_eo !== null && r.b_eo !== null) score += 0.04;
+    score += titleRarityBonus(titleSettings);
+    score += clefRarityBonus(clefUse);
+
+    score = Math.min(1, Math.round(score * 100) / 100);
+    if (score < MIN_SCORE) { belowFloor++; continue; }
+
     scored.push({
       ...r,
-      score: Math.min(1, Math.round(score * 100) / 100),
+      score,
       a_matches: degree.get(r.a_id),
       b_matches: degree.get(r.b_id),
+      title_settings: titleSettings,
+      clef_uses: clefUse === 9999 ? null : clefUse,
     });
   }
   if (dropped) console.log(`${dropped} pair(s) dropped as too ambiguous (a side matches more than ${MAX_DEGREE} settings).`);
+  if (belowFloor) console.log(`${belowFloor} pair(s) below score floor ${MIN_SCORE}.`);
+  console.log(`Scoring with MIN_SCORE=${MIN_SCORE}; ${scored.length} pair(s) above floor.`);
   scored.sort((x, y) => y.score - x.score || x.a_id - y.a_id);
 
   let inserted = 0;
@@ -293,7 +360,7 @@ async function main() {
 
     if (DRY_RUN) {
       const prov = r.provenance ? ` [${r.provenance}: ${(r.provenance_detail || []).join(', ')}]` : '';
-      console.log(`  [${r.score}] "${r.title_text}" comp #${r.a_id} (g${r.a_group}${r.a_named ? ', named' : ', anon'}) ~ comp #${r.b_id} (g${r.b_group}${r.b_named ? ', named' : ', anon'}) clefs ${r.shared_combos.join('/')}${prov}`);
+      console.log(`  [${r.score}] "${r.title_text}" (${r.title_settings} settings, clef×${r.clef_uses ?? '?'}) comp #${r.a_id} (g${r.a_group}${r.a_named ? ', named' : ', anon'}) ~ comp #${r.b_id} (g${r.b_group}${r.b_named ? ', named' : ', anon'}) clefs ${r.shared_combos.join('/')}${prov}`);
       inserted++;
       continue;
     }
@@ -324,6 +391,8 @@ async function main() {
           // 'same_town' (attributed works in another source from the town).
           provenance: r.provenance || null,
           provenance_detail: r.provenance_detail || null,
+          title_settings: r.title_settings,
+          clef_uses: r.clef_uses,
         }),
         r.score,
         `am:${r.a_id}:${r.b_id}`,
@@ -331,7 +400,7 @@ async function main() {
     );
     if (insert.rowCount) {
       inserted++;
-      console.log(`  [${r.score}] "${r.title_text}" comp #${r.a_id} ~ comp #${r.b_id} (clefs ${r.shared_combos.join('/')})`);
+      console.log(`  [${r.score}] "${r.title_text}" (${r.title_settings} settings, clef×${r.clef_uses ?? '?'}) comp #${r.a_id} ~ comp #${r.b_id}`);
     }
   }
 
