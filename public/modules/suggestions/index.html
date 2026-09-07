@@ -633,7 +633,9 @@
                 ? ` <span class="badge bg-warning text-dark" title="This setting also matched other candidates — check the images carefully">matches ${otherMatches} candidates</span>`
                 : '';
             const grpBits = [];
-            if (comp.group_comp_count > 1) grpBits.push(`${comp.group_comp_count} settings in group`);
+            if (comp.group_inclusion_count > 0) {
+              grpBits.push(`${comp.group_inclusion_count} inclusion${comp.group_inclusion_count === 1 ? '' : 's'} in group`);
+            }
             if (comp.edition_count > 0) grpBits.push(`${comp.edition_count} edition${comp.edition_count === 1 ? '' : 's'}`);
             if (comp.recording_count > 0) grpBits.push(`${comp.recording_count} recording${comp.recording_count === 1 ? '' : 's'}`);
             const inclRows = (comp.inclusions || []).map(i => {

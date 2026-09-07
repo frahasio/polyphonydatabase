@@ -108,6 +108,9 @@ async function enrichWithContext(rows) {
                  FROM composers comp
                  WHERE comp.id = ANY(c.composer_id_list) AND comp.id != 23) AS composers,
               (SELECT COUNT(*) FROM compositions x WHERE x.group_id = c.group_id)::int AS group_comp_count,
+              (SELECT COUNT(*) FROM inclusions i
+                 JOIN compositions x ON x.id = i.composition_id
+                WHERE x.group_id = c.group_id)::int AS group_inclusion_count,
               (SELECT COUNT(*) FROM editions e WHERE e.group_id = c.group_id)::int AS edition_count,
               (SELECT COUNT(*) FROM recordings rec WHERE rec.group_id = c.group_id)::int AS recording_count
        FROM compositions c
