@@ -13,7 +13,10 @@
  * is removed on the next run. Shared source (hard filter): two candidates
  * appearing in the SAME source are different pieces — the chance of one
  * work being copied twice in a source, once unattributed, without the
- * cataloguer noticing is vanishingly small. Provenance (soft weight): the named composer
+ * cataloguer noticing is vanishingly small. Already-resolved anon (hard
+ * filter): an anonymous composition that already shares its group with any
+ * attributed setting is treated as resolved and never proposed (pending
+ * cards for such pairs are removed on the next run). Provenance (soft weight): the named composer
  * already having attributed works in the anon's source (or another source
  * from the same town) boosts the score and shows as a badge; its absence
  * costs nothing (plenty of Palestrina in Spanish sources he never visited).
@@ -67,6 +70,9 @@ async function main() {
   console.log(`Finding anon compositions matching another group's setting (max ${MAX_PAIRS})${DRY_RUN ? ' [dry run]' : ''}...`);
 
   // "named" = has a composer other than Anonymous (id 23).
+  // "group_has_named" = some composition in the same group is attributed —
+  // an anon already sitting with a named setting is resolved and must not
+  // be re-proposed against another piece.
   // Clef combos come from the trigger-maintained sorted_clef_combination_all
   // column: an identical FULL clef set — optional clefs included — in at
   // least one source on each side is required. If two settings are the same
@@ -80,6 +86,14 @@ async function main() {
                SELECT 1 FROM unnest(COALESCE(c.composer_id_list, '{}'::integer[])) AS u(x)
                WHERE x IS NOT NULL AND x != 23
              ) AS named,
+             EXISTS (
+               SELECT 1 FROM compositions c2
+               WHERE c2.group_id = c.group_id
+                 AND EXISTS (
+                   SELECT 1 FROM unnest(COALESCE(c2.composer_id_list, '{}'::integer[])) AS u(x)
+                   WHERE x IS NOT NULL AND x != 23
+                 )
+             ) AS group_has_named,
              ARRAY(
                SELECT DISTINCT i.sorted_clef_combination_all
                FROM inclusions i
@@ -115,6 +129,9 @@ async function main() {
      AND b.group_id <> a.group_id
     JOIN titles t ON t.id = a.title_id
     WHERE NOT (a.named AND b.named)                -- at least one side is anon
+      -- Anon already grouped with any attributed setting = resolved: skip.
+      AND NOT (NOT a.named AND a.group_has_named)
+      AND NOT (NOT b.named AND b.group_has_named)
       AND a.combos && b.combos                     -- identical clef set in some source each
       AND (a.number_of_voices IS NULL OR b.number_of_voices IS NULL
            OR a.number_of_voices = b.number_of_voices)
