@@ -588,11 +588,26 @@
                 </div>`;
         }
 
-        // Readable clef line from an inclusion's clefs jsonb:
+        // Readable clef line from an inclusion's clefs jsonb, in the same
+        // pitch order as the public search table:
         // "C1 C3 C4 F4", with (opt) for optional and [canon] for canonic voices.
+        const CLEF_DISPLAY_ORDER = [
+            'g1', 'g2', 'g3', 'c1', 'g4', 'c2', 'g5', 'c3', 'f1', 'g28', 'c4', 'f2',
+            'c5', 'd1', 'f3', 'd2', 'f4', 'd3', 'y1', 'f5', 'd4', 'y2', 'd5', 'y3',
+            'y4', 'y5', 'x1', 'x2', 'x3', 'x4', 'x5', 'org', 'bc', 'lut',
+        ];
+        function sortClefsInDisplayOrder(clefs) {
+            return clefs.slice().sort((a, b) => {
+                const indexA = CLEF_DISPLAY_ORDER.indexOf(a?.clef?.trim?.() || a?.clef);
+                const indexB = CLEF_DISPLAY_ORDER.indexOf(b?.clef?.trim?.() || b?.clef);
+                const pitchDiff = (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+                if (pitchDiff !== 0) return pitchDiff;
+                return (a.voice_number ?? Infinity) - (b.voice_number ?? Infinity);
+            });
+        }
         function clefLine(clefs) {
             if (!Array.isArray(clefs) || !clefs.length) return '';
-            return clefs.map(c => {
+            return sortClefsInDisplayOrder(clefs).map(c => {
                 if (!c || !c.clef) return '?';
                 let v = escapeHtml(c.clef);
                 if (c.canonic) v += '<span class="text-warning">[canon]</span>';
