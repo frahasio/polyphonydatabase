@@ -21,7 +21,9 @@
  *     previously these were discarded as "generic"; now they're matched
  *     to the catalogue's season-level functions.
  * Texts spread evenly across the year (ordinary chants, ferial psalmody)
- * still produce nothing.
+ * still produce nothing. Psalm-verse incipits (Vulgate psalter) are the
+ * same class: they look "unique" in the proper-only day files. Those
+ * parts only generate suggestions from sung Mass propers.
  *
  * Re-runs REFRESH pending cards in place (dedupe key tfm:{title_id},
  * upsert while status='pending'); entries the reviewer already rejected
@@ -31,7 +33,9 @@
  */
 import { pool } from '../src/db.js';
 import { splitIncipitParts, foldSpelling, isOrdinaryText, normalizeIncipit } from './lib/matching.js';
-import { buildCorpus, matchPart, seasonOfDay } from './lib/do-corpus.js';
+import { buildCorpus, matchPart, seasonOfDay, isMassProperPosition } from './lib/do-corpus.js';
+import { isPsalmVerse, loadPsalmVerseIndex } from './lib/psalm-verses.js';
+import { findLinkEvidenceIn, findAnyDoEvidence, isPsalmOfficeCoincidence, isOrdinaryTimeFunction, allowsPsalmOffice } from './lib/title-function-evidence.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -115,6 +119,10 @@ async function main() {
   console.log('Building Divinum Officium corpus index...');
   const corpus = buildCorpus([...functionIds.keys()], overrides);
   console.log(`  ${corpus.units.size} distinct text units indexed.`);
+  const psalmIdx = loadPsalmVerseIndex();
+  let psalmVerses = 0;
+  for (const list of psalmIdx.values()) psalmVerses += list.length;
+  console.log(`  ${psalmVerses} Vulgate psalm verses/half-verses indexed.`);
 
   // Functions the reviewer explicitly rejected for a title (in the old
   // one-function-per-card era or after) must stay rejected.
@@ -170,6 +178,10 @@ async function main() {
       if (isOrdinaryText(part)) continue;
       const units = matchPart(part, corpus);
       if (!units.length) continue;
+      const psalmGeneric = isPsalmVerse(part);
+      const evidencePlacesOf = (u) => psalmGeneric
+        ? u.places.filter((p) => isMassProperPosition(p.position) || allowsPsalmOffice(p.fn))
+        : u.places;
       // Specificity of the INCIPIT: union of days across every unit that
       // opens with it (different continuations count as one shared text).
       const unionDays = new Set();
@@ -206,8 +218,14 @@ async function main() {
       };
 
       // ---- function clustering across ALL matched days ----
+      // Psalm-generic parts only cluster on days that have a Mass-proper hit;
+      // office/lesson appearances of a psalm are coincidence.
+      const clusterDays = new Set();
+      for (const u of units) {
+        for (const p of evidencePlacesOf(u)) clusterDays.add(p.day);
+      }
       const byFn = new Map();
-      for (const d of unionDays) {
+      for (const d of (psalmGeneric ? clusterDays : unionDays)) {
         for (const fn of (corpus.dayFunctions.get(d) || [])) {
           byFn.set(fn, (byFn.get(fn) || 0) + 1);
         }
@@ -226,7 +244,7 @@ async function main() {
 
       // ---- season clustering: which seasons do the appearances sit in? ----
       const bySeason = new Map();
-      for (const d of unionDays) {
+      for (const d of (psalmGeneric ? clusterDays : unionDays)) {
         const s = seasonOfDay(d);
         if (!s) continue;
         if (!bySeason.has(s)) bySeason.set(s, new Set());
@@ -248,19 +266,24 @@ async function main() {
       // ---- specific propers ----
       if (specificity >= GENERIC_DAYS) continue;
       for (const unit of units) {
-        for (const place of unit.places) {
+        for (const place of evidencePlacesOf(unit)) {
           let key, functionId, proposedName;
           if (place.fn && functionIds.has(place.fn)) {
             key = `fn:${place.fn}`; functionId = functionIds.get(place.fn); proposedName = place.fn;
           } else if (place.newName && specificity <= NEW_FEAST_MAX_DAYS) {
             key = `new:${place.newName.toLowerCase()}`; functionId = null; proposedName = place.newName;
           } else continue;
+          if (psalmGeneric && specificity < 2 && !allowsPsalmOffice(proposedName)
+            && (isOrdinaryTimeFunction(proposedName)
+              || ((isSaintFunction(proposedName) || !functionId)
+                  && !titleMentionsSaint(title.text, proposedName)))) continue;
           if (!tally.has(key)) {
-            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), parts: new Set() });
+            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), parts: new Set(), massProper: false });
           }
           const t = tally.get(key);
           t.minDays = Math.min(t.minDays, specificity);
           t.parts.add(part);
+          if (isMassProperPosition(place.position)) t.massProper = true;
           if (t.positions.size < MAX_POSITIONS_PER_FUNCTION) {
             t.positions.add(`${place.position} — ${place.dayLabel}`);
           }
@@ -332,6 +355,7 @@ async function main() {
         positions: [...t.positions],
         parts_matched: t.parts.size,
         parts_total: totalParts,
+        mass_proper: t.massProper || undefined,
         preselected: t.parts.size > 1
           ? (!hasDominant && t.minDays <= PRESELECT_MAX_DAYS + 2) // corroborated: relax the day bar
           : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS),
@@ -356,11 +380,18 @@ async function main() {
 
     // Drop 1-day obscure saints when a Commune / multi-day / cluster /
     // season alternative exists — unless the title names that saint.
-    const keptSpecifics = filterObscureSaintSpecifics(specifics, {
+    let keptSpecifics = filterObscureSaintSpecifics(specifics, {
       titleText: title.text,
       clusters,
       seasons,
     });
+    // Multipart motet where only one part hit the corpus: the unmatched
+    // parts are usually free composition, and a lone psalm-verse hit is
+    // coincidence. Keep a Mass-proper assignment (real introit motets
+    // with a free secunda pars); drop the rest.
+    if (parts.length > 1 && partDays.size < 2) {
+      keptSpecifics = keptSpecifics.filter((s) => s.mass_proper);
+    }
 
     // AUTO-ACCEPT: on a multipart motet, when EVERY part appears in the
     // same day's propers (respond + verse both present), the match is as
@@ -378,10 +409,16 @@ async function main() {
           continue;
         }
         await pool.query(
-          `INSERT INTO functions_titles (function_id, title_id)
-           SELECT $1, $2
+          `INSERT INTO functions_titles (function_id, title_id, match_text, match_citation, match_position)
+           SELECT $1, $2, $3, $4, $5
            WHERE NOT EXISTS (SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2)`,
-          [fm.function_id, title.id]
+          [
+            fm.function_id,
+            title.id,
+            [...matched][0] || null,
+            [...citations][0] || null,
+            (fm.positions && fm.positions[0]) || null,
+          ]
         );
         // Record it as an accepted suggestion so it shows in the queue's
         // history and is never re-proposed.
@@ -412,9 +449,10 @@ async function main() {
       .filter((f) => !f.function_id || !autoIds.has(f.function_id))
       .slice(0, MAX_FUNCTIONS_PER_CARD);
     if (!functions.length) {
-      // Everything auto-accepted: clear any pending card left from earlier
-      // runs so the reviewer isn't asked about a decision already made.
-      if (autoIds.size && !DRY_RUN) {
+      // No remaining proposal (or everything auto-accepted): drop any
+      // stale pending card so the reviewer isn't asked about noise the
+      // new rules would no longer emit.
+      if (!DRY_RUN) {
         await pool.query(
           `DELETE FROM suggestions WHERE dedupe_key = $1 AND status = 'pending'`,
           [`tfm:${title.id}`]
@@ -431,7 +469,15 @@ async function main() {
     // days would be pure noise — require at least one credible entry.
     if (!functions.some((f) => f.preselected
       || (f.level === 'specific' && f.days <= 4)
-      || (f.level === 'season' && f.days >= SEASON_PRESELECT_DAYS))) continue;
+      || (f.level === 'season' && f.days >= SEASON_PRESELECT_DAYS))) {
+      if (!DRY_RUN) {
+        await pool.query(
+          `DELETE FROM suggestions WHERE dedupe_key = $1 AND status = 'pending'`,
+          [`tfm:${title.id}`]
+        );
+      }
+      continue;
+    }
 
     const score = Math.max(...functions.map((f) => f.level === 'specific'
       ? Math.max(0.4, Math.round((1 - 0.08 * (f.days - 1)) * 100) / 100)
@@ -473,69 +519,68 @@ async function main() {
 
   console.log(`Done. ${DRY_RUN ? 'Would insert' : 'Inserted/refreshed'} ${inserted} suggestions; ${autoAccepted} all-parts matches auto-${DRY_RUN ? 'acceptable' : 'accepted'}.`);
 
-  if (!DRY_RUN) await backfillLinkEvidence(corpus, functionIds);
+  await auditExistingLinks(corpus, functionIds);
   await pool.end();
 }
 
 /**
- * Annotate title->function links with the DO text they match (text +
- * citation + position) — the public search shows these as tooltips.
- * Only fills rows with no evidence yet; links with no DO basis (manual
- * cataloguing, non-liturgical categories) are left NULL.
+ * Re-evaluate every title→function link against the current rules.
+ * Legitimate DO matches get text/citation/position filled (or refreshed).
+ * Psalm-generic office hits, uncorroborated leftovers, and anything with
+ * no DO basis are unlinked so they can re-enter the review queue if a
+ * later run finds a real Mass-proper match.
  */
-async function backfillLinkEvidence(corpus, functionIds) {
+async function auditExistingLinks(corpus, functionIds) {
   const idToName = new Map([...functionIds.entries()].map(([name, id]) => [id, name]));
   const rows = await pool.query(`
-    SELECT ft.function_id, ft.title_id, t.text
+    SELECT ft.function_id, ft.title_id, t.text,
+           ft.match_text, ft.match_citation, ft.match_position
     FROM functions_titles ft JOIN titles t ON t.id = ft.title_id
-    WHERE ft.match_text IS NULL
   `);
-  if (!rows.rows.length) return;
-
-  // Invert the corpus: function name -> first-two-words -> matching units.
-  const byFn = new Map();
-  for (const unit of corpus.units.values()) {
-    for (const place of unit.places) {
-      if (!place.fn) continue;
-      let m = byFn.get(place.fn);
-      if (!m) { m = new Map(); byFn.set(place.fn, m); }
-      const f2 = unit.words.slice(0, 2).join(' ');
-      if (!m.has(f2)) m.set(f2, []);
-      m.get(f2).push({ unit, place });
-    }
-  }
-
-  let updated = 0;
+  let cited = 0;
+  let removed = 0;
+  const samples = [];
   for (const row of rows.rows) {
     const fnName = idToName.get(row.function_id);
-    const m = fnName && byFn.get(fnName);
-    if (!m) continue;
-    let best = null;
-    for (const part of splitIncipitParts(row.text).map(foldSpelling)) {
-      const words = part.split(' ').filter(Boolean);
-      if (words.length < 2) continue;
-      for (const cand of (m.get(words.slice(0, 2).join(' ')) || [])) {
-        const n = Math.min(words.length, cand.unit.words.length);
-        let ok = true;
-        for (let i = 0; i < n; i++) if (words[i] !== cand.unit.words[i]) { ok = false; break; }
-        if (ok && (!best || n > best.n)) best = { unit: cand.unit, place: cand.place, n };
+    const ev = fnName ? findLinkEvidenceIn(row.text, fnName, corpus) : null;
+    const cite = ev || (fnName ? findAnyDoEvidence(row.text, fnName, corpus) : null);
+    if (fnName && isPsalmOfficeCoincidence(row.text, fnName, corpus)) {
+      removed++;
+      if (samples.length < 12) {
+        samples.push(`  - "${String(row.text).slice(0, 50)}" → ${fnName}`);
       }
+      if (!DRY_RUN) {
+        await pool.query(
+          'DELETE FROM functions_titles WHERE function_id = $1 AND title_id = $2',
+          [row.function_id, row.title_id]
+        );
+      }
+      continue;
     }
-    if (!best) continue;
-    await pool.query(
-      `UPDATE functions_titles SET match_text = $1, match_citation = $2, match_position = $3
-       WHERE function_id = $4 AND title_id = $5`,
-      [
-        best.unit.sample.slice(0, 200),
-        best.unit.citation || null,
-        `${best.place.position} — ${best.place.dayLabel}`,
-        row.function_id,
-        row.title_id,
-      ]
-    );
-    updated++;
+    if (cite) {
+      const same = cite.match_text === row.match_text
+        && cite.match_citation === row.match_citation
+        && cite.match_position === row.match_position;
+      if (!same) {
+        if (!DRY_RUN) {
+          await pool.query(
+            `UPDATE functions_titles SET match_text = $1, match_citation = $2, match_position = $3
+             WHERE function_id = $4 AND title_id = $5`,
+            [cite.match_text, cite.match_citation, cite.match_position, row.function_id, row.title_id]
+          );
+        }
+        cited++;
+      }
+      continue;
+    }
+    // Non-psalm manual links the matcher cannot verify (rhymed offices,
+    // "O …" prefixes): leave them. Uncited ones stay uncited.
   }
-  console.log(`Evidence backfill: ${updated} of ${rows.rows.length} unannotated links matched to DO texts.`);
+  console.log(`Link audit: ${cited} cited/refreshed, ${removed} ${DRY_RUN ? 'would be removed' : 'removed'} (of ${rows.rows.length}).`);
+  if (samples.length) {
+    console.log((DRY_RUN ? 'Would remove, e.g.:' : 'Removed, e.g.:'));
+    for (const s of samples) console.log(s);
+  }
 }
 
 main().catch((err) => {

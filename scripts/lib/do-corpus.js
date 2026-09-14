@@ -18,7 +18,13 @@ const DO_DIR = path.join(ROOT, 'data', 'divinumofficium');
 export const MIN_PART_WORDS = 2;
 // Mass sections that carry sung proper texts (motet sources) — these
 // generate suggestions.
-const MISSA_SECTIONS = new Set(['Introitus', 'Graduale', 'GradualeF', 'GradualeP', 'Tractus', 'Sequentia', 'Offertorium', 'OffertoriumP', 'Communio', 'CommunioP']);
+export const MISSA_SECTIONS = new Set(['Introitus', 'Graduale', 'GradualeF', 'GradualeP', 'Tractus', 'Sequentia', 'Offertorium', 'OffertoriumP', 'Communio', 'CommunioP']);
+
+/** True when a DO section name is a sung Mass proper (not Office/lesson). */
+export function isMassProperPosition(position) {
+  const p = String(position || '').split(' — ')[0].trim();
+  return MISSA_SECTIONS.has(p);
+}
 // Office sections: antiphons, responsories, hymns, chapters, invitatories.
 const HORAS_SECTION_RE = /^(Ant\b|Responsory|Hymnus|Capitulum|Invit)/;
 // PROSE sections: Gospels, Epistles, Matins lessons. These DO provide

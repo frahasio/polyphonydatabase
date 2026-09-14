@@ -301,6 +301,36 @@ router.get('/', async (req, res) => {
   }
 });
 
+function evidenceFromPayload(payload, functionId, functionName) {
+  const fns = Array.isArray(payload && payload.functions) ? payload.functions : [];
+  const f = fns.find((x) => Number(x.function_id) === Number(functionId)
+    || (functionName && String(x.function_name || '').toLowerCase() === String(functionName).toLowerCase()))
+    || {};
+  const pos = Array.isArray(f.positions) && f.positions[0] ? f.positions[0] : null;
+  const cit = Array.isArray(payload && payload.citations) && payload.citations[0] ? payload.citations[0] : null;
+  const text = (payload && payload.matched_incipit) || null;
+  return { text, cit, pos };
+}
+
+async function linkTitleFunction(client, functionId, titleId, evidence) {
+  await client.query(
+    `INSERT INTO functions_titles (function_id, title_id, match_text, match_citation, match_position)
+     SELECT $1, $2, $3, $4, $5
+     WHERE NOT EXISTS (
+       SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2
+     )`,
+    [functionId, titleId, evidence.text, evidence.cit, evidence.pos]
+  );
+  await client.query(
+    `UPDATE functions_titles SET
+       match_text = COALESCE(match_text, $3),
+       match_citation = COALESCE(match_citation, $4),
+       match_position = COALESCE(match_position, $5)
+     WHERE function_id = $1 AND title_id = $2`,
+    [functionId, titleId, evidence.text, evidence.cit, evidence.pos]
+  );
+}
+
 const KIND_LABELS = {
   title_function: 'title → feast',
   recording_youtube: 'YouTube recording',
@@ -521,13 +551,9 @@ router.post('/:id/:action', async (req, res) => {
                   [sel.name]
                 )).rows[0].id;
           }
-          await client.query(
-            `INSERT INTO functions_titles (function_id, title_id)
-             SELECT $1, $2
-             WHERE NOT EXISTS (
-               SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2
-             )`,
-            [functionId, s.title_id]
+          await linkTitleFunction(
+            client, functionId, s.title_id,
+            evidenceFromPayload(payload, functionId, sel.name)
           );
         }
       } else if (s.kind === 'title_function') {
@@ -567,13 +593,9 @@ router.post('/:id/:action', async (req, res) => {
             functionId = created.rows[0].id;
           }
         }
-        await client.query(
-          `INSERT INTO functions_titles (function_id, title_id)
-           SELECT $1, $2
-           WHERE NOT EXISTS (
-             SELECT 1 FROM functions_titles WHERE function_id = $1 AND title_id = $2
-           )`,
-          [functionId, s.title_id]
+        await linkTitleFunction(
+          client, functionId, s.title_id,
+          evidenceFromPayload(payload, functionId, chosenName)
         );
         if (payload.cantus_id) {
           await client.query(

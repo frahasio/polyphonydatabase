@@ -61,7 +61,12 @@ deployed. Also shipped since:
  proposals are never preticked when alternatives exist. Mass-ordinary/
  daily-Office texts (Gloria, Sanctus, Magnificat... — kept OUTSIDE DO's
  per-day files, so day counting can't see their ubiquity) are blocked
- via isOrdinaryText in matching.js. Reviewer rejections (old
+ via isOrdinaryText in matching.js. Psalm-verse incipits (Vulgate
+ psalter in public/vendor/jgabc/psalms/) are the same class — they look
+ unique in the proper-only day files — and only generate suggestions
+ from sung Mass propers; existing links that fail that test are unlinked
+ so they can re-enter the queue if a later run finds a real proper.
+ Reviewer rejections (old
  single-function cards included) are never re-proposed. Dictionary edits
  reach pending cards on the NEXT matcher run (cards refresh in place). Mass Gospels/Epistles are evidence (sentence-
  indexed, pericope formulas stripped); TEMPORA Matins lessons are
@@ -367,7 +372,7 @@ queue.
  `scripts/suggest-title-functions.js` covers ~100 common feasts; unmapped
  feasts now surface as new-feast suggestions rather than vanishing.
  Recording scoring is composer surname (mandatory) + fraction of title
- words matched; threshold is `RECORDINGS_MIN_SCORE` env (default 0.7).
+ words matched; threshold is `RECORDINGS_MIN_SCORE` env (default 0.6).
  The matchers checkpoint (`titles.cantus_checked_at`,
  `groups.youtube_checked_at` / `spotify_checked_at`,
  `composers.wikidata_checked_at`) so runs advance instead of re-searching

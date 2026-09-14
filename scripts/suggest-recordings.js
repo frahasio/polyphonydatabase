@@ -22,11 +22,11 @@ import { pool } from '../src/db.js';
 const BATCH = Math.min(Math.max(parseInt(process.argv[2], 10) || 80, 1), 2000);
 const PLATFORM = ['youtube', 'spotify', 'both'].includes(process.argv[3]) ? process.argv[3] : 'both';
 // Surname must always match; MIN_SCORE applies to the fraction of distinctive
-// title words found in the candidate text. 0.7 keeps the "Missa pro
+// title words found in the candidate text. 0.6 keeps the "Missa pro
 // defunctis offered for a Missa de feria" class of false positive out (a
-// 2-word title with 1 word matched scores 0.5) while letting long titles
-// with one missing word through for human review.
-const MIN_SCORE = Number(process.env.RECORDINGS_MIN_SCORE) || 0.7;
+// 2-word title with 1 word matched scores 0.5) while letting 3-word titles
+// missing one word (2/3 ≈ 0.67) through. The first catalogue pass used 0.7.
+const MIN_SCORE = Number(process.env.RECORDINGS_MIN_SCORE) || 0.6;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let youtubeExhausted = false;
 
@@ -161,7 +161,7 @@ async function getSpotifyToken() {
 async function searchSpotify(query) {
   let token = await getSpotifyToken();
   if (!token) return [];
-  const url = 'https://api.spotify.com/v1/search?type=track&limit=10&q=' + encodeURIComponent(query);
+  const url = 'https://api.spotify.com/v1/search?type=track&limit=10&market=GB&q=' + encodeURIComponent(query);
   let data;
   try {
     data = await fetchJson(url, { headers: { Authorization: 'Bearer ' + token } });
