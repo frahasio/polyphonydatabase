@@ -312,6 +312,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
   const classifyDay = makeClassifier(functionNames, overrides);
 
   const addUnit = (text, place, citation) => {
+    if (isLitanyInvocation(text)) return;
     const norm = foldSpelling(normalizeIncipit(text));
     const words = norm.split(' ').filter(Boolean);
     if (words.length < 2) return;
@@ -387,13 +388,17 @@ export function buildCorpus(functionNames, overrides = new Map()) {
         }
         // 1960 Good Friday lives entirely in [Prelude]; the sung communion
         // antiphons are V./Ant. lines ("Salvátor mundi, salva nos: qui per
-        // Crucem…") and never appear under [Communio].
+        // Crucem…") and never appear under [Communio]. Holy Saturday's
+        // Prelude is the whole Vigil, including the Litany of the Saints
+        // — those V. Sancte N. lines are not a Communio.
         if (mode === 'prelude') {
+          if (!/Quad6-5/.test(rel)) continue;
           for (const line of all) {
             const raw = String(line).trim();
             if (!/^(Ant\.|V\.)/i.test(raw)) continue;
             const t = cleanLine(line);
             if (!t || t.split(' ').length < 4) continue;
+            if (isLitanyInvocation(t)) continue;
             addUnit(t, placeOf('Communio'), '');
           }
           continue;
@@ -451,6 +456,17 @@ export function buildCorpus(functionNames, overrides = new Map()) {
 }
 
 // ---------- matching ----------
+
+/** Litany of the Saints invocation, not a proper antiphon/communio. */
+export function isLitanyInvocation(text) {
+  const n = foldSpelling(normalizeIncipit(text));
+  if (!n) return false;
+  if (/\b(ora|orate) pro nobis\b/.test(n) && /^(sanct[ae]|omnes sanct|beate|beata)\b/.test(n)) return true;
+  if (/\bintercedite pro nobis\b/.test(n) && /^omnes sanct/.test(n)) return true;
+  if (/\bmiserere nobis\b/.test(n) && /^(pater|fili|spiritus|sancta trinitas)/.test(n)) return true;
+  if (/\b(libera nos domine|te rogamus audi nos)\b/.test(n)) return true;
+  return false;
+}
 
 export function matchPart(part, corpus) {
   const words = part.split(' ').filter(Boolean);

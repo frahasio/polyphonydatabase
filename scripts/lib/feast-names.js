@@ -132,3 +132,122 @@ export function translateFeastLabel(norm) {
   const name = persons.length > 1 ? `Ss ${persons.join(' & ')}` : `St ${persons[0]}`;
   return (prefix + name).trim();
 }
+
+// Vocative / nominative forms used in titles and the Litany of the Saints
+// (SAINT_NAMES keys are genitives from day labels).
+const INVOCATION_ALIASES = new Map(Object.entries({
+  petre: 'Peter', paule: 'Paul', andrea: 'Andrew',
+  stephane: 'Stephen', laurenti: 'Lawrence', vincenti: 'Vincent',
+  gregori: 'Gregory', augustine: 'Augustine', antoni: 'Anthony',
+  benedicte: 'Benedict', dominice: 'Dominic', francisce: 'Francis',
+  ioannes: 'John', joannes: 'John', iohannes: 'John',
+  ioseph: 'Joseph', joseph: 'Joseph',
+  michael: 'Michael', gabriel: 'Gabriel', raphael: 'Raphael',
+  agnes: 'Agnes', agatha: 'Agatha', anastasia: 'Anastasia',
+  caecilia: 'Cecilia', cecilia: 'Cecilia',
+  silvester: 'Sylvester', siluestre: 'Sylvester',
+  magdalena: 'Mary Magdalene',
+  marce: 'Mark',
+}));
+
+function saintStem(w) {
+  return String(w || '').replace(/(ae|es|is|um|us|em|am|as|os|i|o|e|a)$/, '');
+}
+
+/**
+ * A title that *is* a saint invocation ("Sancte Nicolae", "O beata
+ * Caecilia") is almost certainly for that saint, even when the words
+ * never appear as a Mass/Office proper. Returns { kind, english } or null.
+ */
+function foldNorm(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/j/g, 'i')
+    .replace(/v/g, 'u');
+}
+
+function titleCaseWord(s) {
+  return String(s || '').replace(/\b[a-z]/g, (c) => c.toUpperCase()).trim();
+}
+
+export function saintInvocationFromTitle(titleText) {
+  const firstPart = String(titleText || '').split(/\s+[-\u2013\u2014]\s+/)[0];
+  const n = foldNorm(firstPart);
+  const m = n.match(/^(o )?(sanct[aeu]s?|beat[aeu]s?) (.+)$/);
+  if (!m) return null;
+  const isSanctus = /^sanct/.test(m[2]);
+  // "Beata nobis gaudia" is a hymn incipit, not a saint. Beate/Beata
+  // only counts with O + a known name, or a name we can resolve.
+  let rest = m[3]
+    .replace(/\b(ora|orate|pro nobis|intercede|miserere nobis|archangele|apostole)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!rest) return null;
+  if (/maria magdalena/.test(rest)) return { kind: 'saint', english: 'Mary Magdalene' };
+  if (/dei genetrix|uirgo uirginum/.test(rest) || /^(maria)\b/.test(rest)) return { kind: 'bvm' };
+  if (/trinitas/.test(rest)) return { kind: 'trinity' };
+  if (/\b(ioannes|joannes|iohannes) baptista\b/.test(rest)) {
+    return { kind: 'saint', english: 'John the Baptist' };
+  }
+  const token = rest.split(' ')[0];
+  if (!token || token.length < 4) return null;
+  if (/^(trinitas|deus|spiritus|kyrie|christe|omnes|angeli|pater|mater|iesu|domine|immaculata)$/.test(token)) return null;
+  if (INVOCATION_ALIASES.has(token)) return { kind: 'saint', english: INVOCATION_ALIASES.get(token) };
+  if (SAINT_NAMES.has(token)) return { kind: 'saint', english: SAINT_NAMES.get(token) };
+  const stem = saintStem(token);
+  if (stem.length >= 4) {
+    let best = null;
+    for (const [gen, eng] of SAINT_NAMES) {
+      const gstem = saintStem(gen);
+      if (gstem === stem || (stem.length >= 5 && (token.startsWith(gstem) || gen.startsWith(stem)))) {
+        if (!best || gen.length > best.gen.length) best = { gen, eng };
+      }
+    }
+    if (best) return { kind: 'saint', english: best.eng };
+  }
+  if (!isSanctus) return null;
+  return { kind: 'saint', english: titleCaseWord(token) };
+}
+
+/** Map a saint-invocation result onto a catalogue function name. */
+export function resolveNamedSaint(invoked, functionNames) {
+  if (!invoked) return null;
+  const names = functionNames || [];
+  const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+  const pick = (...cands) => {
+    for (const c of cands) {
+      const hit = byLower.get(String(c).toLowerCase());
+      if (hit) return { function_name: hit, new_function: false };
+    }
+    return null;
+  };
+  if (invoked.kind === 'bvm') return pick('BVM') || { function_name: 'BVM', new_function: true };
+  if (invoked.kind === 'trinity') {
+    return pick('Trinity Sunday', 'Trinity', 'The Most Holy Trinity')
+      || { function_name: 'Trinity Sunday', new_function: true };
+  }
+  const eng = invoked.english;
+  if (eng === 'John the Baptist') {
+    return pick('John the Baptist', 'St John the Baptist', 'Nativity of John the Baptist')
+      || { function_name: 'John the Baptist', new_function: true };
+  }
+  if (eng === 'Mary Magdalene') {
+    return pick('Mary Magdalene', 'St Mary Magdalene', 'St Mary Magdalen')
+      || { function_name: 'St Mary Magdalene', new_function: true };
+  }
+  const exact = pick(`St ${eng}`, `St. ${eng}`, eng);
+  if (exact) return exact;
+  const needle = String(eng).toLowerCase();
+  if (needle.length >= 5) {
+    const hits = names.filter((n) => {
+      const nl = n.toLowerCase();
+      return nl === needle || nl === `st ${needle}` || nl.startsWith(`st ${needle} `);
+    });
+    if (hits.length === 1) return { function_name: hits[0], new_function: false };
+  }
+  return { function_name: `St ${eng}`, new_function: true };
+}

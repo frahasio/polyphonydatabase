@@ -190,10 +190,13 @@
                     // candidates can both truthfully say "unique" and look
                     // contradictory.
                     const partialParts = f.parts_total > 1 && f.parts_matched && f.parts_matched < f.parts_total;
-                    const uniqueBadge = (!isSeason && !isCluster && f.days === 1)
+                    const uniqueBadge = (!isSeason && !isCluster && !f.named_in_title && f.days === 1)
                         ? (partialParts
                             ? ' <span class="badge bg-success" title="The matching part of this motet appears nowhere else in the 1960 missal/breviary — the other part(s) matched elsewhere or not at all">part unique to this day</span>'
                             : ' <span class="badge bg-success" title="This text appears nowhere else in the 1960 missal/breviary">unique to this day</span>')
+                        : '';
+                    const namedBadge = f.named_in_title
+                        ? ' <span class="badge bg-success" title="The title itself names this saint">named in title</span>'
                         : '';
                     const newBadge = f.new_function
                         ? ' <span class="badge bg-warning text-dark" title="Not in the catalogue yet — accepting creates it">new feast</span>'
@@ -222,7 +225,7 @@
                                 data-fnid="${f.function_id || ''}" data-fnname="${escapeHtml(f.function_name)}"
                                 ${f.preselected ? 'checked' : ''}>
                             <label class="form-check-label" for="fnsel-${s.id}-${i}">
-                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${uniqueBadge}${partsBadge}${newBadge}${seasonBadge}
+                                <span class="badge bg-primary">${escapeHtml(f.function_name)}</span>${uniqueBadge}${partsBadge}${namedBadge}${newBadge}${seasonBadge}
                                 ${evidence ? `<span class="text-muted ms-1">${evidence}</span>` : ''}
                                 ${posHtml}
                             </label>

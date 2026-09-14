@@ -4,7 +4,7 @@
  * to decide which pre-queue / suspicious links to drop.
  */
 import { splitIncipitParts, foldSpelling, isOrdinaryText } from './matching.js';
-import { matchPart, seasonOfDay, isMassProperPosition } from './do-corpus.js';
+import { matchPart, seasonOfDay, isMassProperPosition, isLitanyInvocation } from './do-corpus.js';
 import { isPsalmVerse } from './psalm-verses.js';
 
 /** Numbered Sundays whose psalm communions/introits are not distinctive. */
@@ -31,6 +31,7 @@ export function findLinkEvidenceIn(titleText, functionName, corpus) {
     if (isOrdinaryText(part)) continue;
     const psalm = isPsalmVerse(part);
     for (const unit of matchPart(part, corpus)) {
+      if (isLitanyInvocation(unit.sample)) continue;
       for (const place of unit.places) {
         const dayFn = place.fn || '';
         const season = seasonOfDay(place.day);
@@ -68,6 +69,7 @@ export function findAnyDoEvidence(titleText, functionName, corpus) {
   for (const part of parts) {
     if (isOrdinaryText(part)) continue;
     for (const unit of matchPart(part, corpus)) {
+      if (isLitanyInvocation(unit.sample)) continue;
       for (const place of unit.places) {
         const dayFn = place.fn || '';
         const season = seasonOfDay(place.day);

@@ -26,7 +26,9 @@
  * parts only generate suggestions from sung Mass propers. Short titles
  * that prefix several *different* continuations (Salvator mundi → All
  * Saints vs Good Friday) are listed but never preticked or clustered.
- * Hymn doxology last-lines are not indexed as incipits.
+ * Hymn doxology last-lines are not indexed as incipits. Litany of the
+ * Saints invocations are not propers. A title that names a saint
+ * (Sancte / Sancta / O beata N.) proposes that saint directly.
  *
  * Re-runs REFRESH pending cards in place (dedupe key tfm:{title_id},
  * upsert while status='pending'); entries the reviewer already rejected
@@ -36,9 +38,10 @@
  */
 import { pool } from '../src/db.js';
 import { splitIncipitParts, foldSpelling, isOrdinaryText, normalizeIncipit } from './lib/matching.js';
-import { buildCorpus, matchPart, seasonOfDay, isMassProperPosition } from './lib/do-corpus.js';
+import { buildCorpus, matchPart, seasonOfDay, isMassProperPosition, isLitanyInvocation } from './lib/do-corpus.js';
 import { isPsalmVerse, loadPsalmVerseIndex } from './lib/psalm-verses.js';
 import { findLinkEvidenceIn, findAnyDoEvidence, isPsalmOfficeCoincidence, isOrdinaryTimeFunction, allowsPsalmOffice } from './lib/title-function-evidence.js';
+import { saintInvocationFromTitle, resolveNamedSaint } from './lib/feast-names.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -325,6 +328,31 @@ async function main() {
       }
     }
 
+    // A "Sancte N." / "O beata N." title is for that saint even when the
+    // words never appear as a proper (the litany is not a proper).
+    const namedInv = saintInvocationFromTitle(title.text);
+    const named = resolveNamedSaint(namedInv, [...functionIds.keys()]);
+    if (named && !isRejected(title.id, named.new_function ? null : functionIds.get(named.function_name), named.function_name)) {
+      const functionId = named.new_function ? null : functionIds.get(named.function_name);
+      if (!(functionId && existingFnIds.has(functionId))) {
+        const key = functionId ? `fn:${named.function_name}` : `new:${named.function_name.toLowerCase()}`;
+        if (!tally.has(key)) {
+          tally.set(key, {
+            functionId,
+            proposedName: named.function_name,
+            minDays: 1,
+            positions: new Set(),
+            parts: new Set(),
+            massProper: false,
+            fromTitle: true,
+          });
+        }
+        const t = tally.get(key);
+        t.fromTitle = true;
+        t.positions.add('named in the title');
+      }
+    }
+
     // ---- assemble the card's function list ----
     // Function clusters (feast + octave concentration) identify the text's
     // MAIN purpose: they lead the card, and when one exists, scattered
@@ -374,7 +402,8 @@ async function main() {
       .filter((t) => !(t.functionId && existingFnIds.has(t.functionId)))
       .filter((t) => !isRejected(title.id, t.functionId, t.proposedName))
       .filter((t) => !clusterNames.has(t.proposedName.toLowerCase()))
-      .sort((a, b) => (b.parts.size - a.parts.size)
+      .sort((a, b) => (Number(b.fromTitle) - Number(a.fromTitle))
+        || (b.parts.size - a.parts.size)
         || (a.minDays - b.minDays)
         || (a.functionId ? 0 : 1) - (b.functionId ? 0 : 1)
         || b.positions.size - a.positions.size)
@@ -388,9 +417,10 @@ async function main() {
         parts_matched: t.parts.size,
         parts_total: totalParts,
         mass_proper: t.massProper || undefined,
-        preselected: titleAmbiguous ? false : (t.parts.size > 1
+        named_in_title: t.fromTitle || undefined,
+        preselected: t.fromTitle ? true : (titleAmbiguous ? false : (t.parts.size > 1
           ? (!hasDominant && t.minDays <= PRESELECT_MAX_DAYS + 2) // corroborated: relax the day bar
-          : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS)),
+          : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS))),
       }));
 
     const takenNames = new Set([...clusterNames, ...specifics.map((f) => f.function_name.toLowerCase())]);
@@ -580,6 +610,31 @@ async function auditExistingLinks(corpus, functionIds) {
     const fnName = idToName.get(row.function_id);
     const ev = fnName ? findLinkEvidenceIn(row.text, fnName, corpus) : null;
     const cite = ev || (fnName ? findAnyDoEvidence(row.text, fnName, corpus) : null);
+    if (row.match_text && isLitanyInvocation(row.match_text)) {
+      const named = resolveNamedSaint(saintInvocationFromTitle(row.text), [...functionIds.keys()]);
+      if (named && named.function_name === fnName) {
+        if (!DRY_RUN) {
+          await pool.query(
+            `UPDATE functions_titles SET match_text = NULL, match_citation = NULL, match_position = $3
+             WHERE function_id = $1 AND title_id = $2`,
+            [row.function_id, row.title_id, 'named in the title']
+          );
+        }
+        cited++;
+        continue;
+      }
+      removed++;
+      if (samples.length < 12) {
+        samples.push(`  - "${String(row.text).slice(0, 50)}" → ${fnName} (litany)`);
+      }
+      if (!DRY_RUN) {
+        await pool.query(
+          'DELETE FROM functions_titles WHERE function_id = $1 AND title_id = $2',
+          [row.function_id, row.title_id]
+        );
+      }
+      continue;
+    }
     if (fnName && isPsalmOfficeCoincidence(row.text, fnName, corpus)) {
       removed++;
       if (samples.length < 12) {
