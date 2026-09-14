@@ -151,11 +151,36 @@ function cleanLine(line) {
   // Parenthesised lines are rubric conditionals/directions ("(sed rubrica
   // 1960 ...)", "(Fit reverentia)"), not liturgical text.
   if (t.startsWith('(')) return '';
+  t = t.replace(/\{:[^}]+\}/g, '');     // {:H-Beatanobisgaudia:} hymn include
+  t = t.replace(/\/:[^:]*:\//g, '');    // /:kneel for first stanza:/ rubrics
   t = t.replace(/;;.*$/, '');            // trailing psalm refs etc.
   t = t.replace(/^v\.\s*/i, '').replace(/^[VR]\.\s*/, '');
   t = t.replace(/\s\*\s/g, ' ');         // antiphon median marker
   t = t.replace(/~\s*$/, '');
   return t.trim();
+}
+
+function isDoxologyStanza(text) {
+  const n = foldSpelling(normalizeIncipit(text));
+  return /^(sit laus|gloria patri|praesta pater|presta pater|deo patri sit|sit trinitati|praestet hoc nobis|te decet laus|gloria tibi domine)/.test(n);
+}
+
+/** Join a hymn section into stanzas (blank / "_" separated). */
+function hymnStanzas(lines) {
+  const stanzas = [];
+  let cur = [];
+  const flush = () => {
+    if (cur.length) stanzas.push(cur.join(' '));
+    cur = [];
+  };
+  for (const line of lines) {
+    const raw = String(line).trim();
+    if (!raw || raw === '_') { flush(); continue; }
+    const t = cleanLine(line);
+    if (t) cur.push(t);
+  }
+  flush();
+  return stanzas.filter(Boolean);
 }
 
 // ---------- corpus construction ----------
@@ -229,7 +254,8 @@ function readDayLabel(rel) {
   return ((sections.Officium || []).map(cleanLine).filter(Boolean)[0] || '')
     .replace(/\(sed rubrica[^)]*\)?.*$/i, '')
     .replace(/\s+/g, ' ')
-    .trim();
+    .trim()
+    || ((sections.Rank || []).map((s) => String(s).split(';;')[0].trim()).filter(Boolean)[0] || '');
 }
 
 const DAY_DIRS = [
@@ -323,10 +349,13 @@ export function buildCorpus(functionNames, overrides = new Map()) {
       const sections = splitSections(raw);
       // First title line only; rubric-variant alternates ("(sed rubrica
       // 196) Other Title") would otherwise concatenate into nonsense.
+      // Some Sancti files (Exaltation of the Cross) have Rank but no
+      // Officium — Rank's first field is the feast name.
       const label = ((sections.Officium || []).map(cleanLine).filter(Boolean)[0] || '')
         .replace(/\(sed rubrica[^)]*\)?.*$/i, '')
         .replace(/\s+/g, ' ')
-        .trim();
+        .trim()
+        || ((sections.Rank || []).map((s) => String(s).split(';;')[0].trim()).filter(Boolean)[0] || '');
       const cls = classifyDay(rel, label);
       if (cls.fn) {
         if (!dayFunctions.has(dayId)) dayFunctions.set(dayId, new Set());
@@ -339,6 +368,36 @@ export function buildCorpus(functionNames, overrides = new Map()) {
         let all = lines;
         const refLine = lines.find((l) => l.trim().startsWith('@'));
         if (refLine) all = lines.flatMap((l) => (l.trim().startsWith('@') ? resolveRef(l.trim(), name, tree, rel) : [l]));
+        const placeOf = (position) => ({
+          fn: mode !== 'freq' ? (cls.fn || null) : null,
+          newName: mode !== 'freq' ? (cls.newName || null) : null,
+          position,
+          day: dayId,
+          dayLabel: label || path.basename(rel, '.txt'),
+        });
+        // Hymns: index each stanza as one unit (the incipit), never the
+        // last-line doxology. "Beáta nobis gáudia" is the Pentecost hymn;
+        // on St Venantius / St John Cantius it is only the doxology close.
+        if (/^Hymnus/i.test(name)) {
+          for (const stanza of hymnStanzas(all)) {
+            if (isDoxologyStanza(stanza)) continue;
+            addUnit(stanza, placeOf(name), '');
+          }
+          continue;
+        }
+        // 1960 Good Friday lives entirely in [Prelude]; the sung communion
+        // antiphons are V./Ant. lines ("Salvátor mundi, salva nos: qui per
+        // Crucem…") and never appear under [Communio].
+        if (mode === 'prelude') {
+          for (const line of all) {
+            const raw = String(line).trim();
+            if (!/^(Ant\.|V\.)/i.test(raw)) continue;
+            const t = cleanLine(line);
+            if (!t || t.split(' ').length < 4) continue;
+            addUnit(t, placeOf('Communio'), '');
+          }
+          continue;
+        }
         // Scripture citations are short "!Ps 136:1" lines preceding the
         // text — attach the most recent one to each unit so reviewers can
         // see at a glance that a match is e.g. a psalm verse.
@@ -352,13 +411,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
           }
           const t = cleanLine(line);
           if (!t || t.split(' ').length < 2) continue;
-          const place = {
-            fn: mode !== 'freq' ? (cls.fn || null) : null,
-            newName: mode !== 'freq' ? (cls.newName || null) : null,
-            position: name,
-            day: dayId,
-            dayLabel: label || path.basename(rel, '.txt'),
-          };
+          const place = placeOf(name);
           if (mode === 'prose') {
             // Long prose: index each sentence, and additionally the
             // formula-stripped opening ("In illo tempore: dixit Jesus..."
@@ -378,6 +431,7 @@ export function buildCorpus(functionNames, overrides = new Map()) {
   };
 
   const missaFilter = (s) => (MISSA_SECTIONS.has(s) ? 'evidence'
+    : s === 'Prelude' ? 'prelude'
     : PROSE_SECTION_RE.test(s) ? 'prose'
     : FREQ_SECTION_RE.test(s) ? 'freq' : null);
   // lessonsAreProper: on feast days (Sancti/Commune) Matins lessons are

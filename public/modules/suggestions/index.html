@@ -247,6 +247,7 @@
                         <div class="mb-1"><strong>Proposed functions</strong>
                             <span class="text-muted ms-2 d-none d-sm-inline">tick all that apply; ticked ones are linked on accept</span>
                         </div>
+                        ${p.ambiguous ? '<div class="small text-warning-emphasis mb-2">Short title matches several different continuations — none preticked. Longer catalogue titles catch the variance (e.g. “qui per Crucem” vs “salva nos omnes”).</div>' : ''}
                         ${rows}
                         ${breakdownHtml}
                         ${p.matched_incipit ? `<div class="text-muted mt-1">Matched text: <em>${escapeHtml(p.matched_incipit)}</em>${citations ? ` <span class="badge bg-light text-dark">${citations}</span>` : ''}</div>` : ''}

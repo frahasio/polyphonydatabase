@@ -23,7 +23,10 @@
  * Texts spread evenly across the year (ordinary chants, ferial psalmody)
  * still produce nothing. Psalm-verse incipits (Vulgate psalter) are the
  * same class: they look "unique" in the proper-only day files. Those
- * parts only generate suggestions from sung Mass propers.
+ * parts only generate suggestions from sung Mass propers. Short titles
+ * that prefix several *different* continuations (Salvator mundi → All
+ * Saints vs Good Friday) are listed but never preticked or clustered.
+ * Hymn doxology last-lines are not indexed as incipits.
  *
  * Re-runs REFRESH pending cards in place (dedupe key tfm:{title_id},
  * upsert while status='pending'); entries the reviewer already rejected
@@ -84,7 +87,16 @@ function titleMentionsSaint(titleText, functionName) {
   if (!tokens.length) return false;
   return tokens.some((w) => title.includes(w));
 }
-function filterObscureSaintSpecifics(specifics, { titleText, clusters, seasons }) {
+function filterObscureSaintSpecifics(specifics, { titleText, clusters, seasons, ambiguous }) {
+  // A short title matching several *different* continuations is not
+  // evidence for a saint who happens to share the opening words.
+  if (ambiguous) {
+    return specifics.filter((s) => {
+      const saintLike = isSaintFunction(s.function_name) || s.new_function;
+      if (!saintLike) return true;
+      return titleMentionsSaint(titleText, s.function_name);
+    });
+  }
   const hasStrong = clusters.length > 0
     || seasons.length > 0
     || specifics.some((s) => isCommuneFunction(s.function_name) || s.days >= 2);
@@ -170,6 +182,7 @@ async function main() {
     const partDays = new Map();
     const matched = new Set();
     const citations = new Set();
+    let titleAmbiguous = false;
 
     for (const part of parts) {
       // Mass-ordinary / daily-Office texts (Gloria, Sanctus, Magnificat...)
@@ -182,8 +195,21 @@ async function main() {
       const evidencePlacesOf = (u) => psalmGeneric
         ? u.places.filter((p) => isMassProperPosition(p.position) || allowsPsalmOffice(p.fn))
         : u.places;
+      // Short titles ("Salvator mundi") prefix-match several DISTINCT
+      // texts (All Saints "…salva nos omnes" vs Passion "…qui per Crucem").
+      // Unioning those days made one feast look like the unique main use.
+      const partWords = part.split(' ').filter(Boolean);
+      const forks = new Map();
+      for (const u of units) {
+        const fork = u.words.slice(partWords.length, partWords.length + 5).join(' ') || '(end)';
+        if (!forks.has(fork)) forks.set(fork, []);
+        forks.get(fork).push(u);
+      }
+      const ambiguous = forks.size > 1 && partWords.length <= 5;
+      if (ambiguous) titleAmbiguous = true;
       // Specificity of the INCIPIT: union of days across every unit that
-      // opens with it (different continuations count as one shared text).
+      // opens with it. Same-text continuations still share a count;
+      // divergent ones are not unioned for cluster/"main use".
       const unionDays = new Set();
       for (const u of units) for (const d of u.days) unionDays.add(d);
       const specificity = unionDays.size;
@@ -219,69 +245,75 @@ async function main() {
 
       // ---- function clustering across ALL matched days ----
       // Psalm-generic parts only cluster on days that have a Mass-proper hit;
-      // office/lesson appearances of a psalm are coincidence.
+      // office/lesson appearances of a psalm are coincidence. Divergent
+      // short-prefix matches must not vote as one text's "main use".
       const clusterDays = new Set();
       for (const u of units) {
         for (const p of evidencePlacesOf(u)) clusterDays.add(p.day);
       }
-      const byFn = new Map();
-      for (const d of (psalmGeneric ? clusterDays : unionDays)) {
-        for (const fn of (corpus.dayFunctions.get(d) || [])) {
-          byFn.set(fn, (byFn.get(fn) || 0) + 1);
+      if (!ambiguous) {
+        const byFn = new Map();
+        for (const d of (psalmGeneric ? clusterDays : unionDays)) {
+          for (const fn of (corpus.dayFunctions.get(d) || [])) {
+            byFn.set(fn, (byFn.get(fn) || 0) + 1);
+          }
         }
-      }
-      for (const [fn, count] of byFn) {
-        const share = count / specificity;
-        if (count < 2 || share < CLUSTER_MIN_SHARE) continue;
-        if (!clusterBest.has(fn)) {
-          clusterBest.set(fn, { days: count, share, positions: samplePositions((p) => p.fn === fn), parts: new Set() });
-        } else if (count > clusterBest.get(fn).days) {
-          Object.assign(clusterBest.get(fn), { days: count, share, positions: samplePositions((p) => p.fn === fn) });
+        for (const [fn, count] of byFn) {
+          const share = count / specificity;
+          if (count < 2 || share < CLUSTER_MIN_SHARE) continue;
+          if (!clusterBest.has(fn)) {
+            clusterBest.set(fn, { days: count, share, positions: samplePositions((p) => p.fn === fn), parts: new Set() });
+          } else if (count > clusterBest.get(fn).days) {
+            Object.assign(clusterBest.get(fn), { days: count, share, positions: samplePositions((p) => p.fn === fn) });
+          }
+          clusterBest.get(fn).parts.add(part);
+          matched.add(units[0].sample);
         }
-        clusterBest.get(fn).parts.add(part);
-        matched.add(units[0].sample);
-      }
 
-      // ---- season clustering: which seasons do the appearances sit in? ----
-      const bySeason = new Map();
-      for (const d of (psalmGeneric ? clusterDays : unionDays)) {
-        const s = seasonOfDay(d);
-        if (!s) continue;
-        if (!bySeason.has(s)) bySeason.set(s, new Set());
-        bySeason.get(s).add(d);
-      }
-      for (const [season, days] of bySeason) {
-        const share = days.size / specificity;
-        if (days.size < SEASON_MIN_DAYS || share < SEASON_MIN_SHARE) continue;
-        const prev = seasonBest.get(season);
-        if (!prev || days.size > prev.days) {
-          seasonBest.set(season, {
-            days: days.size,
-            share,
-            positions: samplePositions((p) => seasonOfDay(p.day) === season),
-          });
+        // ---- season clustering: which seasons do the appearances sit in? ----
+        const bySeason = new Map();
+        for (const d of (psalmGeneric ? clusterDays : unionDays)) {
+          const s = seasonOfDay(d);
+          if (!s) continue;
+          if (!bySeason.has(s)) bySeason.set(s, new Set());
+          bySeason.get(s).add(d);
+        }
+        for (const [season, days] of bySeason) {
+          const share = days.size / specificity;
+          if (days.size < SEASON_MIN_DAYS || share < SEASON_MIN_SHARE) continue;
+          const prev = seasonBest.get(season);
+          if (!prev || days.size > prev.days) {
+            seasonBest.set(season, {
+              days: days.size,
+              share,
+              positions: samplePositions((p) => seasonOfDay(p.day) === season),
+            });
+          }
         }
       }
 
       // ---- specific propers ----
-      if (specificity >= GENERIC_DAYS) continue;
+      if (!ambiguous && specificity >= GENERIC_DAYS) continue;
       for (const unit of units) {
+        const unitDays = unit.days.size;
+        if (ambiguous && unitDays >= GENERIC_DAYS) continue;
+        const placeDays = ambiguous ? unitDays : specificity;
         for (const place of evidencePlacesOf(unit)) {
           let key, functionId, proposedName;
           if (place.fn && functionIds.has(place.fn)) {
             key = `fn:${place.fn}`; functionId = functionIds.get(place.fn); proposedName = place.fn;
-          } else if (place.newName && specificity <= NEW_FEAST_MAX_DAYS) {
+          } else if (place.newName && placeDays <= NEW_FEAST_MAX_DAYS) {
             key = `new:${place.newName.toLowerCase()}`; functionId = null; proposedName = place.newName;
           } else continue;
-          if (psalmGeneric && specificity < 2 && !allowsPsalmOffice(proposedName)
+          if (psalmGeneric && placeDays < 2 && !allowsPsalmOffice(proposedName)
             && (isOrdinaryTimeFunction(proposedName)
               || ((isSaintFunction(proposedName) || !functionId)
                   && !titleMentionsSaint(title.text, proposedName)))) continue;
           if (!tally.has(key)) {
-            tally.set(key, { functionId, proposedName, minDays: specificity, positions: new Set(), parts: new Set(), massProper: false });
+            tally.set(key, { functionId, proposedName, minDays: placeDays, positions: new Set(), parts: new Set(), massProper: false });
           }
           const t = tally.get(key);
-          t.minDays = Math.min(t.minDays, specificity);
+          t.minDays = Math.min(t.minDays, placeDays);
           t.parts.add(part);
           if (isMassProperPosition(place.position)) t.massProper = true;
           if (t.positions.size < MAX_POSITIONS_PER_FUNCTION) {
@@ -333,7 +365,7 @@ async function main() {
           positions: [...c.positions],
           parts_matched: c.parts.size,
           parts_total: totalParts,
-          preselected: !corroborationExists || c.parts.size > 1,
+          preselected: titleAmbiguous ? false : (!corroborationExists || c.parts.size > 1),
         };
       });
     const clusterNames = new Set(clusters.map((f) => f.function_name.toLowerCase()));
@@ -356,9 +388,9 @@ async function main() {
         parts_matched: t.parts.size,
         parts_total: totalParts,
         mass_proper: t.massProper || undefined,
-        preselected: t.parts.size > 1
+        preselected: titleAmbiguous ? false : (t.parts.size > 1
           ? (!hasDominant && t.minDays <= PRESELECT_MAX_DAYS + 2) // corroborated: relax the day bar
-          : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS),
+          : (!hasDominant && !corroborationExists && t.minDays <= PRESELECT_MAX_DAYS)),
       }));
 
     const takenNames = new Set([...clusterNames, ...specifics.map((f) => f.function_name.toLowerCase())]);
@@ -375,7 +407,7 @@ async function main() {
         days: s.days,
         share: Math.round(s.share * 100) / 100,
         positions: [...s.positions],
-        preselected: !hasDominant && s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE,
+        preselected: titleAmbiguous ? false : (!hasDominant && s.days >= SEASON_PRESELECT_DAYS && s.share >= SEASON_PRESELECT_SHARE),
       }));
 
     // Drop 1-day obscure saints when a Commune / multi-day / cluster /
@@ -384,6 +416,7 @@ async function main() {
       titleText: title.text,
       clusters,
       seasons,
+      ambiguous: titleAmbiguous,
     });
     // Multipart motet where only one part hit the corpus: the unmatched
     // parts are usually free composition, and a lone psalm-verse hit is
@@ -398,7 +431,7 @@ async function main() {
     // strong as evidence gets — link it without review. Existing functions
     // only (never auto-create), rejections already filtered above.
     const autoIds = new Set();
-    if (totalParts > 1) {
+    if (totalParts > 1 && !titleAmbiguous) {
       const fullMatches = [...clusters, ...keptSpecifics].filter((f) =>
         f.function_id && f.parts_matched === totalParts);
       for (const fm of fullMatches) {
@@ -479,9 +512,11 @@ async function main() {
       continue;
     }
 
-    const score = Math.max(...functions.map((f) => f.level === 'specific'
-      ? Math.max(0.4, Math.round((1 - 0.08 * (f.days - 1)) * 100) / 100)
-      : Math.min(0.85, 0.4 + 0.06 * f.days)));
+    const score = titleAmbiguous
+      ? 0.35
+      : Math.max(...functions.map((f) => f.level === 'specific'
+        ? Math.max(0.4, Math.round((1 - 0.08 * (f.days - 1)) * 100) / 100)
+        : Math.min(0.85, 0.4 + 0.06 * f.days)));
 
     if (DRY_RUN) {
       inserted++;
@@ -500,6 +535,7 @@ async function main() {
         title.id,
         JSON.stringify({
           multi: true,
+          ambiguous: titleAmbiguous || undefined,
           functions,
           matched_incipit: [...matched][0] || null,
           citations: [...citations],
@@ -570,6 +606,24 @@ async function auditExistingLinks(corpus, functionIds) {
           );
         }
         cited++;
+      }
+      continue;
+    }
+    // Doxology last-lines we no longer index were cited as a short Hymnus
+    // match_text ("Beáta nobis gáudia."). Drop those; keep unverified
+    // longer hymn links (Ave maris stella, Commons in the psalter, …).
+    const citedWords = foldSpelling(normalizeIncipit(row.match_text || ''))
+      .split(' ').filter(Boolean).length;
+    if (/hymnus/i.test(row.match_position || '') && citedWords > 0 && citedWords <= 4) {
+      removed++;
+      if (samples.length < 12) {
+        samples.push(`  - "${String(row.text).slice(0, 50)}" → ${fnName} (stale hymn line)`);
+      }
+      if (!DRY_RUN) {
+        await pool.query(
+          'DELETE FROM functions_titles WHERE function_id = $1 AND title_id = $2',
+          [row.function_id, row.title_id]
+        );
       }
       continue;
     }
