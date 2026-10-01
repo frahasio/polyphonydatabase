@@ -164,6 +164,7 @@
             <button class="filter-btn" onclick="filterUsers('approved')">Approved</button>
             <button class="filter-btn" onclick="filterUsers('rejected')">Rejected</button>
             <button class="filter-btn" onclick="filterUsers('suspended')">Suspended</button>
+            <button class="filter-btn" onclick="filterUsers('unverified')" title="Registered but has not yet clicked the email confirmation link. Deleted automatically after 7 days.">Unverified</button>
         </div>
 
         <div id="loading" class="loading">Loading users...</div>
@@ -234,9 +235,17 @@
 
         function displayUsers() {
             const tbody = document.getElementById('usersTable');
-            const filteredUsers = currentFilter 
-                ? allUsers.filter(user => user.status === currentFilter)
-                : allUsers;
+            // Unverified sign-ups (email link not yet clicked) are hidden from
+            // every view except their own filter — they are not applications yet.
+            const isUnverified = (user) => user.status === 'pending' && user.email_verified === false;
+            let filteredUsers;
+            if (currentFilter === 'unverified') {
+                filteredUsers = allUsers.filter(isUnverified);
+            } else if (currentFilter) {
+                filteredUsers = allUsers.filter(user => user.status === currentFilter && !isUnverified(user));
+            } else {
+                filteredUsers = allUsers.filter(user => !isUnverified(user));
+            }
 
             tbody.innerHTML = filteredUsers.map(user => `
                 <tr>
@@ -245,7 +254,7 @@
                         ${user.application_message ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px; max-width: 320px; white-space: pre-wrap;"><em>&ldquo;${escapeHtml(user.application_message)}&rdquo;</em></div>` : ''}
                     </td>
                     <td>${escapeHtml(user.email)}</td>
-                    <td><span class="status-badge status-${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+                    <td><span class="status-badge status-${escapeHtml(user.status)}">${isUnverified(user) ? 'unverified' : escapeHtml(user.status)}</span></td>
                     <td>${escapeHtml(user.role)}</td>
                     <td>${formatDate(user.created_at)}</td>
                     <td>${generateActionButtons(user)}</td>

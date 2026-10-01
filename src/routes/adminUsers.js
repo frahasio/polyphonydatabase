@@ -30,7 +30,7 @@ router.get('/users', async (req, res) => {
 
     const result = await pool.query(`
       SELECT u.id, u.email, u.name, u.status, u.role, u.created_at, u.last_login, u.login_attempts,
-             u.application_message,
+             u.application_message, (u.email_verified_at IS NOT NULL) AS email_verified,
              COALESCE(p.catalogue, false) AS perm_catalogue,
              COALESCE(p.booklet_creator, false) AS perm_booklet_creator,
              COALESCE(p.import_source, false) AS perm_import_source,
@@ -66,6 +66,7 @@ router.get('/users', async (req, res) => {
       last_login: row.last_login,
       login_attempts: row.login_attempts,
       application_message: row.application_message,
+      email_verified: row.email_verified,
       permissions: {
         catalogue: row.perm_catalogue,
         booklet_creator: row.perm_booklet_creator,

@@ -259,6 +259,31 @@ deployed. Also shipped since:
   generated official templates — deliberate refresh only). Planned next:
   Divinum Officium import for texts/translations and a fetch-translation
   button backed by the vendored Douay-Rheims/Vulgate files.
+- Public-form anti-spam (Oct 2026, migration 028), after a bot that filled
+ both the register and commission-enquiry forms with random letters from
+ dot-mangled Gmail addresses every few weeks. `src/middleware/antiSpam.js`:
+ (1) HONEYPOT `website` field (off-screen; filled = fake success, bot learns
+ nothing) and (2) signed TIMING TOKEN — pages fetch `GET /api/auth/form-token`
+ (HMAC of a timestamp with SESSION_SECRET) on load and post it back; the
+ server requires it genuine, >=3 s old and <24 h. Rejections log as
+ `[antispam]`. Registration is now TWO-STEP: the row is created with
+ `email_verified_at` NULL plus a hashed `verify_token` (48 h), and the
+ applicant gets a verification email containing nothing they typed (the old
+ welcome email interpolated the raw name — a spam-relay vector). Only
+ `GET /api/auth/verify-email/:token` fires the admin notification and makes
+ the account appear in the pending list (user-management hides unverified
+ rows except under its "Unverified" filter; `/api/admin/users` returns
+ `email_verified`). Re-registering an unverified address replaces it and
+ resends; unverified rows older than 7 days are deleted on the next
+ registration; the "already registered" reply is identical to success (no
+ enumeration); names are capped at 100 chars and may not contain URLs or
+ `<>`. The commissions admin page no longer interpolates piece
+ descriptions into inline `onclick` attributes (was a stored XSS from the
+ public enquiry form — `&quot;` in the text broke out of the attribute);
+ handlers look rows up in a `byId` Map. All `${name}`/`${email}` in email
+ HTML are now `esc()`-wrapped. Not done (candidates if spam adapts):
+ Gmail dot/plus normalisation, Turnstile, making the registration message
+ mandatory with institution/affiliation fields, invitation-only accounts.
 - Granular permissions (Aug 2026, migrations 025+026): user_permissions.
  catalogue is now VIEW-only access to the admin cataloguing pages (and
  defaults to FALSE — new users get nothing until granted on /modules/

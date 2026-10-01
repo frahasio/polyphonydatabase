@@ -7,8 +7,13 @@ import { pool } from '../db.js';
 import { isAccountLocked, requireAuth, CATALOGUE_ENTITIES } from '../middleware/auth.js';
 import { ensureUserPermissions } from '../db.js';
 import emailService from '../services/emailService.js';
+import { issueFormToken, checkAntiSpam } from '../middleware/antiSpam.js';
 
 const router = express.Router();
+
+// Unverified registrations are garbage-collected after this long.
+const UNVERIFIED_TTL_DAYS = 7;
+const VERIFY_TOKEN_HOURS = 48;
 
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
@@ -44,10 +49,30 @@ function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-// User registration
+// Signed timestamp for the public forms' anti-spam timing check.
+router.get('/form-token', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ token: issueFormToken() });
+});
+
+const REGISTERED_MESSAGE =
+  'Thank you. Please check your email and click the confirmation link to complete your registration.';
+
+// User registration. Two-step: the account is created unverified and a
+// confirmation link is emailed; only once the applicant clicks it does the
+// admin get notified and the account appear in the pending list. Bots and
+// throwaway addresses never complete the loop. The confirmation email
+// contains nothing user-supplied, so it cannot be abused to relay spam.
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { email, password, name, message } = req.body;
+    const spam = checkAntiSpam(req, 'register');
+    if (!spam.ok) {
+      if (spam.silent) return res.status(201).json({ message: REGISTERED_MESSAGE });
+      return res.status(400).json({ error: spam.error });
+    }
+
+    const { email, password, message } = req.body;
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
 
     // Validation
     if (!email || !password || !name) {
@@ -59,67 +84,110 @@ router.post('/register', registerLimiter, async (req, res) => {
       ? message.trim().slice(0, 2000)
       : null;
 
-    if (!validator.isEmail(email)) {
+    if (typeof email !== 'string' || !validator.isEmail(email)) {
       return res.status(400).json({ error: 'Please provide a valid email address' });
     }
 
-    if (password.length < 8) {
+    if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
 
-    if (name.trim().length < 2) {
-      return res.status(400).json({ error: 'Name must be at least 2 characters long' });
+    if (name.length < 2 || name.length > 100) {
+      return res.status(400).json({ error: 'Name must be between 2 and 100 characters' });
+    }
+    // A name is never a link or markup; this field is the classic spam carrier.
+    if (/https?:|www\.|[<>]/i.test(name)) {
+      return res.status(400).json({ error: 'Please enter your name only' });
     }
 
-    // Check if email already exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
-    }
+    const emailLower = email.toLowerCase();
 
-    // Hash password
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Insert new user
-    const result = await pool.query(
-      `INSERT INTO users (email, password_hash, name, status, role, application_message) 
-       VALUES ($1, $2, $3, 'pending', 'user', $4) 
-       RETURNING id, email, name, status, created_at`,
-      [email.toLowerCase(), passwordHash, name.trim(), applicationMessage]
+    // Garbage-collect stale unverified sign-ups so bot rows never accumulate.
+    await pool.query(
+      `DELETE FROM users WHERE email_verified_at IS NULL
+         AND created_at < CURRENT_TIMESTAMP - ($1 || ' days')::interval`,
+      [UNVERIFIED_TTL_DAYS]
     );
 
-    const newUser = result.rows[0];
-
-    // Send welcome email to user
-    const welcomeEmailSent = await emailService.sendWelcomeEmail(newUser.email, newUser.name);
-    if (welcomeEmailSent) {
-      console.log(`Welcome email sent to ${newUser.email}`);
-    } else {
-      console.error(`Failed to send welcome email to ${newUser.email}`);
+    const existingUser = await pool.query(
+      'SELECT id, email_verified_at FROM users WHERE email = $1',
+      [emailLower]
+    );
+    const existing = existingUser.rows[0];
+    if (existing && existing.email_verified_at) {
+      // Same wording as success so the form cannot be used to enumerate
+      // registered addresses.
+      console.log(`Registration attempt for existing account ${emailLower}`);
+      return res.status(201).json({ message: REGISTERED_MESSAGE });
     }
 
-    // Send notification email to admin
-    const adminEmailSent = await emailService.sendAdminNotificationEmail(newUser.email, newUser.name, applicationMessage);
-    if (adminEmailSent) {
-      console.log(`Admin notification email sent for new user: ${newUser.email}`);
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExpires = new Date(Date.now() + VERIFY_TOKEN_HOURS * 60 * 60 * 1000);
+
+    if (existing) {
+      // Unverified re-registration (lost the email, typo in name...): replace
+      // the pending details and send a fresh link.
+      await pool.query(
+        `UPDATE users SET password_hash = $1, name = $2, application_message = $3,
+                          verify_token = $4, verify_token_expires = $5, created_at = CURRENT_TIMESTAMP
+         WHERE id = $6`,
+        [passwordHash, name, applicationMessage, hashResetToken(verifyToken), verifyExpires, existing.id]
+      );
     } else {
-      console.error(`Failed to send admin notification email for user: ${newUser.email}`);
+      await pool.query(
+        `INSERT INTO users (email, password_hash, name, status, role, application_message,
+                            verify_token, verify_token_expires)
+         VALUES ($1, $2, $3, 'pending', 'user', $4, $5, $6)`,
+        [emailLower, passwordHash, name, applicationMessage, hashResetToken(verifyToken), verifyExpires]
+      );
     }
 
-    res.status(201).json({
-      message: 'Registration successful. Your account is pending approval.',
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        status: newUser.status
-      }
-    });
+    const sent = await emailService.sendVerificationEmail(emailLower, verifyToken);
+    if (sent) {
+      console.log(`Verification email sent to ${emailLower}`);
+    } else {
+      console.error(`Failed to send verification email to ${emailLower}`);
+    }
+
+    res.status(201).json({ message: REGISTERED_MESSAGE });
 
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
+// Email confirmation link target. Marks the address verified, notifies the
+// admin (this is the point the application becomes visible), and lands the
+// applicant on the register page with a status banner.
+router.get('/verify-email/:token', async (req, res) => {
+  const fail = () => res.redirect('/admin/register?verified=0');
+  try {
+    const token = String(req.params.token || '');
+    if (!/^[0-9a-f]{64}$/.test(token)) return fail();
+
+    const result = await pool.query(
+      `UPDATE users
+         SET email_verified_at = CURRENT_TIMESTAMP, verify_token = NULL, verify_token_expires = NULL
+       WHERE verify_token = $1 AND verify_token_expires > CURRENT_TIMESTAMP
+         AND email_verified_at IS NULL
+       RETURNING id, email, name, application_message`,
+      [hashResetToken(token)]
+    );
+    if (!result.rows.length) return fail();
+
+    const user = result.rows[0];
+    console.log(`Email verified for new user ${user.email}`);
+    const adminEmailSent = await emailService.sendAdminNotificationEmail(user.email, user.name, user.application_message);
+    if (!adminEmailSent) {
+      console.error(`Failed to send admin notification email for user: ${user.email}`);
+    }
+    res.redirect('/admin/register?verified=1');
+  } catch (error) {
+    console.error('Email verification error:', error);
+    fail();
   }
 });
 
@@ -134,7 +202,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Get user
     const result = await pool.query(
-      'SELECT id, email, name, password_hash, status, role, login_attempts, locked_until FROM users WHERE email = $1',
+      'SELECT id, email, name, password_hash, status, role, login_attempts, locked_until, email_verified_at FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -151,7 +219,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Check if account is approved
     if (user.status !== 'approved') {
       let message = 'Account not approved';
-      if (user.status === 'pending') {
+      if (user.status === 'pending' && !user.email_verified_at) {
+        message = 'Please confirm your email address first — check your inbox for the confirmation link';
+      } else if (user.status === 'pending') {
         message = 'Account is pending approval';
       } else if (user.status === 'rejected') {
         message = 'Account has been rejected';

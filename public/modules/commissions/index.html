@@ -73,6 +73,11 @@
         let offerModal = null;
         let offerId = null;
         let currentUserId = null;
+        // Loaded commissions by id. Handlers look data up here rather than
+        // having it interpolated into inline onclick attributes, where
+        // user-supplied text (e.g. an enquiry's piece description) could
+        // break out of the attribute and run as script.
+        const byId = new Map();
 
         function fmtPrice(pence, currency) {
             if (!pence) return '';
@@ -102,6 +107,8 @@
 
         function render(items) {
             const list = document.getElementById('list');
+            byId.clear();
+            for (const c of items) byId.set(Number(c.id), c);
             if (!items.length) {
                 document.getElementById('emptyState').style.display = 'block';
                 list.style.display = 'none';
@@ -154,7 +161,7 @@
                                 <span class="badge bg-light text-dark mb-2">${escapeHtml(c.status)}${price ? ' · ' + escapeHtml(price) : ''}</span>
                                 <div class="btn-group btn-group-sm d-block">
                                     ${claimBtn}
-                                    ${canOffer ? `<button class="btn btn-primary" onclick="openOffer(${c.id}, ${JSON.stringify(c.piece_description).replace(/"/g, '&quot;')}, ${c.price_pence || 0})">${c.status === 'offered' ? 'Revise price' : 'Set price'}</button>` : ''}
+                                    ${canOffer ? `<button class="btn btn-primary" onclick="openOffer(${c.id})">${c.status === 'offered' ? 'Revise price' : 'Set price'}</button>` : ''}
                                     ${canMarkPaid ? `<button class="btn btn-success" onclick="markPaidCommission(${c.id})">Mark as paid</button>` : ''}
                                     ${canFulfil ? `<button class="btn btn-info" onclick="fulfilCommission(${c.id})">Mark as ready</button>` : ''}
                                     ${canCancel ? `<button class="btn btn-outline-danger" onclick="cancelCommission(${c.id})">Cancel</button>` : ''}
@@ -166,9 +173,12 @@
             }).join('');
         }
 
-        function openOffer(id, piece, pricePence) {
+        function openOffer(id) {
+            const c = byId.get(Number(id));
+            if (!c) return;
             offerId = id;
-            document.getElementById('offerPiece').textContent = piece;
+            const pricePence = c.price_pence || 0;
+            document.getElementById('offerPiece').textContent = c.piece_description || '';
             document.getElementById('offerPrice').value = pricePence ? (pricePence / 100).toFixed(2) : '';
             document.getElementById('offerNote').value = '';
             offerModal.show();

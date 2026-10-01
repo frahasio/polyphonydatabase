@@ -7,6 +7,10 @@
     <script src="/js/dom-utils.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <style>
+        /* Anti-spam honeypot: off-screen, never shown to people. */
+        .hp-field { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container py-5" style="max-width: 640px;">
@@ -23,6 +27,10 @@
             <div class="card-body p-4">
                 <div id="message"></div>
                 <form id="enquiryForm">
+                    <div class="hp-field" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="mb-3">
                         <label for="name" class="form-label">Your name</label>
                         <input type="text" class="form-control" id="name" maxlength="200" required>
@@ -60,6 +68,17 @@
             messageDiv.innerHTML = `<div class="alert alert-${type === 'error' ? 'danger' : 'success'}">${escapeHtml(text)}</div>`;
         }
 
+        // Anti-spam timing token: fetched on page load, posted back with the
+        // form. The server rejects submissions made too soon after load.
+        let formToken = '';
+        async function loadFormToken() {
+            try {
+                const r = await fetch('/api/auth/form-token', { cache: 'no-store' });
+                if (r.ok) formToken = (await r.json()).token || '';
+            } catch (e) { /* server will ask for a reload */ }
+        }
+        loadFormToken();
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             submitBtn.disabled = true;
@@ -70,7 +89,9 @@
                     email: document.getElementById('email').value.trim(),
                     piece_description: document.getElementById('piece').value.trim(),
                     requirements: document.getElementById('requirements').value.trim(),
-                    group_id: document.getElementById('group_id').value || null
+                    group_id: document.getElementById('group_id').value || null,
+                    website: document.getElementById('website').value,
+                    form_token: formToken
                 };
                 const res = await fetch('/api/commissions/enquiry', {
                     method: 'POST',
@@ -83,6 +104,7 @@
                     showMessage(data.message || 'Enquiry received.', 'success');
                 } else {
                     showMessage(data.error || 'Something went wrong.', 'error');
+                    if (!formToken || /reload|expired/i.test(data.error || '')) loadFormToken();
                     submitBtn.disabled = false;
                 }
             } catch (err) {

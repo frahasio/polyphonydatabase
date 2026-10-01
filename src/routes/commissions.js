@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import validator from 'validator';
 import { pool } from '../db.js';
 import emailService from '../services/emailService.js';
+import { checkAntiSpam } from '../middleware/antiSpam.js';
 
 // Public + commissioner-facing commission endpoints (no login). Mounted at
 // /api/commissions. The Stripe webhook is mounted separately in index.js
@@ -30,9 +31,17 @@ function publicView(c) {
   };
 }
 
+const ENQUIRY_RECEIVED = 'Thank you — your enquiry has been received. We will email you with a price.';
+
 // Submit a commission enquiry (no price yet).
 router.post('/enquiry', enquiryLimiter, async (req, res) => {
   try {
+    const spam = checkAntiSpam(req, 'enquiry');
+    if (!spam.ok) {
+      if (spam.silent) return res.status(201).json({ message: ENQUIRY_RECEIVED });
+      return res.status(400).json({ error: spam.error });
+    }
+
     const name = String(req.body.name || '').trim().slice(0, 200);
     const email = String(req.body.email || '').trim().slice(0, 200);
     const piece = String(req.body.piece_description || '').trim().slice(0, 2000);
@@ -60,7 +69,7 @@ router.post('/enquiry', enquiryLimiter, async (req, res) => {
       console.error('Commission enquiry admin email failed:', e.message)
     );
 
-    res.status(201).json({ message: 'Thank you — your enquiry has been received. We will email you with a price.' });
+    res.status(201).json({ message: ENQUIRY_RECEIVED });
   } catch (error) {
     console.error('Commission enquiry error:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -138,7 +138,7 @@ class EmailService {
             
             <div class="content">
               <h2>Password Reset Request</h2>
-              <p>We received a request to reset the password for your account (${email}).</p>
+              <p>We received a request to reset the password for your account (${esc(email)}).</p>
               
               <p>Click the button below to reset your password:</p>
               
@@ -205,7 +205,7 @@ class EmailService {
     const loginUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/admin/login`;
     const subject = isReactivation ? 'Account Reactivated - Polyphony Database' : 'Account Approved - Polyphony Database';
     const headerText = isReactivation ? 'Account Reactivated' : 'Account Approved';
-    const welcomeText = isReactivation ? `Welcome back, ${name}!` : `Welcome, ${name}!`;
+    const welcomeText = isReactivation ? `Welcome back, ${esc(name)}!` : `Welcome, ${esc(name)}!`;
     const mainText = isReactivation ? 
       'Good news! Your account for the Polyphony Database has been reactivated.' :
       'Great news! Your account request for the Polyphony Database has been approved.';
@@ -246,7 +246,7 @@ class EmailService {
               
               <p><strong>Your login details:</strong></p>
               <ul>
-                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Email:</strong> ${esc(email)}</li>
                 <li><strong>Password:</strong> The password you created during registration</li>
               </ul>
               
@@ -320,7 +320,7 @@ class EmailService {
             
             <div class="content">
               <h2>Account Status Update</h2>
-              <p>Dear ${name},</p>
+              <p>Dear ${esc(name)},</p>
               
               <div class="warning">
                 <strong>Important:</strong> Your account for the Polyphony Database has been suspended.
@@ -405,7 +405,7 @@ class EmailService {
             </div>
             
             <div class="content">
-              <h2>Thank you for your interest, ${name}!</h2>
+              <h2>Thank you for your interest, ${esc(name)}!</h2>
               <p>We have received your registration request for access to the Polyphony Database.</p>
               
               <div class="info">
@@ -419,7 +419,7 @@ class EmailService {
               
               <p><strong>Your registration details:</strong></p>
               <ul>
-                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Email:</strong> ${esc(email)}</li>
                 <li><strong>Status:</strong> Pending approval</li>
               </ul>
               
@@ -608,7 +608,7 @@ class EmailService {
             
             <div class="content">
               <h2>Account Request Status</h2>
-              <p>Dear ${name},</p>
+              <p>Dear ${esc(name)},</p>
               
               <p>Thank you for your interest in accessing the Polyphony Database.</p>
               
@@ -654,6 +654,24 @@ class EmailService {
       console.error('Failed to send account rejected email:', error);
       return false;
     }
+  }
+
+  // Registration step 1: confirm the address. Deliberately contains NOTHING
+  // the applicant typed (no name, no message) so the form cannot be used to
+  // relay spam to third parties via our sender.
+  async sendVerificationEmail(email, token) {
+    const base = process.env.BASE_URL || 'http://localhost:3000';
+    const link = `${base}/api/auth/verify-email/${token}`;
+    return this.sendMail({
+      to: email,
+      subject: 'Confirm your email address - Polyphony Database',
+      html: emailShell(`<p style="margin-top:0;">Someone (hopefully you) has requested an account on the Polyphony Database using this email address.</p>
+        <p style="margin-bottom:0;">To confirm your address and submit your application for review, please click:</p>
+        ${emailButton(link, 'Confirm email address')}
+        <p style="font-size:12px;color:#64748b;margin-top:0;">or copy this link: <a href="${esc(link)}" style="color:#8b1538;">${esc(link)}</a></p>
+        <p>This link is valid for 48 hours. Once confirmed, an administrator will review your application and you will receive a further email when it has been decided.</p>
+        <p style="margin-bottom:0;">If you did not request an account, you can ignore this email and nothing further will happen.</p>`),
+    });
   }
 
   // Generic send helper (used by the commissions module).

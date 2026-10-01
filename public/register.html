@@ -195,6 +195,15 @@
                 font-size: 24px;
             }
         }
+        /* Anti-spam honeypot: off-screen, never shown to people. */
+        .hp-field {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -211,9 +220,13 @@
         <div id="message"></div>
 
         <form id="registerForm" style="display: block;">
+            <div class="hp-field" aria-hidden="true">
+                <label for="website">Website</label>
+                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+            </div>
             <div class="form-group">
                 <label for="name" class="required">Full Name</label>
-                <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                <input type="text" id="name" name="name" required maxlength="100" placeholder="Enter your full name">
             </div>
 
             <div class="form-group">
@@ -260,8 +273,8 @@
 
         <div id="successMessage" style="display: none;">
             <div class="success">
-                <strong>Registration Successful!</strong><br>
-                Your account request has been submitted and is pending approval. You will receive an email notification once your account has been reviewed.
+                <strong>One more step</strong><br>
+                We have sent a confirmation link to your email address. Please click it to complete your registration; your request will then be reviewed by an administrator. If it doesn't arrive within a few minutes, check your spam folder.
             </div>
             <div class="links">
                 <a href="/admin/login">Return to Login</a>
@@ -279,6 +292,26 @@
         const passwordInput = document.getElementById('password');
         const confirmPasswordInput = document.getElementById('confirmPassword');
         const strengthBar = document.getElementById('strengthBar');
+
+        // Landing from the email confirmation link.
+        const verified = new URLSearchParams(window.location.search).get('verified');
+        if (verified === '1') {
+            registerForm.style.display = 'none';
+            messageDiv.innerHTML = '<div class="success"><strong>Email confirmed.</strong><br>Your application has been passed to an administrator for review. You will receive an email once it has been decided.</div><div class="links"><a href="/admin/login">Return to Login</a></div>';
+        } else if (verified === '0') {
+            messageDiv.innerHTML = '<div class="error">That confirmation link is invalid or has expired. Please register again below to receive a new one.</div>';
+        }
+
+        // Anti-spam timing token: fetched on page load, posted back with the
+        // form. The server rejects submissions made too soon after load.
+        let formToken = '';
+        async function loadFormToken() {
+            try {
+                const r = await fetch('/api/auth/form-token', { cache: 'no-store' });
+                if (r.ok) formToken = (await r.json()).token || '';
+            } catch (e) { /* server will ask for a reload */ }
+        }
+        loadFormToken();
 
         // Password strength checker
         passwordInput.addEventListener('input', checkPasswordStrength);
@@ -358,7 +391,11 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name, email, password, message: applicationMessage })
+                    body: JSON.stringify({
+                        name, email, password, message: applicationMessage,
+                        website: formData.get('website') || '',
+                        form_token: formToken
+                    })
                 });
 
                 const data = await response.json();
@@ -368,6 +405,7 @@
                     successMessage.style.display = 'block';
                 } else {
                     showMessage(data.error || 'Registration failed', 'error');
+                    if (!formToken || /reload|expired/i.test(data.error || '')) loadFormToken();
                 }
             } catch (error) {
                 console.error('Registration error:', error);
