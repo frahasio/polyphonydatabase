@@ -93,6 +93,13 @@
     return state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
   }
 
+  /** ABC lyrics/titles: per-block face, or the booklet body font. */
+  function abcFontKeyFor(block) {
+    var key = block && block.abcTextFont;
+    if (key && key !== 'body' && BOOKLET_FONT_STACKS[key] != null) return key;
+    return state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT;
+  }
+
   /**
    * Ensure the self-hosted booklet font stylesheet is present.
    * All picker faces live in /modules/liturgy-booklet/fonts/booklet-fonts.css
@@ -1505,6 +1512,10 @@
         if (o.abcTimeBased == null) o.abcTimeBased = false;
         if (o.abcAlign == null) o.abcAlign = 'left';
         if (o.abcSystemGapMm == null) o.abcSystemGapMm = 2;
+        else o.abcSystemGapMm = Math.min(20, Math.max(-8, Number(o.abcSystemGapMm)));
+        if (!o.abcTextFont || (o.abcTextFont !== 'body' && BOOKLET_FONT_STACKS[o.abcTextFont] == null)) {
+          o.abcTextFont = 'body';
+        }
         if (o.abcStaffColor == null) o.abcStaffColor = '';
         if (o.abcNoteColor == null) o.abcNoteColor = '';
         if (o.abcShowTitle == null) o.abcShowTitle = false;
@@ -2703,12 +2714,13 @@
       document.body.appendChild(mount);
       // abcjs defaults all text to Times New Roman / Helvetica, which don't
       // exist on the Heroku dyno where the PDF is rendered — headless Chrome
-      // substitutes a blocky fallback. Pin every text class to Crimson Text
-      // (the chant lyric font, loaded from Google Fonts in both preview and
-      // export HTML), keeping abcjs's default sizes/weights so layout and
-      // note spacing are unchanged.
-      loadGoogleFont('Crimson Text');
-      var ABC_FONT = 'Crimson Text';
+      // substitutes a blocky fallback. Pin every text class to a self-hosted
+      // booklet face (the block's choice, or the booklet body font).
+      var ABC_FONT = opts.fontFamily && BOOKLET_FONT_STACKS[opts.fontFamily] != null
+        ? opts.fontFamily
+        : (state.settings.fontFamilyKey || BOOKLET_DEFAULT_FONT);
+      loadGoogleFont(ABC_FONT);
+      mount.style.fontFamily = fontStackFor(ABC_FONT);
       var abcOpts = {
         scale: scale || 0.7,
         staffwidth: staffWidthPx,
@@ -2728,7 +2740,7 @@
           titlefont: ABC_FONT + ' 20',
           subtitlefont: ABC_FONT + ' 16',
           composerfont: ABC_FONT + ' 14 italic',
-          vocalfont: ABC_FONT + ' 13 bold',
+          vocalfont: ABC_FONT + ' 13',
           wordsfont: ABC_FONT + ' 16',
           textfont: ABC_FONT + ' 16',
           partsfont: ABC_FONT + ' 15',
@@ -2789,6 +2801,34 @@
       });
       var lineNums = Object.keys(lineBands).map(Number).sort(function (a, z) { return a - z; });
 
+      // Fold unclassed drawing (tune title, etc.) into the nearest system.
+      // abcjs's own gap between systems is empty space with no elements, so it
+      // stays out of these boxes and the system-gap slider is the only air.
+      if (lineNums.length > 1) {
+        svg.querySelectorAll('*').forEach(function (el) {
+          if (el.closest && el.closest('defs')) return;
+          var tag = el.localName || el.tagName;
+          if (tag === 'defs' || tag === 'style' || tag === 'clipPath' || tag === 'title' || tag === 'desc') return;
+          var cls = String(el.getAttribute('class') || '');
+          if (/(?:^|\s)abcjs-l\d+(?:\s|$)/.test(cls)) return;
+          var bb;
+          try { bb = el.getBBox(); } catch (_) { return; }
+          if (!bb || bb.width <= 0 || bb.height <= 0) return;
+          if (bb.height > fullBB.height * 0.85 && bb.width > fullBB.width * 0.85) return;
+          var mid = bb.y + bb.height / 2;
+          var best = lineNums[0];
+          var bestDist = Infinity;
+          for (var bi2 = 0; bi2 < lineNums.length; bi2++) {
+            var band = lineBands[lineNums[bi2]];
+            var dist = Math.abs(mid - (band.top + band.bottom) / 2);
+            if (dist < bestDist) { bestDist = dist; best = lineNums[bi2]; }
+          }
+          var target = lineBands[best];
+          target.top = Math.min(target.top, bb.y);
+          target.bottom = Math.max(target.bottom, bb.y + bb.height);
+        });
+      }
+
       var pxPerUnit = staffWidthPx / (fullBB.width + pad * 2);
 
       function makeBandSvg(bandTop, bandBottom) {
@@ -2810,16 +2850,12 @@
         // Single system (or no line classes found): one cropped svg.
         result.push(makeBandSvg(fullBB.y - pad, fullBB.y + fullBB.height + pad));
       } else {
+        // Crop each system to its own ink. abcjs refuses to place systems closer
+        // than ~16mm (staffsep 61px); splitting that empty gap at the midpoint
+        // baked it into every SVG, so the system-gap slider could not remove it.
         for (var ln = 0; ln < lineNums.length; ln++) {
           var cur = lineBands[lineNums[ln]];
-          // Band edges sit midway between adjacent systems so nothing is cut off.
-          var top = ln === 0
-            ? fullBB.y - pad
-            : (lineBands[lineNums[ln - 1]].bottom + cur.top) / 2;
-          var bottom = ln === lineNums.length - 1
-            ? fullBB.y + fullBB.height + pad
-            : (cur.bottom + lineBands[lineNums[ln + 1]].top) / 2;
-          result.push(makeBandSvg(top, bottom));
+          result.push(makeBandSvg(cur.top - pad, cur.bottom + pad));
         }
       }
 
@@ -2952,7 +2988,10 @@
         var abcStaffW = Math.round(abcContentW * abcStaffWidthPct / 100);
 
         var abcShowTitle = !!b.abcShowTitle;
-        var abcSystemGapMm = Math.max(0, Math.min(20, parseFloat(b.abcSystemGapMm) || 2));
+        var abcGapRaw = parseFloat(b.abcSystemGapMm);
+        // 0 is a real value (flush). The old `|| 2` turned a gap of 0 back into 2mm.
+        var abcSystemGapMm = Math.min(20, Math.max(-8, Number.isFinite(abcGapRaw) ? abcGapRaw : 2));
+        var abcFont = abcFontKeyFor(b);
         var abcSColor = String(b.abcStaffColor || '').trim();
         var abcNColor = String(b.abcNoteColor || '').trim();
         var abcMinPad = Math.max(0, Math.min(40, Number(b.abcMinPadding) || 0));
@@ -2961,7 +3000,7 @@
         // Cache is keyed on everything that affects rendering.
         var abcSig = JSON.stringify([
           b.abcText, abcScale, abcStaffW, abcShowTitle, abcSColor, abcNColor,
-          abcMinPad, abcTimeBased,
+          abcMinPad, abcTimeBased, abcFont,
           b.abcTranslation, b.abcTranslationLeftPct, b.abcTranslationGapMm,
           b.abcTranslationBorder, b.abcTranslationFontSizePt,
           b.abcTranslationVAlign, b.abcTranslationTextAlign
@@ -2977,6 +3016,7 @@
             noteColor: abcNColor || undefined,
             minPadding: abcMinPad,
             timeBased: abcTimeBased,
+            fontFamily: abcFont,
           }) || [];
           abcRenderCache.set(b.id, { sig: abcSig, svgs: abcSvgs.map(function (s) { return s.cloneNode(true); }) });
         }
@@ -3566,7 +3606,7 @@
       var gap = 0, gapFlex = false;
 
       if (curEls.length > 0) {
-        if (item.internalGapPx != null && item.internalGapPx >= 0) {
+        if (item.internalGapPx != null && Number.isFinite(item.internalGapPx)) {
           gap = item.internalGapPx;
         } else {
           gap = mmToPx(pendingGapMm);
@@ -4556,6 +4596,11 @@
       var abcTfs = b.abcTranslationFontSizePt != null ? b.abcTranslationFontSizePt : 11;
       var abcSColorVal = /^#[0-9a-f]{6}$/i.test(String(b.abcStaffColor||'').trim()) ? String(b.abcStaffColor).trim() : '#000000';
       var abcNColorVal = /^#[0-9a-f]{6}$/i.test(String(b.abcNoteColor||'').trim()) ? String(b.abcNoteColor).trim() : '#000000';
+      var abcFontSelection = b.abcTextFont && BOOKLET_FONT_STACKS[b.abcTextFont] != null ? b.abcTextFont : 'body';
+      var abcFontOptions = Object.keys(BOOKLET_FONTS).map(function (fontName) {
+        return '<option value="' + escapeAttr(fontName) + '"' +
+          (abcFontSelection === fontName ? ' selected' : '') + '>' + escapeHtml(fontName) + '</option>';
+      }).join('');
 
       panel.innerHTML =
         '<label class="form-label small mb-0">Label <span class="text-muted">(left panel only — not printed)</span></label>' +
@@ -4582,6 +4627,11 @@
           '<input class="form-check-input" type="checkbox" id="chkAbcShowTitle"' + (b.abcShowTitle ? ' checked' : '') + '>' +
           '<label class="form-check-label small" for="chkAbcShowTitle">Print T: title on page</label>' +
         '</div>' +
+        '<label class="form-label small mb-0" for="edAbcTextFont">Text font</label>' +
+        '<select id="edAbcTextFont" class="form-select form-select-sm mb-1">' +
+          '<option value="body"' + (abcFontSelection === 'body' ? ' selected' : '') + '>Booklet font</option>' +
+          abcFontOptions +
+        '</select>' +
         '<div class="small border rounded px-2 py-1 mb-1 bg-light" style="font-size:0.72rem">' +
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Scale</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcScaleNum" min="0.1" max="3" step="0.05" value="' + abcScale + '" style="width:3.5rem">' +
@@ -4589,9 +4639,9 @@
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">Staff width %</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcWidthNum" min="20" max="100" step="1" value="' + abcWidth + '" style="width:3.5rem">' +
             '<input type="range" class="form-range flex-grow-1" id="edAbcWidthRange" min="20" max="100" step="1" value="' + abcWidth + '"></div>' +
-          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem">System gap mm</span>' +
-            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcGapNum" min="0" max="20" step="0.5" value="' + abcGapMm + '" style="width:3.5rem">' +
-            '<input type="range" class="form-range flex-grow-1" id="edAbcGapRange" min="0" max="20" step="0.5" value="' + abcGapMm + '"></div>' +
+          '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem" title="Space between systems. The engraved gap inside the music is cropped away, so 0 sits systems flush and a negative value pulls them closer.">System gap mm</span>' +
+            '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcGapNum" min="-8" max="20" step="0.1" value="' + abcGapMm + '" style="width:3.5rem">' +
+            '<input type="range" class="form-range flex-grow-1" id="edAbcGapRange" min="-8" max="20" step="0.1" value="' + abcGapMm + '"></div>' +
           '<div class="d-flex align-items-center mb-1"><span style="min-width:5.5rem" title="Minimum horizontal gap between notes. Raise this to stop bars with short lyrics (e.g. E-I-E-I-O) from collapsing together.">Min note gap</span>' +
             '<input type="number" class="form-control form-control-sm text-end me-1 chant-num-box" id="edAbcMinPadNum" min="0" max="40" step="1" value="' + abcMinPad + '" style="width:3.5rem">' +
             '<input type="range" class="form-range flex-grow-1" id="edAbcMinPadRange" min="0" max="40" step="1" value="' + abcMinPad + '"></div>' +
@@ -4695,6 +4745,12 @@
         b.abcShowTitle = e.target.checked;
         scheduleAutosave(); markLayoutStale();
       });
+      panel.querySelector('#edAbcTextFont')?.addEventListener('change', function () {
+        var selectedFont = panel.querySelector('#edAbcTextFont').value;
+        b.abcTextFont = BOOKLET_FONT_STACKS[selectedFont] != null ? selectedFont : 'body';
+        if (b.abcTextFont !== 'body') loadGoogleFont(b.abcTextFont);
+        scheduleAutosave(); markLayoutStale();
+      });
 
       function wireAbcSlider(numId, rangeId, prop, min, max, fallback, isFloat) {
         var numEl = panel.querySelector('#' + numId);
@@ -4718,7 +4774,7 @@
       }
       wireAbcSlider('edAbcScaleNum', 'edAbcScaleRange', 'abcScale', 0.1, 3, 0.7, true);
       wireAbcSlider('edAbcWidthNum', 'edAbcWidthRange', 'abcStaffWidth', 20, 100, 100, false);
-      wireAbcSlider('edAbcGapNum', 'edAbcGapRange', 'abcSystemGapMm', 0, 20, 2, true);
+      wireAbcSlider('edAbcGapNum', 'edAbcGapRange', 'abcSystemGapMm', -8, 20, 2, true);
       wireAbcSlider('edAbcMinPadNum', 'edAbcMinPadRange', 'abcMinPadding', 0, 40, 0, false);
 
       panel.querySelector('#chkAbcTimeBased')?.addEventListener('change', function (e) {
@@ -5636,6 +5692,7 @@
       b.abcStaffColor = '';
       b.abcNoteColor = '';
       b.abcShowTitle = false;
+      b.abcTextFont = 'body';
       b.sectionTitle = '';
       b.sectionSourceRef = '';
       b.titleFontSizePt = 11;
