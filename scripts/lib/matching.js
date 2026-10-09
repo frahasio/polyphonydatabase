@@ -309,8 +309,15 @@ export function normalizeFeast(feast) {
 export function mapFeast(feast) {
   const f = normalizeFeast(feast);
   if (!f) return null;
+  // Numbered weeks after Pentecost only exist in the map through 23.
+  // "Dominica 24 post Pentecosten" still contains the bare "pentecosten"
+  // stem, which would otherwise label the day Pentecost itself (the same
+  // trap the hebdomadam entries above were added to prevent).
+  const numberedAfterPentecost = /\b(?:dominica|hebdomadam) \d+ post (?:octavam )?pentecost/.test(f);
   for (const [stem, name] of FEAST_MAP_SORTED) {
-    if (f.includes(stem)) return name;
+    if (!f.includes(stem)) continue;
+    if (numberedAfterPentecost && name === 'Pentecost') continue;
+    return name;
   }
   return null;
 }
