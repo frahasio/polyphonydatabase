@@ -608,15 +608,19 @@ router.get('/', async (req, res) => {
 
         if (title.trim()) {
             paramCount++;
-            conditions.push(`(
-                TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]/-', '') OR 
-                EXISTS (
-                    SELECT 1 FROM compositions c2
-                    JOIN titles t2 ON c2.title_id = t2.id
-                    WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE TRANSLATE(LOWER($${paramCount}), '.,;:!?"''()[]/-', '')
-                )
+            // Same punctuation fold as the public search, bound as the ILIKE
+            // pattern so it can use idx_groups_display_title_norm_trgm /
+            // idx_titles_text_norm_trgm (migration 029).
+            const folded = `%${title.trim().toLowerCase().replace(/[.,;:!?"'()[\]/-]/g, '')}%`;
+            conditions.push(`g.id IN (
+                SELECT g_t.id FROM groups g_t
+                WHERE translate(lower(g_t.display_title), '.,;:!?"''()[]/-', '') ILIKE $${paramCount}
+                UNION ALL
+                SELECT c2.group_id FROM titles t2
+                JOIN compositions c2 ON c2.title_id = t2.id
+                WHERE translate(lower(t2.text), '.,;:!?"''()[]/-', '') ILIKE $${paramCount}
             )`);
-            params.push(`%${title.trim()}%`);
+            params.push(folded);
         }
 
         if (composer) {

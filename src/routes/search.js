@@ -385,28 +385,35 @@ router.get('/groups', async (req, res) => {
       // "Heu mihi..."); use % explicitly to skip words. A whole-phrase
       // match on the composer name is also accepted so a bare surname
       // still finds a composer's works.
+      //
+      // Look the phrase up on titles/groups/composers first, then keep those
+      // group ids. A per-group EXISTS cannot use the trigram indexes on
+      // translate(lower(...)) (migration 029) and was probing all ~40k groups.
+      // The translate() character sets below must stay identical to that migration.
       // Empty variations (e.g. a search of pure punctuation) would produce
       // an ILIKE '%%' that matches everything — drop them.
-      const variationConditions = createVariations(searchTerm).filter(v => v.trim()).map((variation) => {
-        const p = paramIndex;
+      const NORM = `.,;:!?"''()[]/-`;
+      const NORM_HYPHEN = `.,;:!?"''()[]/`;
+      const bindPatterns = (list) => list.filter((v) => v.trim()).map((variation) => {
         queryParams.push(`%${variation}%`);
+        const p = paramIndex;
         paramIndex++;
-        return `(
-          TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/-', '') ILIKE $${p} OR
-          EXISTS (
-            SELECT 1 FROM compositions c2
-            JOIN titles t2 ON c2.title_id = t2.id
-            WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/-', '') ILIKE $${p}
-          ) OR
-          EXISTS (
-            SELECT 1 FROM compositions c2
-            CROSS JOIN LATERAL unnest(COALESCE(c2.composer_id_list, ARRAY[]::integer[])) AS cid
-            JOIN composers comp ON comp.id = cid AND comp.id != 23
-            WHERE c2.group_id = g.id
-            AND TRANSLATE(LOWER(comp.name), '.,;:!?"''()[]/-', '') ILIKE $${p}
-          )
-        )`;
+        return p;
       });
+      const parts = [];
+      // One UNION arm per pattern, not OR'd together. A long phrase with
+      // several i/j and u/v variants makes BitmapOr look more expensive than
+      // a sequential scan, and that scan is tens of seconds.
+      const addArms = (charset, paramNums, includeComposers) => {
+        for (const p of paramNums) {
+          parts.push(`SELECT g_t.id FROM groups g_t WHERE translate(lower(g_t.display_title), '${charset}', '') ILIKE $${p}`);
+          parts.push(`SELECT c2.group_id FROM titles t2 JOIN compositions c2 ON c2.title_id = t2.id WHERE translate(lower(t2.text), '${charset}', '') ILIKE $${p}`);
+          if (includeComposers) {
+            parts.push(`SELECT c2.group_id FROM composers comp JOIN compositions c2 ON c2.composer_id_list && ARRAY[comp.id] WHERE comp.id <> 23 AND translate(lower(comp.name), '${charset}', '') ILIKE $${p}`);
+          }
+        }
+      };
+      addArms(NORM, bindPatterns(createVariations(searchTerm)), true);
 
       // Hyphen-aware matching: multipart titles use " - " between parts.
       // The standard normalization strips hyphens, so when the query
@@ -416,23 +423,11 @@ router.get('/groups', async (req, res) => {
       if (searchTerm.includes('-')) {
         // Use the untrimmed input so " - " keeps its surrounding spaces and
         // matches only the spaced part separator, not hyphenated words.
-        createVariations(title, true).filter(v => v.trim()).forEach((variation) => {
-          const p = paramIndex;
-          queryParams.push(`%${variation}%`);
-          paramIndex++;
-          variationConditions.push(`(
-            TRANSLATE(LOWER(g.display_title), '.,;:!?"''()[]/', '') ILIKE $${p} OR
-            EXISTS (
-              SELECT 1 FROM compositions c2
-              JOIN titles t2 ON c2.title_id = t2.id
-              WHERE c2.group_id = g.id AND TRANSLATE(LOWER(t2.text), '.,;:!?"''()[]/', '') ILIKE $${p}
-            )
-          )`);
-        });
+        addArms(NORM_HYPHEN, bindPatterns(createVariations(title, true)), false);
       }
 
-      if (variationConditions.length > 0) {
-        whereConditions.push(`(${variationConditions.join(' OR ')})`);
+      if (parts.length > 0) {
+        whereConditions.push(`g.id IN (${parts.join(' UNION ALL ')})`);
       }
     }
 

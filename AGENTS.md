@@ -341,10 +341,17 @@ deployed. Also shipped since:
  JSON subqueries for those 25 ids only (unnest WITH ORDINALITY preserves
  order). Previously the hydration ran for EVERY matching row before LIMIT.
  The count query still runs the full filter set (needed for exact
- pagination). Remaining ideas: merge count into phase 1 via COUNT(*)
- OVER (), query-builder cleanup. No automated test suite — verify the main
- filter/sort combos manually after touching this. Production indexes DO
- exist (trigram, GIN) - see `000_baseline_schema.sql`.
+ pagination). Title matching (Oct 2026, migration 029) looks up normalized
+ titles/groups/composers via expression GIN trigram indexes instead of
+ probing every group — the old translate(lower(...)) ILIKE EXISTS could not
+ use idx_titles_text_trgm and was several seconds per search. The translate()
+ character sets in search.js / groups.js must stay identical to that
+ migration. Remaining ideas: merge count into phase 1 via COUNT(*)
+ OVER (), query-builder cleanup, and a stored "has a catalogued source"
+ flag so the unfiltered list does not re-join every inclusion. No automated
+ test suite — verify the main filter/sort combos manually after touching
+ this. Production indexes DO exist (trigram, GIN) - see
+ `000_baseline_schema.sql`.
 - **Booklet decomposition** (`public/modules/liturgy-booklet/booklet-app.js`,
   ~5,500 lines): worth splitting into modules (state/store, migrate,
   renderers, paginator, pdf export, ui) and adding undo, BUT it is a complex
